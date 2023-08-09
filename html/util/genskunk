@@ -1,0 +1,447 @@
+#! /usr/local/bin/perl -w 
+
+$0 =~ s,.*/,,;
+$version="v1.1";
+$program=$0;
+$debug=0;
+$mailto='mailto:skunkware@sco.com';
+$baseref='http://www.sco.com/skunkware';
+$isweb=0;
+
+sub usage {
+  warn "@_\n" if @_;
+  $! = 0;
+  die <<EOF;
+Usage: $0 -w | -c file name prev next
+  -w        - Generate pages for the Web
+  -c        - Generate pages for the CD-ROM
+  file      - name of the template (.tmpl) file
+  name      - the name of the package
+  prev      - the name of the previous link
+  next      - the name of the next link
+  base      - the base href prefix to use
+
+  Use the word NONE for the prev and next parameters if the page doesnt
+  have a previous or next page in the document chain.
+
+EOF
+}
+
+if (@ARGV<1 || $#ARGV != 5) {
+  usage();
+}
+
+$mode="0";
+
+if($ARGV[0] eq "-w" || $ARGV[0] eq "web") {
+  $mode="SKUNK_WEB";
+  $isweb=1;
+}
+elsif($ARGV[0] eq "-c" || $ARGV[0] eq "cd") {
+  $mode="SKUNK_CD";
+}
+
+if ($mode eq "0") {
+  usage();
+}
+
+$now=`date '+%A %b %d, %Y at %T %Z'`; chop $now;
+$basefile=$ARGV[1];
+$shortname=$ARGV[2];
+$previous=$ARGV[3];
+$next=$ARGV[4];
+$baseref=$ARGV[5];
+$realbase=`basename $basefile`; chop $realbase;
+#if ($isweb) {
+#  if (not -d $shortname) {
+#    mkdir($shortname,0755) or die "$program error: Could not create directory $shortname\n";
+#  }
+#  $output="$shortname/index.html";
+#} else {
+  $output="${realbase}.html";
+#}
+$template="${basefile}.tmpl";
+$templflt="/lib/cpp -I. -I.. -I../src -D$mode $template |";
+
+-f $template or die "$program error: $template not found\n";
+
+if ($debug) {
+ print "basefile : $basefile\n";
+ print "now      : $now\n";
+ print "shortname: $shortname\n";
+ print "previous : $previous\n";
+ print "next     : $next\n";
+ print "output   : $output\n";
+ print "realbase : $realbase\n";
+ print "template : $template\n";
+}
+
+if ($previous eq "none" or $previous eq "NONE")
+{
+    $prevref="";
+} else {
+    $prevref="<AREA SHAPE=\"rect\" COORDS=\"112,2,236,26\" HREF=\"$baseref/$previous.html\">";
+}
+
+if ($next eq "none" or $next eq "NONE") {
+    $nextref="";
+} else {
+    $nextref="<AREA SHAPE=\"rect\" COORDS=\"252,1,331,26\" HREF=\"$baseref/$next.html\">";
+}
+
+if ($debug) {
+ print "nextref=$nextref\n";
+ print "prevref=$prevref\n";
+}
+
+open (TEMPLATE,$templflt) or die "$program error: cannot open $template for reading\n";
+open (OUTPUT,">$output") or die "$program error: cannot open $output for output\n";
+
+sub skunkheader{
+    my($foo) = @_;
+    my($title,$plink,$nlink) = split(/;/,$foo);
+    my($oplink,$onlink);
+    if (not $plink) {
+        $oplink = $prevref;
+    } else {
+        $oplink="<AREA SHAPE=\"rect\" COORDS=\"112,2,236,26\" HREF=\"$plink.html\">";
+    }
+    if (not $nlink) {
+        $onlink = $nextref;
+    } else {
+        $onlink="<AREA SHAPE=\"rect\" COORDS=\"252,1,331,26\" HREF=\"$nlink.html\">";
+    }
+
+    if ($debug) {
+        print "skunkheader: title='$title'\n";
+        print "             oplink='$oplink'\n";
+        print "             onlink='$onlink'\n";
+    }
+
+    if (not $title) {
+        warn "$program: No TITLE specified in SKUNKHEADER\n";
+    }
+
+    if (not $isweb) {
+#
+# This is the header information for the Skunkware CD-ROM
+#
+        print OUTPUT <<EOF;
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<!-- DO NOT EDIT -->
+<!-- Automatically generated from $template by $program $version -->
+<!-- DO NOT EDIT -->
+<HTML>
+<HEAD>
+  <TITLE>$title</TITLE>
+  <LINK REV="made" HREF="$mailto">
+
+<meta name="resource-type" content="document">
+<meta name="description" content="SCO Skunkware">
+<meta name="keywords" content="SCO Skunkware Open Source">
+
+<meta name="distribution" content="global">
+
+<meta HTTP-EQUIV="Content-type" content="text/html; charset=iso-8859-1">
+</HEAD>
+
+<BODY bgcolor="#FFFFFF" text="#003399" link="#0066CC" alink="#FFCC00"
+vlink="#660033" leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
+
+<table border="0" cellspacing="0" cellpadding="0">
+<tr>
+
+<td align="center" valign="top">
+
+<TABLE CELLSPACING="0" CELLPADDING="0" BORDER="0">
+  <TR>
+    <TD><p align="center"><img border=0 src="html/graphics/skunkware.gif" 
+         alt="SCO Skunkware"></p>
+    </TD>
+  </TR>
+  <TR>
+    <TD><p align="center"><img border=0 src="html/graphics/opensource.gif" 
+         alt="Open Source Software"></p>
+    </TD>
+  </TR>
+  <TR>
+    <TD><p align="center"><hr></p><p></TD>
+  </TR>
+</TABLE>
+
+</td></tr>
+<tr><td valign="top"><p>
+
+EOF
+  } else {
+#
+# This is the header information for the Skunkware On-line pages
+#
+    print OUTPUT <<EOF;
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<!-- DO NOT EDIT -->
+<!-- Automatically generated from $template by $program $version -->
+<!-- DO NOT EDIT -->
+<HTML>
+<HEAD>
+  <TITLE>$title</TITLE>
+  <LINK REV="made" HREF="$mailto">
+<link rel=stylesheet type="text/css" href="html/styles/main.css">
+
+<meta name="resource-type" content="document">
+<meta name="description" content="SCO">
+<meta name="keywords" content="SCO">
+
+<meta name="distribution" content="global">
+
+<meta HTTP-EQUIV="Content-type" content="text/html; charset=iso-8859-1">
+</HEAD>
+
+<BODY bgcolor="#FFFFFF" text="#000066" link="#000066" alink="#000066" vlink="#000066" leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
+
+<!--#include virtual="html/toolbar/main.inc" -->
+
+<!-- Begin editing the LID below - see http://spin.sco.com/box/about/lid.html-->
+
+<table border="0" cellspacing="0" cellpadding="0" height="40"
+WIDTH="100%"><tr><td height="40" valign="middle"><p class="lid"><img src="html/toolbar/invis.gif" width="16" height="1" border="0"><a href="http://www.sco.com">Home</a> &gt; <a href="http://www.sco.com/skunkware/">Skunkware</a></p></td></tr></table>
+
+<!--End editing the LID-->
+
+<!--#include virtual="html/ssi/nav.inc" -->
+
+<!--Begin content area - see http://spin.sco.com/box/-->
+
+<table border="0" cellspacing="0" cellpadding="0">
+<tr>
+
+<td valign="top" width="20"><img src="/graphics99/invis.gif" width="20" height="1" border="0"></td>
+
+<td valign="top">
+
+<TABLE CELLSPACING="0" CELLPADDING="0" BORDER="0">
+  <TR>
+    <TD><p align="center"><img src="html/graphics/olss.gif" 
+         alt="Welcome!"></p>
+    </TD>
+  </TR>
+</TABLE>
+
+EOF
+  }
+}
+
+sub skunkfooter {
+    my($foo) = @_;
+
+    if ($isweb) {
+#
+# Print out the footer of a page for the On-line version of the page.
+# This should conform to the corporate guidelines.
+#
+        print OUTPUT <<EOF;
+<P><HR ALIGN=LEFT>
+<P ALIGN="LEFT"><I>The Santa Cruz Operation, Inc. and SCO 
+Skunkware are not related to, affiliated with or licensed by the famous 
+Lockheed Martin Skunk Works (R), the creator of the F-117 Stealth Fighter, 
+SR-71, U-2, Venturestar(tm), Darkstar(tm), and other pioneering air and 
+spacecraft.</I></P>
+<P ALIGN="CENTER">Last Updated: $now</P>
+<P><HR ALIGN=LEFT>
+<!--Do not add anything else to this page-->
+
+</td>
+</tr>
+</table>
+
+<!--End of content area-->
+
+<!--#include virtual="html/copyright/main.inc"-->
+
+</BODY>
+</HTML>
+EOF
+    } else {
+#
+# Print out the footer for the CD-ROM version.
+#
+        print OUTPUT <<EOF;
+<P><HR ALIGN=LEFT>
+<P ALIGN="CENTER">Last Updated: $now</P>
+<P><HR ALIGN=LEFT>
+<!--Do not add anything else to this page-->
+
+</td>
+</tr>
+</table>
+
+<!--End of content area-->
+
+<p><a href="http://www.sco.com/copyright">Copyright</a> &copy;
+  1995-2000 The Santa Cruz Operation, Inc. All Rights Reserved. 
+<a href="http://www.sco.com/copyright/privacy.html">Privacy statement</a>.
+
+</BODY>
+</HTML>
+EOF
+    }
+}
+
+sub start_packagelist {
+    my($foo) = @_;
+
+    print OUTPUT <<EOF;
+<H2 ALIGN="CENTER">Package List</H2>
+<CENTER><TABLE BORDER="1" CELLSPACING="0" CELLPADDING="2">
+  <TR>
+    <TH WIDTH="11%" HEIGHT="23">Name</TH>
+    <TH WIDTH="62%">Description</TH>
+    <TH WIDTH="9%">Version</TH>
+    <TH WIDTH="7%">OSR5</TH>
+    <TH WIDTH="11%">UnixWare</TH>
+  </TR>
+EOF
+}
+
+sub end_packagelist {
+    my($foo) = @_;
+
+    print OUTPUT <<EOF;
+</TABLE></CENTER>
+<H4><HR ALIGN="LEFT"></H4>
+EOF
+}
+
+sub startpack {
+    my($linkref,$desc) = @_;
+    print OUTPUT <<EOF;
+<H4><A NAME="$linkref"></A>$desc</H4>
+<BLOCKQUOTE>
+EOF
+}
+
+sub endpack {
+    my($foo) = @_;
+
+    print OUTPUT <<EOF;
+</BLOCKQUOTE>
+<P>&nbsp;</P>
+EOF
+}
+
+sub source {
+    my($site) = @_;
+
+    print OUTPUT <<EOF;
+<P>
+<A HREF="$site">
+  <IMG SRC="gif/origsrc.gif" ALT="Original source code" HSPACE="20" BORDER="0"
+            HEIGHT="32" WIDTH="160" ALIGN="CENTER"></A>
+<A HREF="$site">$site</A></P>
+EOF
+}
+
+sub homepage {
+    my($page) = @_;
+
+    print OUTPUT <<EOF;
+<P>
+<A HREF="$page">
+  <IMG SRC="gif/homepage.gif" ALT="Package Home page" HSPACE="20" BORDER="0"
+            HEIGHT="32" WIDTH="160" ALIGN="CENTER"></A>
+<A HREF="$page">$page</A></P>
+EOF
+}
+
+sub osr5dist {
+    my($location) = @_;
+    my($volfile);
+    if ($location =~ /http\:\/\// || $location =~ /ftp\:\/\//) {
+        print OUTPUT <<EOF;
+<P><A HREF="$location">
+  <IMG SRC="gif/osr5dist.gif" HSPACE="20" BORDER="0" HEIGHT="32" WIDTH="160"
+  ALIGN="CENTER" ALT="OpenServer Distribution">
+$location
+</A></P>
+EOF
+    } else {
+    if ($location =~ /osr5\//) {
+        if ($location =~ /\.gz$/) {
+            $volfile = "$location";
+        } else {
+          if (not $location =~ /\/$/) {
+            $volfile="${location}/VOLS.tar";
+          } else {
+            $volfile="${location}VOLS.tar";
+          }
+        }
+        print OUTPUT <<EOF;
+<P><A HREF="$baseref/$volfile">
+  <IMG SRC="gif/osr5dist.gif" HSPACE="20" BORDER="0" HEIGHT="32" WIDTH="160"
+  ALIGN="CENTER" ALT="OpenServer Distribution"></A>
+<A HREF="$baseref/$location">$location</A></P>
+EOF
+    } else {
+        print OUTPUT <<EOF;
+<P><A HREF="$location">
+  <IMG SRC="gif/osr5dist.gif" HSPACE="20" BORDER="0" HEIGHT="32" WIDTH="160"
+  ALIGN="CENTER" ALT="OpenServer Distribution">
+$location
+</A></P>
+EOF
+    }
+    }
+}
+
+sub uw2dist {
+    my($location) = @_;
+    my($volfile);
+    if ($location =~ /http\:\/\// || $location =~ /ftp\:\/\//) {
+        print OUTPUT <<EOF;
+<P><A HREF="$location">
+  <IMG SRC="gif/uw2dist.gif" HSPACE="20" BORDER="0" HEIGHT="32" WIDTH="160"
+  ALIGN="CENTER" ALT="UnixWare Distribution">
+$location
+</A></P>
+EOF
+    } else {
+        print OUTPUT <<EOF;
+<P><A HREF="$baseref/$location">
+  <IMG SRC="gif/uw2dist.gif" HSPACE="20" BORDER="0" HEIGHT="32" WIDTH="160"
+  ALIGN="CENTER" ALT="UnixWare Distribution"></A>
+<A HREF="$baseref/$location">$location</A></P>
+EOF
+    }
+}
+
+sub packlist{
+    my($foo) = @_;
+    my($linkref,$desc,$packver,$isosr5,$isuw2) = split(/;/, $foo);
+
+    print OUTPUT <<EOF;
+<TR>
+  <TD><A HREF="#$linkref">$linkref</A></TD>
+  <TD>$desc</TD>
+  <TD>$packver</TD>
+  <TD ALIGN="CENTER">$isosr5</TD>
+  <TD ALIGN="CENTER">$isuw2</TD>
+</TR>
+EOF
+}
+
+LINE: while (defined($line = <TEMPLATE>)) {
+    next LINE if $line =~ /^# [0-9]* \"/;
+    chop $line;
+    if ($line =~ s/@@\@SKUNKHEADER\((.*)\)//) { skunkheader($1);}
+    elsif ($line =~ s/@@\@SKUNKFOOTER//) { skunkfooter();}
+    elsif ($line =~ s/@@\@START_PACKAGELIST//) {start_packagelist();}
+    elsif ($line =~ s/@@\@END_PACKAGELIST//) {end_packagelist();}
+    elsif ($line =~ s/@@\@STARTPACK\((.*);(.*)\)//) {startpack($1,$2);}
+    elsif ($line =~ s/@@\@ENDPACK//) {endpack();}
+    elsif ($line =~ s/@@\@OSR5DIST\((.*)\)//) {osr5dist($1);}
+    elsif ($line =~ s/@@\@UW2DIST\((.*)\)//) {uw2dist($1);}
+    elsif ($line =~ s/@@\@SOURCE\((.*)\)//) {source($1);}
+    elsif ($line =~ s/@@\@HOMEPAGE\((.*)\)//) {homepage($1);}
+    elsif ($line =~ s/@@\@PACKLIST\((.*)\)//) {packlist($1);}
+    else {print OUTPUT "$line\n";}
+}

@@ -1,0 +1,171 @@
+#
+# Makefile for generating the ON-LINE pages
+#
+
+PAGES=devtools.html editors.html relnotes.html shells.html shutils.html \
+	index_web.html x11winman.html x11.html x11viewers.html textproc.html \
+	fileutil.html interp.html x11apps.html x11games.html x11servers.html \
+	mailnews.html net.html audiovis.html packages_a.html credits.html \
+	links.html index_cd.html sysadmin.html packages_p.html emulators.html \
+        java.html uw7.html faq.html uw7admin.html db.html security.html \
+        samba.html cdrecord.html kde.html whatsnew.html windows.html \
+        porting.html
+
+TOPAGES=packages_p.html relnotes.html index_web.html packages_a.html \
+	security.html links.html credits.html index_cd.html faq.html \
+        whatsnew.html windows.html
+
+DIRS=sysadmin devtools samba cdrecord porting kde editors shells shutils db \
+	x11/winman x11 x11/viewers x11/apps x11/games x11/servers textproc \
+	fileutil interp mailnews net audiovis emulators uw7 java uw7/admin
+
+all: $(PAGES)
+
+install: all
+	( for d in $(DIRS) ; do \
+	  [ -d ../../$$d ] || mkdir ../../$$d ; \
+	  [ -h ../../$$d/gif ] && rm -f ../../$$d/gif ; \
+	  b=`echo $$d | sed -e "s/\///"` ; \
+	  rm -f ../../$$d/index.html ; \
+	  echo "cp $$b.html ../../$$d/index.html" ; \
+	  cp $$b.html ../../$$d/index.html ; \
+	  H=`pwd` ; \
+	  cd ../../$$d ; \
+	  ln -s ../gif gif ; \
+	  rm -f $$b.html ; \
+	  echo "ln -s index.html $$b.html" ; \
+	  ln -s index.html $$b.html ; \
+	  cd $$H ; \
+	  done )
+	( for p in $(TOPAGES) ; do \
+	  rm -f ../../$$p ; \
+	  echo "cp $$p ../../$$p" ; \
+	  cp $$p ../../$$p ; \
+	  done )
+	( for g in ../gif/* ; do \
+	  [ -d ../../gif ] || mkdir ../../gif ; \
+	  rm -f ../$$g ; \
+	  echo "cp $$g ../$$g" ; \
+	  cp $$g ../$$g ; \
+	  done )
+	( cd ../.. ; rm -f index.html ; ln -s index_web.html index.html )
+
+clean:
+	rm -f $(PAGES)
+	rm -f *.bak *~ ../src/*~
+
+db.html: ../src/db.tmpl
+	../util/genskunk web ../src/db db packages_a devtools/devtools /skunkware
+
+devtools.html: ../src/devtools.tmpl
+	../util/genskunk web ../src/devtools devtools db/db emulators/emulators /skunkware
+
+emulators.html: ../src/emulators.tmpl
+	../util/genskunk web ../src/emulators emulators devtools/devtools editors/editors /skunkware
+
+editors.html: ../src/editors.tmpl
+	../util/genskunk web ../src/editors editors emulators/emulators shells/shells /skunkware
+
+cdrecord.html: ../src/cdrecord.tmpl
+	../util/genskunk web ../src/cdrecord cdrecord emulators/emulators shells/shells /skunkware
+
+samba.html: ../src/samba.tmpl
+	../util/genskunk web ../src/samba samba emulators/emulators shells/shells /skunkware
+
+kde.html: ../src/kde.tmpl
+	../util/genskunk web ../src/kde kde emulators/emulators shells/shells /skunkware
+
+porting.html: ../src/porting.tmpl
+	../util/genskunk web ../src/porting porting emulators/emulators shells/shells /skunkware
+
+relnotes.html: ../src/relnotes.tmpl
+	../util/genskunk web ../src/relnotes relnotes NONE devtools/devtools /skunkware
+
+shells.html: ../src/shells.tmpl
+	../util/genskunk web ../src/shells shells editors/editors shutils/shutils /skunkware
+
+shutils.html: ../src/shutils.tmpl
+	../util/genskunk web ../src/shutils shutils shells/shells x11/winman/x11winman /skunkware
+
+faq.html: ../src/faq.tmpl
+	../util/genskunk web ../src/faq faq NONE NONE .
+
+index_web.html: ../src/sk97home.tmpl
+	@rm -f index_web.html
+	../util/genskunk web ../src/sk97home sk97home NONE NONE /skunkware
+	@mv sk97home.html index_web.html
+
+index_cd.html: ../src/sk97home.tmpl
+	@rm -f index_cd.html
+	../util/genskunk cd ../src/sk97home sk97home NONE NONE /skunkware
+	@mv sk97home.html index_cd.html
+
+x11winman.html: ../src/x11winman.tmpl
+	../util/genskunk web ../src/x11winman x11winman shutils/shutils x11/viewers/viewers /skunkware
+
+x11.html: ../src/x11.tmpl
+	../util/genskunk web ../src/x11 x11 x11/winman/x11winman textproc/textproc /skunkware
+
+x11viewers.html: ../src/x11viewers.tmpl
+	../util/genskunk web ../src/x11viewers x11viewers x11/winman/x11winman textproc/textproc /skunkware
+
+textproc.html: ../src/textproc.tmpl
+	../util/genskunk web ../src/textproc textproc x11/viewers/viewers fileutil/fileutil /skunkware
+
+fileutil.html: ../src/fileutil.tmpl
+	../util/genskunk web ../src/fileutil fileutil textproc/textproc interp/interp /skunkware
+
+interp.html: ../src/interp.tmpl
+	../util/genskunk web ../src/interp interp fileutil/fileutil x11/apps/apps /skunkware
+
+x11apps.html: ../src/x11apps.tmpl
+	../util/genskunk web ../src/x11apps x11apps interp/interp x11/games/games /skunkware
+
+x11games.html: ../src/x11games.tmpl
+	../util/genskunk web ../src/x11games x11games x11/apps/apps x11/servers/servers /skunkware
+
+x11servers.html: ../src/x11servers.tmpl
+	../util/genskunk web ../src/x11servers x11servers x11/games/games mailnews/mailnews /skunkware
+
+mailnews.html: ../src/mailnews.tmpl
+	../util/genskunk web ../src/mailnews mailnews x11/servers/servers net/net /skunkware
+
+net.html: ../src/net.tmpl
+	../util/genskunk web ../src/net net x11/games/games audiovis/audiovis /skunkware
+
+audiovis.html: ../src/audiovis.tmpl
+	../util/genskunk web ../src/audiovis audiovis net/net sysadmin/sysadmin /skunkware
+
+sysadmin.html: ../src/sysadmin.tmpl
+	../util/genskunk web ../src/sysadmin sysadmin audiovis/audiovis packages_a /skunkware
+
+packages_a.html: ../src/packages_a.tmpl
+	../util/genskunk web ../src/packages_a packages_a audiovis/audiovis devtools/devtools /skunkware
+
+packages_p.html: ../src/packages_p.tmpl
+	../util/genskunk web ../src/packages_p packages_p audiovis/audiovis uw7/uw7 /skunkware
+
+java.html: ../src/java.tmpl
+	../util/genskunk web ../src/java java packages_p uw7/uw7 /skunkware
+
+uw7.html: ../src/uw7.tmpl
+	../util/genskunk web ../src/uw7 uw7 java/java devtools/devtools /skunkware
+
+uw7admin.html: ../src/uw7admin.tmpl
+	../util/genskunk web ../src/uw7admin uw7admin interp/interp x11/games/games /skunkware
+
+links.html: ../src/links.tmpl
+	../util/genskunk web ../src/links links index credits /skunkware
+
+security.html: ../src/security.tmpl
+	../util/genskunk web ../src/security security index credits /skunkware
+
+whatsnew.html: ../src/whatsnew.tmpl
+	../util/genskunk web ../src/whatsnew whatsnew index credits /skunkware
+
+windows.html: ../src/windows.tmpl
+	../util/genskunk web ../src/windows windows index credits /skunkware
+
+credits.html: ../src/credits.tmpl
+	../util/genskunk web ../src/credits credits packages_a devtools/devtools /skunkware
+
