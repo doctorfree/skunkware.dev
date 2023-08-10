@@ -1,0 +1,86 @@
+<title>Porting software for use with <code>TERM</code></title>
+<h1>10 <a name="s10"> Porting software for use with <code>TERM</code> </h1>
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<p> <a href="Term-HOWTO.html#toc10"> Contents of this section</a></p>
+
+<p></p>
+<p>In principle, all programs that can be used over a network can also be used in combination with <code>TERM</code>. Some of them you can get as binaries with <code>TERM</code> support already built in. These include telnet, (nc)ftp, Mosaic and many others. Most of these programs are compiled for <code>TERM</code> 1.17 or earlier. They should, however, still work with the newer versions of <code>TERM</code>.</p>
+<p>Another way to make programs <code>TERM</code> aware is to port them yourself. This process will be described in the next subsection.</p>
+<p>The last way to make your programs <code>TERM</code>-aware is to <code>termify</code> them.</p>
+<p></p>
+<h2>10.1 <A Name="ss10.1"> Port and compile the sources </h2>
+
+<p></p>
+<p>Porting software to <code>TERM</code> can be done using a fairly simple porting procedure:</p>
+<p>If installed in '/usr/local' by root:</p>
+<p>
+<ol>
+<li> Add to the compile flags <code>-include /usr/local/include/termnet.h</code></li>
+<li> and add to the library list <code>-ltermnet</code></li>
+</ol>
+</p>
+<p>If installed in your home directory:</p>
+<p>
+<ol>
+<li> Add to the compile flags <code>-include $HOME/term/termnet.h</code></li>
+<li> and add to the library list <code>-L$HOME/term -ltermnet</code></li>
+</ol>
+</p>
+<p>Now compile the software as described in the INSTALL or README document that came with the software. That should do!</p>
+<p>At this point the commands should work both with and without <code>TERM</code>.</p>
+<p>
+<pre>
+  telnet localhost
+</pre>
+</p>
+<p>does not use <code>TERM</code> to connect, but</p>
+<p>
+<pre>
+  telnet bohr.physics.purdue.edu
+</pre>
+</p>
+<p>will use <code>TERM</code> only if you do not have some other type of network connection.</p>
+<p>Some commands like <code>rlogin</code> can only be executed by root and the owner
+of the <code>TERM</code> connection (privileged persons).</p>
+<p>Some <code>TERM</code> commands will be <code>TERM</code> transparent and only use <code>TERM</code> when there is not another option. Some common examples are telnet and ftp.</p>
+<p>Others require an external flag to tell them it is all right to use <code>TERM</code>. These programs include xarchie, fsp and ytalk.</p>
+<p>You can either flag these programs to use <code>TERM</code> by setting the environmental variable TERMMODE as specified in README.security, or running <code>make installnet</code>. Eventually, the 'termnet' file created will contain special networking instructions, but for now only its existence is checked.</p>
+<p>If you add an <code>ethernet connection</code>, you can then simply remove the 'termnet' file and continue to use the same binaries!</p>
+<p><code>NOTE</code>: Programs that were ported back in the days of <code>client.a</code>, can still be recompiled for use with newer versions of <code>TERM</code> simply by changing the <code>client.a</code> reference to <code>libtermnet.a</code>.</p>
+<p></p>
+
+<h2>10.2 <A Name="ss10.2"> Termify </h2>
+
+<p></p>
+<p>This package will convert dynamically linked binaries for <code>TERM</code> use.</p>
+<p>Before you can use <code>termify</code> you have to make sure that you have <code>TERM</code> version 2.2i (is this version 2.2.8?) or later and libc.so.4.5.26 or later. Then you have to create the file 'libt.so.4' in the directory '/lib' (see the README file in the package).</p>
+<p>Problem at this moment is that you have to remake the file 'libt.so.4' every time you upgrade <code>TERM</code> versions.</p>
+<p>After you have created the library you can let termify 'crunch' the program you want to make <code>TERM</code>-aware, by using the command:</p>
+<p>
+<pre>
+  termify &lt;command name&gt;
+</pre>
+</p>
+<p>When you do not like the result you can 'un'termify the program you have just termified using the command:</p>
+<p>
+<pre>
+  termify -u &lt;command name&gt;
+</pre>
+</p>
+<p>Last, the package also contains a script for completely termifying 'smail'; so no special transport definitions are necessary. The only thing you possibly want to change is the 'From: ' address.</p>
+<p></p>
+
+<p><a href="Term-HOWTO-11.html"> Next </a> Chapter, <a href="Term-HOWTO-9.html"> Previous </a> Chapter</p><p>Table of contents of <a href="Term-HOWTO.html#toc10">this chapter</a>,
+ General <a href="Term-HOWTO.html#toc">table of contents</a></p>
+<p><a href="Term-HOWTO.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>
+
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<P><A HREF="/skunkware/index.html">
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.left.gif"
+ALT="">
+Return to Welcome Home Page</A> or
+<A HREF="/skunkware/tools.html">
+Continue to Browse
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.right.gif"
+ALT=""></A>

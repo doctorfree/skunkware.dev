@@ -1,0 +1,255 @@
+README:	WAIS Unix release 8 b5				Sun May 10 1992
+ Harry Morris					 Thinking Machines Corp
+ Brewster Kahle 
+ Jonathan Goldman
+------------------------------------------------------------------------
+
+WARRANTY DISCLAIMER
+
+This software was created by Thinking Machines Corporation and is distributed 
+free of charge.  It is placed in the public domain and permission is granted 
+for anyone to use, duplicate, modify and redistribute it.
+
+Thinking Machines Corporation provides absolutely NO WARRANTY OF ANY KIND with
+respect to this software.  The entire risk as to the quality and performance 
+of this software is with the user.  IN NO EVENT WILL THINKING MACHINES 
+CORPORATION BE LIABLE TO ANYONE FOR ANY DAMAGES ARISING OUT THE USE OF THIS
+SOFTWARE, INCLUDING, WITHOUT LIMITATION, DAMAGES RESULTING FROM LOST DATA OR
+LOST PROFITS, OR FOR ANY SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES.
+
+------------------------------------------------------------------------
+
+First, if you are trying to figure out how to install or build this
+software, take a look at the file "INSTALLATION", in this directory.
+
+The Wide Area Information Server (WAIS) Project is an experiment,
+automating the search and retrieval of many types of electronic information
+over wide area networks.  The success of this project depends on the
+formation of a large number of "Information Servers": computers that know
+how to answer questions over a network.  To help catalyze this market,
+Thinking Machines and other organizations are giving away protocol
+specifications and source code.  To find out more about the project, please
+read doc/wais-concepts.txt.  New releases are announced on the mailing list
+wais-interest@think.com, discussion of WAIS issues happens on
+wais-discussion@think.com.  To be added to these lists, please send a note
+to wais-interest-request@think.com and/or wais-discussion-request@think.com.
+
+The remainder of this file contains:
+	I.	Installation notes.
+	II.	What's in this package and how to use it.
+	III.	Random notes.
+
+
+
+
+I. Installation notes:
+
+This package has been written for ANSI-C.  GNU CC and non-ANSI cc's are
+supported by adding a bunch of library routines that were not present.  It
+has been run on a VAX, Sun-3, Sun-4, and NeXT, System V, gcc, cc, ThinkC.
+Pieces have been run on VMS.  We are interested in promoting the
+portability of this code.  If you run into problems, please help by
+reporting (or fixing) bugs.
+
+One thing to note for the Emacs interface on the NeXT: In ui/wais.el lines
+126-130:
+
+    (let (
+	  ;; this doesn't work on the NeXT.  Comment out this line.
+	  (process-connection-type nil)
+	  )
+
+Be sure to comment out the local variable on the NeXT.
+
+Since you are reading this file, you must have been able to untar the
+distribution.  There is a Makefile in the same directory as this file.
+Take a look at it and determine if the various configurations definitions
+are appropriate for your system, then run "make".
+
+II.  What's in this package and how to use it
+
+This package contains a sample toolkit for:
+
+  1. creating servers:  waisindex and waisserver.
+  2. communicating:     Z39.50 and WAIS protocol software.
+  3. clients:           X-windows, GNU Emacs, and shell interfaces.
+
+This package is distributed as a UNIX tar file.  You should have the
+following directories:
+
+top = wais-8-b5
+
+in top:
+
+Makefile	- a top-level Makefile to build the entire system
+README		- this file
+INSTALLATION	- some instructions on how to build this software
+RELEASE-NOTES	- current state of the software, including changes
+		  from the last release
+bin/		- where compiled executables will go
+buildtar.sh*	- a script for building this distribution
+doc/		- all documentation
+ir/		- the WAIS toolkit, indexer and server code
+survey.txt	- to be filled out with your comments
+ui/		- some example user interfaces, including the GNU Emacs and
+		  shell interfaces
+wais-sources/	- example sources, including the directory of servers
+x/		- an X11R4 client
+z39-50-wais.mms - a "VMS" style makefile
+*.xmail		- some GNU Emacs RMAIL files of modifications some people
+		  have done in order to compile this on their machines
+
+
+Unix-style Man pages are in the doc directory. An interface for the Apple
+Macintosh is available separately.
+
+There are three programs that comprise the core of this WAIS software:
+
+WAISINDEX: This indexer is a simple Information Retrieval engine that
+ indexes every word of the input files, creating an "inverted file index".
+ This allows keyword searching based on the full text of documents.  The
+ indexer uses the file system in a straightforward and conservative manner
+ (it is written in ANSI C) and so it should be quite portable.  A number of
+ "filters" have been written to handle common file formats.  Making new ones
+ is easy, see the file ircfiles.c for examples and instructions.  
+
+WAISSERVER: Listens to a TCP port for questions (Z39.50 packets) and uses
+ the appropriate index to answer the question.  This is pretty stable.
+ Waisserver may be run as a standalone server, or it can be run from inetd.
+ Look at the MAN page for waisserver for example inetd.conf entries.
+
+WAISSEARCH: A simple shell user interface for sending questions to
+ wais servers.  Additionally, there are X and Gnu Emacs interfaces included,
+ which you will probably find more convenient to use.
+
+
+-------------------------
+CREATING A WAIS DATABASE
+-------------------------
+
+To create an index for your own private use:
+
+First index some files:
+	waisindex -d ~/wais-sources/rmail -t rmail RMAIL
+then make a search request:
+	waissearch -d ~/wais-sources/rmail "What is WAIS?"
+
+Once the index is made, you can also search it using the xwais or
+Gnu Emacs interfaces.  See the documentation files for further information.
+
+
+To create a server for everyone to use:
+
+To advertise the availability of your data, you can send in an entry to the
+Directory of Servers, a server running at an easily accessible
+location (quake.think.com).  The following command will index your-files,
+and register the index with the Directory of Servers.  Needless to say,
+this should be done with care.
+
+	waisindex -export -register your-files
+
+You may have noticed a database was created when you built this software:
+the wais-docs database.  Take a look at the Makefile in the docs directory
+for another example of how to build a database.
+
+---------------------
+RUNNING A WAIS SERVER
+---------------------
+
+There are two options for running the server: 
+
+1. as a standalone process,
+2. as a daemon under inetd.
+
+To run the standalone server simply type "waisserver -p <port-number>" at a
+prompt, where port-number is a TCP port that the server will use to handle
+client connections.  Most UNIX systems will only allow the super user to
+use ports less than 1024.
+
+To run under inetd, you must have the z3950 service defined and a line in
+your inetd configuration file that tells inetd what to do when a connection
+is received on the z3950 port.  On most systems this means adding the z3950
+service to /etc/services or the NIS (used to be called YP) database as
+follows:
+
+z3950		210/tcp				# Z39_50 protocol for WAIS
+
+and in /etc/inetd.conf:
+
+z3950 stream tcp nowait waisp <top>/bin/waisserver waisserver.d -e <top>/server.log -d <top>/wais-sources
+
+Note the user field in this example is waisp, which is the userid the
+daemon will be run under. This userid is rarely present, and can be
+replaced by something appropriate for your site (typically UUCP).  The
+directory <top> is as defined above (this directory), and the user
+specified in the above line must have read/write permission to the
+directory specified in the -d argument.  The -e argument is a file the
+daemon will use to log it's output, which must be writable too.  This is
+explained in more detail in the man page on waisserver.
+
+--------------
+TESTING IT OUT
+--------------
+
+To test things out, first insure that you can do something with the
+waissearch program:
+
+% cd <top>/wais-sources
+% ../bin/waissearch -d wais-docs wais
+
+You should get a bunch of results.
+Now try to talk to the directory-of-servers:
+% ../bin/waissearch -h quake.think.com -p 210 -d directory-of-servers source
+
+You should get a bunch more results.  This requires an internet connection,
+so if you can telnet to quake.think.com, it should work.
+
+Now you can try your server:
+
+% ../bin/waissearch -h <your-host> -p <port-number> help where <your-host>
+is the name of the machine you are running the server on, and <port-number>
+is the port specified when starting the server (or the z3950 port if run
+under inetd).  This should return at least two results: the source
+description file INFO.src and a catalog of what your server is serving.
+
+You can then try the other user interfaces included in this release.
+
+----------------------------------------------------------------------
+For instructions on using the Gnu Emacs interface to access remote servers,
+see the file ui/wais.el.
+
+
+
+
+III. Random Notes
+
+- The version of Z39.50 contained herein is for inspection only.  It is based 
+  on the obsolete 1988 version.  It will be replaced with an implementation
+  of ISO Z39.50 (when it stabilizes).  These protocols are not compatible, 
+  although every effort will be made to minimize the conversion effort. 
+    
+- The best way to learn the use of the Z39.50 library is to study
+  the example code in ir.c (for a server) and ui.c and ui (for a client).
+  
+- The IR engine will undergo further enhancements.
+  
+- WAIStation is an example Mac program using this protocol.  This is
+  provided "as is" as an application that can connect over the phone or
+  TCP/IP.  It is available separately, in source code form.  Write for
+  details.
+
+- Have fun and let us know what you think.  Much of this code needs
+  cleanup, we apologize for the present formatting.... The next 
+  version will be beautified, clarified, polished, and all.  If you
+  have any questions or find any bugs, Don't hesitate to write.
+
+  	Harry Morris
+  	Morris@Think.COM
+
+	Brewster Kahle
+	Brewster@Think.COM
+	  	
+	Jonny Goldman
+	Jonathan@Think.COM
+
+  	(617) 876-1111

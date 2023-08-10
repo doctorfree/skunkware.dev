@@ -1,0 +1,40 @@
+:
+#
+# top-level script for building the Contributed CD-ROM tree
+#
+# created 05-Mar-94 by rr@sco.com
+
+PATH=$PATH:/usr/bin/X11
+export PATH
+
+HERE=`pwd`
+BLDARG=
+
+[ "$1" = "remove" ] && {
+	[ $HERE= /v/bld/usr/src ] && rm -rf *
+	getcsc
+}
+
+[ "$1" = "get" ] && getcsc
+
+[ "$1" = "install" ] && BLDARG=install
+
+[ "$1" = "clean" ] && BLDARG=clean
+
+for i in Tools X11 Games cdmt
+do
+	[ -d $i ] && {
+		cd $i
+		if [ -f Imakefile ]
+		then
+			xmkmf
+			make Makefiles
+			make includes
+			make depend
+			make -k $BLDARG DESTDIR=$DESTDIR
+		else
+			[ -f Build ] && DESTDIR=$DESTDIR sh Build $BLDARG
+		fi
+		cd ..
+	}
+done

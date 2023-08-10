@@ -1,0 +1,167 @@
+<HTML>
+<HEAD>
+<TITLE>SetResult</TITLE>
+</HEAD>
+<BODY>
+<H1>SetResult</H1>
+<HR>
+<PRE>
+     _________________________________________________________________
+
+     <STRONG>NAME</STRONG>
+          Tcl_SetResult,     Tcl_AppendResult,      Tcl_AppendElement,
+          Tcl_ResetResult - manipulate Tcl result string
+
+     <STRONG>SYNOPSIS</STRONG>
+          <STRONG>#include</STRONG> <STRONG>&lt;tcl.h&gt;</STRONG>
+
+          <STRONG>Tcl_SetResult</STRONG>(<EM>interp</EM>, <EM>string</EM>, <EM>freeProc)</EM>
+
+          <STRONG>Tcl_AppendResult(</STRONG><EM>interp</EM>, <EM>string</EM>, <EM>string</EM>, ... , <STRONG>(char</STRONG> <STRONG>*)</STRONG> <STRONG>NULL</STRONG>)
+
+          <STRONG>Tcl_AppendElement</STRONG>(<EM>interp</EM>, <EM>string)</EM>                             |
+
+          <STRONG>Tcl_ResetResult</STRONG>(<EM>interp)</EM>
+
+          <STRONG>Tcl_FreeResult</STRONG>(<EM>interp)</EM>
+
+     <STRONG>ARGUMENTS</STRONG>
+          Tcl_Interp     *<EM>interp</EM>    (out)     Interpreter whose result
+                                              is to be modified.
+
+          char           *<EM>string</EM>    (in)      String value  to  become
+                                              result  for <EM>interp</EM> or to
+                                              be appended to  existing
+                                              result.
+
+          Tcl_FreeProc   <EM>freeProc</EM>   (in)      Address of procedure  to
+                                              call  to release storage
+                                              at      <EM>string</EM>,       or
+                                              <STRONG>TCL_STATIC</STRONG>, <STRONG>TCL_DYNAMIC</STRONG>,
+                                              or <STRONG>TCL_VOLATILE</STRONG>.
+     _________________________________________________________________
+
+
+     <STRONG>DESCRIPTION</STRONG>
+          The procedures described here are utilities for setting  the
+          result/error string in a Tcl interpreter.
+
+          <STRONG>Tcl_SetResult</STRONG> arranges for <EM>string</EM> to be  the  return  string
+          for  the  current  Tcl  command  in  <EM>interp</EM>,  replacing  any
+          existing result.  If <EM>freeProc</EM> is <STRONG>TCL_STATIC</STRONG>  it  means  that
+          <EM>string</EM>   refers  to  an  area  of  static  storage  that  is
+          guaranteed not to be modified until at least the  next  call
+          to  <STRONG>Tcl_Eval</STRONG>.   If  <EM>freeProc</EM>  is  <STRONG>TCL_DYNAMIC</STRONG>  it means that
+          <EM>string</EM> was allocated with a call to <STRONG>malloc()</STRONG> and is now  the
+          property  of the Tcl system.  <STRONG>Tcl_SetResult</STRONG> will arrange for
+          the string's storage to be released by calling  <STRONG>free()</STRONG>  when
+          it  is  no  longer  needed.   If <EM>freeProc</EM> is <STRONG>TCL_VOLATILE</STRONG> it
+          means that <EM>string</EM> points to an area of memory that is likely
+          to be overwritten when <STRONG>Tcl_SetResult</STRONG> returns (e.g. it points
+          to something in a stack frame).  In this case  <STRONG>Tcl_SetResult</STRONG>
+          will  make  a  copy  of  the string in dynamically allocated
+          storage and arrange for the copy to be the return string for
+          the current Tcl command.
+
+          If <EM>freeProc</EM> isn't one of the values <STRONG>TCL_STATIC</STRONG>, <STRONG>TCL_DYNAMIC</STRONG>,
+          and <STRONG>TCL_VOLATILE</STRONG>, then it is the address of a procedure that
+          Tcl  should  call  to  free   the   string.    This   allows
+          applications  to  use non-standard storage allocators.  When
+          Tcl no longer needs the storage for the string, it will call
+          <EM>freeProc</EM>.   <EM>FreeProc</EM>  should  have arguments and result that
+          match the type <STRONG>Tcl_FreeProc</STRONG>:
+
+               typedef void Tcl_FreeProc(char *<EM>blockPtr)</EM>;
+
+          When <EM>freeProc</EM> is called, its <EM>blockPtr</EM> will  be  set  to  the
+          value of <EM>string</EM> passed to <STRONG>Tcl_SetResult</STRONG>.
+
+          If  <EM>string</EM>  is  <STRONG>NULL</STRONG>,   then   <EM>freeProc</EM>   is   ignored   and
+          <STRONG>Tcl_SetResult</STRONG> re-initializes <EM>interp</EM>'s result to point to the
+          pre-allocated result area,  with  an  empty  string  in  the
+          result area.
+
+          If <STRONG>Tcl_SetResult</STRONG> is called at a time  when  <EM>interp</EM>  holds  a
+          result,  <STRONG>Tcl_SetResult</STRONG> does whatever is necessary to dispose
+          of the old result  (see  the  <STRONG>Tcl_Interp</STRONG>  manual  entry  for
+          details on this).
+
+          <STRONG>Tcl_AppendResult</STRONG> makes it easy to build up  Tcl  results  in
+          pieces.   It  takes each of its <EM>string</EM> arguments and appends
+          them in order to the current result associated with  <EM>interp</EM>.
+          If  the  result  is  in  its initialized empty state (e.g. a
+          command procedure was just invoked  or  <STRONG>Tcl_ResetResult</STRONG>  was
+          just  called),  then <STRONG>Tcl_AppendResult</STRONG> sets the result to the
+          concatenation of its <EM>string</EM> arguments.  <STRONG>Tcl_AppendResult</STRONG> may
+          be  called repeatedly as additional pieces of the result are
+          produced.  <STRONG>Tcl_AppendResult</STRONG> takes care of  all  the  storage
+          management  issues associated with managing <EM>interp</EM>'s result,
+          such as allocating a larger result area if  necessary.   Any
+          number  of  <EM>string</EM> arguments may be passed in a single call;
+          the last argument in the list must be a NULL pointer.
+
+          <STRONG>Tcl_AppendElement</STRONG> is similar to <STRONG>Tcl_AppendResult</STRONG> in that  it
+          allows   results   to  be  built  up  in  pieces.   However,
+          <STRONG>Tcl_AppendElement</STRONG> takes only a single <EM>string</EM> argument and it
+          appends  that argument to the current result as a proper Tcl
+          list element.  <STRONG>Tcl_AppendElement</STRONG> adds backslashes or  braces
+          if necessary to ensure that <EM>interp</EM>'s result can be parsed as
+          a list and  that  <EM>string</EM>  will  be  extracted  as  a  single
+          element.   Under  normal  conditions, <STRONG>Tcl_AppendElement</STRONG> will
+          add a space character to <EM>interp</EM>'s result just before  adding
+          the  new  list  element,  so  that  the list elements in the
+          result are properly separated.   However  if  the  new  list  |
+          element  is  the  first in a list or sub-list (i.e. <EM>interp</EM>'s  |
+          current result is empty, or consists of the single character  |
+          ``{'',  or  ends  in the characters `` {'') then no space is  |
+          added.
+
+          <STRONG>Tcl_ResetResult</STRONG> clears the result for  <EM>interp</EM>,  freeing  the
+          memory   associated  with  it  if  the  current  result  was
+          dynamically allocated.  It leaves the result in  its  normal
+          initialized  state  with <EM>interp</EM>-&gt;<EM>result</EM> pointing to a static
+          buffer containing <STRONG>TCL_RESULT_SIZE</STRONG> characters, of  which  the
+          first  character  is  zero.  <STRONG>Tcl_ResetResult</STRONG> also clears the
+          error    state    managed    by     <STRONG>Tcl_AddErrorInfo</STRONG>     and
+          <STRONG>Tcl_SetErrorCode</STRONG>.
+
+          <STRONG>Tcl_FreeResult</STRONG> is a macro that performs part of the work  of
+          <STRONG>Tcl_ResetResult</STRONG>.   It  frees  up  the memory associated with
+          <EM>interp</EM>'s result and sets <EM>interp</EM>-&gt;<EM>freeProc</EM> to  zero,  but  it
+          doesn't   change   <EM>interp</EM>-&gt;<EM>result</EM>   or  clear  error  state.
+          <STRONG>Tcl_FreeResult</STRONG> is most commonly used  when  a  procedure  is
+          about to replace one result value with another.
+
+
+     <STRONG>SEE</STRONG> <STRONG>ALSO</STRONG>
+          Tcl_AddErrorInfo, Tcl_SetErrorCode, Tcl_Interp
+
+
+     <STRONG>KEYWORDS</STRONG>
+          append,  command,  element,  list,  result,  return   value,
+          interpreter
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

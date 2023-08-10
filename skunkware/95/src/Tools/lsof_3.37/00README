@@ -1,0 +1,850 @@
+
+			Making and Installing lsof 3
+
+********************************************************************
+| The latest release of lsof is always available via anonymous ftp |
+| from vic.cc.purdue.edu.  Look in pub/tools/unix/lsof.            |
+********************************************************************
+
+				Contents
+
+	Making Lsof
+	    Security
+	    Device Directory Access Warnings
+	    NFS Blocks
+	    Caches -- Name and Device
+	    Raw Sockets
+	    Other Compile-time Definitions
+	    Field Output Example Scripts
+	Dialect Notes
+	    AIX 3.2.[45], 4.1, and 4.1.[12]
+	    EP/IX
+	    FreeBSD
+	    HP-UX 8.x, 9.x, and 10
+	    IRIX 4.0.5H, 5.1.1, 5.2, 5.3, and 6.0
+	    Linux
+	    NetBSD 1.0 and 1.0A
+	    NEXTSTEP 2.1 and 3.[0123]
+	    Novell UnixWare 1.1, 1.1.1, and 1.1.2
+	    OSF/1 1.3, 2.0, and 3.[02] for the DEC Alpha
+	    Pyramid DC/OSx 1.1 for ES, Nile and S Series
+	    RISC/os 4.52
+	    SCO OpenDesktop or OpenServer 1.1, 3.0, and 5.0
+	    Sequent PTX 2.1.[156] and 4.0.[23]
+	    Solaris 2.[1234]
+	    SunOS 4.1.[1234]
+	    	SunOS 4.1.x gcc Warning
+	    Ultrix 2.2, 4.2, 4.3, and 4.4
+	    V/88 R32V3, R40V4.2, and R40V4.3
+	Installing Lsof
+	Porting lsof 3 to a New Unix Dialect
+
+
+===========
+Making Lsof
+===========
+
+This lsof distribution can be used with many Unix dialects.  However,
+it must be configured specifically for each dialect.  Configuration
+is done with the Configure shell script in the top level of the
+distribution, cooperating with Mksrc shell scripts in the
+dialect-specific subdirectories.
+
+Lsof may be configured for the following Unix dialects, using the
+named abbreviations -- e.g.,
+
+	$ Configure solaris
+
+		Dialect*
+ Abbreviation     Notes  Unix Dialect
+ ------------    ------  ------------
+
+    aix		    Yes	 IBM AIX 3.2.[45], 4.1, and 4.1.[12]
+    dcosx	    Yes	 Pyramid DC/OSx 1.1 for ES, Nile and S series
+    decosf	    Yes	 DEC OSF/1 1.3, 2.0, 3.0, and 3.2
+    dynix		 Purdue Dynix 3.0.12
+    dynix3012		 Sequent Dynix 3.0.12
+    dynix31		 Sequent Dynix 3.1
+    epix211	    Yes	 EP/IX 2.1.1 for the CDC 4680
+    freebsd	    Yes	 FreeBSD 1.1.5.1, 2.0, and 2.0.5
+    hpux	    Yes	 HP-UX 8.x, 9.x, and 10
+    irix	    Yes	 SGI IRIX 4.0.5H, 5.2, 5.3, and 6.0
+    netbsd	    Yes  NetBSD 1.0 and 1.0A
+    linux	    Yes	 Linux through 1.2.11
+    next3	    Yes	 NEXTSTEP 2.1 and 3.[0123], all architectures
+    ptx		    Yes	 Sequent PTX 2.1.[156] and 4.0.[23]
+    riscos	    Yes  RISC/os 4.52 for MIPS R2000-based systems
+    sco		    Yes	 SCO OpenDesktop or OpenServer, 1.1, 3.0,
+			 and 5.0
+    solaris	    Yes	 Solaris 2.[1234], using gcc
+    solariscc	    Yes	 Solaris 2.[1234], using Sun's cc
+    sunos413	    Yes	 SunOS 4.1.[1234], using gcc
+    sunos413cc	    Yes	 SunOS 4.1.[1234], using Sun's cc
+    ultrix22	    Yes	 Purdue version of Ultrix 2.2
+    ultrix	    Yes	 Ultrix 4.2, 4.3, and 4.3 for DEC RISC and VAX
+    uw11	    Yes	 Novell UnixWare 1.1, 1.1.1, and 1.1.2
+    uw11nonet	    Yes	 Novell UnixWare 1.1, 1.1.1, and 1.1.2
+			 without TCP/IP network packages
+    v88		    Yes  V/88 R32V3, R40V4.2, and R40V4.3 for Motorola
+			 M88K
+
+(* -- Look in the Dialect Notes section for more information on
+      the lsof revision for this dialect.)
+
+If you have an earlier version of a Unix dialect named in this
+list, lsof may work on your system.  I have no way of testing that
+myself.  Try configuring for the named dialect -- e.g., if you're
+using Solaris 2.1, try configuring for Solaris 2.3.
+
+After you have configured lsof for your Unix dialect, use the make
+command to build it -- e.g.,
+
+	$ make
+
+
+Security
+========
+
+If the symbol HASSECURITY is defined, a security mode is enabled,
+and lsof will allow only the root user to list all open files.
+Non-root users may list only open files whose processes have the
+same user ID as the real user ID of the lsof process (the one that
+its user logged on with).
+
+Lsof is distributed with the security mode disabled -- HASSECURITY
+is not defined.  You can enable the security mode by defining
+HASSECURITY in the Makefile or in the machine.h header file for
+the specific dialect you're using -- e.g. dialects/aix/machine.h.
+
+Since lsof usually needs setgid permission to read /dev/mem or
+/dev/kmem, and needs setuid root permission to read /proc file
+system entries, its security should always be viewed with skepticism.
+Lest the setgid and setuid modes permit lsof to read kernel name
+list or memory files, declared with the -c and -k options, that
+the lsof user can't normally access, lsof uses access(2) to establish
+its real user's authority to read such files.  This change was
+added in revision 3.07 at the suggestion of Tim Ramsey <tar@ksu.ksu.edu>.
+
+In the end you must judge for yourself and your installation the
+risks that lsof presents and restrict access to it according to
+your circumstances.
+
+
+Device Directory Access Warnings
+================================
+
+When lsof encounters a /dev (or /device) directory or one of its
+subdirectories that it cannot access with opendir(3), it issues a
+warning message and continues.  The lsof caller can inhibit the
+warning with the -w option.
+
+The lsof builder can inhibit the warning by disabling the definition
+of WARNDEVACCESS in the dialect's machine.h.  WARNDEVACCESS is
+defined by default for most dialects.  However, some dialects have
+some device subdirectories that are private -- e.g., HP-UX -- and
+it is more convenient for the lsof user if warning messages about
+them are inhibited.
+
+Output from lsof's -h option indicates the status of WARNDEVACCESS.
+If it was defined when lsof was compiled, this message will appear:
+
+    Warnings are enabled for inaccessible device directories.
+
+If WARNDEVACCESS was not defined when lsof was compiled, this
+message will appear instead:
+
+    Warnings are disabled for inaccessible device directories
+
+
+NFS Blocks
+==========
+
+Lsof is susceptible to NFS blocks when it tries to lstat() mounted
+file systems and when it does further processing -- lstat() and
+readlink() -- on its optional file and file system arguments.
+
+Lsof tries to avoid being stopped completely by NFS blocks by doing
+the lstat() and readlink() functions in a child process, which
+returns the function response via a pipe.  The lsof parent limits
+the wait for data to arrive in the pipe with a SIGALRM, and, if
+the alarm trips, terminates the child process with a SIGINT and a
+SIGKILL.
+
+This is as reliable and portable a method for breaking NFS deadlocks
+as I have found, although it still fails under some combinations
+of NFS version, Unix dialect, and NFS file system mount options.
+It generally succeeds when the "intr" or "soft" mount options are
+used; it generally fails when the "hard" mount option is used.
+
+When lsof cannot kill the child process, a second timeout causes
+it to stop waiting for the killed child to complete.  While the
+second timeout allows lsof to complete, it may leave behind a hung
+child process.  Unless told to be terse, lsof warns about the
+possible hung child.
+
+The NFS block handling was updated at revisions 3.17 and 3.18 from
+suggestions made by Andreas Stolcke <stolcke@ICSI.Berkeley.EDU>.
+Andreas suggested using the alternate device numbers that appear
+in the mount tables of some dialects when it is not possible to
+stat(2) the mount points.  Lsof 3.17 does this.
+
+The -b option was added at lsof 3.18 to direct it to avoid the
+stat(2) and readlink(2) calls that might block on NFS mount points
+and always use the alternate device numbers.  Consequently, if
+you're running lsof 3.18 or later, you can avoid kernel blocks
+altogether by using the -b option.  If you don't want warning
+messages about what lsof is doing, use the -w option, too.
+
+
+Caches -- Name and Device
+==========================
+
+Robert Ehrlich <Robert.Ehrlich@inria.fr> suggested that lsof obtain
+path name components for open files from the kernel's name cache.
+Where possible, lsof revisions 3.19 and later do this.  The -C
+option inhibits kernel name cache examination.
+
+Robert also suggested that lsof cache the information it obtains
+via stat(2) for nodes in /dev to reduce subsequent running time.
+Lsof revisions 3.19 and later do this.  The -D option controls the
+handling of the device cache file.
+
+Normally the device cache file is stored in /tmp/.lsof_dev_cache,
+mode 0666.  This allows any lsof call to build or rebuild it.  Lsof
+senses accidental or malicious damage to the file with extensive
+sanity checks, including the use of a 16 bit CRC.  It also tries
+to sense changes in the device directory (/dev, or /devices, or
+whatever) that indicate the device cache file is out of date by
+comparing the device cache file's mtime to the mtime and ctime of
+the device directory.
+
+You can control the device cache feature by making changes to a
+dialect's machine.h, ddev.c, and Mksrc files.
+
+
+Raw Sockets
+===========
+
+On many Unix systems raw sockets use a separate network control
+block structure.  Display of files for applications using raw
+sockets -- ping, using ICMP, for example -- need special support
+for displaying their information.  This support is so dialect-specific
+and information to provide it so difficult to find that not all
+dialect revisions of lsof handle raw sockets completely.
+
+
+Other Compile-time Definitions
+==============================
+
+The machine.h and dlsof.h header files for each dialect contains
+definitions that affect the compilation of lsof.  Check the
+Definitions That Affect Compilation section of the 00PORTING file
+of the lsof distribution for their descriptions.
+
+
+Field Output Example Scripts
+============================
+
+Example AWK and Perl 4 or 5 scripts for post-processing lsof field
+output are locate in the scripts subdirectory of the lsof distribution.
+The scripts subdirectory contains a 00README file with information
+about the scripts.
+
+
+=============
+Dialect Notes
+=============
+
+
+AIX 3.2.[45], 4.1, and 4.1.[12]
+===============================
+
+Specify the aix Configure abbreviation for AIX 3.2.[45], 4.1, and
+4.1.[12].  The Configure script uses /usr/bin/oslevel to determine
+the AIX version.  If /usr/bin/oslevel isn't executable, the Configure
+script issues a warning message and assumes the version is 3.2.0.
+If you have an AIX version earlier than 3.2.0, you will have to
+edit the Makefile, produced by Configure, and change the value of
+the _AIXV definition in the CFGF string.
+
+As of revision 3.29 lsof by default avoids using the kernel's
+readx() function, causing it to be unable to report information on
+some text and library file references.  The ``-X'' option was added
+to allow the lsof user to ask for the information readx() supplies.
+
+Lsof avoids readx() to avoid the possibility of triggering a kernel
+problem, known as the Stale Segment ID kernel bug.  Kevin Ruderman
+<rudi@acs.bu.edu> reported this bug to me.  The bug shows up when
+the kernel's dir_search() function hangs, hanging the application
+process that called it so completely that the application process
+can neither be killed nor stopped.  The hang is the consequence of
+another process (e.g., lsof) making legitimate use of the kernel's
+readx() function to access the kernel memory that dir_search() is
+examining.  IBM has indicated they have no plans to fix the bug in
+3.2.x or 4.1[.x] but may fix it in 4.2.
+
+A fuller discussion of this bug may be found in the 00FAQ file of
+this distribution.  Sections 3.6.2 and 3.6.2.1 describe the Stale
+Segment ID bug, the APAR on it, and the sequence of events that
+exposes it.
+
+I added the ``-X'' function so you can tell lsof to use readx(),
+but if you use ``-X'', you should be alert to its possibly serious
+side effects.  Although readx() is normally disabled, its state is
+controlled with the HASXOPT and HASXOPT_VALUE definitions in
+dialects/aix/machine.h, and you can change its default state by
+changing those definitions.
+
+You can also compile lsof with readx() use permanently enabled or
+disabled -- see the comments about the definitions in the
+dialects/aix/machine.h header file.  You may want to permanently
+disable lsof's use of readx() if you plan to make lsof publicly
+executable.
+
+I have never seen lsof cause the Stale Segment ID bug occur and
+haven't had a report that it has, but I believe there is a possibility
+it could.
+
+Mark Peek <mark_peek@taligent.com> provided and tested the changes
+for IBM's AIX 4.1.
+
+
+EP/IX
+=====
+
+The EP/IX port would not have been possible without the help of
+Doug Eldred of CDC.
+
+There is no /proc file system support in EP/IX 2.1.1, even though
+it's a SYSV R4 derivative.  As now configured, lsof must compile
+in the svr3 environment, but /proc file system support needs
+functions and header files from the svr4 environment.  I have not
+succeeded in mixing the two environments.
+
+
+FreeBSD
+=======
+
+Bill Bormann of the Purdue University Computing Center provided a
+FreeBSD 1.1.5.1 test system.
+
+Kurt Jaeger <pi@complx.stgt.sub.org> helped with the FreeBSD 2.0
+update.  Ade Barkah <mbarkah@rksys.com> and William McVey
+<wam@cs.purdue.edu> provided FreeBSD 2.0 test systems.  Ade provided
+the FreeBSD 2.0.5 test system.
+
+The FreeBSD distribution header files are augmented by header files
+in the dialects/freebsd/include directory tree.  The tree includes
+separate sub-trees for FreeBSD 1.1.5.1 (dialects/freebsd/include/1)
+and 2.0 (dialects/freebsd/include/2).
+
+The two sub-trees contain header files that may not always be
+present in a FreeBSD system, or that need special modifications.
+The modifications consist of #if/#endif brackets, using the definition
+LSOF, to eliminate or alter troublesome header file items.  The
+LSOF definition is made in the CDEFS string of the Makefile.
+
+Configuring lsof 3 for FreeBSD, using lsof's Configure script, may
+require specification of the name of the file in / that contains
+kernel name list (symbol to address) information.  The Configure
+script assumes that the file is named /386bsd for FreeBSD 1.1.5.1;
+and gets the FreeBSD 2.0 name via sysctl(8).  If the FreeBSD 2.0
+sysctl doesn't yield a kernel name, lsof uses  a default of /kernel.
+
+After defining the default kernel file name, lsof tests it to make
+sure it's a plain, executable file.  If it is not, Configure will
+``ls -CF'' the contents of / and ask that the Configure user specify
+the name of the kernel name list file.  Whatever is specified must
+be a plain, executable file.
+
+
+HP-UX 8.x, 9.x, and 10
+======================
+
+Lsof has been tested under some versions of HP-UX 8.x, 9.x, and 10
+on some HP hardware platforms.
+
+To use the CCITT x.25 socket support for HP-UX, you must have the
+x.25 header files in /etc/conf/x25
+
+Pasi Kaara <ppk@atk.tpo.fi> helped with the HP-UX port, especially
+with its CCITT x.25 socket support.
+
+Richard Allen <ra@rhi.hi.is> provided a test system and helped with
+the HP-UX 10 port.
+
+
+IRIX 4.0.5H, 5.1.1, 5.2, 5.3, and 6.0
+=====================================
+
+Adam Hammer of Purdue's Computer Science Department, Dwight McKay
+of Purdue's Biology Department, and Dave Olson of Silicon Graphics
+kindly assisted with the IRIX ports.  Przemek Klosowski
+<przemek@rrdjazz.nist.gov> provided an IRIX 6.0 test system.
+
+I currently don't have access to IRIX 5.1.1, so lsof 3 has not been
+tested on it.  Because there are some differences between 5.1.1
+and 5.2 in the kernel structures that lsof uses, I'm not sure the
+IRIX 5.2 revisions will work on 5.1.1.
+
+Dave Olson <olson@anchor.engr.sgi.com> supplied the IRIX 5.3 changes.
+Dave says IRIX 5.3 lsof doesn't work with the new XFS file system,
+because of kernel data structure definitions.
+
+The CFLAGS string, the clean rule, the depend rule, and the disabled
+sinclude make directive have traces of a dependency technique that
+uses the -MDupdate flag of the IRIX cc compiler.  Unfortunately I
+have encountered two IRIX dialects -- a 4.0.5H system, and a 5.2
+one -- where the use of -MDupdate hung the compiler and the OS.
+Therefore, I have disabled the use of -MDupdate, but have left
+enough traces that the brave can re-enable it.
+
+If you are brave and want to use compiler dependency generation,
+re-enable it by defining the CFGD string for the compiler option
+(e.g., CFGD=-MDupdate), and the CFGDN string for the name of the
+dependency file (e.g., CFGDN=-Makedepend.irix) in the Configure
+script or in the Makefile it constructs.  Remove the leading
+comment character (`#') from the Makefile's sinclude directive.
+
+IRIX 5.x and 6.0 ship without some important system header files.
+They are found in the irix5hdr and irix6hdr subdirectories.
+
+The last lsof revision I could test under 4.0.5H was 3.19.
+
+The last lsof revision I could test under 5.2 was 3.18.
+
+
+Linux
+=====
+
+With the help of Tim Korb <jtk@arthur.cs.purdue.edu>, who provided
+access to a Linux PC in the Purdue Computer Science Department, I
+first ported lsof to Linux version 1.0.9.  Subsequently I adapted
+that port to Yggdrasil Plug-and-Play Linux, Fall '94, version
+1.1.47.
+
+Hendrik G. Seliger <hank@Blimp.automat.uni-essen.de> reports that
+lsof compiles and seems to work under Linux 1.1.61.
+
+The revision 3.20 changes appear to be necessary for Linux 1.1.75
+and above, although I have no confirmation of that.  If you learn
+differently, please let me know.
+
+Marty Leisner <leisner@sdsp.mc.xerox.com> reports that lsof compiles
+and seems to work under Linux 1.1.64.  With the changes at lsof
+revision 3.20, it seems to compile and work under Linux 1.1.88,
+Marty reports.  Marty further reports that lsof 3.25 compiles and
+works under Linux 1.2.5; and lsof 3.29 under 1.2.8.
+
+At revision 3.32 Michael Shields <shields@tembel.org> helped add
+and test automatic handling of ELF/COFF form names in /System.map,
+and Joseph J. Nuspl Jr. <nuspl@nvwls.cc.purdue.edu> gave me access
+to his Linux system for testing.  Michael's testing and mine on
+Joe's system were done against Linux version 1.2.10.  Subseuqently
+I have tested lsof 3.37 under Linux 1.2.11.
+
+The 00FAQ file gives some Linux tips.
+
+
+NetBSD 1.0 and 1.0A
+===================
+
+Greg Earle <earle@isolar.Tujunga.CA.US> and Paul Kranenburg
+<pk@cs.few.eur.nl> assisted me with NetBSD 1.0 and 1.0A.  Greg
+provided modifications to the NetBSD code that was once in lsof,
+and helped test the revised code; Paul generously provided Intel
+and SPARC-based test systems.
+
+The NetBSD 0.9 support that was in lsof revisions 3.0 through 3.20,
+but tested last in 3.0, has been removed.
+
+
+NEXTSTEP 2.1 and 3.[0123]
+=========================
+
+Virtual memory header files that allow lsof to display text references
+were derived from the contents of /usr/include/vm of NEXTSTEP 2.0.
+NeXT did not ship the virtual memory header files with other NEXTSTEP
+versions.
+
+You may use the RC_FLAGS environment variable to declare compiler
+options outside the Makefile.  A common use of this variable is to
+define the architecture types to be included in a "fat" executable.
+See the comments in dialects/next/Makefile for an example.
+
+Stuart Staniford-Chen <stanifor@cs.ucdavis.edu> reports that lsof
+3 builds and works under NEXTSTEP 3.0.
+
+Andreas Stolcke <stolcke@ICSI.Berkeley.EDU> reports that lsof 3.09
+builds and works under NEXTSTEP 2.1, if ``-DKERNEL_FEATURES'' is
+added to the compiler flags in the Makefile.
+
+Allan Nathanson <ajn@NeXT.com> supplied the update in lsof 3.23
+for NEXTSTEP 3.3 (m68k, i486, hppa, and SPARC architectures).
+
+
+Novell UnixWare 1.1, 1.1.1, and 1.1.2
+=====================================
+
+The UnixWare version was developed on a PC with UnixWare 1.1.2,
+the SDK kit, and all TCP/IP network packages (including NFS)
+installed.  I have tried to include the header files from the TCP/IP
+network packages that lsof needs in the dialects/uw11 subdirectory.
+If you don't have the required TCP/IP packages you can still build
+lsof by configuring with the uw11nonet abbreviation.  (Of course,
+you must have the SDK package to build lsof.)
+
+Peter Lord <plord@novell.co.uk> graciously provided a copy of
+UnixWare and technical help for the UnixWare port.  Peter has made
+the lsof distribution, including an lsof executable, available on
+the Novell mail server and a Novell anonymous ftp site.  To obtain
+lsof via the Novell server, compose and send the following electronic
+mail:
+
+	To: mail-server@novell.co.uk
+	Subject:
+
+	begin
+	send index
+	send BINARIES/lsof_3.08/lsof_3.08.tar.gz
+	send SOURCES/lsof_3.08.tar.gz
+	end
+
+You may use anonymous ftp to ftp.novell.de to get these files:
+
+	/pub/unixware/usle/BINARIES/lsof_3.08/lsof_3.08.tar.gz
+	/pub/unixware/usle/SOURCES/lsof_3.08.tar.gz
+
+If you can't manage to get a UnixWare binary from these sources,
+send me email <abe@cc.purdue.edu>.
+
+
+
+OSF/1 1.3, 2.0, and 3.[02] for the DEC Alpha
+============================================
+
+Lsof 3 has been tested under OSF/1 1.3, 2.0, 3.0, and 3.2 for the
+DEC Alpha.
+
+As distributed, the kernel header files for OSF/1 1.3, 2.0, 3.0,
+and 3.2 are not wholly suited to lsof, because some of them are
+not designed to be included in user application programs.
+
+Lsof circumvents the problems with three strategies: 1) defining
+header file directory search order with the C pre-processor -I
+option; 2) removing some symbol definitions in lsof.h; and 3)
+including slightly modified copies of header files in the dec_a/1,
+dec_a/2, dec_a/3, and dec_a/3.2 subdirectories of the distribution.
+
+The modifications consist of #if/#endif brackets, using the definition
+LSOF, to eliminate or alter troublesome header file items.  The
+LSOF definition is made in the CDEFS string of the Makefile.
+
+Lsof 3 also supports the ADVFS/MSFS layered file system product.
+It has been tested on a 1.3a system, kindly provided by Achim Bohnet
+<ach@mpe-garching.mpg.de> and Bernt Christandl <beb@mpe-garching.mpg.de>,
+and a 3.0 system kindly provided by Ron Young <ron@screamer.nevada.edu>.
+(It has not been tested under OSF/1 1.2 or 2.0.)  Lsof can locate
+all the open files of an ADVFS/MSFS file system when its path is
+specified, provided the file system is listed in /etc/fstab with
+an ``advfs'' type.  (The /etc/fstab caveat does not apply to OSF/1
+3.0.)
+
+Dave Morrison <dmorriso@us.oracle.com> prepared the dec_a/3.2
+subdirectory.  He and Lawrence MacIntyre <lpz@nautique.epm.ornl.gov>
+did OSF/1 V3.2 testing
+
+Configuring lsof 3 for DEC OSF/1, using lsof's Configure script,
+requires specification of the subdirectory of /sys that contains
+configuration header files for revisions of lsof 3.09 and higher.
+(The script prompts for the entry of the subdirectory name.)
+Usually the name is an upper case version of the first host name
+component -- e.g., TOMIS from tomis.bio.purdue.edu.
+
+In addition to the people already mentioned, these people helped
+me with the OSF/1 porting efforts:  Alex Kreis, Anthony Baxter,
+Axel Clauberg, Claus Kalle, Dwight McKay, Jeffrey Mogul, and James
+Woodward.
+
+
+Pyramid DC/OSx 1.1 for ES, Nile and S Series
+============================================
+
+Anthony Shortland <Anthony.Shortland@FMR.com> produced the Pyramid
+DC/OSx 1.1 support, working from the Novell UnixWare sources.
+Anthony provides these notes:
+
+    1.  The -lucb library is needed for the strcasecmp() function.
+
+    2.  Strict ANSI compliance was dictated with the -Xa compiler
+	option.  The -DVIRTUAL_COLOR, -DJOLT, and -DR4000 compiler
+	flags are needed to influence system header file conformance.
+
+    3.  Anthony tested DC/OSx lsof on the file system types
+	available to him.  Your fstinfo(1M) may show other types
+	for which there is no support.
+
+Anthony did his work on a Nile (R4400) series machine under DC/OSx
+1.1-94d079.
+
+Robert Vernon <bob@pyramid.com.au> provided changes to extend
+support to the ES and S (R3000) series machines and to the RxFS
+file system type.
+
+The Configure script stanza for the dcosx abbreviation determines
+the machine hardware type and adjusts the compiler flags in the
+Makefile accordingly.
+
+Bruce Beare <bjb@pyramid.com> helped enhance the distribution.
+
+Robert Vernon reports that he tested his changes on: a Nile series,
+running DC/OSx 1.1-94d079; an S series, running DC/OSx 1.1-94c079
+with the RxFS option; and an ES series, running DC/OSx 1.1-93c063.
+He notes that to get lsof to compile on the out-of-date revision
+of DC/OSx (1.1-93c063) on the ES series machine, he had to "borrow"
+the mntent.h and mnttab.h header files from elsewhere.
+
+
+RISC/os 4.52
+============
+
+The RISC/os 4.52 R2030 test system was provided by Zdenko Tomasic
+<zdenko@harvey.cam.rice.edu>.
+
+
+SCO OpenDesktop or OpenServer 1.1, 3.0, and 5.0
+===============================================
+
+Dion Johnson <dionj@sco.com>, Bela Lubkin <belal@sco.com>, and
+Nathan Peterson <nathanp@sco.com> of SCO provided me copies of SCO
+OpenDesktop, version 3.0, and the SCO OpenDesktop Development
+System, version 3.0, and gave me technical advice for the lsof
+port.
+
+Hugh Dickins <hughd@sco.COM>, Bela Lubkin, Craig B. Olofson
+<craigo@sco.COM>, and Nathan Peterson provided version 5.0 and gave
+technical advice for porting lsof 3.26 to it.
+
+Lsof has been tested on SCO OpenDesktop or OpenServer releases
+1.1, 3.0, and 5.0.  It should Configure without complaint, using
+the sco abbreviation, for release 2.0; and for SCO Unix release
+3.2v2.0 through 3.2v5.0.0 with SCO TCP/IP and SCO NFS, but it has
+not been tested on them.  It will Configure, but complain, for
+releases 3.2.0 and 3.2.1.  It has not been tested and may not work
+with SCO stand-alone Unix systems that do not have TCP/IP and NFS
+support installed.
+
+The <netdb.h> header file was accidentally omitted from some SCO
+Development System releases.  The Configure script will sense its
+absence and substitute an equivalent from the BSD distribution.
+The BSD <netdb.h> and the <sys/cdefs.h> header file it includes
+are located in the dialects/sco/include subdirectory tree.
+
+The install rule places lsof in /bin and the lsof manual page in
+/usr/man/cat.LOCAL/lsof.LOCAL.  Change the Makefile in dialects/sco
+to suit your local conventions.
+
+
+Sequent PTX 2.1.[156] and 4.0.[23]
+==================================
+
+This distribution will build an lsof that I have tested on PTX
+2.1.6 and 4.0.[23] systems.  Peter Jordan <petej@sequent.com>,
+Gerrit Huizenga <gerrit@sequent.com>, Kevin Smallwood <kcs@sequent.com>,
+and Mike Spitzer <mjs@sequent.com> provided access to the test
+systems and gave me technical advice.
+
+Kevin Smallwood tested lsof under PTX 2.1.1.  Thomas A. Endo
+<tendo@netcom.com> and David Putz <PutzDW@PO1.LMB.unisys.com> tested
+under PTX 2.1.5.  Joel White <jdwhite@netcom.com> tested under PTX
+2.1.6.  Bob Foertsch <foertsch@uiuc.edu> tested under PTX 4.
+
+Lsof may not compile under all versions of PTX because of header
+file complications resulting from the absence of a particular
+layered product.  I have accommodated only the CD-ROM and NFS
+layered products in the lsof sources of revision 3.28.  If you have
+problems compiling lsof because your C compiler complains about
+missing header files, please email a description of your problems
+to me.
+
+
+Solaris 2.[1234]
+================
+
+The Solaris 2.3 revision of lsof 3 will probably work under Solaris
+2.[12], but hasn't been tested there.
+
+Lsof will compile with gcc and the Sun C compiler under Solaris.
+If you want to use the Sun compiler, use the solariscc Configure
+abbreviation.
+
+Dave Curry <davy@ecn.purdue.edu> and Steve Kirsch <stk@infoseek.com>
+provided resources for the port.  Casper Dik <casper@fwi.uva.nl>
+and Gerry Singleton <Gerry.Singleton@Canada.Sun.COM> consulted and
+provided valuable assistance.
+
+Casper Dik <casper@fwi.uva.nl> provided and tested the Solaris 2.4
+changes, including changes to the Configure script that allow it to
+sense and adjust to the Solaris version.  If you use gcc on Solaris,
+make sure the gcc-specific includes have been updated for 2.4.
+
+
+SunOS 4.1.[1234]
+================
+
+The distribution will build a usable lsof for SunOS 4.1.3.  It also
+will build distributions that usually work under SunOS 4.1.1 and
+4.1.2.  (Steinar Haug <Steinar.Haug@runit.sintef.no> reports that
+it works for SunOS 4.1.4, too.)
+
+To use lsof with SunOS versions below 4.1.3, configure for sunos413
+or sunos413cc.  If some inode numbers appear as zero in the lsof
+output on your system, try changing the SUNOSV value in the Makefile
+from 40103 to 40102.
+
+To use lsof with SunOS 4.1.4, Configure for sunos413 (or sunos413cc).
+
+You have two compiler choices -- gcc or cc.  Select the abbreviation
+that fits your system, sunos413 for gcc, or suns413cc for Sun cc.
+This hack is required because the Sun cc doesn't grok the const
+keyword.
+
+It is also important to understand that a SunOS 4.1.x executable
+may only work for the architecture on which it is compiled.  For
+example, compiling lsof on a S690MP server produces a lsof that
+will only run on the server; that lsof won't run on the server's
+IPC clients.  To obtain a lsof that will run on the IPC clients,
+one must compile lsof on an IPC.
+
+This awkward condition is a result of differences in the user
+structure (in <sys/user.h>) between Sun architectures.  Some standard
+Sun executables -- e.g., /bin/ps -- have the same problem.  Sun
+has "solved" the problem by symbolically linking them to
+architecture-specific executables in /usr/kvm.  Thus, /bin/ps
+becomes a symbolic link to /usr/kvm/ps.
+
+Following this pattern, the SunOS Makefile for lsof installs the
+executable in /usr/kvm.  Our local Makefile has an install action
+that also creates a symbolic link to /usr/kvm/lsof from
+/usr/local/etc/lsof.  The supplied Makefile doesn't have that
+action, because it's local to our install program.  If you want a
+symbolic link to /usr/kvm/lsof from a place in your standard path,
+you'll have to add the appropriate action to the install rule.
+
+You may not want to install lsof in /usr/kvm with a symbolic link
+from somewhere else.  In that case you might want to try a strategy
+suggested by Steinar Haug.  First, install the architecture-specific
+revisions of lsof in the place of your choice, each with a suffix
+matching the architecture value produced by the -m option of the
+uname command -- e.g., lsof.sun4, lsof.sun4c, lsof.sun4m.  Then,
+install the following shell script as lsof.
+
+	#! /bin/sh
+	prog=$0.`uname -m`
+	exec $prog ${1+"$@"}
+
+
+SunOS 4.1.x gcc Warning
+=======================
+
+There is a subtle gcc installation problem that may prevent you
+from building a working lsof on your SunOS 4.1.x system.  (It will
+prevent you from building a working ps, too, if you have sources.)
+
+The problem deals with the header files that gcc "fixes" so they
+will be ANSI compliant.  There's a script in the gcc installation
+process, called fixincludes, that makes selected header files ANSI
+compliant by copying them from their Sun locations to a gcc library
+location.
+
+Some of those header files change length, depending on the Sun
+architecture.  That length change affects the position of important
+elements from the user structure -- command name among them -- that
+lsof uses.
+
+If header files are fixed on one architecture and copied to another --
+e.g., fixed on a sun4m and copied to a sun4c -- the destination
+architecture will have a gcc that works for many programs, but may
+fail for programs that reference the user structure.
+
+The common manifestation of incorrect gcc header files is that lsof
+compiles properly, but doesn't report anything when it is run, no
+matter what option is used.  If this happens to you, examine the
+ancestry of your gcc compiler carefully.  Check the 00FAQ file for
+some suggested work-arounds.
+
+
+Ultrix 2.2, 4.2, 4.3, and 4.4
+=============================
+
+Terry Friedrichsen <terry@venus.sunquest.com>, Dwight McKay
+<mckay@gimli.bio.purdue.edu>, and Jeffrey Mogul <mogul@pa.dec.com>
+helped me with this port.
+
+The system to which the 2.2 port was directed has been extensively
+updated with 4.3BSD{Tahoe,Reno} network features, so it may not
+match a standard 2.2 system, if there is any such system still in
+use.  A separate Configure abbreviation, ultrix22, is necessary
+for it.
+
+All other Ultrix versions may be configured with the ultrix
+abbreviation.
+
+DECnet support was added to lsof at revision 3.05.  John Beacom
+<beacom@wisnud.physics.wisc.edu> kindly provided the test system.
+The Configure script decides that DECnet support is available if
+/usr/lib/libdnet.a and /usr/include/netdnet/dn.h exist and are
+readable.
+
+Chris Timmons <skynyrd@tahoma.cwu.edu> reports that lsof 3.12
+compiles and works under Ultrix 4.4.
+
+
+V/88 R32V3, R40V4.2, and R40V4.3
+================================
+
+Chance Neale <cneale@panix.com> provided the V/88 test systems and
+Mike Feldman <feldman@charm.urbana.mcd.mot.com> provided technical
+information about V/88.  I thank them both.
+
+The Configure script's v88 abbreviation figures out under which
+V/88 release it's running and adjusts the Makefile accordingly.
+
+
+===============
+Installing Lsof
+===============
+
+Check the following Makefile strings before installing lsof:
+
+	BIN		destination directory
+	GRP             group (probably needs to be the group that
+			can read /dev/kmem)
+
+The install rule sets the mode to 2755 on the assumption that group
+read access to kernel memory files is sufficient.  If you use
+different access controls for the kernel memory files, you may have
+to change the install rule.  If you want lsof to be able to search
+for any file by specifying its name on the lsof call, regardless
+of the ownership or permissions of the file, you may also have to
+change the install rule to give lsof setuid-root permission.
+
+
+====================================
+Porting lsof 3 to a New Unix Dialect
+====================================
+
+If you're brave enough to consider this (It _has_ been done; see
+the Pyramid DC/OSx support!), look at the 00PORTING file.  Please
+contact me before you start.  I might be able to help you or even
+do the port myself.
+
+Don't overlook the contrib/ directory in pub/tools/unix/lsof on my
+ftp server, vic.cc.purdue.edu.  It contains user-contributed ports
+of lsof to dialects I don't distribute, because I can't test new
+revisions of lsof on them.
+
+
+Vic Abell <abe@cc.purdue.edu>
+Purdue University Computing Center (PUCC)
+July 26, 1995

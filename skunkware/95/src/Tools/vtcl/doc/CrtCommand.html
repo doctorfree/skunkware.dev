@@ -1,0 +1,219 @@
+<HTML>
+<HEAD>
+<TITLE>CrtCommand</TITLE>
+</HEAD>
+<BODY>
+<H1>CrtCommand</H1>
+<HR>
+<PRE>
+     _________________________________________________________________
+
+     <STRONG>NAME</STRONG>
+          Tcl_CreateCommand,  Tcl_DeleteCommand,   Tcl_GetCommandInfo,
+          Tcl_SetCommandInfo - implement new commands in C
+
+     <STRONG>SYNOPSIS</STRONG>
+          <STRONG>#include</STRONG> <STRONG>&lt;tcl.h&gt;</STRONG>
+
+          <STRONG>Tcl_CreateCommand</STRONG>(<EM>interp</EM>, <EM>cmdName</EM>, <EM>proc</EM>, <EM>clientData</EM>, <EM>deleteProc)</EM>
+
+          int
+          <STRONG>Tcl_DeleteCommand</STRONG>(<EM>interp</EM>, <EM>cmdName)</EM>
+
+          int                                                           |
+          <STRONG>Tcl_GetCommandInfo</STRONG>(<EM>interp</EM>, <EM>cmdName</EM>, <EM>infoPtr)</EM>                  |
+
+          int                                                           |
+          <STRONG>Tcl_SetCommandInfo</STRONG>(<EM>interp</EM>, <EM>cmdName</EM>, <EM>infoPtr)</EM>                  |
+
+     <STRONG>ARGUMENTS</STRONG>
+          Tcl_Interp          *<EM>interp</EM>           (in)      Interpreter
+                                                          in  which to
+                                                          create   new
+                                                          command.
+
+          char                *<EM>cmdName</EM>          (in)      Name      of
+                                                          command.
+
+          Tcl_CmdProc         *<EM>proc</EM>             (in)      Implementation
+                                                          of       new
+                                                          command:
+                                                          <EM>proc</EM> will be
+                                                          called
+                                                          whenever
+                                                          <EM>cmdName</EM>   is
+                                                          invoked as a
+                                                          command.
+
+          ClientData          <EM>clientData</EM>        (in)      Arbitrary
+                                                          one-word
+                                                          value     to
+                                                          pass to <EM>proc</EM>
+                                                          and
+                                                          <EM>deleteProc</EM>.
+
+          Tcl_CmdDeleteProc   *<EM>deleteProc</EM>       (in)      Procedure to
+                                                          call  before
+                                                          <EM>cmdName</EM>   is
+                                                          deleted from
+                                                          the
+                                                          interpreter;
+                                                          allows   for
+                                                          command-
+                                                          specific
+                                                          cleanup.  If
+                                                          NULL,   then
+                                                          no procedure
+                                                          is    called
+                                                          before   the
+                                                          command   is
+                                                          deleted.
+
+          Tcl_CmdInfo         *<EM>infoPtr</EM>          (in/out)  Pointer   to  |
+                                                          structure  |
+                                                          containing  |
+                                                          various  |
+                                                          information  |
+                                                          about  a Tcl  |
+                                                          command.
+     _________________________________________________________________
+
+
+     <STRONG>DESCRIPTION</STRONG>
+          <STRONG>Tcl_CreateCommand</STRONG>  defines  a  new  command  in  <EM>interp</EM>  and
+          associates it with procedure <EM>proc</EM> such that whenever <EM>cmdName</EM>
+          is invoked as a Tcl command (via a call to <STRONG>Tcl_Eval</STRONG>) the Tcl
+          interpreter will call <EM>proc</EM> to process the command.  If there
+          is  already  a   command   <EM>cmdName</EM>   associated   with   the
+          interpreter,  it is deleted.  <EM>Proc</EM> should have arguments and
+          result that match the type <STRONG>Tcl_CmdProc</STRONG>:
+               typedef int Tcl_CmdProc(
+                    ClientData <EM>clientData</EM>,
+                    Tcl_Interp *<EM>interp</EM>,
+                    int <EM>argc</EM>,
+                    char *<EM>argv</EM>[]);
+          When <EM>proc</EM> is invoked the <EM>clientData</EM>  and  <EM>interp</EM>  parameters
+          will  be copies of the <EM>clientData</EM> and <EM>interp</EM> arguments given
+          to <STRONG>Tcl_CreateCommand</STRONG>.  Typically, <EM>clientData</EM>  points  to  an
+          application-specific  data  structure that describes what to
+          do when the command procedure is  invoked.   <EM>Argc</EM>  and  <EM>argv</EM>
+          describe  the  arguments  to  the  command,  <EM>argc</EM> giving the
+          number of arguments (including the command  name)  and  <EM>argv</EM>
+          giving  the  values  of  the arguments as strings.  The <EM>argv</EM>
+          array will contain <EM>argc</EM>+1  values;  the  first  <EM>argc</EM>  values
+          point to the argument strings, and the last value is NULL.
+
+          <EM>Proc</EM> must return an integer  code  that  is  either  <STRONG>TCL_OK</STRONG>,
+          <STRONG>TCL_ERROR</STRONG>,  <STRONG>TCL_RETURN</STRONG>, <STRONG>TCL_BREAK</STRONG>, or <STRONG>TCL_CONTINUE</STRONG>.  See the
+          Tcl overview man page for details on what these codes  mean.
+          Most  normal  commands will only return <STRONG>TCL_OK</STRONG> or <STRONG>TCL_ERROR</STRONG>.
+          In addition, <EM>proc</EM> must set  <EM>interp</EM>-&gt;<EM>result</EM>  to  point  to  a
+          string value; in the case of a <STRONG>TCL_OK</STRONG> return code this gives
+          the result of the command, and in the case of  <STRONG>TCL_ERROR</STRONG>  it
+          gives   an   error  message.   The  <STRONG>Tcl_SetResult</STRONG>  procedure
+          provides an easy interface for  setting  the  return  value;
+          for  complete  details  on  how  the <EM>interp</EM>-&gt;<EM>result</EM> field is
+          managed, see the <STRONG>Tcl_Interp</STRONG> man  page.   Before  invoking  a
+          command  procedure, <STRONG>Tcl_Eval</STRONG> sets <EM>interp</EM>-&gt;<EM>result</EM> to point to
+          an empty string, so simple  commands  can  return  an  empty
+          result by doing nothing at all.
+
+          The contents of the <EM>argv</EM> array belong to  Tcl  and  are  not  |
+          guaranteed  to  persist  once <EM>proc</EM> returns:  <EM>proc</EM> should not  |
+          modify them, nor  should  it  set  <EM>interp</EM>-&gt;<EM>result</EM>  to  point  |
+          anywhere  within  the  <EM>argv</EM> values.  Call <STRONG>Tcl_SetResult</STRONG> with  |
+          status <STRONG>TCL_VOLATILE</STRONG> if you want to return something from the  |
+          <EM>argv</EM> array.
+
+          <EM>DeleteProc</EM> will be invoked when  (if)  <EM>cmdName</EM>  is  deleted.
+          This  can  occur  through  a  call  to  <STRONG>Tcl_DeleteCommand</STRONG> or
+          <STRONG>Tcl_DeleteInterp</STRONG>, or by replacing <EM>cmdName</EM> in another call to
+          <STRONG>Tcl_CreateCommand</STRONG>.  <EM>DeleteProc</EM> is invoked before the command
+          is deleted, and gives  the  application  an  opportunity  to
+          release   any   structures   associated  with  the  command.
+          <EM>DeleteProc</EM> should have arguments and result that  match  the
+          type <STRONG>Tcl_CmdDeleteProc</STRONG>:
+
+               typedef void Tcl_CmdDeleteProc(ClientData <EM>clientData)</EM>;
+
+          The <EM>clientData</EM> argument will be the same as  the  <EM>clientData</EM>
+          argument passed to <STRONG>Tcl_CreateCommand</STRONG>.
+
+          <STRONG>Tcl_DeleteCommand</STRONG>  deletes  a   command   from   a   command
+          interpreter.   Once  the  call completes, attempts to invoke
+          <EM>cmdName</EM> in <EM>interp</EM> will result in errors.  If  <EM>cmdName</EM>  isn't
+          bound  as  a  command  in <EM>interp</EM> then <STRONG>Tcl_DeleteCommand</STRONG> does
+          nothing and returns -1;  otherwise it returns 0.  There  are
+          no  restrictions  on  <EM>cmdName</EM>:   it  may refer to a built-in
+          command,  an  application-specific   command,   or   a   Tcl
+          procedure.
+
+          <STRONG>Tcl_GetCommandInfo</STRONG>  checks  to  see  whether   its   <EM>cmdName</EM>  |
+          argument  exists  as  a  command  in <EM>interp</EM>.  If not then it  |
+          returns  0.   Otherwise  it  places  information  about  the  |
+          command  in  the structure pointed to by <EM>infoPtr</EM> and returns  |
+          1.   Tcl_CmdInfo  structures   have   fields   named   <EM>proc</EM>,  |
+          <EM>clientData</EM>,  and  <EM>deleteProc</EM>, which have the same meaning as  |
+          the corresponding arguments to <STRONG>Tcl_CreateCommand</STRONG>.  There  is  |
+          also  a  field  <EM>deleteData</EM>, which is the ClientData value to  |
+          pass to <EM>deleteProc</EM>;  it is normally the same  as  <EM>clientData</EM>  |
+          but  may  be  set independently using the <STRONG>Tcl_SetCommandInfo</STRONG>  |
+          procedure.                                                    |
+
+          <STRONG>Tcl_SetCommandInfo</STRONG> is used  to  modify  the  procedures  and  |
+          ClientData  values  associated  with a command.  Its <EM>cmdName</EM>  |
+          argument is the name  of  a  command  in  <EM>interp</EM>.   If  this  |
+          command    exists   then   <STRONG>Tcl_SetCommandInfo</STRONG>   returns   0.  |
+          Otherwise, it copies the information from *<EM>infoPtr</EM> to  Tcl's  |
+          internal structure for the command and returns 1.  Note that  |
+          this  procedure  allows  the  ClientData  for  a   command's  |
+          deletion  procedure  to  be given a different value than the  |
+          ClientData for its command procedure.
+
+
+     <STRONG>KEYWORDS</STRONG>
+          bind, command, create, delete, interpreter
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

@@ -1,0 +1,240 @@
+AntipoliX v2.0
+By Bernard BROSS
+
+1 - Basic principles
+--------------------
+
+  This game is played in a parallelepipede containing PxNxN little
+cubes. You can first consider this 3D board as P 2D checkerboards of
+NxN squares.
+  From 2 up to 10 players can confront each other.
+  Each player begins with a certain number of pieces (or armies) that
+he has to move and make attack. One of his pieces represents him-self
+(or the chief, or the king, or anything you want). If this piece die,
+the player is eliminated. The last player staying alive has won.
+  Messages can be send to the other players , so that alliances can be
+implemented.
+  A special timer assures that the game remain dynamic.
+
+
+2 - Pieces
+----------
+
+  There are three different kinds of pieces :
+- fortresses
+- armies (terrestrial)
+- hovercrafts (aerial)
+
+- Fortresses can't move but give strong defense to surrounding pieces.
+- Armies have moving field of 1 square (cube), and have strength of 2.
+- Hovercrafts have moving field of 2 squares (cubes), and have strength of 1.
+
+  The moving field of each piece is a cube centered on the piece.
+(pieces can move in every direction => 26 possibilities if not on edge).
+
+  Each piece has its own particular caracteristic, among these one :
+- Invisibility
+- Teleporter
+- Chief (only one piece)
+- nothing
+
+  At the beginning of game, each player, in turn, chooses and places
+his pieces, respecting the budget he has been allocated, knowing that
+the cost of a piece depends on its type and its caracteristic (see
+table below).
+  To place a piece, you have to click on a square, and, keeping the
+square highlighted, hit the key corresponding to the type of piece you
+want to put (see ch. 7).
+  Do the same for the caracteristics.
+  One of the pieces must be the chief. A player is eliminated when
+losing his chief. A player wins when every other players have been
+eliminated.
+  Caracteristics of pieces are not seen by opponents (you can see only
+the caracteristics of your pieces). Invisible pieces don't appear at
+all on opponent boards.
+
+3 - Movements
+-------------
+
+  Players make their movements SIMULTANEOUSLY (1 movement by turn), so
+that the server will wait until having received the movement
+(eventually nul) of each player to generate new positions and go on
+next turn.
+
+* Server will resolve movements in reception order.
+  
+  A movement is either a displacement or an attack :
+
+  A displacement order is given by selecting one of your pieces and an
+empty square. Server will validate this displacement if the empty
+square (cube) is effectively in the moving field of the piece.
+
+  An attack is launched by selecting one or several of your pieces and
+an ennemy piece. Server will verify that target is effectively in
+moving field of each attacking piece. Then it will resolve the battle,
+by comparing attacking power with defending power.
+  Attacking power is equal to the sum of attacking pieces strengths.
+  Defending power is equal to the sum of strengths of attacked piece,
+and surrouding pieces in a one square radius (it means strengths of
+pieces in a 3x3x3 (if not on edge) cube centered on attacked piece).
+  When attacking power strictly overcomes defending power, attack is
+successful, otherwise it fails.
+  If attack fails, nothing happens.
+  If attack succeeds, the fate of the attacked piece is uncertain :
+- in 40% of cases, the piece is immediately destroyed. If it was a
+chief, then the corresponding player if eliminated, and all his pieces
+become attacker's property.
+- in 30% of cases, the piece is teleported on a randomly choosed
+square (cube) of the universe. if this square is already occuped, the
+piece is destroyed.
+- in the last 30% of cases, the piece becomes attacker's property.
+
+* It is not possible to attack an invisible piece. But any movement of
+any kind of piece (visible or not) into the square of an ennemy
+invisible piece causes destruction of the latter.
+
+* Invisible pieces can help defending an adjacent piece as can do
+visible pieces.
+
+4 - Teleportation
+-----------------
+
+  Teleportation operates only between two teleporters (two pieces
+having teleporting characteristic). It can be used for displacement
+or attack as well.
+  In every cases, teleportation works if source teleporter is in
+"teleportation field" of destination teleporter, or if destination
+teleporter can be joined by source teleporter by a chain of
+teleporters, each of them being in "teleportation field" of the next
+one in chain.
+  "Teleportation field" is a modifiable parameter of the server, that
+should be 4 squares (cubes) by default.
+  
+- For displacement, the piece must be NEAR the source teleporter (it
+means, it must be on one of the 26 squares around the
+teleporter). Then, this piece can end its movement on a square located
+in movement field of destination teleporter.
+
+* "Movement field" is also a modifiable parameter of the server. Each
+time it's used in text, it depends on the type of piece we are talking
+about. (Moving field is 2 for hovercraft, 1 for armie).
+
+- Any moving piece (armie or hovercraft, for now) can attack an ennemy
+piece if it can move on the square of the attacked piece, using
+teleportation or not. For instance, a piece A can be selected to attack
+B if A could move (using telportation or not) into B square in one
+turn. Considering that, it is necessary, that a teleporter piece to
+be in "attacking piece moving field" of attacked piece.
+
+
+5 - Time
+--------
+
+  Each player begins the game with an equal credit of time in his
+timer (depending on the number of players). Every turn, while no
+player has send his movement to the server, all timers stay freezed.
+  As soon as a player has send his movement, his timer increases (it
+means, he gains time for next turns), while timers of other players
+decrease.
+  These timer variations are calculated by server in such a way, that
+total distributed time is constant.
+  Thus, let's take a 5 players game example : as soon as first
+player has send his movement to the server, its timer will increase
+of 4 units every second, while timer of other players will decrease of
+1 unit every second.
+  When 2 players will have send their movement, their timer will
+increase of 3 units every second, while the other 3 timers will
+decrease of 2 units.
+  The last player having not send its movement will see its timer
+decrease of 4 units every second, while other timers will increase of
+1 unit in the same laps.
+
+  Any player whose timer falls to zero is eliminated.
+
+6 - Messages
+------------
+
+  You can send, at any moment of the game (except during pieces
+placement phase, at the begining), a message to another player, on
+condition that sender has at least one piece near one of receiver
+pieces, by hiting receiver number (0-9).
+
+  You can also send a message to everybody, at any time, and without
+restrictive condition, by hiting 'a' key.
+
+  A few special commands can be send to server (hit m), using messages :
+- to give up (to quit), send to server : "QUIT"
+- to propose nul game to every other players : "NUL"
+- to come back from a previous nul game proposition : "WAR"
+
+* Games is nul and aborted when every players have send "NUL" to
+server.
+
+
+7 - Keys
+--------
+
+  0 - 9 : send a message (to player 0 - 9)
+  a : send a message to everybody
+  m : send a special command to server
+
+  a : armie
+  h : hovercraft
+  f : fortress
+  <spacebar> : nothing
+  
+  i : invisible
+  t : teleporter
+  c : chief
+  n : normal
+
+  <return> : send to server : start position, movement or message
+  
+  v : change universe viewing mode (see relative chapter)
+  u / j : choose wich 3 boards to see among all boards
+  o / p : change baords viewing direction
+  CTRL u / j : change boards viewing angle
+
+
+8 - Pieces costs, moving fields and strengths table
+---------------------------------------------------
+
+  These are default values. They can be easily changed, when starting
+the server.
+
+Types:                Cost       Force          Moves
+a - Armie               3         2               1
+h - Hovercraft          2         1               2
+f - Fortress           12         5(def)          0
+
+Caracteristics:
+i - Invisible           5         -               -
+t - Teleporter          10        -              +4
+c - Chief (unique)      -         -               -
+
+
+9 - Players scores
+------------------
+
+  Each player has it's own score in players file, that is intended
+to represent his ability at AntipoliX.
+  A new character begins with a score of 0.
+  Scores change only after non nul games.
+  Consider a game with 5 players :
+- the winner will increase his score of 5 points.
+- the first player to be eliminated has his score decreased of 4 points.
+- the second player to be eliminated has his score decreased of 3 points.
+... and so on...
+
+  A score can't be inferior than 0 : if having a score of 0 and losing
+a game, your score remains 0.
+
+  Players window give informations on every players in the game as
+follows :
+
+(number in game)  Name  [ email ]  :  score
+
+
+--------------------------------------------------------------------------
+                   -----------------------------------
+                            -----------------

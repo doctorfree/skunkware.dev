@@ -1,0 +1,164 @@
+This is the OS/2 port of TIN. 
+
+An executable version can be obtained from ftp.cdrom.com.
+
+To build TIN, you need the following:
+
+- IBM C Set/2 or Borland C++ for OS/2
+- PDCurses 2.0 build for the compiler of your choice
+
+  For the NNTP version of TIN:
+    - IBM TCP/IP 1.2.1 CSD UN37938 or higher,
+    - IBM TCP/IP 1.2.1 Programmers's Kit CSD UN37942 of higher, with 
+      modifications as outlined below.
+
+To run it you need:
+
+- set environment variables
+  To read news via NNTP
+    - TCP/IP access to an nntp server,
+- some free space on a HPFS or NFS volume (FAT will not work, due to 8.3 file
+  name restriction)
+
+  optional:
+    - uudecode and uushar utilities
+      Note: uudecode is posted regularly to comp.binaries.os2 in the
+            "OS/2 Binaries Starter's Kit" by mykek@miller.cs.uwm.edu
+            (OS/2 binaries moderator)
+
+Building TIN for OS/2
+
+1. Make sure that all source files (*.c and *.h) have <CR><LF> as their 
+   line-ends. If not, use 'unix2os2 < original >newfile' to correct this.
+
+2. Select the makefile appropriate for your compiler:
+    Makefile.bcc for Borland C++ for OS/2
+    Makefile.icc for IBM's C Set/2 Compiler
+    Note: Borland C is prefered. You may have to make some adjustments when you
+          use IBM's C.
+
+3. Edit the makefile, changing location of include and library files to
+   match your installation
+
+4. Correct bugs in \tcpip\include\netdb.h
+     find all occurrences of 'char *' that are not followed by '_Seg16' and add
+     '_Seg16'. For example change
+       SERVENT * _Seg16 _Far16 _Cdecl getservbyname( char *, char * );
+     to
+       SERVENT * _Seg16 _Far16 _Cdecl getservbyname( char * _Seg16, char * _Seg16 );
+     You will also correct the prototype for getservbyport and getprotobyname.
+
+5. If you are using Borland C++, edit the TCP/IP header files:
+    in netdb.h, netlib.h sys/socket.h do the following:
+      - find the #ifndef __32BIT__ near the top of each file
+
+      - change the conditional section as follows:
+        #ifndef __32BIT__
+        #ifdef __TURBOC__
+        #define _Packed
+        #define _Seg16 _far16
+        #define _Far16 _far16
+        #define _Cdecl _cdecl
+        #define __32BIT__
+        #else
+        #define _Packed
+        #define _Seg16
+        #define _Far16
+        #define _Cdecl
+        #endif
+        #endif
+
+      - add the following below the second #endif
+        #ifdef __TURBOC__
+        #define FAR16P _far16 *
+        #else
+        #define FAR16P * _Seg16
+        #endif
+                          
+      - throughout the files change '* _Seg16' and '*  _Seg16'  to 'FAR16P'
+   After these changes, the TCP/IP package can be used with the Borland C
+   compiler.
+
+6. If you are using Borland C++ type 'make -f makefile.bcc'
+   If you are using IBM's C Set/2 type 'nmake -f makefile.icc'
+   Ignore warnings, especially re _Cdecl and _Seg16 re-definition.
+
+
+Using TIN under OS/2
+
+To run the local newsspool version, start TIN. To run the NNTP version, 
+start TIN -r, or rename TIN.EXE to RTIN.EXE and run RTIN.
+
+TIN runs in an OS/2 windowed session. It is not a PM application. TIN needs to
+know who you are, in order to create headers for posts and mail correctly.
+There are two ways in which you can specify this information:
+
+- through environment variables
+- through a Unix-style passwd file
+
+Environment Variables
+
+If only one person is using TIN to post articles, set the following variables
+in your config.sys file:
+
+  USER userid                           set USER=andreas
+  REALNAME Your Full Name               set REALNAME=Andreas Wrede
+  HOME \your\home\directory             set HOME=c:\home\andreas
+
+Note that you HOME directory must be on a HPFS or NFS disk. FAT will
+probably not work, due to the 8.3 file name restriction. 
+
+
+Unix-style passwd file
+
+If a number of users use TIN to post articles, for example via telnet to the OS/2
+machine, it might be easier to use the Unix-style passwd file. The passwd file is
+located in the directory set by the environment variable ETC, usually c:\tcpip\etc.
+The same passwd file is used by ftp and telnet (via loginunx.exe). See your TCP/IP 
+User's Guide for more information. 
+
+TIN does no use the password field, but the full user name, the home directory and 
+the shell are taken from the passwd file entry. The environment variable USER is 
+used to locate the correct entry in the passwd file. If it is not set, an error 
+message is issued by TIN. Two sample passwd entries follow:
+
+andreas:x:1:1:Andreas Wrede:c:/home/andreas:c:/os2/cmd.exe
+guest:x:2:2:Guest User:c:/home/guest:d:/ksh/ksh
+
+
+Other Environment Variables
+
+Required for NNTP version:
+
+NNTPSERVER - either the fully qualified domain name of the nntp server or
+             the dotted internet address of the nntp server.
+
+HOSTNAME   - specifies the name of your machine. It is used to identify your 
+             machine to the nntp server.
+
+Required for local newspool version:
+
+TIN_SPOOLDIR   - path to the root of the news spool
+
+TIN_LIBDIR     - path to news control: active file, newsgroups file etc.
+
+TIN_NOVROOTDIR - path to overview files
+
+Optional:
+LINES  - specify how many lines you display window has. If LINES is not set,
+         TIN will use the actual height of the display window. You might need
+         to set this if you run TIN from a telnet session.
+
+EDITOR -
+VISUAL - specify the editor to use for composing articles and replies. 
+         Defaults to 'epm'.
+
+SHELL -  specify command process to use for shell escapes - defaults to 
+         whatever is set by COMSPEC
+
+
+For other environment variables, see ENVIRONMENT VARIABLES in tin.man.
+
+Enjoy!
+
+Andreas Wrede (andreas@scilink.org)

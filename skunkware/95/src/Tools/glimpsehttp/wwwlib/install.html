@@ -1,0 +1,124 @@
+<TITLE>GlimpseHTTP installation.</TITLE>
+
+<H1>GlimpseHTTP installation.</H1>
+
+This document contains directions for installing GlimpseHTTP
+on your system. We assume that you have a running HTTP server
+and that you understand how to install CGI scripts on it.
+Also, since GlimpseHTTP is an add-on to 
+<A HREF="http://glimpse.cs.arizona.edu:1994">Glimpse</A>, we assume
+that you already installed Glimpse and supporting tools
+somewhere in your system.
+<P>
+Current version was tested under httpd 1.2 from NCSA,
+but it can be easily tailored to any HTTP server which supports
+CGI scripts.
+
+<H2>Distribution files</H2>
+
+GlimpseHTTP is distributed as an add-on to Glimpse search tool.
+Actually, it is a collection of gateway programs which serves
+as a gateway between Glimpse and HTTP server.
+<BR>
+
+The distribution tar-file includes the following directories:
+<DL>
+<DT>cgi-bin
+<DD>CGI scripts. You should install them in your HTTP script directory;
+  see documentation on your HTTP server.
+<DT>news
+<DD>Tools that perform news archiving and indexing. If you don't
+want the news archiving features, don't install this directory. 
+If this feature is enabled, news archives will be stored in subdirectories
+of this directory.
+<DT>wwwlib
+<DD>Auxillary tools and files, documentation.
+</DL>
+Normally, GlimpseHTTP files are stored in the directory
+where your HTTP server stuff is located (this directory
+is given by the variable HTTP_HOME in configure script).
+By changing this variable, you can give an alternate location for it.
+
+<H2>Installation.</H2>
+
+<OL>
+<LI>Copy distribution archive to a chosen directory.
+<LI>Go to that directory.
+<LI>Un-tar the files:
+	<PRE>tar xvf glimpseHTTP.src.tar</PRE>
+   You should get directories 'cgi-bin', 'wwwlib' and 'news'.
+<LI>Edit the configuration script 'wwwlib/configure'
+   Change the variables HTTP_HOME and HTTP_NEWSHOME to whatever
+   location your server stuff is located in and where
+   you want your news archive to be located (if you are not
+   planning to use this feature, ignore it).
+   From now on, we will refer to these paths as
+   <I>HTTP_HOME</I> and <I>HTTP_NEWSHOME</I>, respectively.
+   Configuration script uses Perl. Make sure
+   variable PERL reflect its location (or
+   they are in your search PATH).
+   <BR>
+   Also make variables GLIMPSE_LOC and GLIMPSEIDX_LOC point
+   to where you installed Glimpse and Glimpseindex.
+   If you want any default options for glimpseindex,
+   change the variable GLIMPSEIDX_OPT to these options.
+   Note that options that you set here cannot be overriden by Archive
+   Manager. So normally, this variable should be left empty
+   and all options are set in Archive Manager for each archive individually.
+<LI>Run the configuration script 'wwwlib/configure'
+   This will edit all the distribution files and
+   set configurable variables in them, and also
+   compile the C-programs for your system.
+<LI>Move files from directories 'wwwlib' and 'cgi-bin'
+   into directories <I>HTTP_HOME</I>/wwwlib and <I>HTTP_HOME</I>/cgi-bin
+   if you performed the previous steps in a directory different
+   from <I>HTTP_HOME</I>.
+<LI>Move files from directory 'news' to <I>HTTP_NEWSHOME</I>
+   directory, or delete 'news' directory if you don't want
+   to install news archive.
+<LI>Make sure you configured directory <I>HTTP_HOME</I>/cgi-bin as a script
+   directory on your server. For httpd 1.2, this requires adding line
+   <PRE>ScriptAlias /cgi-bin/ <I>HTTP_HOME</I>/cgi-bin/</PRE>
+   in your resource file (usually srm.conf)
+<LI>Configure the archives using
+   <A HREF="amgr.html">Archive Manager</A>,
+   which is located in <I>HTTP_HOME</I>/wwwlib/amgr.
+   <BR><B>NOTE:</B>
+   Archive Manager generates HTML file
+   (ghindex.html by default) in each of the directories of your
+   archive(s), which may overwrite your existing HTML files.
+   So before executing "Index" command of the archive
+   manager, make sure you understand what you are doing.
+<LI>Now you can use HTML forms interface to aglimpse.
+   <A HREF="sample-form.html">Sample form</A>
+   is located in file <I>HTTP_HOME</I>/wwwlib/sample-form.html
+<LI>If you already have HTML indices describing your directories,
+   you can add hyperlinks
+<PRE>
+http://your.host/cgi-bin/aglimpse/&lt;archive-id&gt;/&lt;archive-path&gt;?query
+</PRE>
+   which, when followed, will search archive <I>archive-id</I>
+   in files matching <I>arhive-path</I> within given archive for
+   <I>query</I> and return the list of matches.
+   Using search in files whose name matches some pattern allows
+   you to implement combination of browsing and searching.
+   <BR>
+   If you don't have HTML indices, you can use "Index" option
+   of <A HREF="amgr.html">Archive Manager</A>
+   to generate HTML indices and, by request,
+   build Glimpse indices. To generate indices,
+   indexer combines single HTML template file and per-directory
+   description file to build HTML indices in each directory.
+   (see <A HREF="indexing.html"><I>Indexing Notes</I></A> for details)
+   Using this indexer automatically allows users of your system
+   to use combination of browsing and searching.
+<LI>You may wish to take a look at our
+   <a href="http://glimpse.cs.arizona.edu:1994/archive">
+   Demo Archive</a> to see how does <I>GlimpseHTTP</I> looks at work.
+</UL>
+
+<H2>Important tips and tricks</H2>
+   All the distribution files should be world readable in order
+   for them to work. Scripts in cgi-bin/ and wwwlib/
+   should be world executable. The reason is that most
+   HTTP servers execute CGI scripts under user 'nobody'.

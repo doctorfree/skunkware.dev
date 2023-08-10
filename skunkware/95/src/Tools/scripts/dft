@@ -1,0 +1,37 @@
+:
+# dft - convert df output to Mbytes
+#
+# written (i believe) by Hiram Clawson (hiramc@sco.com)
+#
+
+df -v $1 | awk \
+'
+#
+#	Awk string to convert df sizes to Mbytes, and sum totals
+#	Expecting df -v to produce the following output:
+#
+#Mount Dir  Filesystem              blocks      used      free   %used
+#/          /dev/root               300000    242260     57740    80%
+#/k         /dev/k                  327158    178550    148608    54%
+#/m         /dev/m                  600000    384804    215196    64%
+#
+BEGIN { Blocks = 0; Used = 0; Free = 0 }
+{
+if ( match( substr($0,1,1), "/" ) )
+	{
+	print sprintf("%-10s %-20s%10.1f%10.1f%10.1f%6d%%", $1, $2, $3/2048, $4/2048, $5/2048, $6)
+	Blocks += $3/2048
+	Used += $4/2048
+	Free += $5/2048
+	}
+else
+	{
+	print sprintf("%s %s  %s              Mbytes      %s      %s   %s", $1, $2, $3, $5, $6, $7)
+	}
+}
+END {
+	print sprintf("                                ---------   -------   -------" )
+	print sprintf("                  Totals:      %10.1f%10.1f%10.1f%6d%%", Blocks, Used, Free, Used/Blocks*100)
+}
+'
+

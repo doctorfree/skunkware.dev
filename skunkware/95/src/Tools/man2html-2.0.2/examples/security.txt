@@ -1,0 +1,43 @@
+Message-Id: <199409161537.RAA07784@champagne.inria.fr>
+To: Earl Hood <ehood@convex.com>
+Subject: perlWWW CGI examples security problems
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Date: Fri, 16 Sep 1994 17:37:53 +0200
+From: JC Touvet <Jean-Christophe.Touvet@inria.fr>
+
+
+ Earl,
+
+ first of all, I want to thank you a lot for this wonderful package. It's
+really a great job. So great that immediately after trying man2html, I managed
+to install related CGI scripts in my HTTP server; this is where the story
+starts.
+
+ I'd like to focus your attention about serious security problems if those
+scripts. In fact, some filehandles are opened to a pipe which arguments come
+directly from user's query.
+
+ For example, in "manpage", we have:
+
+	$mancommand   = "man $manflags $topic";
+
+ and later:
+
+	open (MAN, "$mancommand 2> /dev/null |")
+
+ Now, if the user submits:
+
+	ls ; rm -rf /
+
+ as a topic, the whole command "man ls ; rm -rf /" is executed :-(
+
+ As suggested in the "camel book", I replaced those commands with something as:
+
+	open (MAN,"-|") || exec 'man',$manflags,$topic;
+
+ which is more secure.
+
+ Excuse me if I wasted your time. Cheers,
+
+    -JCT-

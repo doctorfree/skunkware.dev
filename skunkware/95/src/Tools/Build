@@ -1,0 +1,66 @@
+:
+#
+# Build script for Contributed CD-ROM Tools
+#
+# Written 05-Mar-94 by rr@sco.com
+#
+
+EMACDIR=emacs-19.22
+CVSDIR=cvs-1.3
+
+SUBDIRS="include Mesa-1.2.1 Mosaic-2.6b3 cproto-3.0 elm2.4-PL24 ghostview-1.5 \
+	bpatch tcl-7.3 gnugrep-1.5 groff-1.09 gs261 gzip-1.2.4 hwp hostbyaddr calc \
+	ispell-2.0.02 less-252 macgetaddr md5 mkid patch-2.1 perl-5.000 sc-6.21 \
+	libwais sco shar-3.49 unzip-5.0 zip-1.9 zoo-2.1 tcsh-6.05 tin-1.22 \
+	ucblogo MotifApp gdiff-2.2 rcs-5.6.0.1 xc-4.4 gawk-2.15.5 mpeg_encode-1.3 \
+	ausay ecu-3.35 getline mh-6.8.3 ncftp-1.71 sox-11.12 term-2.3.5 maplay-1.2 \
+	glimpse-2.1 mpack-1.2 linuxdoc-sgml-1.1/sgmls-1.1 strn/src play_speed \
+	vtcl expect-5.16 me-3.12 mtools-2.0 awf glimpsehttp imap-3.5 pine-3.91 \
+	vim-3.0 archie-1.4.1 bsdinstall flock gnucpio-2.3 gnudiff gnupatch-2.1 \
+	gds keycode ispell-3.1 man2html-2.0.2 pcal-4.3 readline-2.0 lynx-2.4 \
+	lsof_3.35 u386mon-2.74 ObjectTcl-1.1 tk3.6 ile-2.01 vuser screen-3.5.1 \
+	scripts bash-1.14.4 "
+
+HERE=`pwd`
+BLDARG=
+
+[ "$1" = "remove" ] && {
+	[ $HERE= /v/bld/usr/src/Tools ] && rm -rf *
+	getcsc
+}
+
+[ "$1" = "get" ] && getcsc
+
+[ "$1" = "install" ] && BLDARG="DESTDIR=$DESTDIR install"
+
+[ "$1" = "clean" ] && BLDARG=clean
+
+for i in $SUBDIRS
+do
+	[ -d $i ] && {
+		echo "====Making in $i===="
+		cd $i
+		[ -f Imakefile ] && /usr/bin/X11/xmkmf
+		make -k $BLDARG
+		cd ..
+	}
+done
+#
+# Now attempt to build CVS if it is here
+#
+[ -d $CVSDIR ] && {
+	echo "====Making in $CVSDIR===="
+	cd $CVSDIR
+	CC="cc -O" sh ./configure --prefix=/usr/skunk
+	make $BLDARG
+}
+
+#
+# Now attempt to build emacs if it is here
+#
+[ -d $EMACDIR ] && {
+	echo "====Making in $EMACDIR===="
+	cd $EMACDIR
+	sh ./configure i386-*-sco3.2v4 --with-x11 --with-gcc=no --prefix=/usr/skunk
+	make $BLDARG
+}

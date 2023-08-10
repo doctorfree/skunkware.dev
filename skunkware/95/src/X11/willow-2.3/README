@@ -1,0 +1,312 @@
+/***********************************************************************
+ *                                                                     *
+ *              WILLOW(tm) Information Retrieval Software              *
+ *     (Washington Information Looker-upper Layered Over Windows)      *
+ *             Copyright 1992-1994 University of Washington            *
+ *                                                                     *
+ *   Willow is a trademark of the University of Washington.  No        *
+ *   commercial use of this trademark or software may be made without  *
+ *   prior written permission of the University of Washington.         *
+ *                                                                     *
+ * Permission to use, copy, modify, and distribute Willow(tm) software *
+ * and its documentation for any noncommercial purpose is hereby       *
+ * granted, provided that the above copyright notice appears in all    *
+ * copies and that both the above copyright notice and this permission *
+ * notice appear in supporting documentation, and that the name of the *
+ * University of Washington not be used in advertising or publicity    *
+ * pertaining to distribution of the software without specific,        *
+ * written prior permission.  This software is made available "as is", *
+ * and THE UNIVERSITY OF WASHINGTON DISCLAIMS ALL WARRANTIES, EXPRESS  *
+ * OR IMPLIED, WITH REGARD TO THIS SOFTWARE, INCLUDING WITHOUT         *
+ * LIMITATION ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS    *
+ * FOR A PARTICULAR PURPOSE, AND IN NO EVENT SHALL THE UNIVERSITY OF   *
+ * WASHINGTON BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL     *
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA  *
+ * OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, TORT (INCLUDING       *
+ * NEGLIGENCE) OR STRICT LIABILITY, ARISING OUT OF OR IN CONNECTION    *
+ * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.                       *
+ *                                                                     *
+ * For further information please contact:                             *
+ * Willow Project                                                      *
+ * Information Systems                                                 *
+ * University of Washington                                            *
+ * 4545 15th NE, 1st floor                                             *
+ * Seattle, Washington, 98105, USA                                     *
+ * Internet: willow@cac.washington.edu                                 *
+ ***********************************************************************/
+
+ 						September 6, 1994
+
+          Building and Installing Willow Source Code
+
+This file contains instructions for how to build and install the
+Willow source code distribution, and a description of the included
+files.
+
+Note that there are pre-compiled Willow binaries available for a
+variety of platforms. If binaries for your platform exist, we
+recommend that you use them rather than try to compile yourself.
+Currently available are binaries for DEC/Ultrix, IBM/RS6000-AIX,
+Sun/Solaris, and Sun/SunOS.
+
+     ##########################################################
+     #           Send your questions and comments to:         #
+     #                willow@cac.washington.edu               #
+     # Or, if you wish to share them with other willow users: #
+     #             willow-info@cac.washington.edu             #
+     ##########################################################
+
+
+Building Willow
+===============
+0. Executive summary of the next 12 steps:
+      Get and unpack the distribution
+      Edit the file "Config"
+      imake  /* with no arguments! */
+      make world
+      make install
+
+1. If you have not done so already, the first step is to join one of
+   the two Willow mailing lists, so that you can be informed of new
+   releases of Willow. It is crucial that you install new versions in
+   a timely manner, because old versions are sometimes unable to
+   connect to the host databases.
+
+   To join the "willow-info" public mailing list for Willow release
+   announcements and general Willow discussion, send a request to:
+      willow-info-request@cac.washington.edu
+
+   If you want to receive release announcements only, you can join the
+   "willow-announce" list by sending a request to:
+      willow-announce-request@cac.washington.edu
+
+2. Next, you must ftp the Willow source distribution from
+   ftp.cac.washington.edu, in the willow directory. There are
+   different versions of the Willow distribution for different types
+   of user -- University of Washington, NorthWestNet, and everybody
+   else. Go to the appropriate sub-directory for your class -- uw,
+   nwnet, or public, and get willow.src.tar.Z (be sure to transfer in
+   binary mode).
+
+3. Uncompress the file. Just execute the command 
+      uncompress  willow.src.tar.Z
+   and the file will be replaced by willow.src.tar.  
+
+4. Un-tar the file. Execute the command
+      tar xvf willow.src.tar
+   and a directory called willow will be created, with all the
+   necessary files underneath it. 
+
+5. Hopefully, everything you need to modify in order to successfully
+   build Willow and its drivers is isolated into the file Config. Open
+   that file in your favorite editor, and follow the instructions
+   there to configure it for your particular site.
+
+6. From the willow directory, type the command "imake" with no
+   arguments (if you do not have imake on your system, get it). The
+   Willow distribution does not use the X11 config files, so do not
+   use xmkmf. There should now be a file called "Makefile" in the
+   willow directory. If you find you need to go back and modify the
+   Config file again, be sure to use imake to regenerate your Makefile
+   afterwards.
+
+7. Type the command "make world". This will first execute the
+   "Makefiles" target to create Makefiles in each of the source
+   sub-directories, then the "programs" target to run the Makefiles
+   and build the programs. So far, Willow has been successfully built
+   on DEC/Ultrix, IBM RS6000, Sun/Solaris, SunOS, 386/BSD, DEC/vax
+   (BSD 4.3), and HP/UX. Feel free to contact us if you have problems
+   building. And we encourage you to send us back any fixes you come
+   up with for future releases.  Once everything is built, if you wish
+   to run Willow from the source directory you must be sure to set the
+   "Willow*willowDir" resource as described in the file
+   doc/Customization. Creating a temporary link from /usr/lib/X11/willow
+   to your source directory will also work.
+
+8. Install willow in its final resting place by typing "make install".
+   Note that unless you own the installation, binary, and man-page
+   directories as described in Config, this step will require you to
+   become root in order to run.
+
+   You may want to do a "make -n install" to preview what "make install"
+   will do. Basically it is the following steps...
+     If there is already an installed willow.old directory, remove it.
+     If there is already an installed willow directory, move it to
+       willow.old. 
+     Create the installation directory (usually /usr/local/willow).
+     If /usr/lib/X11/willow already exists as symbolic link, remove it. 
+     If your installation directory is anything than other than
+       /usr/lib/X11/willow, create a symbolic link from
+       /usr/lib/X11/willow to your installation directory.
+     Copy the necessary files to your installation directory.
+     If there already is a link called willow in your binary
+       directory, remove it.
+     Create a symbolic link called willow in your binary directory to
+       the willow executable in your installation directory.
+     Copy doc/willow.man to willow.1 in your manual page directory.
+
+   If you are a file-system purist, and do not even want a symbolic
+   link in /usr/lib/X11, you can remove the /usr/lib/X11/willow link,
+   but then you will have to use resources to change the default
+   Willow directory. See doc/Customization for more information.
+
+9. Make sure that you have the Free Software Foundation's "gunzip"
+   decompression program available on your system. The help bitmap
+   files are stored in gzipped format, and gunzip is required for
+   Willow to read them. If you do not have it, the gzip package is
+   available via ftp from prep.ai.mit.edu in pub/gnu. Note that Willow
+   will run fine without gunzip until you press a Help button, so you
+   can save this step for later.
+
+   By default, Willow will create an external gunzip process each time
+   a help screen is viewed. If you find that this extra CPU usage is a
+   problem on your system (this is only likely if you have a large
+   number of simultaneous Willow users on the same CPU) then you may
+   want to spend the extra disk-space and pre-expand all of the help
+   bitmap files. Bitmap files are in the subdirectories of
+   willow/help, and the file names are of the form "screen#.gz".  The
+   following command line, when run from the willow directory, can be
+   used to expand all of the help bitmaps which are currently
+   compressed: 
+        find help -name "*.gz" -print | xargs gunzip
+
+   Similarly, this command line can be used to re-compress any bitmaps
+   that have been expanded:
+        find help -name "screen*" -print | grep -v ".gz" | xargs gzip
+
+10.Set up any customized Willow resources you are interested in.
+   Willow will run just fine with its fallback resource values, so
+   this step is purely optional. The resources a system administrator
+   are likely to be interested in are described in doc/Customization.
+   If you do want system-wide resources customized, you can create a
+   file /usr/lib/X11/app-defaults/Willow and list those resources.
+
+   Note that Willow depends on certain colors that are only defined in
+   Release 4 and newer version of X, so if you still have the R3 color
+   database installed, you should update it (/usr/lib/X11/rgb.*).
+
+   Also note that Willow expects to find the standard X11R4 75dpi font
+   set available. Even if you are on a 100dpi or higher screen, you
+   should be sure to have the 75dpi fonts on your font path. That way,
+   Willow will be guaranteed to have the correct appearance. However
+   if you are on a high-res (1280x1024 or more pixels) screen, you
+   probably want to run Willow in extra-large mode, to take advantage
+   of your extra screen real estate. See the file willow.X for more
+   information on setting the Willow*size resource.
+
+11.Note that all applications built with Motif 1.1 and higher require
+   the presence of the file /usr/lib/X11/XKeysymDB. If when you start
+   Willow you see error messages such as 
+      "translation table syntax error: Unknown keysym..."
+   
+   You should install that file. There is a copy available for ftp in
+   the pub/willow directory on ftp.cac.washington.edu.
+
+12.Platform-specific peculiarities
+   Sun/Solaris:
+     The version of telnet currently supplied with Solaris does not
+     work properly with Willow's uwbrs driver. A patched telnet is
+     available from Sun. Contact Sun support (generally that means
+     calling 1-800-USA-4SUN) and ask for patch 101681-01.
+
+     Due to what we think is a bug in the solaris popen() function,
+     on-the-fly gunzipping of help screens as described above, fails
+     on versions of Solaris earlier than 2.3. In this case you will
+     have to pre-gunzip all of the files.
+
+
+File Contents
+=============
+The following files are included in the Willow source code
+distribution...
+
+Config
+   As described above, this is the imake configuration file you must
+   edit before you can build Willow on your machine.
+
+Imake.tmpl
+   The basic template file needed by imake. You can ignore it.
+
+Imakefile
+   The model which imake uses to generate Makefiles. You can ignore it.
+
+README
+   You are reading it right now!
+
+db.conf
+   The database configuration file. This file tells Willow what
+   databases should be listed in the Database menu, and exactly how to
+   present this database to the user. See doc/Customization and the
+   db.conf file itself, for more information.
+
+doc
+   This is a directory which contains supplemental documentation,
+   including: 
+
+   CHANGES 
+      Summary of the changes for the current version, along with all
+      changes since version 2.0.
+
+   COPYRIGHT
+      A statement of the University of Washington copyright, along
+      with statements from all other institutions which have
+      contributed code.
+
+   Customization
+      A guide to customizing Willow for your site, including available
+      system-wide resources and a description of how to add new
+      databases. 
+
+   Tech-Report.ps
+      This postscript file is a write-up up of the Willow
+      architecture. It might make interesting background reading for
+      more technical users, but it is not required. Note that an
+      on-line hypertext version of this document is available via
+      Mosaic or any other www browser, at the URL:
+        http://www.cac.washington.edu/willow
+
+   willow.man
+      A manual page for willow.
+
+   willow.X
+      This is the X resource template file for Willow. It shows all
+      the resources that a user might want to set.
+
+   Z39.50_Supplement
+      Contains various supplemental information about using Willow's
+      Z39.50 driver. Z39.50 is a standard ANSI protocol for
+      information search and retrieval.
+
+drivers
+   This directory contains the database-driver programs for all the
+   databases that Willow knows how to speak to. The driver is a
+   program that translates between Willow and a particular database
+   system. For more information, read Tech-Report.ps. 
+
+help
+   This is the directory where the text and bitmap files accessed by
+   the online help system live by default.
+
+src
+   This directory contains subdirectories with the actual Willow
+   source code, and source code for the UW-BRS database driver and
+   MIT's Z39.50 database driver. See Tech-Report.ps for an explanation
+   of exactly what a database driver is.
+
+tools
+   This directory contains miscellaneous programs you might find
+   useful in conjunction with Willow. Nothing here is strictly
+   necessary for getting Willow to run.
+
+uid
+   This directory contains binary files which describe portions of the
+   willow user interface. They are created with the motif UIL
+   compiler. This directory is empty until you actually build Willow.
+
+willow
+   This is the Willow program itself. Of course this file does not
+   exist until you build it.
+
+xbm
+   This directory contains all of the bitmap files that Willow needs
+   at run-time.

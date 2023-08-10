@@ -1,0 +1,81 @@
+<HTML>
+<BODY>
+<TITLE>VtAddInput(VTCL)</TITLE>
+<A HREF=/cgi-bin/getnav/man/html.VTCL/VtAddInput.VTCL.html><H1>VtAddInput(VTCL)</H1></A>
+<HR>
+<B>VtAddInput -- 
+add a callback on file activity (read, write, error)
+</B>
+<P>
+<H2>Syntax</H2>
+<B>VtAddInput</B> <I>fileID cmd</I>
+<H2>Description</H2>
+Register a command or procedure callback that is called when 
+an I/O stream is ready for file activity. When the stream
+referenced by <I>fileID</I> becomes readable, writable or 
+in error, the callback command registered is called with the 
+<I>fileID</I> as its argument.  You can then read and write 
+to the stream without fear of the interpreter blocking.
+<H2>Notes</H2>
+You must execute 
+<A HREF=/cgi-bin/man/man?VtMainLoop+VTCL><B>VtMainLoop</B>(VTCL)</A>
+to allow the callback to be called.
+<H2>Example</H2>
+The following code fragment illustrates 
+the use of <B>VtAddInput</B> to filter the output
+of a UNIX system command, in this case <B>find</B>.
+<PRE>
+   proc dumpFoundCB {fid} {
+   <P>
+       set count 1
+       while { $count &gt; 0 } {
+           set count [gets $fid line]  ;# read a line of input
+           puts stdout &quot;&gt;&gt; $line&quot;
+       }
+        
+        if { $count == -1 } { ;# end of file
+           echo &quot;\n\nFinished&quot;
+           exit 0
+        }
+        
+   }
+   <P>
+   <P>
+   #set cmd {| cat /etc/termcap}
+   #set cmd {| /bin/find / -print}
+   set cmd {| /bin/find /usr -name &quot;*&quot; -print}
+   <P>
+   # open the pipe 
+   if [catch {set f [open  $cmd ] } msg ] {
+       echo &quot;open failed&quot;
+       exit 1
+   }
+   <P>
+   #setup read handler on it..
+   VtAddInput $f dumpFoundCB
+       
+   VtMainLoop
+       
+</PRE>
+<LINK HREF=/man/html.VTCL/CONTENTS.html REL=contents>
+<LINK HREF=/cgi-bin/getnav/man/html.VTCL/VtAddInput.VTCL.html REL=navigate>
+<LINK HREF=/cgi-bin/man/man?VtAddTabGroup+VTCL REL=next>
+
+<!--NAVIGATE <TITLEgReATerTHanNavigational information for VtAddInput(VTCL)</TITLEgReATerTHan -->
+<!--NAVIGATE <H2gReATerTHanNavigational information for VtAddInput(VTCL)</H2gReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Book title: man(VTCL) -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Next topic:  -->
+<!--NAVIGATE <A HREF=/cgi-bin/man/man?VtAddTabGroup+VTCLgReATerTHanVtAddTabGroup(VTCL)</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/man/html.VTCL/CONTENTS.htmlgReATerTHanTable of contents</AgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <A HREF=/man/html.VTCL/COPYRIGHT.htmlgReATerTHan&#169; 1995 The Santa Cruz Operation, Inc.  All rights reserved</AgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/man/html.VTCL/CONTENTS.html REL=contentsgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/cgi-bin/man/man?VtAddTabGroup+VTCL REL=nextgReATerTHan -->
+<!--NAVIGATE  -->
+

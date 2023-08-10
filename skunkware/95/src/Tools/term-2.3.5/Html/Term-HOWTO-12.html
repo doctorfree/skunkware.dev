@@ -1,0 +1,89 @@
+<title>Term and Security</title>
+<h1>12 <a name="s12"> Term and Security </h1>
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<p> <a href="Term-HOWTO.html#toc12"> Contents of this section</a></p>
+
+<p></p>
+<p>In this section I will point to some security aspects of <code>TERM</code>. The problems will be explained and a way to improve security will be given.</p>
+<p></p>
+<h2>12.1 <A Name="ss12.1"> trsh </h2>
+
+<p></p>
+<p><code>Trsh</code> is insecure when it is used to access the local Linux box from the remote system. The problem with <code>TERM</code> and its clients is that beside the owner of the <code>TERM</code> connection also 'root' can execute <code>TERM</code>-aware programs over the connection.</p>
+<p>This also means that 'root' on the remote system can execute trsh and thus can enter the login which owns the <code>TERM</code> connection quite easy. If this owner on the local box is 'root' then you will be in hell.</p>
+<p>The solution to this problem is easy: you just have to put the following line in the termrc file on the local box:</p>
+<p>
+<pre>
+  denyrsh on
+</pre>
+</p>
+<p>With this set in the 'termrc' file, nobody can use trsh on the remote site anymore to access your machine. When you and others want to access your local Linux box over the <code>TERM</code> connection this can still be done using <code>telnet</code> and redirected ports. </p>
+<p></p>
+
+<h2>12.2 <A Name="ss12.2"> txconn and xauth </h2>
+
+<p></p>
+<p>Txconn is not terribly secure; anyone can connect to your local server via <code>TERM</code> and perform all sorts of mischief. I you are worried about this sort of thing, it might be a good idea to consider using xauth to authorize your connections. See the next section for an example of using xauth for securing your connections.</p>
+<p></p>
+
+<h2>12.3 <A Name="ss12.3"> sxpc, xhost and xauth </h2>
+
+<p></p>
+<p><code>Sxpc</code> in combination with 'xhost +' is very dangerous when you are not using <code>xauth</code>.</p>
+<p>Using xauth is very important to maintaining security when using sxpc. If you do not use xauth when using sxpc all the dangers of running with 'xhost +' apply. These dangers include but are not limited to:</p>
+<p>
+<ul>
+<li>Someone watching what is displayed on your screen</li>
+<li>Someone watching what you type</li>
+<li>Someone typing in one of your windows (for example: a command to delete all your files :-(</li>
+</ul>
+</p>
+<p>Xauth is available in X releases R4 and later. Here I will describe how to set up basic usage of xauth.  This configuration is vulnerable to network snooping, but if you can live with that it should be fine.</p>
+<p><b>NOTE:</b> when using xauth your $DISPLAY variable must NOT be set to localhost (or localhost:whatever). If your $DISPLAY variable does use localhost the clients will be unable to find the appropriate authorization information. The workaround is to use the real hostname of the machine. If you follow the compilation instructions in the README, and compile without -DNOGETHOSTNAME then everything should work.</p>
+<p>The machine where you will be running clients will be called C, the machine where you wish to display them will be called D.</p>
+<p>First choose a 'key', up to 16 pairs of hexadecimal digits (so an even number of characters from the ranges 0-9 and a-f).  You will need to supply this key in place of &lt;key&gt; in the example below.</p>
+<p>On C:</p>
+<p>
+<pre>
+  % xauth
+  xauth:  creating new authority file $HOME/.Xauthority
+  Using authority file $HOME/.Xauthority
+  xauth&gt; add Chostname:8 MIT-MAGIC-COOKIE-1 &lt;key&gt;
+  xauth&gt; exit
+</pre>
+</p>
+<p>On D:</p>
+<p>
+<pre>
+  % xauth
+  xauth:  creating new authority file $HOME/.Xauthority
+  Using authority file $HOME/.Xauthority
+  xauth&gt; add Dhostname/unix:0 MIT-MAGIC-COOKIE-1 &lt;key&gt;
+  xauth&gt; add Dhostname:0 MIT-MAGIC-COOKIE-1 &lt;key&gt;
+  xauth&gt; exit
+</pre>
+</p>
+<p>When starting the X server on D you should give the flag <i>-auth $HOME/.Xauthority</i>.  You may need to edit or create a '$HOME/.xserverrc' to control how the X server is started.  For example:</p>
+<p>
+<pre>
+  #!/bin/sh
+  exec X  -auth $HOME/.Xauthority $*
+</pre>
+</p>
+<p>Make sure that your '.Xauthority' file is readable only by you on both C and D.</p>
+<p></p>
+
+<p><a href="Term-HOWTO-13.html"> Next </a> Chapter, <a href="Term-HOWTO-11.html"> Previous </a> Chapter</p><p>Table of contents of <a href="Term-HOWTO.html#toc12">this chapter</a>,
+ General <a href="Term-HOWTO.html#toc">table of contents</a></p>
+<p><a href="Term-HOWTO.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>
+
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<P><A HREF="/skunkware/index.html">
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.left.gif"
+ALT="">
+Return to Welcome Home Page</A> or
+<A HREF="/skunkware/tools.html">
+Continue to Browse
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.right.gif"
+ALT=""></A>

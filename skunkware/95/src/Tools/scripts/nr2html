@@ -1,0 +1,36 @@
+:
+# nr2html - shell script that uses groff and man2html to produce
+#           an HTML document from an nroff input document
+# 
+# Written by Ron Record (rr@sco.com) 07 July 1995
+#
+
+while [ "$1" ]
+do
+
+	[ -f "$1" ] || {
+		echo "Error: $1 does not exist."
+		exit 1
+	}
+
+	case $1 in
+		*.[0-9])
+			TITLE=`echo "$1" | sed -n "s/\.[0-9]//p"`
+			;;
+		*.man)
+			TITLE=`echo "$1" | sed -n "s/\.man//p"`
+			;;
+		*.n)
+			TITLE=`echo "$1" | sed -n "s/\.n//p"`
+			;;
+		*)
+			echo "nr2html: unknown suffix - exiting"
+			exit 1
+			;;
+	esac
+	echo "Converting $1 to $TITLE.html"
+	groff -man $1 | man2html -title $TITLE > $TITLE.html
+	echo "Done with $1"
+	shift
+
+done

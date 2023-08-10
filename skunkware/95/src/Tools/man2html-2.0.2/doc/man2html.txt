@@ -1,0 +1,406 @@
+
+                                       
+   __________________________________________________________________________
+                                       
+                                   MAN2HTML
+                                       
+   A Perl program to convert Unix manpages to HTML.
+   
+   
+     _________________________________________________________________
+   
+Description
+
+   man2html takes formatted nroff in standard input (STDIN) and outputs
+   the HTML to standard output (STDOUT). The formatted nroff output is
+   surrounded with <PRE> tags with the following exceptions/additions:
+   
+     * Section heads are wrapped in HTML header tags. See Section Head
+       Map File for more information. This feature can be turned off
+       with the -noheads command-line option.
+       
+     * Overstriken words designated with the "<char><backspace><char>"
+       sequences are wrapped in <STRONG> tags.
+       
+     * Overstriken words designated with the "_<backspace><char>"
+       sequences (ie. underlined words) are wrapped in <EM> tags.
+       
+   man2html also does the following:
+   
+     * Merges the multi-page formatted nroff into a single page. See
+       Usage for information on how to tell man2html the page size and
+       margin width/heights of the formatted nroff. Depagination can be
+       turned off with the -nodepage command-line option.
+       
+     * Creates links to other manpages if the -cgiurl command-line option
+       is specified.
+       
+   By default, man2html does not put a title, <TITLE>, in the HTML file.
+   However, one can specify a title via the -title command-line option.
+   
+   man2html also has support for processing output generated from manpage
+   keyword search, "man -k". See Keyword Search for more information.
+   
+
+   
+     _________________________________________________________________
+   
+Usage
+
+   man2html is invoked from a Unix shell, with the following syntax:
+   
+   % man2html [options] < infile > out.html
+   % man unix_command | man2html [options] > out.html
+   
+   The following options are available:
+   
+   -bare
+          This option will keep man2html from inserting the HTML, HEAD,
+          BODY tags from the output. This is useful if you want to
+          incorporate the output from man2html into an HTML document.
+          
+   -botm #
+          Use # to be the number of lines representing the bottom margin
+          of the formatted nroff input. The lines include any running
+          footers. The default value is 7.
+          
+   -cgiurl string
+          Use string as the template URL for linking to other manpages.
+          See Linking to Other Manpages for more information on this
+          option.
+          
+   -headmap file
+          Read file to determine which HTML header tags are used for
+          various section heading in the manpage. See Section Head Map
+          File for information on the format of the map file.
+          
+   -help
+          Print out a short usage message of man2html. No other action is
+          taken.
+          
+   -k
+          Process input as the results from a manpage keyword search. See
+          Keyword Search for more information.
+          
+   -leftm #
+          Use # to be the character width of the left margin of the
+          formatted nroff input. The default value is 0.
+          
+   -nodepage
+          Do not merge the manpage into one page. This will cause running
+          headers/footers in the formatted nroff to carry over into the
+          HTML output.
+          
+   -noheads
+          Do not wrap manpage section heads in HTML header tags.
+          
+   -pgsize #
+          Use # as the page size of the formatted nroff input. The
+          default value is 66.
+          
+   -seealso
+          Only create links to other manpages in the SEE ALSO section.
+          The option is only valid if the -cgiurl option is specified.
+          
+   -sun
+          Do not require a section head to have bold overstriking in the
+          formatted nroff input. The option is called -sun because it was
+          on a Sun workstation that section heads in manpages were not
+          overstriked.
+          
+   -title string
+          Set the title of the HTML output to string.
+          
+   -topm #
+          Use # to be the number of lines representing the top margin of
+          the formatted nroff input. The lines include any running
+          footers. The default value is 7.
+          
+   
+   
+   
+     _________________________________________________________________
+   
+Section Head Map File
+
+   man2html allows you to customize what HTML header tags, <H1> ... <H6>,
+   are used in manpage section headings (via the -headmap option).
+   Normally, man2html treats lines that are flush to the left margin
+   (-leftm), and contain overstriking (overstrike check is canceled
+   with the -sun option), as section heads. However, you can
+   augment/override what HTML header tags are used for any given section
+   head.
+   
+   In order to write a section head map file, you will need to know about
+   Perl associative arrays. You do not need to be an expert in Perl to
+   write a map file. However, having knowledge of Perl allows you to be
+   more clever when writing a map file.
+   
+
+  AUGMENTING THE DEFAULT MAP
+  
+   To add to the default mapping defined by man2html, your map file will
+   contain lines with the following syntax
+   
+   $SectionHead{'<section head text>'} = '<html header tag>';
+
+   where,
+   
+   <section head text>
+          Is the text of the manpage section head. Example: `SYNOPSIS'.
+          
+   <html header tag>
+          Is the HTML header tag to wrap the section head in. Legal
+          values are: `<H1>', `<H2>', `<H3>', `<H4>', `<H5>', `<H6>'.
+          
+
+  OVERRIDING THE DEFAULT MAP
+  
+   To override the default mapping with your own, then your map file will
+   have the following syntax:
+   
+         %SectionHead = (
+                   '<section head text>', '<html header tag>',
+                   '<section head text>', '<html header tag>',
+                   # ... More section head/tag pairs
+                   '<section head text>', '<html header tag>',
+         );
+
+  THE DEFAULT MAP
+  
+   As of this writing, this is the default map used by man2html:
+   
+         %SectionHead = (
+                   '\S.*OPTIONS.*', '<H2>',
+                   'AUTHORS?', '<H2>',
+                   'BUGS', '<H2>',
+                   'COMPATIBILITY', '<H2>',
+                   'DEPENDENCIES', '<H2>',
+                   'DESCRIPTION', '<H2>',
+                   'DIAGNOSTICS', '<H2>',
+                   'ENVIRONMENT', '<H2>',
+                   'ERRORS', '<H2>',
+                   'EXAMPLES', '<H2>',
+                   'EXTERNAL INFLUENCES', '<H2>',
+                   'FILES', '<H2>',
+                   'LIMITATIONS', '<H2>',
+                   'NAME', '<H2>',
+                   'NOTES?', '<H2>',
+                   'OPTIONS', '<H2>',
+                   'REFERENCES', '<H2>',
+                   'RETURN VALUE', '<H2>',
+                   'SECTION.*:', '<H2>',
+                   'SEE ALSO', '<H2>',
+                   'STANDARDS CONFORMANCE', '<H2>',
+                   'STYLE CONVENTION', '<H2>',
+                   'SYNOPSIS', '<H2>',
+                   'SYNTAX', '<H2>',
+                   'WARNINGS', '<H2>',
+                   '\s+Section.*:', '<H3>',
+         );
+         $HeadFallback = '<H2>';  # Fallback tag if above is not found.
+
+   Check the Perl source code of man2html for the latest default mapping.
+   
+   
+   You can reassign the $HeadFallback variable to a different value if
+   you choose. This value is used as the header tag of a section head if
+   no matches are found in the SectionHead map.
+   
+
+  USING REGULAR EXPRESSIONS IN THE MAP FILE
+  
+   You may have noticed unusual characters in the default map file, like
+   "\s" or "*". man2html actual treats the <section head text> as a Perl
+   regular expression. If you are comfortable with Perl regular
+   expressions, then you have the full power of them to use in your map
+   file.
+   
+   Caution:
+          man2html already anchors the regular expression to the
+          beginning of the line with left margin spacing specified by the
+          -leftm option. Therefore, do not use the `^' character to
+          anchor your regular expression to the beginning. However, you
+          may end your expression with a `$' to anchor it to the end of
+          the line.
+          
+   Since the <section head text> is actually a regular expression, you'll
+   have to be careful of special characters if you want them to be
+   treated literally. The following characters should be escaped by
+   prefixing them by the `\' character if you want Perl to treat the
+   character "as is": [ ] ( ) . ^ { } $ * ? + \ |
+   
+   Caution:
+          One should use single quotes to delimit <section head text>
+          instead of double quotes. This will preserve any `\' characters
+          for character escaping or when the `\' is used for special Perl
+          character matching sequences (eg. \s \w \S ).
+          
+
+  OTHER TID BITS ON THE MAP FILE
+  
+   Comments can be inserted in the map file by using the '#' character.
+   Anything after, and including, the '#' character is ignored, up to the
+   end of line.
+   
+   You might be thinking that the above is quite-a-bit-of-stuff just for
+   doing manpage section heads. However, you'll be surprised how much
+   better the HTML output looks with header tags, even though, everything
+   else is in a <PRE> tag.
+   
+
+   
+     _________________________________________________________________
+   
+Linking to Other Manpages
+
+   man2html allows the ability to link to other manpages referenced. If
+   the -cgiurl option is specified, man2html will create anchors that
+   link to other manpages.
+   
+   The URL entered with the -cgiurl option is actually a template that
+   determines the actual URL used to link to other manpages. The
+   following variables are defined during run time that may be used in
+   the template string:
+   
+     * $title : The title of the manual page referenced.
+     * $section: The section number of the manual page referenced.
+     * $subsection: The subsection of the manual page referenced.
+       
+   Any other text in the template is preserved "as is".
+   
+   Caution:
+          man2html evaluates the template string as a Perl expression.
+          Therefore, one might need to surround the variable names with
+          '{}' (eg. ${title}) so man2html properly recognizes the
+          variable.
+          
+   Note:
+          If a CGI program calling man2html is actuall a shell script or
+          a Perl program, make sure to properly escape the '$' character
+          in the URL template to avoid variable interpolation by the CGI
+          program.
+          
+   Normally, the URL calls a CGI program (hence the option name), but the
+   URL can easily link to statically converted documents.
+   
+  EXAMPLE1
+  
+   The following template string is specified to call a CGI program to
+   retrieve the appropriate manpage linked to:
+   
+   man.cgi?$section$subsection+$title
+   
+   If the ls(1) manpage is referenced in the 'SEE ALSO' section, the
+   above template will translate to the following URL:
+   
+   man.cgi?1+ls
+   
+   The actual HTML markup will look like the following:
+   
+   <A HREF="man.cgi?1+ls">ls(1)</A>
+   
+  EXAMPLE2
+  
+   The following template string is specified to retrieve pre-converted
+   manpages:
+   
+   http://foo.org/man$section/$title.$section$subsection.html
+   
+   If the mount(1M) manpage is referenced, the above template will
+   translate to the following URL:
+   
+   http://foo.org/man1/mount.1M.html
+   
+   The actual HTML markup will look like the following:
+   
+   <A HREF="http://foo.org/man1/mount.1M.html">mount(1M)</A>
+   
+
+   
+     _________________________________________________________________
+   
+Keyword Search
+
+   man2html has the ability to process output generated from "man -k", or
+   a keyword search. The options -k and -cgiurl must be specified inorder
+   for man2html to parse the input as a keyword search. man2html will
+   generate an HTML document of the keyword search with the following
+   format:
+   
+     * All manpage references are listed by section.
+       
+     * Within each section listing, the manpage references are sorted
+       alphabetically (case-sensitive) in a <DL>. The manpage references
+       are listed in the <DT> section, and the summary text is listed in
+       the <DD> section.
+       
+     * Each manpage reference listed is a hyperlink to the actual manpage
+       as specified by the -cgiurl option.
+       
+   This ability to process keyword searches gives nice added
+   functionality to a WWW forms interface to man(1). Even if you have
+   statically converted manpages to HTML via another man->HTML program,
+   you can use man2html, and "man -k", to provide keyword search
+   capabilites easily for your HTML manpages.
+   
+   
+     _________________________________________________________________
+   
+Notes
+
+     * Different systems format manpages differently. Here is a list of
+       recommended command-line options for a given system:
+       
+          + Convex: <defaults should be okay>
+          + HP: -leftm 1 -topm 8
+          + Sun: -sun
+            
+     * Some line spacing gets lost in the formatted nroff since the
+       spacing would occur in the middle of a page break. This can cause
+       text to be merged that shouldn't be merged when man2html
+       depaginates the text. To avoid this problem man2html keeps track
+       of the margin indent right before, and after, a page break. If the
+       margin width of the line after the page break is less than the
+       line before the page break, man2html inserts a blank line in the
+       HTML output.
+       
+     * A manpage cross-reference is detected by the following pseudo
+       expression:
+       
+       [A-z.-+_]+([0-9][A-z]?)
+       
+     * man2html only recognizes lines with " - " (the normal separator
+       between manpage references and summary text) while in keyword
+       search mode.
+       
+     * man2html can be hooked in a CGI script/program to convert manpages
+       on the fly. This is the reason for the -cgiurl option.
+       
+
+   
+     _________________________________________________________________
+   
+Limitations
+
+     * The order that section head mapping is searched is not defined.
+       Therefore, if two, or more, <section head text> can match a give
+       manpage section, there is no way to determine which map tag is
+       chosen.
+       
+
+   
+     _________________________________________________________________
+   
+Bugs
+
+     * Text that is flush to the left margin, but is not actually a
+       section head, can be mistaken for a section head. This mistake is
+       more likely when the -sun option is in affect.
+       
+
+   
+     _________________________________________________________________
+   
+    Earl Hood, ehood@convex.com
+    man2html 2.0.2

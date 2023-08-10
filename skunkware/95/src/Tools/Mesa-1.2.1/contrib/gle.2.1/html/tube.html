@@ -1,0 +1,416 @@
+<html>
+<! 
+
+    GLE extrusion, sweep and tubing library
+    Copyright (C) 1995 Linas Vepstas
+
+    This library is free software; you can redistribute it and/or
+    modify it under the terms of the GNU Library General Public
+    License as published by the Free Software Foundation; either
+    version 2 of the License, or (at your option) any later version.
+
+    This library is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+    Library General Public License for more details.
+
+    You should have received a copy of the GNU Library General Public
+    License along with this library; if not, write to the Free
+    Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+    Contact linas by writing to linas@fc.net or
+    Linas Vepstas
+    1518 Enfield Road
+    Austin TX 78703-3424
+
+>
+
+
+<title>Tubing and Extrusion Fact Sheet</title>
+<body>
+<h1>Tubing and Extrusion Fact Sheet</h1>
+
+The libgle.a library contains a collection of routines for drawing
+sweeps and extrusions.  A "sweep" or "extrusion" is a 2D contour
+(polyline) that is swept or extruded along a 3D path (polyline).
+For example, sweeping a circe along a straight line will generate a
+cylinder. Sweeping a circle along a circular path will generate a
+doughnut (torus).
+<p>
+The library also includes a set of utility routines for drawing some of
+the more common extruded shapes: a polycylinder, a polycone, a
+gneralized torus (circle swept along a helical path), a "helix"
+(arbitrary contour swept along a helical path) and a "lathe" (arbitrary
+contour swept along a helical path, with torsion used to keept the
+contour aligned).
+<p>
+The most general extrusion supported by this library allows an arbitrary
+2D contour to be swept around an arbitrary 3D path.  A set of normal
+vectors can be specified to go along with the contour; the normal vectors
+determine the appearence of the contour when lighting is turned on.
+A set of colors and affine matrices can be specified to go along with
+the 3D path.  The colors are used to color along the path. The affine
+matrices are used to operate on the contour as it is swept along.  If no
+affine matrices are specified, the contour is extruded using the
+mathematical concept of "parrallel translation" or "gaussian
+translation". If there are affine matrices, they effictively introduce a
+local coordinate system that makes the local space non-euclidean.
+(In the terms of general relativity, the affines are the local metric.
+I'm not fooling or showing off here -- a simplified verion of the conecpts
+of general relativity, as in "Einstein", really are operational here.
+However, since there is no time, maybe non-euclidean geometry is a
+better term. Also, apologies to math-heads, I made the affines
+2x3 instead of 3x4 because the swept contours are 2D not 3D. 
+This makes it easier to understand/explain for the purposes of computer
+graphics.  The 3D version would have made the explanation harder, 
+while bringing very little extra function/feature to any common computer
+graphics usage. Maybe next time ...).
+
+
+<h2>Some Types</h2>
+
+<pre>
+#define gleDouble double
+typedef gleDouble gleAffine[2][3];
+</pre>
+
+<h2>Defines for Bitwise flags</h2>
+
+<h3> Extrusion Join Styles </h3>
+
+<dl>
+<dt><b>TUBE_JN_RAW</b>
+<dd>Draw polycylinders, polycones, extrusions, etc. 
+    with no special treatement of the
+    extrusion ends. 
+<p>
+<dt><b> TUBE_JN_ANGLE        </b>
+<dd>Draw polycylinders, polycones, extrusions, etc. 
+    by extending the different segments until they 
+    butt into each other with an angular style.
+<p>
+<dt><b> TUBE_JN_CUT          </b>
+<dd>Draw polycylinders, polycones, extrusions, etc. 
+    by joining together the different segments and slicing off
+    the joint at half the angle between the segments.  A cap is drawn.
+    Note that the slicing plane runs through the origin of the contour
+    coordinate system. Thus, the amount of slice can be varied by offsetting
+    the contour with respect to the origin.
+    <p>
+    Note that when two segments meet at a shallow angle, the cut join
+    style will potentially shave off a whole lot of the contour,
+    leading to "surprising" results...
+
+<p>
+<dt><b> TUBE_JN_ROUND        </b>
+<dd> Joints will be rounded. Strictly speaking, the part of the joint
+   above the oigin will be rounded. The part below the origin will come
+   together in an angular join.
+
+<p>
+<dt><b> TUBE_JN_MASK         </b>
+<dd> Mask bits.  This can be used to mask off the bit field that defines
+     the join style.
+</dl>
+
+<h3> End Caps </h3>
+<dl>
+<dt><b> TUBE_JN_CAP          </b>
+<dd> If this is set, a cap will be drawn at each end of the extrusion.
+<p>
+</dl>
+
+
+<h3>Automatic Normal Vector Generation </h3>
+<dl>
+<dt><b> TUBE_NORM_FACET      </b>
+<dd> A normal vector is generated per facet. Useful for having an
+     extrusion have a "faceted" look, such as when extruding a square -- each
+     of the four sides of the square will look flat.
+<p>
+<dt><b> TUBE_NORM_EDGE       </b>
+<dd> Normal vectors are generated so that they lie along edges. Useful
+     for making anguler things look rounded under lighting. For example,
+     when extruding a hexagon and using this flag, the hexagonal
+     extrusion will look (more like a) smooth perfectly round cylinder,
+     rather than a six-sided shape.
+<p>
+<dt><b> TUBE_NORM_PATH_EDGE  </b>
+<dd> Normal vectors are generated so that they both lie on edges, and so
+     that they interpolate between neighboring segments.  Useful for
+     drawing "spaghetti" -- extrusions that follow a spline path.
+     Because the spline path must be "tesselated" into small straight
+     segments, each segment will look straight unless this flag is set.
+<p>
+<dt><b> TUBE_NORM_MASK       </b>
+<dd> A mask useful for masking out the "norm" bits.
+</dl>
+
+<h3>Closed or Open Countours </h3>
+<dl>
+<dt><b> TUBE_CONTOUR_CLOSED	</b>
+<dd> If this bit is set, the contour will be treated as a "closed"
+contour, where the last point connects back up to the first.
+It is useful to set this flag when drawing closed shapes (such as
+extruded cylinders, star-shapes, I-Beams, etc.  When drawing open
+extrusions (e.g. corrugated sheet metal), you DON'T want to set this
+flag.
+<p>
+</dl>
+
+
+<h2>Subroutines </h2>
+
+This library can be compiled for GL version 3.2 or above, or for OpenGL.
+The names of the subroutines are different for the GL and OpenGL
+versions. The are:
+
+<dl>
+<dt><b> extrusion	</b><dd>gleExtrusion
+<dt><b> setjoinstyle	</b><dd>gleSetJoinStyle
+<dt><b> getjoinstyle	</b><dd>gleGetJoinStyle
+<dt><b> polycone	</b><dd>glePolyCone
+<dt><b> polycylinder	</b><dd>glePolyCylinder
+<dt><b>	super_extrusion	</b><dd>gleSuperExtrusion
+<dt><b>	twist_extrusion	</b><dd>gleTwistExtrusion
+<dt><b>	spiral		</b><dd>gleSpiral
+<dt><b>	lathe		</b><dd>gleLathe
+<dt><b>	helicoid	</b><dd>gleHelicoid
+</dl>
+
+<h2>Subroutine Descriptions</h2>
+
+<dl>
+<dt><pre><b> int getjoinstyle (void);
+</b></pre>
+<dd> Fetch the join style flags. This word is a bitwise OR of the flags
+described above.
+<p>
+
+<dt><pre><b> void setjoinstyle (int style);	/* bitwise OR of flags */
+</b></pre>
+<dd> Set the join style flags. This word is a bitwise OR of the flags
+described above.
+<p>
+
+<dt><pre><b> void polycylinder (int npoints,		/* num points in polyline */
+                   gleDouble point_array[][3],	/* polyline vertces */
+                   float color_array[][3],	/* colors at polyline verts */
+                   gleDouble radius);		/* radius of polycylinder */
+</b></pre>
+<dd>
+Draw polyclinder, specified as a polyline.
+
+<p>
+Note that neither the very first segment, nor the very last segment are
+drawn.  The first and last segments serve only to define the angle of
+the join at the very ends of the polyline.  Thus, to draw one segment,
+three must be specified. To draw two segments, four must be specified,
+etc.
+
+<p>
+The color array may be NULL. If NULL, the current color is used.  If not
+NULL, the glColor3f() routine is used to set the color; therefore,
+specifying the glColorMatrial() subroutine beore this primitive can be used
+to set diffuse, specular, ambient, etc. colors.
+<p>
+
+<dt><pre><b> void polycone (int npoints,	 /* numpoints in poly-line */
+                   gleDouble point_array[][3],	/* polyline vertices */
+                   float color_array[][3],	/* colors at polyline verts */
+                   gleDouble radius_array[]); /* cone radii at polyline verts */
+</b></pre>
+<dd>
+Draw polycone, specified as a polyline with radii.
+<p>
+Note that neither the very first segment, nor the very last segment are
+drawn.  The first and last segments serve only to define the angle of
+the join at the very ends of the polyline.  Thus, to draw one segment,
+three must be specified. To draw two segments, four must be specified,
+etc.
+
+<p>
+The color array may be NULL. If NULL, the current color is used.  If not
+NULL, the glColor3f() routine is used to set the color; therefore,
+specifying the glColorMatrial() subroutine beore this primitive can be used
+to set diffuse, specular, ambient, etc. colors.
+<p>
+
+<dt><pre><b> void extrusion (int ncp,         /* number of contour points */
+                gleDouble contour[][2],     /* 2D contour */
+                gleDouble cont_normal[][2], /* 2D contour normals */
+                gleDouble up[3],            /* up vector for contour */
+                int npoints,            /* numpoints in poly-line */
+                gleDouble point_array[][3], /* polyline vertices */
+                float color_array[][3]); /* colors at polyline verts */
+</b></pre>
+<dd>Extrude arbitrary 2D contour along arbitrary 3D path.
+The argument "contour" specifies the 2D contour to be extruded, while the
+argument "point_array" specifies the path alomng which to extrude.  The
+vector "up" defines the orientation of the contour y-axis in real 3D space.
+<p>
+Note that neither the very first segment, nor the very last segment are
+drawn.  The first and last segments serve only to define the angle of
+the join at the very ends of the polyline.  Thus, to draw one segment,
+three must be specified. To draw two segments, four must be specified,
+etc.
+
+
+<p>
+The normal array may be NULL.  If it is, normal vectors will NOT be
+automatically generated, and the object will look terrible when lit.
+
+<p>
+The color array may be NULL. If NULL, the current color is used.  If not
+NULL, the glColor3f() routine is used to set the color; therefore,
+specifying the glColorMatrial() subroutine beore this primitive can be used
+to set diffuse, specular, ambient, etc. colors.
+<p>
+
+<dt><pre><b> void twist_extrusion (int ncp,         /* number of contour points */
+                gleDouble contour[][2],    /* 2D contour */
+                gleDouble cont_normal[][2], /* 2D contour normals */
+                gleDouble up[3],           /* up vector for contour */
+                int npoints,           /* numpoints in poly-line */
+                gleDouble point_array[][3],        /* polyline vertices */
+                float color_array[][3],        /* color at polyline verts */
+                gleDouble twist_array[]);   /* countour twists (in degrees) */
+</b></pre>
+<dd>Extrude arbitrary 2D contour along arbitrary 3D path, specifying local
+rotations (twists). As the contour is extruded, it will be twisted by the
+amount specified in the array "twist_array".  The angles are measured in
+degrees, and the rotation is about the origin of the contour coordiante
+system.
+
+<p>
+The argument "contour" specifies the 2D contour to be extruded, while the
+argument "point_array" specifies the path alomng which to extrude.  The
+vector "up" defines the orientation of the contour y-axis in real 3D space.
+
+<p>
+Note that neither the very first segment, nor the very last segment are
+drawn.  The first and last segments serve only to define the angle of
+the join at the very ends of the polyline.  Thus, to draw one segment,
+three must be specified. To draw two segments, four must be specified,
+etc.
+
+<p>
+The normal array may be NULL.  If it is, normal vectors will NOT be
+automatically generated, and the object will look terrible when lit.
+
+<p>
+The color array may be NULL. If NULL, the current color is used.  If not
+NULL, the glColor3f() routine is used to set the color; therefore,
+specifying the glColorMatrial() subroutine beore this primitive can be used
+to set diffuse, specular, ambient, etc. colors.
+<p>
+
+
+<dt><pre><b> void super_extrusion (int ncp,  /* number of contour points */
+                gleDouble contour[][2],    /* 2D contour */
+                gleDouble cont_normal[][2], /* 2D contour normals */
+                gleDouble up[3],           /* up vector for contour */
+                int npoints,           /* numpoints in poly-line */
+                gleDouble point_array[][3],        /* polyline vertices */
+                float color_array[][3],        /* color at polyline verts */
+                gleDouble xform_array[][2][3]);   /* 2D contour xforms */
+</b></pre>
+<dd>Extrude arbitrary 2D contour along arbitrary 3D path, specifying local
+affine transformations. As the contour is extruded, the affine will be
+applied to the points in the contour.
+
+<p>
+The argument "contour" specifies the 2D contour to be extruded, while the
+argument "point_array" specifies the path alomng which to extrude.  The
+vector "up" defines the orientation of the contour y-axis in real 3D space.
+
+<p>
+Note that neither the very first segment, nor the very last segment are
+drawn.  The first and last segments serve only to define the angle of
+the join at the very ends of the polyline.  Thus, to draw one segment,
+three must be specified. To draw two segments, four must be specified,
+etc.
+
+<p>
+The normal array may be NULL.  If it is, normal vectors will NOT be
+automatically generated, and the object will look terrible when lit.
+
+<p>
+The color array may be NULL. If NULL, the current color is used.  If not
+NULL, the glColor3f() routine is used to set the color; therefore,
+specifying the glColorMatrial() subroutine beore this primitive can be used
+to set diffuse, specular, ambient, etc. colors.
+<p>
+
+
+<dt><pre><b> void spiral (int ncp,        /* number of contour points */
+             gleDouble contour[][2],    /* 2D contour */
+             gleDouble cont_normal[][2], /* 2D contour normals */
+             gleDouble up[3],           /* up vector for contour */
+             gleDouble startRadius,	/* spiral starts in x-y plane */
+             gleDouble drdTheta,        /* change in radius per revolution */
+             gleDouble startZ,		/* starting z value */
+             gleDouble dzdTheta,        /* change in Z per revolution */
+             gleDouble startXform[2][3], /* starting contour affine xform */
+             gleDouble dXformdTheta[2][3], /* tangent change xform per revoln */
+             gleDouble startTheta,	/* start angle in x-y plane */
+             gleDouble sweepTheta);	/* degrees to spiral around */
+</b></pre>
+<dd>
+Sweep an arbitrary contour along a helical path.
+<p>
+The axis of the helix lies along the modeling coordinate z-axis.
+<p>
+An affine transform can be applied as the contour is swept.  For most
+ordinary usage, the affines should be given as NULL.
+<p>
+
+
+<dt><pre><b> void lathe (int ncp,        /* number of contour points */
+             gleDouble contour[][2],    /* 2D contour */
+             gleDouble cont_normal[][2], /* 2D contour normals */
+             gleDouble up[3],           /* up vector for contour */
+             gleDouble startRadius,	/* spiral starts in x-y plane */
+             gleDouble drdTheta,        /* change in radius per revolution */
+             gleDouble startZ,		/* starting z value */
+             gleDouble dzdTheta,        /* change in Z per revolution */
+             gleDouble startXform[2][3], /* starting contour affine xform */
+             gleDouble dXformdTheta[2][3], /* tangent change xform per revoln */
+             gleDouble startTheta,	/* start angle in x-y plane */
+             gleDouble sweepTheta);	/* degrees to spiral around */
+</b></pre>
+<dd>
+Sweep an arbitrary contour along a helical path. The sweep will be
+performed as a shear along the z-axis, so that the orientation of the
+contour is displaced, rather than translated, as the contour is swept.
+<p>
+The axis of the helix lies along the modeling coordinate z-axis.
+<p>
+An affine transform can be applied as the contour is swept.  For most
+ordinary usage, the affines should be given as NULL.
+<p>
+
+<dt><pre><b> void helicoid (gleDouble rToroid, /* circle contour (torus) radius */
+             gleDouble startRadius,	/* spiral starts in x-y plane */
+             gleDouble drdTheta,        /* change in radius per revolution */
+             gleDouble startZ,		/* starting z value */
+             gleDouble dzdTheta,        /* change in Z per revolution */
+             gleDouble startXform[2][3], /* starting contour affine xform */
+             gleDouble dXformdTheta[2][3], /* tangent change xform per revoln */
+             gleDouble startTheta,	/* start angle in x-y plane */
+             gleDouble sweepTheta);	/* degrees to spiral around */
+</b></pre>
+<dd> Genralized Torus.
+Similar to spiral, except contour is a circle.
+
+</dl>
+
+<h2> The End </h2>
+<address>
+Originally developed by Linas Vepstas in 1991<br>
+Version 2.0 -- port to OpenGL, 1993 <br>
+Version 2.1 -- assorted touch-ups, cleanups, etc.
+</address>
+
+</body>
+</html>

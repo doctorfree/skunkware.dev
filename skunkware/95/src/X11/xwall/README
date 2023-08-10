@@ -1,0 +1,93 @@
+
+
+			Xwall version 2.0
+
+INTRODUCTION
+
+Are you tired of seeing wall messages splatting across every xterm
+on an X display?  We decided to change the way the wall worked in
+the presence of X.
+
+We made an xwalld daemon that would attach to the X display and listen
+for messages from the xwall program.  The xwalld daemon is hardy enough
+to survive server resets and X terminals disappearing for a while.  The
+xwall program passes the message to the xwalld using selections.  The
+message passing is done in accordance with the ICCCM.
+
+Later, we added the ability to capture console messages to walld.
+
+SECURITY
+
+We have patched R4 xdm to issue the server key to root.  We feel that this
+is not a security problem.  Root can always assume the identity of the
+user to gain access to the X display.  Apply xdm.patch to enact this
+change.  We run most displays with authorization turned on and server
+grabbing turned off.  This allows wall messages to appear when nobody
+is logged in.
+
+Both xwalld and xwall are setuid root programs.  We have carefully examined
+both programs for security loop holes.  Xwalld needs to run as root to be
+able to connect to the X display when nobody is logged in.  Xwall needs to
+run as root to be able to switch the uid when a user is using a remote
+X display.
+
+CHANGES FOR X11R5
+
+The xwalld daemon no longer respawn itself when the X server connection
+is lost.  This was required for R4, because there was no way to have xdm
+start xwalld when nobody was logged in.  This functionality is provided
+in R5 with the Xsetup script.  Xwalld will automatically be configured to
+respawn for R4 and not respawn for R5.
+
+Since the xconsole client is provided with R5, the console support has
+been withdrawn from xwalld.
+
+INSTALLATION
+
+For X11R4:
+
+In addition to installing the programs, you should install xdm.patch.
+I have also included our modified copy of the 4.3 BSD /bin/wall program.
+It checks the utmp entries for X connections.  It attempts to use xwall
+and falls back to the old method if xwall fails.  Be sure to adjust the
+path used to call xwall to match your local installation.
+
+If you want xwall messages to appear when nobody is logged in,
+use something like the following in your xdm-config.
+
+DisplayManager._0.authorize:    true
+DisplayManager._0.authFile:     /usr/adm/xdm/auth-server
+DisplayManager._0.grabServer:   false
+
+For X11R5:
+
+In addition to installing the programs.  Look at the example Xsetup
+files and change your xdm Xsetup file to issue the keys to root and
+start xwalld.  Also modify your Xreset file to revoke the keys.
+
+
+TESTED PLATFORMS
+
+Xwall and xwalld have been installed and tested on the following platforms:
+
+DecStation 3100, Ultrix 3.1 & 4.0 & 4.2 (Using X11R4/R5, not DecWindows)
+VaxStation 3200, Ultrix 3.1       (Using X11R4, not DecWindows)
+Sun 4/100,       SunOS 4.1
+Sun 3/50,        SunOS 4.1
+IBM RT,          AOS 4.3
+Hp bobcat,       BSD 4.3
+Convex C220      ConvexOS 9.0     (X11R4)
+Cray Y-MP8/864   UNICOS 5.1.11    (Using X11r4, not r3 as supplied by CRI)
+
+Xwall and xwalld have also been tested with NCD-16 X terminals.
+
+FEEDBACK
+
+I welcome any feedback that you care to give.  Of course, I am interested
+in your success stories.  I will also try to help you if you have problems.
+However, I cannot make any promise of support.
+
+Tim Theisen             Department of Computer Sciences
+tim@cs.wisc.edu         University of Wisconsin-Madison
+uwvax!tim               1210 West Dayton Street
+(608)262-0438           Madison, WI   53706

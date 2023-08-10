@@ -1,0 +1,167 @@
+<HTML>
+<HEAD>
+<TITLE>awf</TITLE>
+</HEAD>
+<BODY>
+<H1>awf</H1>
+<HR>
+<PRE>
+     <STRONG>NAME</STRONG>
+          awf - amazingly workable (text) formatter
+
+     <STRONG>SYNOPSIS</STRONG>
+          <STRONG>awf</STRONG> <STRONG>-m</STRONG><EM>acros</EM> [ file ] ...
+
+     <STRONG>DESCRIPTION</STRONG>
+          <EM>Awf</EM> formats the text from the input <EM>file</EM>(s) (standard input
+          if none) in an imitation of <EM>nroff</EM>'s style with the <STRONG>-man</STRONG> or
+          <STRONG>-ms</STRONG> macro packages.  The <STRONG>-m</STRONG><EM>acro</EM> option is mandatory and must
+          be `-man' or `-ms'.
+
+          <EM>Awf</EM> implements the following raw <EM>nroff</EM> requests:
+
+                 .\"    .ce     .fi     .in     .ne     .pl     .sp
+                 .ad     .de     .ft     .it     .nf     .po     .ta
+                 .bp     .ds     .ie     .ll     .nr     .ps     .ti
+                 .br     .el     .if     .na     .ns     .rs     .tm
+
+          and the following in-text codes:
+
+               \$    \%     \*     \c     \f     \n     \s
+
+          plus the full list of <EM>nroff</EM>/<EM>troff</EM> special characters in the
+          original V7 <EM>troff</EM> manual.
+
+          Many restrictions are present; the behavior in general is a
+          subset of <EM>nroff</EM>'s.  Of particular note are the following:
+
+          <STRONG>+</STRONG> Point sizes do not exist; <STRONG>.ps</STRONG> and <STRONG>\s</STRONG> are ignored.
+
+          <STRONG>+</STRONG> Conditionals implement only numeric comparisons on <STRONG>\n(.$</STRONG>,
+            string comparisons between a macro parameter and a
+            literal, and <STRONG>n</STRONG> (always true) and <STRONG>t</STRONG> (always false).
+
+          <STRONG>+</STRONG> The implementation of strings is generally primitive.
+
+          <STRONG>+</STRONG> Expressions in (e.g.) <STRONG>.sp</STRONG> are fairly general, but the <STRONG>|</STRONG>,
+            <STRONG>&amp;</STRONG>, and <STRONG>:</STRONG> operators do not exist, and the implementation of
+            <STRONG>\w</STRONG> requires that quote (') be used as the delimiter and
+            simply counts the characters inside (so that, e.g.,
+            \w'\(bu' equals 4).
+
+          White space at the beginning of lines, and imbedded white
+          space within lines, is dealt with properly.  Sentence
+          terminators at ends of lines are understood to imply extra
+          space afterward in filled lines.  Tabs are implemented
+          crudely and not quite correctly, although in most cases they
+          work as expected.  Hyphenation is done only at explicit
+          hyphens, em-dashes, and <EM>nroff</EM> discretionary hyphens.
+
+     <STRONG>MAN</STRONG> <STRONG>MACROS</STRONG>
+          The <STRONG>-man</STRONG> macro set implements the full V7 manual macros,
+          plus a few semi-random oddballs.  The full list is:
+
+               .B   .DT     .IP     .P      .RE     .SM
+               .BI  .HP     .IR     .PD     .RI     .TH
+               .BR  .I      .LP     .PP     .RS     .TP
+               .BY  .IB     .NB     .RB     .SH     .UC
+
+          <STRONG>.BY</STRONG> and <STRONG>.NB</STRONG> each take a single string argument
+          (respectively, an indication of authorship and a note about
+          the status of the manual page) and arrange to place it in
+          the page footer.
+
+     <STRONG>MS</STRONG> <STRONG>MACROS</STRONG>
+          The <STRONG>-ms</STRONG> macro set is a substantial subset of the V7
+          manuscript macros.  The implemented macros are:
+
+               .AB  .CD     .ID     .ND     .QP     .RS     .UL
+               .AE  .DA     .IP     .NH     .QS     .SH     .UX
+               .AI  .DE     .LD     .NL     .R      .SM
+               .AU  .DS     .LG     .PP     .RE     .TL
+               .B   .I      .LP     .QE     .RP     .TP
+
+          Size changes are recognized but ignored, as are <STRONG>.RP</STRONG> and <STRONG>.ND</STRONG>.
+          <STRONG>.UL</STRONG> just prints its argument in italics.  <STRONG>.DS</STRONG>/<STRONG>.DE</STRONG> does not
+          do a keep, nor do any of the other macros that normally
+          imply keeps.
+
+          Assignments to the header/footer string variables are
+          recognized and implemented, but there is otherwise no
+          control over header/footer formatting.  The <STRONG>DY</STRONG> string
+          variable is available.  The <STRONG>PD</STRONG>, <STRONG>PI</STRONG>, and <STRONG>LL</STRONG> number registers
+          exist and can be changed.
+
+     <STRONG>OUTPUT</STRONG>
+          The only output format supported by <EM>awf</EM>, in its distributed
+          form, is that appropriate to a dumb terminal, using
+          overprinting for italics (via underlining) and bold.  The
+          <EM>nroff</EM> special characters are printed as some vague
+          approximation (it's sometimes very vague) to their correct
+          appearance.
+
+          <EM>Awf</EM>'s knowledge of the output device is established by a
+          device file, which is read before the user's input.  It is
+          sought in <EM>awf</EM>'s library directory, first as <STRONG>dev.</STRONG><EM>term</EM> (where
+          <EM>term</EM> is the value of the TERM environment variable) and,
+          failing that, as <STRONG>dev.dumb</STRONG>.  The device file uses special
+          internal commands to set up resolution, special characters,
+          fonts, etc., and more normal <EM>nroff</EM> commands to set up page
+          length etc.
+
+     <STRONG>FILES</STRONG>
+          All in /<EM>usr</EM>/<EM>skunk</EM>/<EM>lib</EM>/<EM>awf</EM> (this can be overridden by the
+          AWFLIB environment variable):
+
+          common common device-independent initialization
+          dev.*  device-specific initialization
+          mac.m* macro packages
+          pass1  macro substituter
+          pass2.base     central formatter
+          pass2.m*       macro-package-specific bits of formatter
+          pass3  line and page composer
+
+     <STRONG>SEE</STRONG> <STRONG>ALSO</STRONG>
+          awk(1), nroff(1), man(7), ms(7)
+
+     <STRONG>DIAGNOSTICS</STRONG>
+          Unlike <EM>nroff</EM>, <EM>awf</EM> complains whenever it sees unknown
+          commands and macros.  All diagnostics (these and some
+          internal ones) appear on standard error at the end of the
+          run.
+
+     <STRONG>HISTORY</STRONG>
+          Written at University of Toronto by Henry Spencer,  more  or
+          less as a supplement to the C News project.
+
+                =&gt; None of the above really want to admit it. &lt;=
+
+     <STRONG>BUGS</STRONG>
+          There are  plenty,  but  what  do  you  expect  for  a  text
+          formatter written entirely in (old) <EM>awk</EM>?
+
+          The <STRONG>-ms</STRONG> stuff has not been checked out very thoroughly.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

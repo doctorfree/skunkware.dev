@@ -1,0 +1,1051 @@
+
+	    Notes for the distribution of lsof version 3
+
+********************************************************************
+| The latest release of lsof is always available via anonymous ftp |
+| from vic.cc.purdue.edu.  Look in pub/tools/unix/lsof.            |
+********************************************************************
+
+		Contents
+
+	    Dialects Supported
+	    How Lsof Works
+	    Lsof Output
+	    Limiting, Filtering, and Selecting Lsof Output
+	    Parsing Lsof Output with Another Program
+	    Repeat Mode
+	    Distribution Restrictions
+	    Warranty
+	    What's new in Version 3
+	    Version 3 Release Notes
+		3.0,  May 24, 1994
+		3.01, May 27, 1994
+		3.02, June 2, 1994
+		3.03, July 8, 1994
+		3.04, July 15, 1994
+		3.05, July 26, 1994
+		3.06, September 2, 1994
+		3.07, September 8, 1994
+		3.08, September 23, 1994
+		3.09, October 18, 1994
+		3.10, October 21, 1994
+		3.11, October 28, 1994
+		3.12, October 29, 1994
+		3.13, November 11, 1994
+		3.14, November 16, 1994
+		3.15, November 25, 1994
+		3.16, December 2, 1994
+		3.17, January 25, 1994
+		3.18, January 31, 1995
+		3.19, February 10, 1995
+		3.20, February 23, 1995
+		3.21, March 3, 1995
+		3.22, March 9, 1995
+		3.23, March 24, 1995
+		3.24, March 31, 1995
+		3.25, April 5, 1995
+		3.26, April 20, 1995
+		3.27, May 2, 1995
+		3.28, May 26, 1995
+		3.29, June 2, 1995
+		3.30, June 8, 1995
+		3.31, June 16, 1995
+		3.32, June 23, 1995
+		3.33, June 28, 1995
+		3.34, June 30, 1995
+		3.35, July 9, 1995
+		3.36, July 20, 1995
+		3.37, July ??? 1995
+
+
+Dialects Supported
+==================
+
+Lsof (for LiSt Open Files) lists files opened by processes on
+selected Unix systems.  It's a major revision of lsof version 2,
+and has been tested on:
+
+    AIX 3.2.4, 3.2.5, 4.1,	the IBM RISC/System 6000
+	4.1.1, and 4.1.2
+    DC/OSx 1.1			Pyramid ES, Nile and S series
+    EP/IX 2.1.1			the CDC 4680
+    FreeBSD 1.1.5.1, 2.0, and	Intel-based systems
+	2.0.5
+    HP-UX 8.x, 9.x, and 10	HP systems (some combinations)
+    IRIX 4.0.5H, 5.2, 5.3,	SGI systems
+	and 6.0
+    Linux through 1.2.11	Intel-based systems
+    NetBSD 1.0 and 1.0A		Intel and SPARC-based systems
+    NEXTSTEP 2.1 and 3.[0123]	all NEXTSTEP architectures
+    Novell UnixWare 1.1,	Intel-based systems
+	1.1.1, and 1.1.2
+    OSF/1 1.3, 2.0, 3.0, and	the DEC Alpha
+	3.2
+    RISC/os 4.52		MIPS R2000-based systems
+    SCO OpenDesktop or		Intel-based systems
+	OpenServer 1.1, 3.0,
+	and 5.0
+    Sequent Dynix 3.0.12	the Sequent Symmetry
+    Sequent PTX 2.1.[156] and	Sequent systems
+	4.0.[23]
+    Solaris 2.[1234]		Sun 4 and i86pc systems
+    SunOS 4.1.[1234]		Sun 3 and 4
+    Ultrix 2.2, 4.2, 4.3,	DEC RISC and VAX
+	and 4.4
+    V/88 R32V3, R40V4.2, and	Motorola M88K systems
+	R40V4.3
+
+(The pub/tools/unix/lsof/contrib directory on vic.cc.purdue.edu
+contains information on other ports.)
+
+
+How Lsof Works
+==============
+
+Using available kernel data access methods -- getproc(), getuser(),
+kvm_*(), nlist(), pstat(), read(), readx(), /proc -- lsof reads
+process table entries, user areas and file pointers to reach the
+underlying structures that describe files opened by processes.
+
+Lsof interprets most file node structures -- advfsnodes, cnodes,
+cdrnodes, devnodes, fifonodes, gnodes, hsnodes, inodes, mfsnodes,
+pcnodes, procnodes, rnodes, snodes, specnodes, s5inodes, tmpnodes.
+It understands NFS connections.  It recognizes FIFOs, multiplexed
+files, Unix and Internet sockets.  It knows about streams.  It
+understands /proc file systems for some dialects.  On many dialects
+it recognizes execution text and library references.
+
+
+Lsof Output
+===========
+
+The lsof output describes:
+
+    * the process that has opened the file;
+
+    * the process group identification number of the process (optional);
+
+    * the command the process is executing;
+
+    * the owner of the process;
+
+    * for all files in use by the process, including the executing
+      text file and the shared libraries it is using:
+
+      * the file descriptor number of the file, if applicable;
+
+      * the file's access mode;
+
+      * the file's lock status;
+
+      * the file's device numbers;
+
+      * the file's inode number;
+
+      * the file's size or offset;
+
+      * the name of the file system containing the file;
+
+      * any available components of the file's path name;
+
+      * the names of the file's stream components;
+
+      * the file's local and remote network addresses.
+
+
+Limiting, Filtering, and Selecting Lsof Output
+==============================================
+
+Lsof accepts options to limit, filter, and select its output.
+These are the possible criteria:
+
+    * Process ID (PID) number -- to list the open files for a given
+      process;
+
+    * Process Group ID (PGRP) -- to list the open files for all
+      the processes of a given process group;
+
+    * User ID number or login name -- to list the open files for
+      all the processes of a given user;
+
+    * Internet address -- to list the open files using a given
+      Internet address (host name), protocol, or port (number or
+      name); or to list all open Internet files;
+
+    * Command name;
+
+    * File descriptor name or number;
+
+    * list all open NFS files;
+
+    * list all open Unix domain socket files;
+
+    * list all uses of a specific file;
+
+    * list all open files on a file system.
+
+Selection options are normally ORed -- i.e., an open file meeting
+any of the criteria is listed.  The selection options may be ANDed
+so that an open file will be listed only if it meets all the
+criteria.
+
+In the absence of any selection criteria, lsof lists files open to
+all processes.
+
+
+Parsing Lsof Output with Another Program
+========================================
+
+The lsof -F option directs it to produce "field" output that can
+easily be parsed by another program.  The lsof distribution contains
+sample awk, perl 4, and perl 5 scripts in its scripts subdirectory
+that show how to post-process field output.
+
+
+Repeat Mode
+===========
+
+Lsof can be directed to produce output, delay for a specified time,
+then repeat the output, cycling until stopped by an interrupt or
+quit signal.  This mode is useful for monitoring the status of some
+file operation -- e.g., an ftp transfer or a tape backup operation.
+
+Repeat mode is more efficient when combined with lsof's selection
+options, since they limit lsof overhead.
+
+It's possible to use lsof's field output options to supply repeat
+mode output to another process for its manipulation.  The scripts
+subdirectory of the lsof distribution has sample Perl scripts
+showing how to consume lsof repeat mode output from a pipe.
+
+
+Distribution Restrictions
+=========================
+
+Lsof may be used and distributed freely, subject to these limitations:
+
+1. Neither the author nor Purdue University is responsible for
+   any consequences of the use of this software.
+
+2. The origin of this software must not be misrepresented, either
+   by explicit claim or by omission.  Credit to the author and
+   Purdue University must appear in documentation and sources.
+
+3. Altered versions must be plainly marked as such, and must not
+   be misrepresented as being the original software.
+
+4. This notice may not be removed from or altered in the lsof source
+   files.
+
+
+Warranty
+========
+
+Lsof is provided as-is without any warranty of any kind, either
+expressed or implied, including, but not limited to, the implied
+warranties of merchantability and fitness for a particular purpose.
+The entire risk as to the quality and performance of lsof is with
+you.  Should lsof prove defective, you assume the cost of all
+necessary servicing, repair, or correction.
+
+
+What's new in Version 3
+=======================
+
+I had three goals in mind for version 3:
+
+    1.	Make it faster.
+
+	Lsof 3 defers as many lookup operations -- /dev scan, mount
+	table scan, /etc/services scan -- until they're needed.
+
+	I used prof on lsof and used its information to reduce lsof's
+	overhead.
+
+    2.  Make it easier to maintain and port to other systems, and
+	eliminate complicated nestings of #if/#else/#endif
+	pre-processor statements.
+
+    3.	Add a few features:
+
+	o  ANDing of options;
+
+	o  Sorting of output by Process ID;
+
+	o  Searching for Unix domain sockets by name -- to a limited
+	   extent.
+
+	o  Process group ID support.  (This was a late addition.)
+
+As a result of goal 2, the organization of lsof version 3 differs
+greatly from version 2.  The main directory contains totally common
+functions, a dialect subdirectory contains subdirectories of code
+specific to each Unix dialect that is supported.  There is also a
+dialects/common subdirectory that contains code fragments that are
+used by more than one, but not all dialects.
+
+A top-level Configure script constructs the complete set of sources
+for a given dialect and the Makefile at the top-level.  Configure
+is self-documenting.
+
+
+Version 3 Release Notes
+=======================
+
+3.0		May 24, 1994
+		This is the first official release of lsof 3.
+
+3.01		May 27, 1994
+		Corrected the #ifdef condition for HASPWSTAYOPEN
+		under Sequent Dynix 3.0.12.
+
+		Fixed bug that prevented the display of current
+		working and root directory path names under SunOS
+		4.1.x, even when the user area contained pointers
+		to them.
+
+		Changed the strategy for allocating space to the
+		local proc table in EP/IX, NEXTSTEP, Solaris, and
+		SunOS.
+
+		Closed the distance between reading the Solaris
+		proc structure and its companion pid structure in
+		an effort to avoid using a stale pid structure
+		pointer.  A stale pid structure pointer sometimes
+		causes a segmentation violation in kvm_read().
+
+		Added code to the SunOS kread() function to filter
+		out non-kernel addresses that might lead kvm_read()
+		to a segmentation violation.  The Configure script
+		was updated to create a header file, kernelbase.h,
+		with the necessary kernel memory boundary value;
+		and to remove the header file when the -clean option
+		is specified.  The Configure script now passes the
+		target name to the Mksrc shell script.  It's used
+		by sun/Mksrc to determine the source for kernelbase.h.
+
+3.02		June 2, 1994
+		Added #if's to of kernelbase.h for Solaris and
+		SunOS.  This eliminates a redeclaration complaint
+		from old versions of SunOS.
+
+		Added code to process_file() in all dialects to
+		display "no more information" when f_count in the
+		file structure is zero.
+
+3.03		July 8, 1994
+		Added support for displaying process group IDs.
+		This includes two new options: -j to select PGRP
+		display; and -g<list> to specify a list of PGRPs
+		whose files are to be displayed.  (-j was chosen
+		to match a similar option in some ps(1)'s.)
+
+		Philippe-Andre Prindeville <philipp@res.enst.fr>
+		suggested this addition.
+
+3.04		July 15, 1994
+		Corrected handling of port name component of -i
+		option on systems where htons() is required.
+
+		Corrected casting of UID arguments -- needed when
+		UID is a short and the compiler wants the minimum
+		argument size to be larger.
+
+3.05		July 26, 1994
+		Added printing of DECnet socket information for
+		the Ultrix 4.2 and 4.3 dialects.  John Beacom
+		<beacom@wisnud.physics.wisc.edu> kindly provided
+		the test system.  A new Configure abbreviation,
+		ultrix42dn, must be used to activate the DECnet
+		support.
+
+3.06		September 2, 1994
+		The major news in this revision are the V/88 R32V3
+		and R40V4.2 ports for Motorola M88K systems.  Chance
+		Neale <cneale@panix.com> kindly provided test systems
+		and Mike Feldman <feldman@charm.urbana.mcd.mot.com>
+		provided technical assistance.
+
+		Version 3.06 contains other, minor modifications:
+
+		*  The Configure script has been isolated from the
+		   environment, thanks to a report of a CC=xlc
+		   problem from Johnny Tolliver <jxt@ca04.cad.ornl.gov>.
+		   Johnny also suggested a better form for the install
+		   commands in the Makefile's install rule.  This
+		   change affected all the dialect Mksrc scripts.
+
+		   A new HP-UX abbreviation (hpuxx25) was added
+		   for systems that have the /etc/conf/x25 include
+		   files.  The old HP-UX abbreviation (hpux) no
+		   longer references /etc/conf or defines HPUX_CCITT.
+
+		*  The command "lsof `tty`" now works most places (maybe
+		   not always for SGI IRIX, but I tried) thanks to a bug
+		   report from Casper Dik <casper@fwi.uva.nl>.
+
+		*  A mode has been added to disable forking when
+		   debugging.  The V/88 R40V4.2 debugger needed that.
+
+		*  Printing of stream NAMEs was standardized (IRIX
+		   was different) and an attempt was made to avoid
+		   stream NAMEs like /dev/ttyx4->/dev/ttyx4.
+		
+		*  A new documentation file, 00FAQ, accompanies the
+		   distribution.  It contains frequently asked
+		   questions about lsof, and the best answers I can
+		   manage to give.
+
+		*  I have a new HP-UX test system, courtesy of Dave
+		   Curry <davy@ecn.purdue.edu> and George Goble
+		   <ghg@ecn.purdue.edu> of Purdue's Engineering Computer
+		   Network.  I want to thank J. Nelson Howell
+		   <nelson@zeus.mgmt.purdue.edu> of Purdue's School of
+		   Management for his prior support of lsof development
+		   under HP-UX.
+
+3.07		September 8, 1994
+		This revision contains a small security enhancement.
+		Tim Ramsey <tar@ksu.ksu.edu> pointed out that lsof's
+		setgid or setuid power might allow it's user to
+		read an alternate kernel name list or memory file
+		via the -c and -k options that the real UID might
+		not have authority to read.  In revision 3.07 lsof
+		uses access(2) to check the real UID's authority
+		to read files named with -c and -k.
+
+3.08		September 23, 1994
+		This revision contains support for Novell's UnixWare,
+		versions 1.1, 1.1.1, and 1.1.2.  Peter Lord
+		<plord@novell.co.uk> made this possible by providing
+		a copy of UnixWare and supplying technical advice.
+		Binaries and sources for this version will be
+		available from Novell sources.  See the Novell
+		UnixWare section of the distribution's 00README
+		file for details.
+
+		This version adds /proc file system support to the
+		dialects derived from SYSV R4 (except EP/IX 2.1.1):
+		FreeBSD, IRIX 5.2, Solaris, UnixWare, and V/88
+		R40V4.2.
+
+		This version compiles under IRIX 4.0.5 again,
+		correcting a problem introduced at version 3.06 in
+		the "lsof `tty`" fix.
+
+		HP-UX now skips file systems whose mount type is
+		"ignore".  The presence of the -c option is now
+		controlled by the HASCOPT definition in machine.h.
+		The HASSWAPPORT option is now documented and
+		implemented correctly.  Hans Petter Christiansen
+		<hpchr@dxcern.cern.ch> suggested these changes.
+
+3.09		October 18, 1994
+		This revision recognizes the DEC Alpha OSF/1 V3.0,
+		IBM AIX 4.1, and Solaris 2.4 dialects.  It has
+		support for the SunOS 4.1.3 PC file system and two
+		bug fixes: an IRIX, V/88, and Solaris file argument
+		processing bug; and a V/88 include error.
+
+		Alex Kreis <akreis@us.oracle.com> made the initial
+		request for DEC OSF/1 V3.0 support and provided
+		help with testing.  Ron Young <ron@screamer.nevada.edu>
+		graciously provided a test host.  James Woodward
+		<woodward@zk3.dec.com> provided invaluable clues
+		to V3.0 kernel organization.  Others who read the
+		alpha-osf-managers mailing list made generous offers
+		of test facilities, and I thank them, too.  The
+		decosf3 abbreviation was added to the Configure
+		script, and the script was modified to request the
+		name of the system configuration subdirectory of
+		/sys where the configuration-specific header files
+		reside for the decosf1, decosf2, and decosf3
+		configuration abbreviations.
+
+		Mark Peek <mark_peek@taligent.com> provided and
+		tested the AIX 4.1 changes.
+
+		Casper Dik <casper@fwi.uva.nl> provided and tested
+		the Solaris 2.4 changes.
+
+		Friedel Loinger <friedel@wise.tau.ac.il> suggested
+		the addition of support for the SunOS 4.1.3 PC file
+		system ("pcfs").
+
+		Andreas Stolcke <stolcke@ICSI.Berkeley.EDU> supplied
+		a fix to a file argument processing bug that causes
+		lsof to crash when supplied the path of an NFS
+		mounted file.  The bug affects lsof versions for
+		Motorola V/88 R40V4.2, SGI IRIX 5.2, and Solaris
+		2.[123].
+
+		Corrected an error in the path to include prdata.h
+		in dlsof.h for Motorola V/88 R40V4.2.
+
+3.10		October 21, 1994
+		This revision adds support for the cache and PC file
+		systems to Solaris.  It fixes these bugs: a problem
+		with the display of Motorola V/88 R40V4.2 device
+		numbers; and a failure of Readlink() to resolve
+		symbolic links completely in all cases.
+
+		Some major internal restructuring was necessary to
+		be able to display negative inode numbers for SunOS
+		PC file system nodes, while displaying them as
+		unsigned numbers for Solaris, hence all dialect
+		versions were affected.
+
+3.11		October 28, 1994
+		This revision adds support for Linux version 1.0.9.
+		Tim Korb <jtk@arthur.cs.purdue.edu> kindly provided
+		a development system in the Computer Science
+		Department at Purdue.  It is likely that the Linux
+		revision will have to be adjusted for each installation,
+		and it is probable that this revision will not run
+		under later versions of Linux.  See the 00FAQ and
+		00REAME files for more information on Linux tuning.
+
+3.12		October 29, 1994
+		This revision supports Linux version 1.1.47 -- the
+		Yggdrasil Plug-and-Play Linux Fall '94 release.
+		Both Linux versions now obtain kernel symbol
+		addresses from the /zSystem.map file.
+
+		November 4, 1994
+		Hendrik G. Seliger <hank@Blimp.automat.uni-essen.de>
+		reports that lsof compiles and seems to work under
+		Linux 1.1.61.  He used the linux1147 Configure
+		abbreviation.
+		Marty Leisner <leisner@sdsp.mc.xerox.com>
+		reports that the linux1147 Configure abbreviation
+		produces a working lsof for Linux 1.1.64, too.
+
+3.13		November 11, 1994
+		This revision contains Pyramid DC/OSx support, provided
+		by Anthony Shortland <Anthony.Shortland@FMR.com>.
+
+		Marty Leisner <leisner@sdsp.mc.xerox.com> reported
+		a segmentation violation failure in Linux lsof.
+		In response I changed its task structure access to
+		use /dev/kmem instead of mmap'ing kernel memory.
+		This avoids a possible segmentation violation when
+		bad pointers are obtained from kernel memory.  I
+		also enabled the setting of Linux INET and Unix
+		select flags so that the -n and -U options work --
+		I forgot to do that when I did the Linux port.
+
+		Marty Leisner reports that the lunix1147 Configure
+		abbreviation produces a working lsof for Linux
+		1.1.64, too.
+
+		Francois Pindard <pinard@iro.umontreal.ca> provided
+		a correction to the Linux install rule.
+
+3.14		November 16, 1994
+		This revision adjusts the Configure script stanzas
+		for DEC OSF/1, Motorola V/88, Pyramid DC/OSx, and
+		Ultrix.  It also contains additional support for
+		DC/OSx and Ultrix.
+
+		Bruce Beare <bjb@pyramid.com> and Robert Vernon
+		<bob@pyramid.com.au> helped me understand Pyramid
+		nomenclature.  Robert Vernon provided DC/OSx support
+		for the RxFS file system and added machine series
+		auto-detection to the Configure script. Alex Podlecki
+		<a.podlecki@att.com> helped test the updated DC/OSx
+		distribution.
+
+		Chris Timmons <skynyrd@tahoma.cwu.edu> provided
+		information on RISC and VAX Ultrix 4.4 that led to
+		correct prefixing of nlist() names.  I updated the
+		Configure script to detect Ultrix version, machine
+		hardware type, and the presence of DECnet support.
+
+		I also updated the OSF/1 and V/88 Configure scripts
+		to determine configuration parameters automatically.
+
+3.15		November 25, 1994
+		Corrected DEC OSF/1 V2.0 support of the ADVFS file
+		system.
+
+		Bernt Christandl <beb@mpe-garching.mpg.de> and Alex
+		Kreis <akreis@us.oracle.com> helped test.  No OSF/1
+		V1.x system with ADVFS was available for testing.
+
+3.16		December 2, 1994
+		Fixed some device number handling bugs in DEC OSF/1
+		V2.0 and V3.0 support.
+
+3.17		January 25, 1994
+		lsof now supports SGI IRIX 5.3, thanks to changes
+		supplied by Dave Olson <olson@anchor.engr.sgi.com>;
+		and SCO OpenDesktop or OpenServer releases 1.1 and
+		3.0, thanks to support from Dion Johnson <dionj@sco.com>,
+		Bela Lubkin <belal@sco.com>, and Nathan Peterson
+		<nathanp@sco.com>.
+
+		Dave Olson pointed out an IRIX stream handling bug
+		in sgi/dnode.c.  When I investigated it, I found
+		that it had implications wider than SGI IRIX.  The
+		eventual fix provided the display of inode numbers
+		for character devices when the inode number must
+		be obtained from /dev.  IRIX, Solaris, and SunOS
+		benefit from the fix.
+
+		I added version detection to the Configure script,
+		so there is now just one Configure abbreviation
+		for IRIX versions 4.05, 5.2, and 5.3 -- ``irix''.
+		(The Configure abbreviation for the SCO dialect
+		``sco''.)
+
+		Ian Darrow <ian@sq.com> pointed out that lsof
+		wouldn't Configure or work properly under Solaris
+		on an i86pc.  Sorting out the difficulties made
+		clear that the HASSWAPPORT definition should be
+		removed from every machine.h file and that ntohs()
+		should be used in every dsock.c on every port
+		supplied to printinaddr().
+
+		Andreas Stolcke <stolcke@ICSI.Berkeley.EDU> pointed
+		out a method that sometimes allows lsof to report
+		on files open to a crashed or unavailable remote
+		NFS server.  This led to the addition of code,
+		where possible, to estimate the device number of
+		mount points that cannot be stat()'d.  The alternate
+		device number can come from /etc/mtab or /etc/mnttab,
+		or from the dialect's version of them.  On systems
+		that use /etc/mtab or /etc/mnttab, it is sometimes
+		possible to add the device number manually to the
+		mount options field in the form ``dev=xxxx''.  Some
+		internal changes in the way lsof handles device
+		numbers were necessary to prevent ones whose dev_t
+		typedef is a signed short from causing sign extension
+		when promoted to integers as function arguments.
+
+		David Addison <addy@meiko.co.uk> and Robert Ehrlich
+		<Robert.Ehrlich@inria.fr> pointed out that lsof
+		errs when reporting device numbers and other node
+		information for some special Sun files.  I rewrote
+		most of sun/dnode.c to correct the problem; Robert
+		rewrote it again; and I rewrote it once more.
+		David and Robert helped me test it under Solaris
+		2.[34] and SunOs 4.1.[23].
+
+		While using code from the Motorola V/88 port for
+		the SCO port, I found and fixed some NFS bugs in
+		the V/88 port.
+
+3.18		January 31, 1995
+		I added the -b and -w options.  The -b option causes
+		lsof to avoid the functions lstat(2), readlink(2),
+		and stat(2) that might block in the kernel -- e.g.,
+		when they reference an inaccessible NFS file system.
+		Instead it uses alternate device numbers obtained
+		from the mount table, where possible.
+
+		The -w option causes lsof to suppress warning
+		messages -- e.g., when the -b option has been
+		specified.  The suppression of warning messages
+		was formerly bundled into the -t option.  The -t
+		option now selects -w.
+
+		I figured out how to make alternate AIX 3.2.5 device
+		numbers from the kernel mount structure.  The new
+		-b option therefore works under AIX 3.2.5.
+
+		With the help of Chance Neale <cneale@panix.com>
+		I fixed bugs in the Motorola V/88 R32V3 NFS support.
+
+		I added a solariscc Configure abbreviation for those
+		who want to use Sun's C compiler.
+
+3.19		February 10, 1995
+		Robert Ehrlich <Robert.Ehrlich@inria.fr> pointed out
+		that lsof might be able to gather more complete path
+		name information from the kernel's name cache.  Name
+		cache access may be inhibited with the new -C option.
+		Revision 3.19 implements name cache access for:
+
+		    DEC OSF/1 [23].0
+		    Dynix (Purdue 3.0.12)
+		    EP/IX 2.1.1
+		    FreeBSD 1.1.5.1
+		    HP-UX 9.01
+		    Motorola V/88 R40V4.2
+		    NEXTSTEP 3.1
+		    SGI IRIX 5.3
+		    Solaris 2.[34]
+		    SunOS 4.1.x
+		    Ultrix 2.2 and 4.2
+
+		Revision 3.19 does NOT implement name cache access for:
+				   ===
+
+		    AIX                 The knlist() function won't
+					return cache addresses --
+					some IBM wisdom to "protect"
+					their customers.
+
+		    Linux		My only access is to 1.0.9,
+					and it doesn't seem to have
+					a kernel name cache.
+
+		    Motorola V/88	It doesn't have a unified
+			     R32V3	name cache.
+
+		    Novell UnixWare     I don't have a test system.
+
+		    Pyramid DC/OSx	I don't have a test system.
+
+		    SCO OpenDesktop	It doesn't have a unified
+			OpenServer	name cache.
+
+		    SGI IRIX 4.0.5H	I saw no unified name cache 
+					in the header files before
+					my 4.05H system was converted
+					to 5.2.
+
+		    SGI IRIX 5.2	I don't have a test system.
+
+		Another Robert Ehrlich suggestion led to the
+		establishment of a device cache file feature.  The
+		new -D option gives control of it.  This feature
+		speeds lsof dramatically on some dialects after
+		lsof has been called once and the cache has been
+		built.  (Calling stat(2) on several hundred or
+		thousand /dev nodes can take a long time.)  The
+		feature can be disabled or modified in the machine.h
+		header file and the dialects/*/ddev.c source file
+		when lsof is built.
+
+3.20		February 23, 1995
+		Upgraded Linux socket handling for versions 1.1.75
+		or greater with help from Marty Leisner
+		<leisner@sdsp.mc.xerox.com> and Linus Torvalds
+		<Linus.Torvalds@cs.Helsinki.FI>.  There is now a
+		single Configure script abbreviation for linux.
+
+		Updated for Motorola V/88 R40V4.3 with help from
+		Mike Feldman feldman@charm.urbana.mcd.mot.com>
+		and Chance Neale <cneale@panix.com>.
+
+		Updated for SGI IRIX 6.0 with help from Przemek
+		Klosowski <przemek@rrdjazz.nist.gov and Dave Olson
+		<olson@anchor.engr.sgi.com>.
+
+		Corrected access of device cache file that needs
+		to be updated so that someone other than the file
+		owner can rewrite it.  Deleted the chmod() failure
+		warning.
+
+		Updated Configure and the Sun Makefile to specify
+		absolute paths to the Sun install program.
+
+3.21		March 3, 1995
+		Removed BSDI BSD/386 support, because I no longer
+		have a test system, and I needed to have separate
+		sources for two of the three dialects (FreeBSD,
+		and NetBSD) once served by the BSDI BSD/386 sources.
+		FreeBSD sources are now in the freebsd subdirectory;
+		NetBSD, in netbsd.
+
+		With the help of Greg Earle <earle@isolar.Tujunga.CA.US>
+		and Paul Kranenburg <pk@cs.few.eur.nl> installed
+		new NetBSD support for versions 1.0 and 1.0A.  The
+		NetBSD 0.9 support was removed.  The 1.0A support has
+		been tested on Intel and SPARC-based systems.
+
+3.22		March 9, 1995
+		Fixed a bug in name cache handling that occasionally
+		caused lsof to cause a segmentation violation on
+		FreeBSD.  Although the bug didn't do that anywhere
+		else, recreated the binaries of all dialect versions
+		that use the affected code from rnam.frag and rnch.frag.
+
+3.23		March 24, 1995
+		Removed forgotten HASSWAPPORT reference from HP-UX
+		machine.h and inserted ntohs() calls in the printinaddr()
+		calls of dsock.c for HP-UX and NEXTSTEP.
+
+		Added support for NEXTSTEP 3.3, courtesy of Allan
+		Nathanson <ajn@NeXT.com>
+
+3.24		March 31, 1995
+		Changed Configure script to handle DEC OSF/1 V3.2.
+		Removed leading zero from DEC OSF/1 and ADVFS
+		version values.  Added dialects/osf/dec_a/3.2 header
+		file directory, courtesy of Dave Morrison
+		<dmorriso@us.oracle.com>, who also tested the 3.24
+		DEC/OSF1 V3.2 lsof.
+
+3.25		April 5, 1995
+		Ported to RISC/os on a R2030 (R2000-based) system,
+		provided by Zdenko Tomasic <zdenko@harvey.cam.rice.edu>.
+
+		Tightened security on the device cache file; lsof
+		always tries to change its ownerships to the effective
+		IDs after creating it.  This was suggested by Stefan
+		Kelm <kelm@cert.dfn.de>.
+
+		Ported to FreeBSD 2.0, starting with work done by
+		Kurt Jaeger <pi@complx.stgt.sub.org> on lsof revision
+		3.16.  Ade Barkah <mbarkah@rksys.com> and William
+		McVey <wam@cs.purdue.edu> provided test systems.
+
+3.26		April 20, 1995
+		Ported to SCO OpenDesktop or OpenServer 5.0 (aka
+		Everest and 3.2v5.0.0).  Hugh Dickins <hughd@sco.COM>,
+		Bela Lubkin <belal@sco.COM>, Craig B. Olofson
+		<craigo@sco.COM>, and Nathan Peterson <nathan@sco.com>,
+		provided me an early-release version of 3.2v5.0.0
+		and gave technical advice.
+
+		Added length checking of the Namech buffer to the
+		printinaddr() function.
+
+3.27		May 2, 1995
+		Corrected typo in AIX install rule, courtesy of a
+		report from John Colgrave <colgrave@hursley.ibm.com>.
+
+		At the suggestion of Greg Earle
+		<earle@isolar.Tujunga.CA.US> added a function to
+		print the name of the unknown protocol (the AF_*
+		symbol), when there is no specific processing for
+		it in dsock.c.  This change affected most dialects:
+		exceptions are DC/OSx, Linux, Motorola V/88, and
+		UnixWare.
+
+3.28		May 26, 1995
+		Added support for Sequent PTX 2 and PTX 4.  The
+		PTX 2.1.6 and PTX 4.0.2 test systems and technical
+		advice were provided by Gerrit Huizenga
+		<gerrit@sequent.com>, Peter Jordan <petej@sequent.com>,
+		Kevin Smallwood <kcs@sequent.com>, and Mike Spitzer
+		<mks@sequent.com>. (Thomas A. Endo) <tendo@netcom.com>
+		and (David Putz) <PutzDW@PO1.LMB.unisys.com> tested
+		under PTX 2.1.5.  Bob Foertsch <foertsch@uiuc.edu>
+		tested under PTX 4.  Kevin Smallwood tested under
+		2.1.1.  Others who helped include Shane Kenney
+		<shane@sequent.com>, Stephan Rossi <rossi@mtu.edu>,
+		Douglas R. Smith <drsmith@us.oracle.com>, and Joel
+		White <jdwhite@netcom.com>.
+
+		Changed the local dev structure's name to l_dev to
+		avoid conflicts with the PTX dev structure.  Added
+		a common/rdev1.frag -- a variant of rdev.frag.  It's
+		used by EP/IX, PTX, RISC/os, and V/88.
+
+		Changed printname() to check Namech first and print
+		it if it contains something.  This eliminates some
+		hacks in the handling of names for streams, but
+		generates some duplicate device name look-up code
+		in the dnode.c files of some dialects.
+
+3.29		June 2, 1995
+		Added clone device support to Motorola V/88 R40V4.3.
+
+		Added a generic ``-X'' option for dialect-specific
+		use.  Used it in AIX to allow use of readx().  Lsof
+		no longer uses readx() by default, because its use
+		can cause an AIX 3.2.x and 4.1.x kernel error to
+		appear. Kevin Ruderman <rudi@acs.bu.edu> reported
+		this bug to me and the possibility that lsof might
+		trigger it.
+		
+		The error, known as the Stale Segment ID bug, hangs
+		the kernel in its dir_search() function, thus
+		hanging the application process that called it so
+		tightly that the application process can neither
+		be killed nor stopped.  The bug does not directly
+		affect lsof, but may cause the hang when the kernel
+		is searching directories for other processes.
+		00FAQ and 00README describe the Stale Segment ID
+		bug in more detail.  Consult dialects/aix/machine.h
+		for options on enabling or disabling readx() by
+		default, or permanently enabling or disabling it
+		with the HASXOPT and HASXOPT_VALUE definitions.
+
+		When not using readx(), AIX lsof may not report
+		fully on all text and loader references.  Changes
+		to the kernel getuser() function in AIX 4.1.1 appear
+		to have eliminated the text file and loader file
+		reference information that once led lsof to use
+		readx(); of course, without that information, lsof
+		can no longer report on the executing text file or
+		shared libraries in 4.1.1.
+
+		Changed the Configure script to use a single
+		abbreviation, aix, for AIX.  Configure now uses
+		/usr/bin/oslevel to determine the AIX version; in
+		the absence of /usr/bin/oslevel, Configure issues
+		a warning and assumes the version is 3.2.0.  Source
+		code changes were made to dialects/aix/*.[ch] to
+		accommodate the new form of the _AIXV value.
+
+3.30		June 8, 1995
+		Added -c to the installation of the man page in
+		the Ultrix Makefile's install rule.  Thanks go to
+		Jules van Weerden <Jules.vanWeerden@let.ruu.nl>
+		for noticing this omission.
+
+		Made FreeBSD 2.0 changes: 1) added automatic sensing
+		of the FreeBSD 2.0 boot file path, using the
+		getbootfile(3) function (suggested by Ade Barkah
+		<mbarkah@rksys.com>); 2) changed kvm_getprocs(3)
+		function call to use KERN_PROC_ALL symbol from
+		<sys/sysctl.h>, thus eliminating incorrect use of
+		the <sys/kinfo.h> and <sys/kinfo_proc.h> header
+		files; and 3) removed <sys/kinfo.h> and <sys/kinfo_proc.h>
+		header files from dialects/freebsd/include/2/sys
+		subdirectory of distribution.
+
+		Tested under AIX 4.1.2.
+
+3.31		June 16, 1995
+		Added the NOUSAGEONERR definition to allow lsof to
+		be compiled with the displaying of usage information
+		after option error messages disabled.  Lsof is
+		distributed without the NOUSAGEONERR definition --
+		i.e., usage output is displayed after option error
+		messages.
+
+		Worked on documentation in the 00* files and the
+		man page, adding tables of contents, making usage
+		more consistent, trying to insure proper dialect
+		titles, and inserting some notes about distribution
+		restrictions (few) and warranty (none).
+
+		Fixed Motorola V88 R32V3 bug in handling Internet
+		files.  This bug was introduced some time ago, but
+		I have only recently been able to test under R32V3
+		again.
+
+3.32		June 23, 1995
+		Added the ability to the Linux nlist() function to
+		automatically detect that the kernel binary is COFF
+		or ELF form.  Also corrected the UID_ARG cast from
+		int to u_int.  These changes were suggested by
+		Michael Shields <shields@tembel.org>.  Joseph J.
+		Nuspl Jr.  <nuspl@nvwls.cc.purdue.edu> provided a
+		test system.
+
+		Updated lsof for HP-UX 10.  Richard Allen <ra@rhi.hi.is>
+		provided a test system.  The hpux stanza in the
+		HP-UX configure script was updated to sense the
+		HP-UX version automatically, and to sense the
+		availability of CCITT header files in /etc/conf/x25.
+
+3.33		June 28, 1994
+		Added options to select "field" output that can be
+		parsed by a subsequent program.  (The -f, -F, and
+		-0 options form the selection set.)   Provided
+		sample awk and Perl scripts for parsing and displaying
+		field output.  This feature was suggested by Dan
+		Bernstein <djb@silverton.berkeley.edu>.
+
+		Tested under PTX 4.0.3.
+
+3.34		June 30, 1995
+		Changed display of file offset to decimal in the
+		form "0t12345678" if it is less than 100,000,000.
+		The offset is displayed in hexadecimal in the form
+		"0x12abcdef" if it is larger than 99,999,999.
+
+		Changed inode field output from signed to unsigned
+		decimal.  Updated the list_fields.{awk,perl} and
+		list_NULf.perl5 scripts.
+		
+		Documented the truncated inode output form (leading
+		`*' and 5 digits) for inodes that are too large
+		for the output field; thanks go to Leonard Sitongia
+		<sitongia@zia.hao.ucar.edu> for pointing out that
+		this wasn't documented.
+
+3.35		July 9, 1995
+		Added loopback file system support to Solaris with
+		advice from Casper Dik <casper@Holland.Sun.COM>.
+
+		Removed the NOSAGEONERR compile option in favor of
+		producing a shortened usage message when option
+		errors are detected.
+
+		Marty Leisner <leisner@sdsp.mc.xerox.com> provided
+		code to validate the Linux system map file (/System.map
+		or /zSystem.map).  If lsof detects that the system
+		map file doesn't match the booted kernel, it
+		complains and quits.
+
+		Updated host name cache to include dot forms -- e.g.,
+		when the host name can't be obtained via gethostbydddr().
+		This prevents subsequent lookup delays for the same address.
+
+3.36		July 20, 1995
+		Updated kernel name cache handling to assume a default
+		size for pointer-linked caches (DEC OSF/1, FreeBSD,
+		NetBSD, and SGI IRIX 5.3) when the kernel's cache size
+		variable has a value of zero.  A warning is issued,
+		but lsof proceeds to read and use the name cache.
+
+		Folded rdev1.frag into rdev.frag by supporting a
+		HASDNAMLEN #define for those dialects whose DIRTYPE
+		structure has a d_namlen definition.
+
+		Updated Linux distribution to avoid using d_namlen
+		from struct dirent if the Linux version is 1.2.10 or
+		greater.  This avoidance might work on earlier
+		version of Linux, too, but I have no way of telling.
+
+		Added support for FreeBSD 2.0.5.  Ade Barkah
+		<mbarkah@hemi.com> provided a test system.
+
+		Added WARNDEVACCESS definition to machine.h control
+		the default issuance of device directory and
+		subdirectory access errors.
+
+		Changed options:
+			
+		  -m (mount warning) option deleted
+		  -c (core file) option changed to -m
+		  -c option redesignated as command selector
+		  -d (device warning) option deleted
+		  -d option redesignated as file descriptor selector
+		  -O (order) option changed to less-overhead option
+		  -r option added to enable repeat mode
+
+		Added a repeat mode in which lsof will display
+		output, sleep for the number of seconds defined by
+		the repeat-mode option, -r <seconds>, and then
+		display output again, doing this repetitively until
+		it receives an interrupt or quit signal.  This
+		option is much more efficient for monitoring a file
+		than calling lsof repeatedly from a shell script,
+		since it entails only one set of lsof startup
+		operations.
+
+		The CANDOCHILD compile-time option has been removed.
+		The -O run-time option will do the same thing.
+
+3.37		July ??? 1995
+		Fixed incorrect setting of low-overhead flag from -O
+		option.
+
+		Marty Leisner reports that d_namlen is not needed
+		under Linux 1.2.8.  Changed the #if test that sets
+		HASDNAMLEN accordingly.
+
+		Made more changes to option processing: combined
+		-f, -F, and -0 into -F (-0 becomes a field identifier
+		value for -F); now allow -F, -g, -r, and -S to have
+		an optional value; made -F? (help) and -F0 (all
+		fields plus NUL terminator) special forms of -F;
+		and added support for --.  These option processing
+		changes are handled with a local getopt() function
+		(named GetOpt() to avoid confustion).
+
+		Made yet another attempt to create "standard"
+		install and deinstall SunOS/Solaris Makefile rules.
+
+
+Vic Abell <abe@cc.purdue.edu>
+Purdue University Computing Center
+July 27, 1995

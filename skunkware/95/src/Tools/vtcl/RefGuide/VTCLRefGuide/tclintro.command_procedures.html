@@ -1,0 +1,168 @@
+<HTML>
+<!--SCONAV--><I><A HREF=/VTCLRefGuide/CONTENTS.html><I>SCO Visual Tcl Reference Guide</I></A>
+<!--SCONAV--><BR><A HREF=/VTCLRefGuide/BOOKCHAPTER-1.html>Chapter 1, Tcl - tool command language</A></I><HR>
+<TITLE>Command procedures</TITLE><P>
+<A HREF=/cgi-bin/getnav/VTCLRefGuide/tclintro.command_procedures.html><H1>Command procedures</H1><P></A>
+These procedures are provided in the Tcl library:
+<DL COMPACT>
+<P><DT><B>auto_execok</B> <I>cmd</I><DD>
+Determines whether there is an executable file by the name <I>cmd</I>.
+This command examines the directories in the current search path
+(given by the <B>PATH</B> environment variable) to see if there is an
+executable file named <I>cmd</I> in any of those directories.
+If so, it returns 1;  if not it returns 0.  <B>auto_exec</B>
+remembers information about previous searches in an array
+named <B>auto_execs</B>;  this avoids the path search in
+future calls for the same <I>cmd</I>.  The command <B>auto_reset</B>
+may be used to force <B>auto_execok</B> to forget its cached
+information.
+<A NAME=tclL.auto-load>&#1;</A><P><DT><B>auto_load</B> <I>cmd</I><DD>
+This command attempts to load the definition for a Tcl command named
+<I>cmd</I>.
+To do this, it searches an auto-load path, which is a list of
+one or more directories.
+The auto-load path is given by the global variable <B>$auto_path</B>
+if it exists.
+If there is no <B>$auto_path</B> variable, then the <B>TCLLIBPATH</B>
+environment variable is used, if it exists.
+Otherwise the auto-load path consists of just the Tcl library directory.
+Within each directory in the auto-load path there must be a file
+<I>tclIndex</I> that describes one
+or more commands defined in that directory
+and a script to evaluate which loads each of the commands.
+The <I>tclIndex</I> file should be generated with the
+<B>auto_mkindex</B> command.
+If <I>cmd</I> is found in an index file, then the appropriate
+script is evaluated to create the command.
+The <B>auto_load</B> command returns 1 if <I>cmd</I> was successfully
+created.
+The command returns 0 if there was no index entry for <I>cmd</I>
+or if the script did not actually define <I>cmd</I> (because, for example, 
+index information is out of date).
+If an error occurs while processing the script, then that error
+is returned.
+<B>auto_load</B> only reads the index information once and saves it
+in the array <B>auto_index</B>;  future calls to <B>auto_load</B>
+check for <I>cmd</I> in the array rather than re-reading the index
+files.
+The cached index information may be deleted with the command
+<B>auto_reset</B>.
+This will force the next <B>auto_load</B> command to reload the
+index database from disk.
+<P><DT><B>auto_mkindex</B> <I>dir pattern pattern</I> ...<DD>
+Generates an index suitable for use by <B>auto_load</B>.
+The command searches <I>dir</I> for all files whose names match
+any of the <I>pattern</I> arguments
+(matching is done with the <B>glob</B> command),
+generates an index of all the Tcl command
+procedures defined in all the matching files, and stores the
+index information in a file named <I>tclIndex</I> in <I>dir</I>.
+For example, the command:
+<BR>
+<BR>
+<B>auto_mkindex foo <scosym>&lowast;</scosym>.tcl</B>
+<P>
+will read all the <I>.tcl</I> files in subdirectory <I>foo</I>
+and generate a new index file <I>foo/tclIndex</I>.
+<P>
+<B>auto_mkindex</B> parses the Tcl scripts in a relatively
+unsophisticated way:  if any line contains the word ``proc''
+as its first characters then it is assumed to be a procedure
+definition and the next word of the line is taken as the
+procedure's name.
+Procedure definitions that do not appear in this way (if, for example, they
+have spaces before the ``proc'') will not be indexed.
+<P><DT><B>auto_reset</B><DD>
+Destroys all the information cached by
+<B>auto_execok</B> and <B>auto_load</B>.
+This information will be re-read from disk the next time it
+is needed.  <B>auto_reset</B> also deletes any
+procedures listed in the auto-load index, so that fresh
+copies of them will be loaded the next time that they're
+used.
+<P><DT><B>parray</B> <I>arrayName</I><DD>
+Prints on standard output the names and values of all the
+elements in the array <I>arrayName</I>.
+<I>arrayName</I> must be an array accessible to the
+caller of <B>parray</B>.  It may be either local or
+global.
+<P><DT><B>unknown</B> <I>cmd</I> [<I>arg arg</I> ...]<DD>
+This procedure is invoked automatically by the Tcl
+interpreter whenever the name of a command does not exist.
+The <B>unknown</B> procedure receives as its arguments
+the name and arguments of the missing command.
+<B>unknown</B> first calls <B>auto_load</B> to load
+the command.  If this succeeds, then it executes the
+original command with its original arguments.  If the
+auto-load fails then <B>unknown</B> calls
+<B>auto_execok</B> to see if there is an executable file
+by the name <I>cmd</I>.  If so, it invokes the Tcl
+<B>exec</B> command with <I>cmd</I> and all the
+<I>args</I> as arguments.  If <I>cmd</I> cannot be
+auto-executed, <B>unknown</B> checks to see if the
+command was invoked at top-level and outside of any
+script.  If so, then <B>unknown</B> takes takes two
+additional steps.  Firstly, it sees if <I>cmd</I> has
+one of the following three forms:  <B>!!</B>,
+<B>!</B><I>event</I>, or
+<B>^</B><I>old</I><B>^</B><I>new</I>?<B>^</B>?.
+If so, then <B>unknown</B> carries out history
+substitution in the same way that
+<A HREF=/cgi-bin/man/man?csh+C><B>csh</B>(C)</A>
+would for these constructs.  Secondly, <B>unknown</B>
+checks to see if <I>cmd</I> is a unique abbreviation for
+an existing Tcl command.  If so, it expands the command
+name and executes the command with the original arguments.
+If neither of the above efforts has been able to execute
+the command, <B>unknown</B> generates an error return.
+If the global variable <B>auto_noload</B> is defined,
+then the auto-load step is skipped.  If the global variable
+<B>auto_noexec</B> is defined then the auto-exec step is
+skipped.  Under normal circumstances the return value from
+<B>unknown</B> is the return value from the command that
+was eventually executed.
+</DL>
+<LINK HREF=/VTCLRefGuide/CONTENTS.html REL=contents>
+<LINK HREF=/cgi-bin/getnav/VTCLRefGuide/tclintro.command_procedures.html REL=navigate>
+<LINK HREF=/VTCLRefGuide/tclintro.variables.html REL=next>
+<LINK HREF=/VTCLRefGuide/tcl_libraries.html REL=previous>
+
+<!--NAVIGATE <TITLEgReATerTHanNavigational information for ``Command procedures''</TITLEgReATerTHan -->
+<!--NAVIGATE <H2gReATerTHanNavigational information for ``Command procedures''</H2gReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Book title: <IgReATerTHanSCO Visual Tcl Reference Guide</IgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Next topic:  -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro.variables.htmlgReATerTHanGlobal variables defined in the Tcl library</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Previous topic:  -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tcl_libraries.htmlgReATerTHanStandard library of Tcl procedures</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/CONTENTS.htmlgReATerTHanTable of contents</AgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE <H3gReATerTHanPartial table of contents</H3gReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tcl_libraries.htmlgReATerTHanStandard library of Tcl procedures</AgReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro.command_procedures.htmlgReATerTHanCommand procedures</AgReATerTHan -->
+<!--NAVIGATE &lt;--------- YOU ARE HERE -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro.variables.htmlgReATerTHanGlobal variables defined in the Tcl library</AgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <A HREF=/cgi-bin/printchapter/VTCLRefGuide/BOOKCHAPTER-1.htmlgReATerTHan -->
+<!--NAVIGATE Entire chapter assembled for printing -->
+<!--NAVIGATE </AgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/COPYRIGHT.htmlgReATerTHan&#169; 1995 The Santa Cruz Operation, Inc.  All rights reserved</AgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/CONTENTS.html REL=contentsgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/tclintro.variables.html REL=nextgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/tcl_libraries.html REL=previousgReATerTHan -->
+<!--NAVIGATE  -->
+

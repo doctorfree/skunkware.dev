@@ -1,0 +1,30 @@
+The files in this directory contained modifications that allow the menuBar
+class to support cascading submenus. The changes are:
+
+* Change CmdList to derive from Cmd. This is interesting in several ways,
+because it makes a CmdList be a Cmd itself. That is, you can execute a
+CmdList. This opens the door to all kinds of possibilities - creating
+"macros" that consist of lists of Cmds that can be executed in sequence,
+history mechanisms, multi-level undo, etc. With respect to supporting
+submenus, it specifically allows a CmdList to contain other CmdList
+objects.
+
+* Change MenuBar to "know" that CmdLists may contain other CmdLists. The
+new implementation works recursively to create a submenu for each CmdList
+it encounters. So if a CmdList contains nested CmdLists, cascading menus
+will be created. The only reasonable way I have come up with to do this is
+to have MenuBar explicitly test the type of each object on a list, using
+the className() method, and to cast any CmdList object as needed. While a
+bit ugly, this approach is consistent with the design of the Cmd
+architecture. Cmd's don't know anything about thier presentation - classes
+like MenuBar have to know what they are working with and create the
+appropriate presentation.
+
+* MenuDemoWindow.C deomstrates how to construct a nest list of Cmds based
+on these changes.
+
+To try these features, move the four MotifApp files into the MotifApp
+directory and rebuild. Move MenuDemoWindow to the ch9 directory and
+rebuild.
+
+

@@ -1,0 +1,107 @@
+<title>Automating Things </title>
+<h1>9 <a name="s9"> Automating Things  </h1>
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<p> <a href="Term-HOWTO.html#toc9"> Contents of this section</a></p>
+
+<p> </p>
+<p>Now that you know how to get all your network services over
+<code>TERM</code>, it would be nice to set things up in such a way that your link is set
+up and configured automatically. There are basically an infinite
+number of ways of doing so, depending on what communication program you use
+and how you log in to your remote system.</p>
+<p>One program that I have not used, but I have heard is quite nice, is
+<code>fet</code>: a front end for <code>TERM</code>. It is designed to log you
+into a remote system and fire up <code>TERM</code> and all your
+tredir's.  Any comments on fet would be most
+welcome.</p>
+<p>I shall now give an example of a set of commands that use <code>kermit</code> to log into the remote system and then performs all of the
+<code>TERM</code> initializations. Obviously, if you use these examples,
+you will have to modify them for your own login procedures.</p>
+<p>The command which is actually invoked is the shell script 'knet', given by:</p>
+<p></p>
+<p>
+<pre>
+  #!/bin/sh
+  /usr/bin/kermit -y $HOME/.kerm_term &gt; $HOME/klog &lt; /dev/null 2&gt;&amp; 1 
+  exec $HOME/bin/tstart &gt;&gt; $HOME/klog 2&gt;&amp; 1
+</pre>
+</p>
+<p>The script '.kerm_term' is given by:</p>
+<p>
+<pre>
+ 
+  pause 2 
+  # The number you want to dial 
+  output atdtXXXXXXX \13 
+  # Login to the terminal server 
+  input 145 {name: } 
+  output MYNAME \13 
+  input 3 {word: } 
+  output MYPASSWORD \13 
+  input 5 {xyplex&gt;} 
+  # Make the line transparent 
+  output term telnet-t \13 
+  output term stopb 1 \13 
+  # Connect to the remote host 
+  output telnet remotehost.somedomain.org \13 
+  input 10 {ogin: } 
+  output MYOTHERNAME \13 
+  input 3 word: 
+  output MYOTHERPASSWORD \13 
+  pause 5  
+  # Fire up term on the remote host
+  output exec term -s 38400 -l $HOME/tlog -w 10 -t 150  \13
+  ! /usr/bin/term -r -l $HOME/tlog -s 38400 -c off -w 10 -t 150 &lt; /dev/modem  &gt; /dev/modem &
+  # Open other clients here
+  suspend 
+  !killall -KILL term 
+</pre>
+</p>
+<p>and finally, the script 'tstart' which fires up the <code>TERM</code> clients is given by</p>
+<p>
+<pre>
+ 
+  #!/bin/sh 
+  # 
+  # This lets mail get out, can read news here, can pick up my mail here 
+  # 
+  /usr/local/bin/tredir 2025 25 2119 newshost:119 2110 pophost:110 
+  # 
+  # So I can open up Xwindows here 
+  # 
+  /usr/local/bin/trsh -s txconn 
+  # 
+  # So I will receive mail.... 
+  # 
+  /usr/local/bin/pop 
+  # 
+  # Clean out the queue, in case of boo-boos 
+  # 
+  /usr/bin/runq 
+  # 
+  # Done now 
+  # 
+  echo ^G^G &gt; /dev/console 
+</pre>
+</p>
+<p>When finally you want to close the connection, you
+resume and terminate kermit. The last line of the script kills
+the local <code>TERM</code> and returns the system in its initial state.</p>
+<p>(<code> Note of the author: instead of doing '!killall -KILL term', I think it should be possible just to do '!tshutdown'. This should also work?</code>)</p>
+<p>As I said, there are zillions of ways to do so; these are just meant
+as examples to get you started. Other examples can be found in the packages <code>autoterm</code> and <code>JoelTermStuff</code>. </p>
+<p></p>
+<p><a href="Term-HOWTO-10.html"> Next </a> Chapter, <a href="Term-HOWTO-8.html"> Previous </a> Chapter</p><p>Table of contents of <a href="Term-HOWTO.html#toc9">this chapter</a>,
+ General <a href="Term-HOWTO.html#toc">table of contents</a></p>
+<p><a href="Term-HOWTO.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>
+
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<P><A HREF="/skunkware/index.html">
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.left.gif"
+ALT="">
+Return to Welcome Home Page</A> or
+<A HREF="/skunkware/tools.html">
+Continue to Browse
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.right.gif"
+ALT=""></A>

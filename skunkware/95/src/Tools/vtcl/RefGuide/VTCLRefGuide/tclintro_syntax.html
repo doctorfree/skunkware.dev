@@ -1,0 +1,210 @@
+<HTML>
+<!--SCONAV--><I><A HREF=/VTCLRefGuide/CONTENTS.html><I>SCO Visual Tcl Reference Guide</I></A>
+<!--SCONAV--><BR><A HREF=/VTCLRefGuide/BOOKCHAPTER-1.html>Chapter 1, Tcl - tool command language</A></I><HR>
+<TITLE>Tcl language syntax summary</TITLE><P>
+<A HREF=/cgi-bin/getnav/VTCLRefGuide/tclintro_syntax.html><H1>Tcl language syntax summary</H1><P></A>
+These rules define the syntax and semantics of the Tcl language:
+<UL>
+<P><LI>
+A Tcl script is a string containing one or more commands.
+Semicolons and newlines are command separators unless 
+<A HREF=/VTCLRefGuide/tclintro_syntax.html#tclL.quoted>quoted</A>.
+Close brackets are command terminators during 
+<A HREF=/VTCLRefGuide/tclintro_syntax.html#tclL.command_substitution>command substitution</A>
+unless quoted.
+<P><LI>
+A command is evaluated in two steps.
+First, the Tcl interpreter breaks the command into ``words''
+and performs substitutions as described later in this section.
+These substitutions are performed in the same way for all
+commands.
+The first word is used to locate a command procedure to
+carry out the command, then all of the words of the command are
+passed to the command procedure.
+The command procedure is free to interpret each of its words
+in any way it likes, such as an integer, variable name, list,
+or Tcl script.
+Different commands interpret their words differently.
+<P><LI>
+Words of a command are separated by white space (except for
+newlines, which are command separators).
+<A NAME=tclL.quoted>&#1;</A><P><LI>
+If the first character of a word is a double-quote (&quot;), 
+the word is terminated by the next double-quote character.
+If semicolons, close brackets, or white space characters
+(including newlines) appear between the quotes then they are treated
+as ordinary characters and included in the word.
+<A HREF=/VTCLRefGuide/tclintro_syntax.html#tclL.command_substitution>Command substitution</A>,
+<A HREF=/VTCLRefGuide/tclintro_syntax.html#tclL.variable_substitution>variable substitution</A>,
+and 
+<A HREF=/VTCLRefGuide/tclintro_syntax.html#tclL.backslash_substitution>backslash substitution</A>
+are performed on the characters between the quotes as described later
+in this list.
+The double-quotes are not retained as part of the word.
+<P><LI>
+If the first character of a word is an open brace ({), 
+the word is terminated by the matching close brace (}).
+Braces nest within the word: for each additional open
+brace there must be an additional close brace (however,
+if an open brace or close brace within the word is
+quoted with a backslash then it is not counted in locating the
+matching close brace).
+<P>
+No substitutions are performed on the characters between the
+braces except for backslash-newline substitutions described
+later in this list, nor do semicolons, newlines, close brackets,
+or white space receive any special interpretation.
+The word will consist of exactly the characters between the
+outer braces, not including the braces themselves.
+<A NAME=tclL.command_substitution>&#1;</A><P><LI>
+If a word contains an open bracket ([) then Tcl performs
+``command substitution''.
+To do this it invokes the Tcl interpreter recursively to process
+the characters following the open bracket as a Tcl script.
+The script may contain any number of commands and must be terminated
+by a close bracket (]).
+<P>
+The result of the script (the result of its last command) is
+substituted into the word in place of the brackets and all of the
+characters between them.
+There may be any number of command substitutions in a single word.
+Command substitution is not performed on words enclosed in braces.
+<A NAME=tclL.variable_substitution>&#1;</A><P><LI>
+If a word contains a dollar sign ($) then Tcl performs ``variable
+substitution'': the dollar sign and the following characters are
+replaced in the word by the value of a variable.
+Variable substitution may take any of the following forms:
+<DL COMPACT>
+<P><DT><B>$</B><I>name</I><DD>
+<I>name</I> is the name of a scalar variable; the name is terminated
+by any character that is not a letter, digit, or underscore.
+<P><DT><B>$</B><I>name</I><B>(</B><I>index</I><B>)</B><DD>
+<I>name</I> gives the name of an array variable and <I>index</I> gives
+the name of an element within that array.
+<I>name</I> must contain only letters, digits, and underscores.
+Command substitutions, variable substitutions, and backslash
+substitutions are performed on the characters of <I>index</I>.
+<P><DT><B>${</B><I>name</I><B>}</B><DD>
+<I>name</I> is the name of a scalar variable.  It may contain any
+characters whatsoever except for close braces.
+</DL>
+<P>
+There may be any number of variable substitutions in a single word.
+Variable substitution is not performed on words enclosed in braces.
+<A NAME=tclL.backslash_substitution>&#1;</A><P><LI>
+If a backslash (\) appears within a word then
+``backslash substitution'' occurs.
+In all cases, except those described in the following
+list, the backslash is dropped and
+the following character is treated as an ordinary
+character and included in the word.
+This allows characters such as double quotes, close brackets,
+and dollar signs to be included in words without triggering
+special processing.
+This list describes the backslash sequences that are
+handled specially, along with the value that replaces each sequence.
+<DL COMPACT>
+<P><DT>\<B>a</B><DD>
+Audible alert (bell) (0x7).
+<P><DT>\<B>b</B><DD>
+Backspace (0x8).
+<P><DT>\<B>f</B><DD>
+Form feed (0xc).
+<P><DT>\<B>n</B><DD>
+Newline (0xa).
+<P><DT>\<B>r</B><DD>
+Carriage-return (0xd).
+<P><DT>\<B>t</B><DD>
+Tab (0x9).
+<P><DT>\<B>v</B><DD>
+Vertical tab (0xb).
+<P><DT>\<I>&lt;newline&gt;whiteSpace</I><DD>
+A single space character replaces the backslash, newline, and all
+white space after the newline.
+This backslash sequence is unique in that it is replaced in a separate
+pre-pass before the command is actually parsed.
+This means that it will be replaced even when it occurs between
+braces, and the resulting space will be treated as a word separator
+if it is not in braces or quotes.
+<P><DT>\\<DD>
+Backslash (\).
+<P><DT>\<I>ooo</I><DD>
+One to three digits <I>ooo</I> give the octal value of
+the character.
+<P><DT>\<B>x</B><I>hh</I><DD>
+The hexadecimal digits <I>hh</I> give the hexadecimal value of
+the character.  Any number of digits may be present.
+</DL>
+<P>
+Backslash substitution is not performed on words enclosed in braces,
+except for backslash-newline as described above.
+<P><LI>
+If a hash character (#) appears at a point where Tcl is
+expecting the first character of the first word of a command,
+then the hash character and the characters that follow it, up
+to and including the next newline, are treated as a comment and ignored.
+The comment character only has significance when it appears
+at the beginning of a command.
+<P><LI>
+Each character is processed exactly once by the Tcl interpreter
+as part of creating the words of a command.
+For example, if variable substitution occurs then no further
+substitutions are performed on the value of the variable;  the
+value is inserted into the word verbatim.
+If command substitution occurs then the nested command is
+processed entirely by the recursive call to the Tcl interpreter;
+no substitutions are performed before making the recursive
+call and no additional substitutions are performed on the result
+of the nested script.
+<P><LI>
+Substitutions do not affect the word boundaries of a command.
+For example, during variable substitution the entire value of
+the variable becomes part of a single word, even if the variable's
+value contains spaces.
+</UL>
+<LINK HREF=/VTCLRefGuide/CONTENTS.html REL=contents>
+<LINK HREF=/cgi-bin/getnav/VTCLRefGuide/tclintro_syntax.html REL=navigate>
+<LINK HREF=/VTCLRefGuide/tclintro.tclvars.html REL=next>
+<LINK HREF=/VTCLRefGuide/tclintro.tclintro.html REL=previous>
+
+<!--NAVIGATE <TITLEgReATerTHanNavigational information for ``Tcl language syntax summary''</TITLEgReATerTHan -->
+<!--NAVIGATE <H2gReATerTHanNavigational information for ``Tcl language syntax summary''</H2gReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Book title: <IgReATerTHanSCO Visual Tcl Reference Guide</IgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Next topic:  -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro.tclvars.htmlgReATerTHanVariables used by Tcl</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Previous topic:  -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro.tclintro.htmlgReATerTHanTcl - tool command language</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/CONTENTS.htmlgReATerTHanTable of contents</AgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE <H3gReATerTHanPartial table of contents</H3gReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro.tclintro.htmlgReATerTHanChapter 1, Tcl - tool command language</AgReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro_syntax.htmlgReATerTHanTcl language syntax summary</AgReATerTHan -->
+<!--NAVIGATE &lt;--------- YOU ARE HERE -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro.tclvars.htmlgReATerTHanVariables used by Tcl</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tcl_libraries.htmlgReATerTHanStandard library of Tcl procedures</AgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <A HREF=/cgi-bin/printchapter/VTCLRefGuide/BOOKCHAPTER-1.htmlgReATerTHan -->
+<!--NAVIGATE Entire chapter assembled for printing -->
+<!--NAVIGATE </AgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/COPYRIGHT.htmlgReATerTHan&#169; 1995 The Santa Cruz Operation, Inc.  All rights reserved</AgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/CONTENTS.html REL=contentsgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/tclintro.tclvars.html REL=nextgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/tclintro.tclintro.html REL=previousgReATerTHan -->
+<!--NAVIGATE  -->
+

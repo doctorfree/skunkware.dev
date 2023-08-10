@@ -1,0 +1,168 @@
+<HTML>
+<HEAD>
+<TITLE>SetVar</TITLE>
+</HEAD>
+<BODY>
+<H1>SetVar</H1>
+<HR>
+<PRE>
+     _________________________________________________________________
+
+     <STRONG>NAME</STRONG>
+          Tcl_SetVar,    Tcl_SetVar2,     Tcl_GetVar,     Tcl_GetVar2,
+          Tcl_UnsetVar, Tcl_UnsetVar2 - manipulate Tcl variables
+
+     <STRONG>SYNOPSIS</STRONG>
+          <STRONG>#include</STRONG> <STRONG>&lt;tcl.h&gt;</STRONG>
+
+          char *
+          <STRONG>Tcl_SetVar</STRONG>(<EM>interp</EM>, <EM>varName</EM>, <EM>newValue</EM>, <EM>flags)</EM>
+
+          char *
+          <STRONG>Tcl_SetVar2</STRONG>(<EM>interp</EM>, <EM>name1</EM>, <EM>name2</EM>, <EM>newValue</EM>, <EM>flags)</EM>
+
+          char *
+          <STRONG>Tcl_GetVar</STRONG>(<EM>interp</EM>, <EM>varName</EM>, <EM>flags)</EM>
+
+          char *
+          <STRONG>Tcl_GetVar2</STRONG>(<EM>interp</EM>, <EM>name1</EM>, <EM>name2</EM>, <EM>flags)</EM>
+
+          int
+          <STRONG>Tcl_UnsetVar</STRONG>(<EM>interp</EM>, <EM>varName</EM>, <EM>flags)</EM>
+
+          int
+          <STRONG>Tcl_UnsetVar2</STRONG>(<EM>interp</EM>, <EM>name1</EM>, <EM>name2</EM>, <EM>flags)</EM>
+
+     <STRONG>ARGUMENTS</STRONG>
+          Tcl_Interp   *<EM>interp</EM>     (in)      Interpreter    containing
+                                             variable.
+
+          char         *<EM>varName</EM>    (in)      Name  of  variable.   May
+                                             refer    to    a   scalar
+                                             variable or an element of
+                                             an array variable.
+
+          char         *<EM>newValue</EM>   (in)      New value for variable.
+
+          int          <EM>flags</EM>       (in)      OR-ed combination of bits
+                                             providing      additional
+                                             information           for
+                                             operation.  See below for
+                                             valid values.
+
+          char         *<EM>name1</EM>      (in)      Name of scalar  variable,
+                                             or name of array variable
+                                             if <EM>name2</EM> is non-NULL.
+
+          char         *<EM>name2</EM>      (in)      If non-NULL,  gives  name
+                                             of  element  within array
+                                             and <EM>name1</EM> must  refer  to
+                                             an array variable.
+
+     _________________________________________________________________
+
+
+     <STRONG>DESCRIPTION</STRONG>
+          These procedures may be used to create,  modify,  read,  and
+          delete   Tcl   variables   from   C  code.   <STRONG>Tcl_SetVar</STRONG>  and
+          <STRONG>Tcl_SetVar2</STRONG> will create a new variable or modify an existing
+          one.  Both of these procedures set the given variable to the
+          value given by <EM>newValue</EM>, and they return a pointer to a copy
+          of  the  variable's  new  value,  which  is  stored in Tcl's
+          variable  structure.   Tcl  keeps  a  private  copy  of  the
+          variable's  value,  so  the caller may change <EM>newValue</EM> after
+          these procedures return without affecting the value  of  the
+          variable.   If an error occurs in setting the variable (e.g.
+          an array variable is referenced without giving an index into
+          the array), then NULL is returned.
+
+          The name of the variable may be specified in either  of  two
+          ways.   If  <STRONG>Tcl_SetVar</STRONG> is called, the variable name is given
+          as a single string, <EM>varName</EM>.  If <EM>varName</EM>  contains  an  open
+          parenthesis  and  ends  with  a  close parenthesis, then the
+          value between the parentheses is treated as an index  (which
+          can  have  any  string  value) and the characters before the
+          first open parenthesis are treated as the name of  an  array
+          variable.   If <EM>varName</EM> doesn't have parentheses as described
+          above, then the entire string is treated as the  name  of  a
+          scalar  variable.   If <STRONG>Tcl_SetVar2</STRONG> is called, then the array
+          name and index have been separated by the  caller  into  two
+          separate strings, <EM>name1</EM> and <EM>name2</EM> respectively;  if <EM>name2</EM> is
+          zero it means that a scalar variable is being referenced.
+
+          The <EM>flags</EM> argument may be used to  specify  any  of  several
+          options   to  the  procedures.   It  consists  of  an  OR-ed
+          combination of any of the following bits:
+
+          TCL_GLOBAL_ONLY
+               Under  normal  circumstances  the  procedures  look  up
+               variables  at  the  current level of procedure call for
+               <EM>interp</EM>, or at global level if there is no call  active.
+               However,  if this bit is set in <EM>flags</EM> then the variable
+               is looked up  at  global  level  even  if  there  is  a
+               procedure call active.
+
+          TCL_LEAVE_ERR_MSG
+               If an error is returned and this bit is set  in  <EM>flags</EM>,
+               then  an  error message will be left in <EM>interp</EM>-&gt;<EM>result</EM>.
+               If this flag bit isn't set then  no  error  message  is
+               left (<EM>interp</EM>-&gt;<EM>result</EM> will not be modified).
+
+          TCL_APPEND_VALUE
+               If this bit is set then <EM>newValue</EM>  is  appended  to  the
+               current   value,  instead  of  replacing  it.   If  the
+               variable is  currently  undefined,  then  this  bit  is
+               ignored.
+
+          TCL_LIST_ELEMENT
+               If this bit is set, then <EM>newValue</EM>  is  converted  to  a
+               valid Tcl list element before setting (or appending to)
+               the variable.  A separator space is appended before the
+               new list element unless the list element is going to be  |
+               the first element  in  a  list  or  sublist  (i.e.  the  |
+               variable's  current  value  is  empty,  or contains the  |
+               single character ``{'', or ends in `` }'').
+
+          <STRONG>Tcl_GetVar</STRONG> and <STRONG>Tcl_GetVar2</STRONG> return the  current  value  of  a
+          variable.   The arguments to these procedures are treated in
+          the same way as the arguments to <STRONG>Tcl_SetVar</STRONG> and <STRONG>Tcl_SetVar2</STRONG>.
+          Under normal circumstances, the return value is a pointer to
+          the variable's value (which  is  stored  in  Tcl's  variable
+          structure  and  will  not  change  before  the  next call to
+          <STRONG>Tcl_SetVar</STRONG> or <STRONG>Tcl_SetVar2</STRONG>).  The only bits of <EM>flags</EM> that are
+          used  are  TCL_GLOBAL_ONLY  and  TCL_LEAVE_ERR_MSG,  both of
+          which have the same meaning as for <STRONG>Tcl_SetVar</STRONG>.  If an  error
+          occurs  in  reading  the variable (e.g. the variable doesn't
+          exist  or  an  array  element  is  specified  for  a  scalar
+          variable), then NULL is returned.
+
+          <STRONG>Tcl_UnsetVar</STRONG> and <STRONG>Tcl_UnsetVar2</STRONG>  may  be  used  to  remove  a
+          variable,  so that future calls to <STRONG>Tcl_GetVar</STRONG> or <STRONG>Tcl_GetVar2</STRONG>
+          for the variable will return an  error.   The  arguments  to
+          these  procedures  are  treated  in  the  same  way  as  the
+          arguments to <STRONG>Tcl_GetVar</STRONG> and <STRONG>Tcl_GetVar2</STRONG>.  If the variable is  |
+          successfully  removed  then  TCL_OK  is  returned.   If  the  |
+          variable cannot be removed because  it  doesn't  exist  then  |
+          TCL_ERROR  is  returned.   If an array element is specified,
+          the given element is removed but the array remains.   If  an
+          array  name  is  specified without an index, then the entire
+          array is removed.
+
+
+     <STRONG>SEE</STRONG> <STRONG>ALSO</STRONG>
+          Tcl_TraceVar
+
+
+     <STRONG>KEYWORDS</STRONG>
+          array, interpreter, scalar, set, unset, variable
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

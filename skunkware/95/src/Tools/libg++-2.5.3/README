@@ -1,0 +1,50 @@
+After reading this file, you should read README.orig.
+
+To build GNU libg++ 2.5.3, you'll need to do a few things
+first.  
+
+First, make sure that gcc is installed, and that you have
+configured it for C++.  The Skunkworks gcc is already built
+that way.
+
+Run "./configure --prefix=/usr/local --target=i486-unknown-sco3.2v4.2"
+
+The Makefile will be generated with some macros which cause
+some problems.  Edit the Makefile.  You'll see something like
+
+   CXX_FOR_TARGET = ` \
+     if [ -f $${rootme}/gcc/Makefile ] ; then \
+       echo $${rootme}/gcc/xgcc -B$${rootme}/gcc/; \
+     else \
+       if [ "$(host_canonical)" = "$(target_canonical)" ] ; then \
+         echo $(CXX); \
+       else \
+         t='$(program_transform_name)'; echo gcc | sed -e '' $$t; \
+       fi; \
+     fi`
+
+You want to change this to
+
+    CXX_FOR_TARGET=$(CXX)
+
+The full list of macros like this that you should change is:
+	CXX_FOR_TARGET = $(CXX)
+	CC_FOR_TARGET = $(CC)
+	CC_FOR_BUILD = $(CC)
+	CXX_FOR_BUILD = $(CXX)
+	AS_FOR_TARGET = $(AS)
+	AR_FOR_TARGET = $(AR)
+	RANLIB_FOR_TARGET = $(RANLIB)
+	NM_FOR_TARGET = $(NM)
+
+Next, edit libg++/src/builtin.h and comment out lines which
+mention the "abs" and "sqr" functions, as these conflict with
+stuff in <math.h>.
+
+Now, run
+
+	make
+
+and then
+
+	make install

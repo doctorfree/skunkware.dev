@@ -1,0 +1,114 @@
+#!/usr/local/bin/perl
+
+select(STDOUT) ;
+$| = 1 ;
+
+&get_args ;
+
+$arch       = $FORM{'architecture'} ;
+$section    = $FORM{'section'} ;
+$topic      = $FORM{'topic'} ;
+$filter     = "/usr/local/etc/httpd/htbin-post/man2html" ;
+$fflags     = "-title $topic -cgiurl http://hawkwind/htbin-post/manlink/architecture=$arch/section=\\\$section\\\$subsection/topic=\\\$title" ;
+$manflags   = "" ;
+$mancommand = "" ;
+
+
+if ($section =~ /Keyword/) {
+    $manflags = "-k" ;
+    $fflags  .= " -k " ;
+}
+elsif ($section =~ /Section (\d\w?)/) {
+    $manflags = $1 ;
+}
+
+if ($arch eq "HP") {
+    $fflags .= " -leftm 1 -topm 8";
+    $mancommand   = "man $manflags $topic";
+}
+else {
+    # must be a CONVEX for now
+    # this relies on the server's ability to remsh to pixel and do a man
+    # this will/would break whenever we switch over to not running httpd 
+    # as harward, which we SHOULD do.
+    $mancommand = "remsh imagine man $manflags $topic" ;
+}
+
+print "Content-type: text/html\n\n" ;
+
+open (MAN, "$mancommand 2> /dev/null |") || exit 1 ;
+open (FILTER, "| $filter $fflags >/tmp/foo 2> /dev/null") || exit 1 ;
+
+if (eof(MAN)) {
+   print "<HTML>\n" ;
+   print "<TITLE>Man Failure</TITLE>\n" ;
+   print "<H1>man failed</H1>\n" ;
+   print "This is probably indicative that the man page is not available.\n";
+   print "Nine times out of ten anyway.  Sorry.<P>" ;
+   close FILTER ;
+   close MAN ;
+   exit 1 ;
+}
+
+while (<MAN>) {
+    print FILTER ;
+}
+
+close FILTER ;
+close MAN ;
+
+open (OUT, "/tmp/foo") || exit 1 ;
+while (<OUT>) { 
+  print ;
+}
+close OUT ;
+
+
+sub get_args {
+    $cl = shift(@ARGV);   # content length
+
+    while (1) {
+        $l = getc(STDIN);
+        $cl-- ;
+        $pair .= $l unless ($l eq '&');
+        if ($l eq '&') {
+            $pair =~ tr/+/ / ;
+            ($name, $value) = split(/=/, $pair);
+            $FORM{$name} = $value ;
+            $pair = "" ;
+        }
+        if (!$cl) {
+           if ($pair) {
+               $pair =~ tr/+/ / ;
+               ($name, $value) = split(/=/, $pair);
+               $FORM{$name} = $value ;
+           }
+           return ;
+        }
+    }
+}
+
+
+
+sub future_get_args {
+
+   if ($ENV{'REQUEST_METHOD'} eq 'POST')
+   {                          
+       read(STDIN, $buffer, $ENV{'CONTENT_LENGTH'});
+
+       # Split the name-value pairs
+       @pairs = split(/&/, $buffer);
+
+       foreach $pair (@pairs)
+       {
+           ($name, $value) = split(/=/, $pair);
+           $value =~ tr/+/ /;
+           $value =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+
+           print "Setting $name to $value<P>";
+
+           $FORM{$name} = $value;
+       }
+   }
+}
+

@@ -1,0 +1,167 @@
+<HTML>
+<HEAD>
+<TITLE>CrtTrace</TITLE>
+</HEAD>
+<BODY>
+<H1>CrtTrace</H1>
+<HR>
+<PRE>
+     _________________________________________________________________
+
+     <STRONG>NAME</STRONG>
+          Tcl_CreateTrace,  Tcl_DeleteTrace  -  arrange  for   command
+          execution to be traced
+
+     <STRONG>SYNOPSIS</STRONG>
+          <STRONG>#include</STRONG> <STRONG>&lt;tcl.h&gt;</STRONG>
+
+          Tcl_Trace
+          <STRONG>Tcl_CreateTrace</STRONG>(<EM>interp</EM>, <EM>level</EM>, <EM>proc</EM>, <EM>clientData)</EM>
+
+          <STRONG>Tcl_DeleteTrace</STRONG>(<EM>interp</EM>, <EM>trace)</EM>
+
+     <STRONG>ARGUMENTS</STRONG>
+          Tcl_Interp         *<EM>interp</EM>          (in)      Interpreter
+                                                        containing
+                                                        command to  be
+                                                        traced      or
+                                                        untraced.
+
+          int                <EM>level</EM>            (in)      Only  commands
+                                                        at   or  below
+                                                        this   nesting
+                                                        level  will be
+                                                        traced.      1
+                                                        means     top-
+                                                        level commands
+                                                        only,  2 means
+                                                        top-level
+                                                        commands    or
+                                                        those that are
+                                                        invoked     as
+                                                        immediate
+                                                        consequences
+                                                        of   executing
+                                                        top-level
+                                                        commands
+                                                        (procedure
+                                                        bodies,
+                                                        bracketed
+                                                        commands,
+                                                        etc.)  and  so
+                                                        on.
+
+          Tcl_CmdTraceProc   *<EM>proc</EM>            (in)      Procedure   to
+                                                        call  for each
+                                                        command that's
+                                                        executed.  See
+                                                        below      for
+                                                        details on the
+                                                        calling
+                                                        sequence.
+
+          ClientData         <EM>clientData</EM>       (in)      Arbitrary
+                                                        one-word value
+                                                        to   pass   to
+                                                        <EM>proc</EM>.
+
+          Tcl_Trace          <EM>trace</EM>            (in)      Token      for
+                                                        trace   to  be
+                                                        removed
+                                                        (return  value
+                                                        from  previous
+                                                        call        to
+                                                        <STRONG>Tcl_CreateTrace</STRONG>).
+     _________________________________________________________________
+
+
+     <STRONG>DESCRIPTION</STRONG>
+          <STRONG>Tcl_CreateTrace</STRONG> arranges for command tracing.  From now  on,
+          <EM>proc</EM>  will be invoked before Tcl calls command procedures to
+          process  commands  in  <EM>interp</EM>.   The   return   value   from
+          <STRONG>Tcl_CreateTrace</STRONG>  is  a  token  for  the  trace, which may be
+          passed to <STRONG>Tcl_DeleteTrace</STRONG> to remove the trace.  There may be
+          many  traces  in  effect simultaneously for the same command
+          interpreter.
+
+          <EM>Proc</EM> should have arguments and result that  match  the  type
+          <STRONG>Tcl_CmdTraceProc</STRONG>:
+
+               typedef void Tcl_CmdTraceProc(
+                    ClientData <EM>clientData</EM>,
+                    Tcl_Interp *<EM>interp</EM>,
+                    int <EM>level</EM>,
+                    char *<EM>command</EM>,
+                    Tcl_CmdProc *<EM>cmdProc</EM>,
+                    ClientData <EM>cmdClientData</EM>,
+                    int <EM>argc</EM>,
+                    char *<EM>argv</EM>[]));
+
+          The <EM>clientData</EM> and  <EM>interp</EM>  parameters  are  copies  of  the
+          corresponding    arguments    given    to   <STRONG>Tcl_CreateTrace</STRONG>.
+          <EM>ClientData</EM> typically points to an application-specific  data
+          structure  that  describes  what to do when <EM>proc</EM> is invoked.
+          <EM>Level</EM> gives the nesting level of the  command  (1  for  top-
+          level  commands passed to <STRONG>Tcl_Eval</STRONG> by the application, 2 for
+          the next-level  commands  passed  to  <STRONG>Tcl_Eval</STRONG>  as  part  of
+          parsing  or  interpreting  level-1  commands,  and  so  on).
+          <EM>Command</EM> points to  a  string  containing  the  text  of  the
+          command, before any argument substitution.  <EM>CmdProc</EM> contains
+          the address of the command procedure that will be called  to
+          process the command (i.e. the <EM>proc</EM> argument of some previous
+          call to <STRONG>Tcl_CreateCommand</STRONG>) and  <EM>cmdClientData</EM>  contains  the
+          associated  client  data  for  <EM>cmdProc</EM> (the <EM>clientData</EM> value
+          passed to <STRONG>Tcl_CreateCommand</STRONG>).  <EM>Argc</EM> and <EM>argv</EM> give the  final
+          argument  information  that will be passed to <EM>cmdProc</EM>, after
+          command, variable, and backslash  substitution.   <EM>Proc</EM>  must
+          not modify the <EM>command</EM> or <EM>argv</EM> strings.
+
+          Tracing will only occur for commands at nesting  level  less
+          than  or  equal  to  the  <EM>level</EM>  parameter  (i.e.  the <EM>level</EM>
+          parameter to <EM>proc</EM> will always be less than or equal  to  the
+          <EM>level</EM> parameter to <STRONG>Tcl_CreateTrace</STRONG>).
+
+          Calls to <EM>proc</EM> will be made by  the  Tcl  parser  immediately
+          before  it  calls  the  command  procedure  for  the command
+          (<EM>cmdProc)</EM>.   This  occurs   after   argument   parsing   and
+          substitution,  so  tracing  for  substituted commands occurs
+          before tracing of the commands containing the substitutions.
+          If  there  is a syntax error in a command, or if there is no
+          command procedure associated with a command  name,  then  no
+          tracing  will occur for that command.  If a string passed to
+          Tcl_Eval  contains  multiple  commands  (bracketed,  or   on
+          different lines) then multiple calls to <EM>proc</EM> will occur, one
+          for each command.  The <EM>command</EM>  string  for  each  of  these
+          trace  calls  will  reflect  only  a single command, not the
+          entire string passed to Tcl_Eval.
+
+          <STRONG>Tcl_DeleteTrace</STRONG> removes a trace, so  that  no  future  calls
+          will  be  made  to  the procedure associated with the trace.
+          After <STRONG>Tcl_DeleteTrace</STRONG> returns, the caller should never again
+          use the <EM>trace</EM> token.
+
+
+     <STRONG>KEYWORDS</STRONG>
+          command, create, delete, interpreter, trace
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

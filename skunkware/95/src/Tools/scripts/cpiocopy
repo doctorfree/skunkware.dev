@@ -1,0 +1,33 @@
+:
+# cpiocopy - a script to recursively copy a hierarchy using cpio
+# written 15 Nov 93 by Ronald Joe Record (rr@sco.com)
+#
+
+usage() {
+	echo "Usage: cpiocopy source destination\n"
+	echo "\tWhere source indicates an existing directory\n"
+	echo "\tand destination is where you want the copied files to go.\n"
+	exit 1
+}
+
+error() {
+	echo "cpiocopy: $1"
+	exit 2
+}
+
+[ $# = 2 ] || usage
+
+[ -d $1 ] || error "$1 non-existant or not a directory"
+
+[ -d $2 ] || mkdir -p $2 || error "Cannot create directory $2"
+
+HERE=`pwd`
+cd $2
+THERE=`pwd`
+cd $HERE
+
+cd $1 || error "Cannot change directory to $1"
+
+find . -depth -print | cpio -pdmu $THERE
+
+exit 0

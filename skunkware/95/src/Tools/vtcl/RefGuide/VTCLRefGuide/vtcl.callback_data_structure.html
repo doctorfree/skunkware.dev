@@ -1,0 +1,232 @@
+<HTML>
+<!--SCONAV--><I><A HREF=/VTCLRefGuide/CONTENTS.html><I>SCO Visual Tcl Reference Guide</I></A>
+<!--SCONAV--><BR><A HREF=/VTCLRefGuide/BOOKCHAPTER-3.html>Chapter 3, SCO Visual Tcl - graphical scripting language</A></I><HR>
+<TITLE>Callback data structure</TITLE><P>
+<A HREF=/cgi-bin/getnav/VTCLRefGuide/vtcl.callback_data_structure.html><H1>Callback data structure</H1><P></A>
+Every callback procedure gets passed 
+a Tcl keyed list of callback data as its last argument.  
+A keyed list is a list 
+in which each element contains a key and value pair (see the 
+<A HREF=/VTCLRefGuide/tclx.keyed.html>``Keyed lists (TCLX)''</A>
+for further details). 
+<B>TclX</B> provides commands to access and manipulate keyed lists.
+This keyed list contains information about the widget that
+invoked the callback and will minimally contain these
+keys:
+<DL COMPACT>
+<P><DT><B>widget</B><DD>
+The name of the widget in which the event occurred.	 
+<P><DT><B>dialog</B><DD>
+The name of the form dialog in which the widget resides.
+</DL>
+In addition, the callbacks specified with <B>-callback</B> option will
+have these keys:
+<DL COMPACT>
+<P><DT><B>value</B><DD>
+A value corresponding to the contents or the state of 
+the widget. The exact content and meaning of the data 
+for this key depends on the widget and usually corresponds to the
+data in the ``widget specific'' field for the widget.
+<DL COMPACT>
+<P><DT>VtPushButton<DD>
+pushbutton label string
+<P><DT>VtOptionMenu<DD>
+name of the widget that activated this callback
+<P><DT>VtCheckBox<DD>
+list of selected toggle buttons
+<P><DT>VtRadioBox<DD>
+name of the widget that activated this callback
+<P><DT>VtToggleButton<DD>
+name of the selected toggle button
+<P><DT>VtList<DD>
+list of items selected
+<P><DT>VtDrawnList<DD>
+selected item position
+</DL>
+<P><DT><B>mode</B><DD>
+Contains a value indicating what caused the callback to activate.
+The value for this key is one of these (see the
+tables below for individual ``mode'' keyedList field values):
+<DL COMPACT>
+<P><DT>changed<DD>
+The user interacted with the widget and moved focus 
+away from it. This implicitly indicates that
+they have finished interaction with the widget. 
+(This usually corresponds to a value change and loss of
+focus, for example by tabbing or selecting another widget.)
+<P><DT>done<DD>
+The user interacted with the widget and explicitly 
+indicated that they have finished interaction. 
+(This usually corresponds to an &lt;Enter&gt; keypress.)
+<P><DT>internalTraverse<DD>
+This applies only to 
+<A HREF=/cgi-bin/man/man?VtList+VTCL><B>VtList</B>(VTCL)</A>
+and 
+<A HREF=/cgi-bin/man/man?VtDrawnList+VTCL><B>VtDrawnList</B>(VTCL)</A>.
+It occurs when traversing the list using up or down arrows.
+<P><DT>select<DD>
+The user selected something from the widget.
+(This usually corresponds to a &lt;Space&gt; keypress or 
+mouse button click.)
+<P><DT>selectSame<DD>
+The user selected a value that is already 
+selected.  
+(This usually corresponds to the user selecting 
+a button that is already selected.)          
+</DL>
+</DL>
+Additional information depending on the type of widget and callback may
+be put in the callback data.  For example, the callback data for 
+<A HREF=/cgi-bin/man/man?VtList+VTCL><B>VtList</B>(VTCL)</A>
+contains the key selectedItemList, that
+contains a list of items selected. 
+<P>
+Some additional widget-specific callback keys are provided for backward 
+compatibility with earlier versions of SCO Visual Tcl. They are surrounded
+by brackets where they appear in the text. Use of these keys is deprecated;
+they may be withdrawn from a future release of SCO Visual Tcl.
+<P>
+To get access to the data corresponding to a key, use the 
+command <B>keylget</B>. For example, to get access to the button which
+caused a pushbutton callback  and the value passed to the callback,
+this code might be used:
+<BR>
+<PRE>
+   proc buttonCB {cbs} {
+   	set button [keylget cbs widget]
+   	set value [keylget cbs value]
+   }
+</PRE>
+If a callback has additional arguments other than those passed in
+automatically by the callback structure, declare the arguments 
+first and then declare the callback structure (which is typically 
+referred to as <B>cbs</B>):
+<PRE>
+   proc buttonCB {arg1 arg2 arg3 cbs} {
+   	set button [keylget cbs widget]
+   }
+   .
+   .
+   .
+   VtPushButton $parent.btn  -callback &quot;buttonCB $par1 $par2 $par3&quot;
+</PRE>
+The following tables show the value for the ``mode'' key for various 
+widgets in response to various stimuli.
+<P><B>Value of ``mode'' keyedList field in graphical mode</B><PRE>
+ -------------------------------------------------------------------------------------------------
+ widget      done                    select      change   selectSame          internalTraverse
+ -------------------------------------------------------------------------------------------------
+
+ Text        RETURN                  N/A         Chg+LF   N/A                 N/A
+             (single line)
+ Combo       RETURN                  N/A         Chg+LF   N/A                 N/A
+             (in combotext widget)
+ OptMenu     RETURN                  SPACE/MB1   N/A      N/A                 N/A
+             (in droplist)
+ CheckBox    N/A(<scosym>&lowast;</scosym>)                  SPACE/MB1   N/A      N/A                 N/A
+ RadioBox    N/A(<scosym>&lowast;</scosym>)                  SPACE/MB1   N/A      N/A                 N/A
+ PushBtn     N/A(<scosym>&lowast;</scosym>)                  SPACE/MB1   N/A      N/A                 N/A
+ Scale       N/A                     MB1         Arrows   N/A                 N/A
+ ToggleBtn   N/A(<scosym>&lowast;</scosym>)                  SPACE/MB1   N/A      SPACE/MB1           N/A
+                                                                              (and selected value)
+ list        N/A(1)                  SPACE/MB1   N/A      N/A                 Up/Dwn Arrow
+
+ drawnList   N/A(?)                  MB1         N/A      N/A                 Up/Dwn Arrow
+                                     SPACE                ( while in dlist)
+</PRE>
+<DL COMPACT>
+<P><DT><scosym>&lowast;</scosym><DD>
+since &lt;Enter&gt; does not activate these from OSF/Motif 1.2
+<P><DT>(1)<DD>
+uses <B>-defaultCallback</B> for this case
+<P><DT>(?)<DD>
+missing finality (in drawnList)
+<P><DT>Chg+LF<DD>
+Change and LostFocus 
+<P><DT>MB1<DD>
+single MouseBtn click
+</DL>
+<P><B>Value of ``mode'' keyedList value with CHARM Server</B><PRE>
+ -------------------------------------------------------------------------------------------
+ widget          done                    select   change   selectSame   internalTraverse
+ -------------------------------------------------------------------------------------------
+ Text            RETURN                  N/A      Chg+LF   N/A          N/A
+                 (single line)
+ Combo           RETURN                  N/A      Chg+LF   N/A          N/A
+                 (in combotext widget)
+ OptMenu         RETURN                  SPACE    N/A      N/A          N/A
+ (in droplist)
+ CheckBox        RETURN                  SPACE    N/A      N/A          N/A
+ RadioBox        RETURN                  SPACE    N/A      N/A          N/A
+ PushBtn         RETURN                  SPACE    N/A      N/A          N/A
+ Scale           N/A                     N/A      Arrows   N/A          N/A
+ ToggleBtn       RETURN                  SPACE    N/A      SPACE        N/A
+                                                                        (and selected value)
+ list            RETURN                  SPACE    N/A      N/A          N/A(?)
+ drawnList       RETURN                  SPACE    N/A      N/A          N/A(?)
+</PRE>
+<DL COMPACT>
+<P><DT>(?)<DD>
+indicates possible inconsistent behavior in character list widgets.
+You may also get this mode field in the 
+<I>cbs</I> structure 
+on the other callbacks ( other than <B>-callback</B> ).
+</DL>
+<LINK HREF=/VTCLRefGuide/CONTENTS.html REL=contents>
+<LINK HREF=/cgi-bin/getnav/VTCLRefGuide/vtcl.callback_data_structure.html REL=navigate>
+<LINK HREF=/VTCLRefGuide/vtcl.resource_files.html REL=next>
+<LINK HREF=/VTCLRefGuide/vtcl.program_structure.html REL=previous>
+
+<!--NAVIGATE <TITLEgReATerTHanNavigational information for ``Callback data structure''</TITLEgReATerTHan -->
+<!--NAVIGATE <H2gReATerTHanNavigational information for ``Callback data structure''</H2gReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Book title: <IgReATerTHanSCO Visual Tcl Reference Guide</IgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Next topic:  -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.resource_files.htmlgReATerTHanGraphics resource files used by SCO Visual Tcl</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Previous topic:  -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.program_structure.htmlgReATerTHanBasic program structure</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/CONTENTS.htmlgReATerTHanTable of contents</AgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE <H3gReATerTHanPartial table of contents</H3gReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.vtcl.htmlgReATerTHanChapter 3, SCO Visual Tcl - graphical scripting language</AgReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.program_components.htmlgReATerTHanProgram components</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.concepts.htmlgReATerTHanBasic SCO Visual Tcl architecture</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.program_structure.htmlgReATerTHanBasic program structure</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.callback_data_structure.htmlgReATerTHanCallback data structure</AgReATerTHan -->
+<!--NAVIGATE &lt;--------- YOU ARE HERE -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.resource_files.htmlgReATerTHanGraphics resource files used by SCO Visual Tcl</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.character_mode.htmlgReATerTHanCharacter mode and graphical variants</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.charm_keys.htmlgReATerTHanNavigation and selection in character mode</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.generic_options.htmlgReATerTHanGeneric SCO Visual Tcl options</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/vtcl.files.htmlgReATerTHanFiles used by SCO Visual Tcl</AgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <A HREF=/cgi-bin/printchapter/VTCLRefGuide/BOOKCHAPTER-3.htmlgReATerTHan -->
+<!--NAVIGATE Entire chapter assembled for printing -->
+<!--NAVIGATE </AgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/COPYRIGHT.htmlgReATerTHan&#169; 1995 The Santa Cruz Operation, Inc.  All rights reserved</AgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/CONTENTS.html REL=contentsgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/vtcl.resource_files.html REL=nextgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/vtcl.program_structure.html REL=previousgReATerTHan -->
+<!--NAVIGATE  -->
+

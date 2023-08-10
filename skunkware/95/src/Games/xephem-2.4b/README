@@ -1,0 +1,280 @@
+Welcome to xephem:
+
+Xephem is an interactive astronomical ephemeris program for X Windows systems.
+It computes lots of information about the planets and any solar system objects
+for which orbital elements are available. A sample database of some 16000+
+objects is included in the release kit.  Xephem also displays information about
+the moons of Earth, Jupiter and Saturn; Mars' central meridian longitude; and a
+subsolar view of Earth. Xephem displays all information in user-configurable
+tabular menus as well as with schematic graphical displays. Xephem can also
+search for arbitrary circumstances among all objects, generate and display
+plots of all computed information and generate tabular listings of all
+information.
+
+XEphem requires at least X11R4 and OSF/Motif 1.1 to build (see note below
+about a possible bug in X that has been reported). Very few Motif 1.1 features
+were used so a back-port to Motif 1.0 should be fairly easy; contact the author
+for assistance.
+
+There is only a small manual, but there is extensive on-line help. So, the
+first thing to do is to build xephem - see next - then start selecting the Help
+buttons.
+
+Building xephem:
+
+    Building xephem is intended to be easy. Everything is in .c and .h files
+    in one directory. Just compile everything with the Motif include files and
+    link it with the X and Motif libraries as you would any Motif application;
+    and don't forget the math library, -lm. A DCL file to build xephem on
+    VMS/DECWindows MOTIF is included at the end of this file.
+    
+    If your system is set up for using xmkmf, then to build xephem just type:
+
+	xmkmf
+	make
+
+    If not, there is also a Makefile.simple.
+
+    atof() can be somewhat problematic. It was historically declared to be
+    double in math.h. More contemporary systems declare it only in stdlib.h.
+    Xephem includes stdlib.h if __STDC__ is defined, else it assumes atof()
+    is declared in math.h.  This should work pretty well but if you get
+    crazy numbers from xephem check the files that use atof and figure out a
+    way to get it declared to return a double. Atof() is called in compiler.c,
+    db.c, formats.c, mainmenu.c and satmenu.c.
+
+    Also, on some systems (such as SVR3.2) compile with -D_NO_PROTO and -DSYSV.
+
+    I have searched carefully through the output of running all of xephem
+    through lint and gcc on Ultrix and SVR4 and can rationalize all the
+    warnings so don't let these bother you.
+
+Running xephem:
+
+    There are fallback resources included in the main program all set to work
+    on monochrome systems so don't worry about putting the resource file,
+    XEphem.ad, anywhere for now. Another way to run on a black and white
+    display is to use the command line arguments: "-fg white -bg black".
+
+    Go ahead and start xephem by just typing it's name: `xephem'.
+
+    The best way to learn xephem is to run it and read some of the Help
+    entries. A good order to read them is the way they are listed in the Help
+    pulldown off the main menu.  Soon, you will want to edit and install the
+    XEphem.ad resources file entries that contain location information and a
+    few other things. Read the default resource file, XEphem.ad, and follow the
+    notes in there.
+
+Possible X compatibility problem:
+
+    It has been reported that xephem's Sky View and Solar System menus do not
+    work using X11R4 twm with X11R4 X. The symptom is that when these views are
+    selected an X error occurs as follows:
+
+	X Error of failed request:  BadAccess 
+	Major opcode of failed request:  28 (X_GrabButton)
+	Minor opcode of failed request:  0
+
+    This does not occur using X11R5 twm with either X11R4 X or X11R5 X nor
+    does it occur running mwm with either X11R4 X or X11R5 X. Xephem is known
+    to run on the following configurations:
+
+
+xephem v2.4b is known to run on the following systems; check with the author
+for availability of statically linked binary executables.
+
+    OS                      CPU                     X
+    -----------             ---------------         ---------------------------
+    SVR3.2/Venix            i486                    Metrolink X11R4/Motif 1.1.3
+    SVR4.0.3/Consensys      i486                    MIT X11R5/Motif 1.1.4
+    Ultrix 4.2              DECstation 5000         DEC's (?)
+    SunOS 4.1.2             Sun 4c                  TeleUSE development system
+    hpux 8.07               HP 9000/720             X11R4, Motif 1.1.?
+    IRIX 4.0.5              SGI                     X11R4
+    OSF/1 1.2               DEC Alpha               X11R5, Motif 1.1.3
+
+
+If you would like to gut xephem for just its astronomical functionality, start
+with obj_cir(). This is basically the dividing line between the user interface
+and the astronomical functions. Also, the following files are pretty much just
+pure transliterations from BASIC into C from machine-readable copies of the
+programs in Duffett-Smith's book.  They have nothing to do with the rest of
+ephem so they may be used for completely different applications if so desired.
+
+    aa_hadec.c anomaly.c astro.h cal_mjd.c comet.c eq_ecl.c moon.c moonnf.c
+    nutation.c obliq.c parallax.c pelement.c plans.c reduce.c refract.c
+    sex_dec.c sun.c utc_gst.c
+
+The sample database, ephem.db:
+
+    This is a sample collection of astroids, stars and deep-sky objects to
+    get you started. References, when I had them, are included in the file.
+
+    This database is compatible with ephem v4.28 EXCEPT that ephem requires
+    entries to start with an alpha character. Either add one to all such
+    entries in this db or modify the function nxt_db() to allow a leading digit
+    as well.
+    
+    Asteroids are given by their common name, if it has been assigned, followed
+    by their numeric sequence number. Those that do not yet have a common
+    name assigned are given by sequence number followed by year and designation
+    of discovery. The list goes to 4848.
+
+    The stars are from the Yale Bright star catalogue. Only those entries with
+    at least a constellation name and either a common name or some sort of
+    designator are included. Bayer designations are given as the Greek letter
+    spelled out (I know -- I could have used Greek letters in X but that would
+    break compatability with ephem).
+
+    The deep-sky entries are from the Saguaro Astronomy Club database Version
+    5.0. The Messier objects are entered twice; once by M number and once
+    by NGC number.
+
+    Work on the database is a project in itself. Authoritative contributions
+    welcome.
+
+    I have worked up several awk scripts to convert various files into ephem
+    format. Contact the author if you need one or have one.
+
+    Finally, I have the entire SAO database from NSSDC broken down it into 10
+    files in ephem format. There are total of 258997 entries. The complete
+    set is 11332256 bytes, 3034691 compressed. I have put them on export
+    near xephem.
+
+Let me know what you think about xephem, good or bad. Thank you.
+
+Elwood Downey
+419 36th Street NE
+Cedar Rapids, IA  52402
+
+ecdowney@pobox.cca.cr.rockwell.com
+
+April 21, 1993
+
+The following (untested!) DCL file will build xephem for VMS/DECwindows MOTIF;
+based on an earlier version by Ethan VanMatre:
+
+$!
+$!	Makefile.com -- Command file to compile and link Xephem
+$!
+$!
+$!	A simple minded command file to compile and link Xephem under VAX/VMS
+$!	and DECwindows MOTIF 
+$!
+$!	when		who			what
+$!
+$!	2-feb-1992	Ethan VanMatre		original from unix makefile
+$!
+$
+$ cc	aa_hadec/opt/obj
+$ cc	anomaly	/opt/obj
+$ cc	cal_mjd	/opt/obj
+$ cc	calmenu	/opt/obj
+$ cc	circum	/opt/obj
+$ cc	comet	/opt/obj
+$ cc	compiler/opt/obj
+$ cc	constel	/opt/obj
+$ cc	datamenu/opt/obj
+$ cc	db      /opt/obj
+$ cc	dbmenu  /opt/obj
+$ cc	earthmap/opt/obj
+$ cc	earthmenu/opt/obj
+$ cc	eq_ecl	/opt/obj
+$ cc	formats	/opt/obj
+$ cc	helpmenu/opt/obj
+$ cc	jupmenu	/opt/obj
+$ cc	listmenu/opt/obj
+$ cc	mainmenu/opt/obj
+$ cc	marsmenu/opt/obj
+$ cc	misc    /opt/obj
+$ cc	moon	/opt/obj
+$ cc	moonmenu/opt/obj
+$ cc	moonnf	/opt/obj
+$ cc	msgmenu /opt/obj
+$ cc	nutation/opt/obj
+$ cc	objmenu	/opt/obj
+$ cc	obliq	/opt/obj
+$ cc	parallax/opt/obj
+$ cc	pelement/opt/obj
+$ cc	plans	/opt/obj
+$ cc	plot_aux/opt/obj
+$ cc	plotmenu/opt/obj
+$ cc	precess	/opt/obj
+$ cc	query	/opt/obj
+$ cc	reduce	/opt/obj
+$ cc	refract	/opt/obj
+$ cc	riset	/opt/obj
+$ cc	riset_cir/opt/obj
+$ cc	risetmenu/opt/obj
+$ cc	satmenu	/opt/obj
+$ cc	sex_dec	/opt/obj
+$ cc	skyfiltmenu/opt/obj
+$ cc	skyviewmenu/opt/obj
+$ cc	solsysmenu/opt/obj
+$ cc	srchmenu/opt/obj
+$ cc	sun	/opt/obj
+$ cc	time	/opt/obj
+$ cc	utc_gst	/opt/obj
+$ cc	versionmenu/opt/obj
+$ cc	xephem	/opt/obj
+$!
+$ LINK	xephem.obj,	-
+	aa_hadec.obj,	-
+	anomaly.obj,	-
+	cal_mjd.obj,	-
+	calmenu.obj,	-
+	circum.obj,	-
+	comet.obj,	-
+	compiler.obj,	-
+	constel.obj,	-
+	datamenu.obj,	-
+	db.obj,	-
+	dbmenu.obj,	-
+	earthmap.obj,	-
+	earthmenu.obj,	-
+	eq_ecl.obj,	-
+	formats.obj,	-
+	helpmenu.obj,	-
+	jupmenu.obj,	-
+	listmenu.obj,	-
+	mainmenu.obj,	-
+	marsmenu.obj,	-
+	misc.obj,	-
+	moon.obj,	-
+	moonmenu.obj,	-
+	moonnf.obj,	-
+	msgmenu.obj,	-
+	nutation.obj,	-
+	objmenu.obj,	-
+	obliq.obj,	-
+	parallax.obj,	-
+	pelement.obj,	-
+	plans.obj,	-
+	plot_aux.obj,	-
+	plotmenu.obj,	-
+	precess.obj,	-
+	query.obj,	-
+	reduce.obj,	-
+	refract.obj,	-
+	riset.obj,	-
+	riset_cir.obj,	-
+	risetmenu.obj,	-
+	satmenu.obj,	-
+	sex_dec.obj,	-
+	skyfiltmenu.obj,	-
+	skyviewmenu.obj,	-
+	solsysmenu.obj,	-
+	srchmenu.obj,	-
+	sun.obj,	-
+	time.obj,	-
+	utc_gst.obj,	-
+	versionmenu.obj,	-
+	sys$input/opt
+sys$share:decw$dxmlibshr/share
+sys$share:decw$xmlibshr/share
+sys$share:decw$xlibshr/share
+sys$share:vaxcrtl/share
+$!
+$!clean:
+$	purge
+$!

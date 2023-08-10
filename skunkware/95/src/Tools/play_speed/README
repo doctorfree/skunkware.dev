@@ -1,0 +1,39 @@
+
+play_speed is a simple program for playing raw (pcm) audio
+files out to /dev/audio at a specific sample rate.  I wrote
+it because I didn't have the netaudio utilities and I just
+wanted to play out audio files that I downloaded from IUMA
+(The Internet Underground Music Archive, URL
+"http://www.iuma.com/") and decompressed with maplay.
+
+To compile: gcc -O2 -o play_speed play_speed.c
+
+You will need the audio driver installed already, so that
+<sys/audio.h> will be present for the definition of the
+AUDIO_SAMPLE_RATE ioctl.  That's all you need the header
+file for; if you know what the ioctl is, but don't have
+that file, then just edit it in.  :)
+
+To play a file, do: play_speed rate < file.pcm
+
+For example, to play the output of an "maplay -s -8" from
+an MPEG-II coded file that was recorded at 44.1 kHz (so
+that the pcm file is at 22.05 kHz), where the pcm file is
+"/tmp/foo.pcm", do
+
+	play_speed 22050 < /tmp/foo.pcm
+
+and the sound will be played out /dev/audio.
+
+This program shouldn't be necessary if you have netaudio.
+
+Addendum 03-Aug-94 rr@sco.com :
+I have modified play_speed.c so that it can be compiled to use
+the Soundblaster driver included in tls022 and tls023. This
+entails #include'ing sb.h rather than audio.h, opening /dev/sbdsp
+rather than /dev/audio, and using the DSP_IOCTL_SPEED ioctl.
+
+To compile play_speed for use with /dev/audio, use
+	gcc -D_AUDIO_ -O2 -o play_speed play_speed.c
+To compile play_speed for use with /dev/sbdsp, use 
+	gcc -O2 -o play_speed play_speed.c

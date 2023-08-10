@@ -1,0 +1,1347 @@
+<HTML>
+<BODY>
+<PRE>
+
+</PRE>
+<H2>NAME</H2><PRE>
+     cc - CONVEX C compiler
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+     <STRONG>cc</STRONG> [<EM>option</EM> ...] <EM>file</EM> ... [-link <EM>loader_option</EM> ...]
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+     <EM>cc</EM> is the CONVEX C compiler.  It accepts several types of
+     arguments:
+
+          Filenames whose names end with ".c" or ".C" must be C
+          source programs.  They are compiled and each object
+          program is placed in a file in the current directory
+          with the same root name as the source filename and a
+          suffix of ".o".  For example, compiling /x/y/z.c will
+          place the object code in ./z.o.
+
+          Filenames which end with ".s" must be assembly source
+          programs and are assembled, producing a ".o" file.
+
+          Other files can be object files or libraries; they are
+          passed to <EM>ld</EM> to be linked together with the objects
+          from all compilations and assemblies.  If a single
+          source file is compiled and loaded by a <EM>cc</EM> command, the
+          ".o" file is deleted.
+
+
+</PRE>
+<H2>COMPATIBILITY</H2><PRE>
+     The CONVEX C compiler operates in one of four compatibility
+     modes.
+
+
+     <STRONG>-ext</STRONG> This mode provides an extended implementation of ANSI C
+          and an ANSI C and POSIX compatible library system.
+          This is the default.
+
+     <STRONG>-std</STRONG> This option causes the compiler to operate as an ANSI C
+          conforming compiler. Certain extensions, notably the
+          long long type, are not available in this mode.  When
+          linking occurs in this mode an ANSI C and POSIX P1003.1
+          conforming library system is used; many of the exten-
+          sions provided by the default library system are not
+          available.
+
+     <STRONG>-str</STRONG> This option causes the compiler to operate as an ANSI C
+          conforming compiler and to attempt to detect features
+          of the program which cause it not to conform to ANSI
+          Standard C.  When linking occurs in this mode, only the
+          functions defined by ANSI Standard C are available.
+
+     <STRONG>-pcc</STRONG> Forces language and library interpretation based on the
+          original Kernighan and Ritchie definition, the Common C
+          Compiler, and other traditional operating systems.
+          This mode is compatible with CONVEX C V3.0 and other C
+          compilers previously shipped by CONVEX.
+
+     These options are interpreted before all others, regardless
+     of their position on the command line.
+
+
+</PRE>
+<H2>OPTIMIZATION OPTIONS</H2><PRE>
+     There are two versions of the C compiler available: one that
+     is capable of only scalar optimizations and another that can
+     perform scalar, vector, and parallel optimizations. The
+     former is available on all CONVEX computer systems, while
+     the latter is an optional product available only to licensed
+     sites. You can determine which product you have by attempt-
+     ing to compile a program with the -<EM>O2</EM> option. An error mes-
+     sage will be generated if you do not have the fully optimiz-
+     ing version.
+
+
+     <STRONG>-alias</STRONG> <STRONG>standard</STRONG>
+
+     <STRONG>-alias</STRONG> <STRONG>cautious</STRONG>
+
+     <STRONG>-alias</STRONG> <STRONG>worst</STRONG>
+          The -alias option affects the assumptions the compiler
+          makes regarding overlapping of variables, particularly
+          when referenced by a pointer.  <EM>standard</EM> causes the com-
+          piler to assume the program obeys the ANSI C standard.
+          <EM>worst</EM> causes the compiler to do worst case alias
+          analysis; it assumes that a pointer may reference any
+          piece of memory other than an <EM>auto</EM> variable whose
+          address has never been taken.  <EM>cautious</EM> causes the com-
+          piler to behave as it does for <EM>standard</EM> except when
+          casts between pointer types are seen.  In that case it
+          behaves like <EM>worst</EM>.
+
+          Incorrect code may be generated if the implied condi-
+          tions do not hold.
+
+          When the -<EM>pcc</EM> flag is provided, <EM>worst</EM> is the default,
+          otherwise, the default is <EM>cautious</EM>.
+
+
+     <STRONG>-alias</STRONG> <STRONG>array_args</STRONG>
+          Assume that formal array parameters do not overlap each
+          other or any external variable that is used in the
+          function (unless all uses are read-only).  <STRONG>Incorrect</STRONG>
+          <STRONG>code</STRONG> <STRONG>will</STRONG> <STRONG>be</STRONG> <STRONG>generated</STRONG> <STRONG>if</STRONG> <STRONG>this</STRONG> <STRONG>assumption</STRONG> <STRONG>is</STRONG> <STRONG>not</STRONG> <STRONG>true</STRONG>.
+          This conflicts with the language definition, but may
+          allow greater optimization, particularly vectorization,
+          to occur.
+
+          This option may not be used if the formal parameter
+          itself is assigned by the function (e.g., formalParame-
+          ter = &amp;x[10]); assignments may be made to the elements
+          of the formal (e.g., formalParameter[10] = x[10]).
+
+
+     <STRONG>-alias</STRONG> <STRONG>ptr_args</STRONG>
+          Assume that the variables identified by formal pointer
+          parameters do not overlap each other or any external
+          variable that is used in the function (unless all uses
+          are read-only).  <STRONG>Incorrect</STRONG> <STRONG>code</STRONG> <STRONG>will</STRONG> <STRONG>be</STRONG> <STRONG>generated</STRONG> <STRONG>if</STRONG>
+          <STRONG>this</STRONG> <STRONG>assumption</STRONG> <STRONG>is</STRONG> <STRONG>not</STRONG> <STRONG>true</STRONG>.  This conflicts with the
+          language definition, but may allow greater optimiza-
+          tion, particularly vectorization, to occur.
+
+          This option may not be used if the formal parameter
+          itself is assigned by the function (e.g., formalParame-
+          ter = &amp;x[10]); assignments may be made to the elements
+          of the formal (e.g., formalParameter[10] = x[10]).
+
+     <STRONG>-alias</STRONG> <STRONG>restrict_args</STRONG>
+          This option tells the compiler to treat the code as
+          though a <EM>restrict</EM> qualifier was applied to each pointer
+          parameter. The <EM>restrict</EM> qualifier tells the compiler
+          that a pointer provides exclusive access to the data
+          object at a given memory location. When you use the
+          <EM>restrict</EM> qualifier, you must access the object pointed
+          to by a <EM>restrict</EM> pointer only through that pointer. If
+          you reference the object by some other means, the com-
+          piler may incorrectly optimize code as a result.
+
+     <STRONG>-ds</STRONG>  Causes the compiler to perform dynamic selection on
+          loops selected by the compiler on the basis of profita-
+          bility.  Multiple copies of the loop running sequen-
+          tial, vector or parallel modes are generated; the
+          optimal version gets executed based on the trip count
+          of the loop.  This option is only effective at optimi-
+          zation level -<EM>O2</EM> and -<EM>O3</EM>.
+
+     <STRONG>-ep</STRONG> <STRONG>n</STRONG>
+          Specifies the expected number of processors that will
+          execute the program.  Optimizes single-program perfor-
+          mance at the expense of overall system throughput. The
+          <STRONG>n</STRONG> argument must be within the range of 1 and maximum
+          number of processors available on the target machine
+          architecture.  This option is ignored if paralleliza-
+          tion is not requested.
+
+     <STRONG>-except</STRONG> <STRONG>precise</STRONG>
+
+     <STRONG>-except</STRONG> <STRONG>default</STRONG>
+          The -<EM>except</EM> options concern the treatment of arithmetic
+          exceptions generated within functions. The command line
+          options are -<EM>except</EM> <EM>precise</EM> and -<EM>except</EM> <EM>default</EM>.
+
+          The -<EM>except</EM> <EM>precise</EM> option generates code that ensures
+          that any arithmetic exceptions generated within func-
+          tions before the return will be received by the pro-
+          gram. Without -<EM>except</EM> <EM>precise</EM>, there is a small possi-
+          bility that the location of an arithmetic exception
+          might be reported incorrectly or lost.
+
+          The code generated under -<EM>except</EM> <EM>precise</EM> is specific to
+          the target architecture for which you are compiling and
+          is only guaranteed to work for that architecture. The
+          target architecture is determined by the -<EM>tm</EM> option,
+          or, in absence of -<EM>tm</EM>, defaults to the machine on which
+          you are compiling.
+
+          Use -<EM>except</EM> <EM>precise</EM> only when absolutely necessary as
+          it causes additional instructions to be inserted before
+          every return, and this will degrade performance.
+
+          -<EM>except</EM> <EM>default</EM> cancels the effects of -<EM>except</EM> <EM>precise</EM>.
+          This is provided mainly for overriding an -<EM>except</EM> <EM>pre-</EM>
+          <EM>cise</EM> supplied in the CCOPTIONS environment variable.
+
+     <STRONG>-no</STRONG>  No machine-independent optimization is performed; this
+          is the default but can be overridden by the -<STRONG>O</STRONG> options.
+
+     <STRONG>-nopeel</STRONG>
+          Disallows loop boundary value peeling, which is turned
+          on by default at optimization levels -<EM>O2</EM> and -<EM>O3</EM>. Refer
+          to -<EM>peel</EM> and -<EM>peelall</EM> below. Refer also so the subsec-
+          tion, ``Loop Boundary Value Peeling,'' below.
+
+     <STRONG>-noptst</STRONG>
+          Disallows test promotion, which is turned on by default
+          at optimization levels -<EM>O2</EM> and -<EM>O3</EM>. Refer to -<EM>ptst</EM> and
+          -<EM>ptstall</EM> below. Refer also to the subsection, ``Test
+          Promotion,'' below.
+
+     <STRONG>-nptr</STRONG>
+          Disable procedural pointer tracking. Pointer tracking
+          reduces aliasing on pointers by keeping track of the
+          possible objects that each pointer could reference.
+
+          Pointer tracking is performed at optimization levels
+          -<EM>O1</EM> and above.
+
+     <STRONG>-On</STRONG>  Performs machine-independent optimizations, level <STRONG>n</STRONG>,
+          where:
+          n=0 selects basic block scalar optimization;
+          n=1 selects -<EM>O0</EM> plus function-wide scalar optimization;
+          n=2 selects -<EM>O1</EM> plus vectorization;
+          n=3 selects -<EM>O2</EM> plus parallelization.
+
+     <STRONG>-peel</STRONG>
+          Causes removal of the first and/or last iterations of a
+          loop when doing so removes conditional tests from the
+          loop. This is typically possible when the loop contains
+          a test that always evaluates to zero or a nonzero value
+          for the first and/or last iteration. By default, the
+          compiler peels boundary values and expands code up to a
+          limit. With the -<EM>peel</EM> option, this limit is increased
+          and code expansion may become significant. The -<EM>peel</EM>
+          option works only with the -<EM>O2</EM> and -<EM>O3</EM> options. Refer
+          to the subsection, ``Loop Boundary Value Peeling,'' for
+          more information.
+
+     <STRONG>-peelall</STRONG>
+          Same as -<EM>peel</EM>, but allows code expansion without bound.
+          For code containing large numbers of boundary value
+          operations, this can increase the size of the code
+          enough to flag compile-time errors. The -<EM>peelall</EM> option
+          works only with the -<EM>O2</EM> and -<EM>O3</EM> options. Refer to the
+          subsection, ``Loop Boundary Value Peeling,'' for more
+          information.
+
+     <STRONG>-ptst</STRONG>
+          Causes a test to be promoted out of the loop that
+          encloses it by replicating the containing loop for each
+          branch of the test. By default, the compiler will
+          replicate code up to a limit. With the -<EM>ptst</EM> option,
+          this limit is increased and code expansion may become
+          significant. The -<EM>ptst</EM> option works only with the -<EM>O2</EM>
+          and -<EM>O3</EM> options. Refer to the subsection, ``Test Promo-
+          tion,'' for more information.
+
+     <STRONG>-ptstall</STRONG>
+          Same as -<EM>ptst</EM>, but allows code replication without
+          bound. For loops containing large numbers of tests,
+          this can increase the size of the code beyond the capa-
+          bilities of the compiler enough to flag compile-time
+          errors. The -<EM>ptstall</EM> option works only with the -<EM>O2</EM> and
+          -<EM>O3</EM> options. Refer to the subsection, ``Test Promo-
+          tion,'' for more information.
+
+     <STRONG>-rl</STRONG>  This option is equivalent to -<EM>ds</EM> -<EM>ur</EM>.  It is only
+          effective with options -<EM>O2</EM> and -<EM>O3</EM>.
+
+     <STRONG>-uo</STRONG>  Performs potentially unsafe optimizations, i.e., may
+          move the evaluation of common subexpressions and/or
+          invariant code from within conditionally executed code.
+          The code is then executed unconditionally.
+
+     <STRONG>-ur</STRONG>  Causes the compiler to perform loop unrolling on loops
+          selected by the compiler on the basis of profitability.
+          This option is only effective at optimization levels
+          -<EM>O2</EM> and -<EM>O3</EM>.
+
+     <STRONG>-va</STRONG>  A synonym for -<EM>alias</EM> <EM>array_args</EM>.
+
+
+
+     <STRONG>Loop</STRONG> <STRONG>Boundary</STRONG> <STRONG>Value</STRONG> <STRONG>Peeling</STRONG>
+
+     Test-loop optimizations modify loops containing tests to
+     improve vector performance. Tests can be promoted out of the
+     loops or completely eliminated.  By minimizing the number of
+     tests within a loop, the compiler reduces the number of
+     masked vector instructions that must be executed, thereby
+     improving performance.
+
+     One type of test-loop optimization is loop boundary value
+     peeling. This involves removing the first and/or last itera-
+     tions of a loop when doing so removes conditional tests from
+     the loop. This is typically possible when the loop contains
+     a test condition for the first and/or last iteration.
+
+     For example:
+
+     <STRONG>Original</STRONG> <STRONG>Loop:</STRONG>
+          for( i=0; i&lt;100; i++ )
+            if( i == 0 ){
+              a[i] = b[i];
+            } else if( i == 99 ){
+              a[i] = c[i];
+            } else {
+              a[i] = -a[i];
+            }
+
+     <STRONG>Peeled</STRONG> <STRONG>Loop:</STRONG>
+          a[0] = b[0];
+          for( i=1; i&lt;98; i++ )
+            a[i] = -a[i];
+          a[99] = c[99];
+
+     In the above example, the compiler automatically peels off
+     the first and last tests and rewrites the loop to cover the
+     remaining indices.
+
+     In some cases, boundary value peeling requires relocating
+     large amounts of code and can greatly increase the size of
+     the executable file. By default, the compiler peels boundary
+     values and expands the code up to a limit; you can increase
+     this limit by using the -<EM>peel</EM> option. You can allow the com-
+     piler to expand code without bound by using the -<EM>peelall</EM>
+     option. In codes containing large numbers of boundary value
+     operations, allowing code expansion without bound can
+     greatly lengthen compile time and can increase the size of
+     the code enough to flag compile-time errors under certain
+     circumstances.
+
+     Boundary value peeling can be shut off completely with the
+     -<EM>nopeel</EM> option.
+
+     <STRONG>NOTE</STRONG>. Loop boundary value peeling is not performed on loops
+     with no tests on boundary values. In other words, the com-
+     piler will not try to peel unpeelable loops.
+
+     <STRONG>Test</STRONG> <STRONG>Promotion</STRONG>
+
+     A second type of test-loop optimization is test promotion.
+     This involves promoting a test out of the loop that encloses
+     it by replicating the containing loop, or loops, for each
+     branch of the test. The replicated loops contain fewer tests
+     than the originals (or no tests at all), so they execute
+     much faster. Multiple tests can be promoted, with loop
+     replications made for each.  For example:
+
+     <STRONG>Original</STRONG> <STRONG>Loop:</STRONG>
+          for( i=0; i&lt;100; i++ )
+            if( val )
+              a[i] = b[i];
+            else
+              a[i] = c[i];
+
+     <STRONG>Promoted</STRONG> <STRONG>Test:</STRONG>
+          if( val )
+            for( i=0; i&lt;100; i++ )
+              a[i] = b[i];
+          else
+            for( i=0; i&lt;100; i++ )
+              a[i] = c[i];
+
+     It is important to note that, for loops containing large
+     numbers of tests, this loop replication can greatly increase
+     the size of the code.
+
+     The amount of code replication and test promotion can be
+     controlled with compiler options; by default, the compiler
+     promotes tests and replicates code up to a conservative
+     limit. The -<EM>ptst</EM> option increases this limit and can cause a
+     noticeable increase in compile time. The -<EM>ptstall</EM> option
+     promotes all tests regardless of code replication. This may
+     cause a large increase in compile time and can increase the
+     size of the code enough to flag compile-time errors. The
+     -<EM>noptst</EM> option shuts test promotion off.
+
+
+
+</PRE>
+<H2>CODE GENERATION OPTIONS</H2><PRE>
+     <STRONG>-asm</STRONG> This flag is silently ignored; it is no longer
+          required.
+
+     <STRONG>-c</STRONG>   Do not run the linker.  The object module generated
+          from <EM>x.c</EM> or <EM>x.s</EM> is left in <EM>x.o</EM>.
+
+     <STRONG>-compat</STRONG> <STRONG>rrf=stack</STRONG>
+
+     <STRONG>-compat</STRONG> <STRONG>rrf=old</STRONG>
+          The -<EM>compat</EM> option controls backward compatibility
+          options.  The <EM>rrf</EM>= selection controls the return
+          mechanism used by record returning functions. Records
+          are either structures or unions.  In the old method,
+          the default, the called function allocates memory for
+          the record that is being returned. In the stack method,
+          the calling function allocates memory for the record
+          that is being returned. The two methods are not compa-
+          tible with each other.  The old method can produce
+          incorrect results in some circumstances.  You can use
+          the -d record_fn_defn=w and -d record_fn_call=w diag-
+          nostic message control options to identify program con-
+          structs that are affected by this change.
+
+     <STRONG>-extern</STRONG> <STRONG>distinct</STRONG>
+
+     <STRONG>-extern</STRONG> <STRONG>same</STRONG>
+          The -<EM>extern</EM> option may be used to control the interpre-
+          tation of a program in which different files declare an
+          uninitialized variable (e.g., "int i;") at file scope.
+          When <EM>same</EM> is used both files refer to the same vari-
+          able.  This is the default in all modes, is traditional
+          on BSD Systems and is a conforming extension to Stan-
+          dard C.  When <EM>distinct</EM> is used the files refer to dis-
+          tinct variables; this results in a multiply defined
+          symbol being detected by the linker.  This is the
+          definition provided by the ANSI C standard.
+
+     <STRONG>-fd</STRONG>  A synonym for -<EM>float</EM> <EM>sp_ops</EM>, described below.
+
+     <STRONG>-fi</STRONG>  Translate floating-point constants to IEEE format and
+          perform floating-point operations in IEEE mode.  This
+          option requires that the machine be equipped with IEEE
+          floating-point hardware.  If no floating-point format
+          is specified, the site default is used.  Arithmetic
+          performed under this option does not conform to the
+          IEEE standard.
+
+     <STRONG>-float</STRONG> <STRONG>sp_ops</STRONG>
+
+     <STRONG>-float</STRONG> <STRONG>dp_ops</STRONG>
+
+     <STRONG>-float</STRONG> <STRONG>sp_const</STRONG>
+
+     <STRONG>-float</STRONG> <STRONG>dp_const</STRONG>
+          These options control the floating-point system used by
+          the compiler.  <EM>sp_ops</EM> and <EM>dp_ops</EM> control the precision
+          of the operations performed on float operands.  When
+          <EM>sp_ops</EM> is specified, 32 bit operations are performed.
+          When <EM>dp_ops</EM> is specified, the float operands are con-
+          verted to double and 64 bit operations are performed.
+          <EM>sp_ops</EM> generally causes programs using float variables
+          to run faster but some accuracy may be lost.
+
+          <EM>sp_const</EM> and <EM>dp_const</EM> control the representation of
+          unsuffixed floating-point constants (which are normally
+          represented in double precision).  <EM>sp_const</EM> causes
+          these constants to be represented in single precision.
+          Some loss of accuracy may result.  <EM>dp_const</EM> explicitly
+          invokes the default.
+
+          Use of <EM>sp_ops</EM> is more effective when combined with
+          <EM>sp_const</EM> since expressions like <STRONG>x</STRONG> == <EM>0.0</EM> are performed
+          in double precision when only <EM>sp_ops</EM> is specified.
+
+          <EM>sp_ops</EM> is the default in all but -<EM>pcc</EM> mode.
+
+          dp_const is the default in all modes.
+
+     <STRONG>-fn</STRONG>  Translate floating-point constants to native CONVEX
+          format and perform floating-point operations in native
+          mode.  If no floating-point format is specified, the
+          site default is used.
+
+     <STRONG>-mi</STRONG>  <STRONG>n</STRONG>
+          Specifies the expected memory interleave on the target
+          machine.  <STRONG>n</STRONG> is an integer representing the expected
+          memory interleave.  When this option does not appear,
+          the interleave of the machine the compiler is running
+          on is used.  You can use the <EM>getsysinfo</EM> command to
+          determine the memory interleave on a machine.
+
+     <STRONG>-parens</STRONG> <STRONG>ignore</STRONG>
+
+     <STRONG>-parens</STRONG> <STRONG>explicit</STRONG>
+
+     <STRONG>-parens</STRONG> <STRONG>implicit</STRONG>
+          Toggle the manner in which parentheses and the ANSI C
+          grammar are used to determine the order of evaluation
+          of expressions.
+
+          The value <EM>ignore</EM> gives the compiler freedom to re-order
+          expressions; even explicit parentheses are ignored.
+          This is the default in -<EM>pcc</EM> and -<EM>ext</EM> modes and is the
+          traditional method used in C.
+
+          The value <EM>explicit</EM> tells the compiler to honor explicit
+          parentheses but ignore ordering implied by the grammar
+          and associativity rules.  This is similar to the rules
+          used by Fortran and many other languages.
+
+          The value <EM>implicit</EM> tells the compiler that explicit
+          parentheses and ordering implied by the grammar and
+          associativity rules should be honored.  This means that
+          a+b+c must be evaluated in the order implied by
+          (a+b)+c.  This is the default in -<EM>std</EM> and -<EM>str</EM> modes.
+
+          These rules apply only to floating-point expressions;
+          operations on other types are always subject to re-
+          ordering.
+
+     <STRONG>-re</STRONG>  Specifies that the compiler generate re-entrant code by
+          generating both a scalar and a parallel version of
+          parallel loops.  The default, at optimization level
+          -<EM>O3</EM>, is to generate non-reentrant code for functions
+          with parallel regions.  This option has no effect on
+          functions without parallel code; it should be used to
+          compile a function for which the compiler generates
+          parallel code, if you wish to call that function from a
+          parallel region.  It is always <STRONG>safe</STRONG> to use -<EM>re</EM>; the
+          text segment will be unnecessarily large if -<EM>re</EM> is used
+          when it is not required.
+
+     <STRONG>-S</STRONG>   Generates symbolic assembly code for each program unit
+          in a source file.  Assembler output for a source file
+          <EM>x.c</EM> is put on file <EM>x.s</EM>; no object file is generated.
+          The default is to write only an object file.
+
+     <STRONG>-sc</STRONG>  Instructs the compiler to check the program for compi-
+          lation and syntax errors.  No optimization, vectoriza-
+          tion, or code generation is performed.
+
+     <STRONG>-string</STRONG> <STRONG>read_write</STRONG>
+          String constants are stored in the data segment and may
+          be modified.  This is the default when -<EM>pcc</EM> is speci-
+          fied.
+
+     <STRONG>-string</STRONG> <STRONG>read_only</STRONG>
+          String constants are stored in the text segment and may
+          not be modified.  This option increases the sharability
+          of a program when multiple copies of it are running at
+          once.  This is the default if -<EM>pcc</EM> is not specified.
+
+     <STRONG>-tm</STRONG> <STRONG>x</STRONG>
+          Specifies the target machine architecture. The values
+          for <STRONG>x</STRONG> are:
+               c1,C1
+                    Executable code runs on a CONVEX C100 Series
+                    computer.
+
+               c2,C2
+                    Executable code runs on a CONVEX C200 Series
+                    computer.
+
+               c32,C32
+                    Executable code runs on a CONVEX C3200 Series
+                    computer, or on a CONVEX C200 Series computer
+                    that is equipped with scalar accelerator
+                    hardware. Use the <EM>getsysinfo</EM> command to
+                    determine whether your C2 computer has this
+                    hardware.
+
+               c34,C34
+                    Executable code runs on a CONVEX C3400 Series
+                    computer.
+
+               c34j,C34J
+                    Executable code runs on a CONVEX C3400-ES
+                    Series computer.
+
+               c38,C38
+                    Executable code runs on a CONVEX C3800 Series
+                    computer.
+
+                    The default value is the type of machine the
+                    compiler is running on.  When invoking the
+                    linker machine dependent versions of some
+                    libraries are used.
+
+
+
+
+</PRE>
+<H2>DEBUGGING AND PROFILING OPTIONS</H2><PRE>
+     <STRONG>-cxdb</STRONG>
+          Produces  additional information for use by CXdb, the
+          CONVEX visual debugger. No additional information is
+          generated if the source file contains <EM>asm</EM> statements or
+          if the <STRONG>-S</STRONG> or <STRONG>-pb</STRONG> command line options are used.  This
+          flag can be used with all levels of optimization, but
+          unless the <STRONG>-no</STRONG> option (NO optimization) is specified,
+          there may be source statements for which no debugging
+          information is generated for CXdb.  When this option is
+          included on the command line, a subdirectory called
+          .CXdb is created that contains auxiliary information.
+          Refer to <EM>CONVEX</EM> <EM>CXdb</EM> <EM>User</EM>'<STRONG>s</STRONG> <EM>Guide</EM> for more information.
+          CXdb is an optional product.
+
+     <STRONG>-db</STRONG>  Produces additional information for use by the symbolic
+          debugger, <EM>csd</EM>, and the post-mortem dump utility (<EM>pmd)</EM>.
+          It also passes the <STRONG>-lg</STRONG> flag to the loader. This flag
+          can be used with all levels of optimization, but unless
+          the <STRONG>-no</STRONG> option (NO optimization) is specified, there
+          may be source statements for which no debugging infor-
+          mation is generated for <EM>csd</EM>.  Information about vari-
+          ables declared in the inner blocks of functions is pro-
+          duced only at level -<EM>no</EM>.
+
+     <STRONG>-metrics</STRONG>
+          Produces commonly used software source metrics and
+          cross reference information. This information is writ-
+          ten in ASCII format to a file of the source file's name
+          with the extension ".met".  Refer to <STRONG><A HREF="metrics,1,">metrics(1)</A></STRONG> for
+          additional information.  metrics is an optional pro-
+          duct.
+
+     <STRONG>-p</STRONG>   Causes the compiler to produce code that counts the
+          number of times each routine is called.  If loading
+          takes place, replaces the standard startup routine by
+          one that automatically calls <STRONG><A HREF="monitor,3,">monitor(3)</A></STRONG> at the start
+          and arranges to write out a "mon.out" file at normal
+          termination of execution of the object program.  A pro-
+          filed library is searched, instead of the standard C
+          library.  An execution profile can then be generated by
+          use of <STRONG><A HREF="prof,1,">prof(1)</A></STRONG> (optional product).
+
+     <STRONG>-pa</STRONG>  Produces counting code for routine-level and loop-level
+          profiles using the CXpa utility.  Refer to the <EM>CONVEX</EM>
+          <EM>CXpa</EM> <EM>User</EM>'<STRONG>s</STRONG> <EM>Guide</EM> for more information.  CXpa is an
+          optional product.
+
+     <STRONG>-pab</STRONG> Produces counting code for block-level profiles using
+          the CXpa utility.  Refer to the <EM>CONVEX</EM> <EM>CXpa</EM> <EM>User</EM>'<STRONG>s</STRONG>
+          <EM>Guide</EM> for more information.  CXpa is an optional pro-
+          duct.
+
+     <STRONG>-par</STRONG> Includes instrumentation for routine-level profiles
+          using the CXpa utility.  Refer to the <EM>CONVEX</EM> <EM>CXpa</EM>
+          <EM>User</EM>'<STRONG>s</STRONG> <EM>Guide</EM> for more information. CXpa is an optional
+          product.
+
+     <STRONG>-pb</STRONG>  Causes the compiler to produce statement-level counting
+          code that produces an execution profile named <EM>bmon.out</EM>
+          at normal termination.  Listings of source-level execu-
+          tion counts can then be obtained using <STRONG><A HREF="bprof,1,">bprof(1)</A></STRONG>. <EM>bprof</EM>
+          is an optional product.
+
+     <STRONG>-pg</STRONG>  Causes the compiler to produce counting code in the
+          manner of <STRONG>-p</STRONG>, but invokes a runtime recording mechanism
+          that keeps more extensive statistics and produces a
+          <EM>gmon.out</EM> file at normal termination.  An execution pro-
+          file can then be generated by use of <STRONG><A HREF="gprof,1,">gprof(1)</A></STRONG> (optional
+          product).
+
+
+
+
+</PRE>
+<H2>COMPILER OUTPUT OPTIONS</H2><PRE>
+     <STRONG>-d</STRONG> <EM>name</EM>
+
+     <STRONG>-d</STRONG> <EM>name</EM>=<STRONG>e</STRONG>
+
+     <STRONG>-d</STRONG> <EM>name</EM>=<STRONG>w</STRONG>
+          The -<STRONG>d</STRONG> option provides low level control of diagnostic
+          output.  The form -<STRONG>d</STRONG> <EM>name</EM> suppresses the named message.
+          The form -<STRONG>d</STRONG> <EM>name</EM>=<STRONG>w</STRONG> causes the named message to be
+          reported as a warning.  The form -<STRONG>d</STRONG> <EM>name</EM>=<STRONG>e</STRONG> causes the
+          named message to be reported as an error.  The message
+          names are documented in the following section.
+
+
+     <STRONG>-nv</STRONG>  Suppresses all vectorization summary messages
+          (synonymous with -<EM>or</EM> <EM>none)</EM>.
+
+     <STRONG>-nw</STRONG>  Suppresses all warning diagnostic messages.
+
+     <STRONG>-or</STRONG> <EM>table</EM>
+          Specifies the contents of the optimization report to be
+          produced; either the loop table, the array table, or
+          both can be displayed.  The value for <EM>table</EM> can be
+          <EM>none</EM>, <EM>all</EM>, <EM>array</EM> or <EM>loop</EM>.  If this option is not speci-
+          fied, only the loop table is displayed.
+
+
+
+
+</PRE>
+<H2>DIAGNOSTIC OPTIONS</H2><PRE>
+     The following names can be used to control specific mes-
+     sages.  The CONVEX C documentation on C compiler error mes-
+     sages provides examples for most of these diagnostic
+     options.
+
+     arg_ptr_qual        Detects actual function parameters that
+                         do not have the same type qualifiers as
+                         those declared in the function proto-
+                         type.
+
+     arg_ptr_ref         Detects actual function parameters that
+                         are not the same pointer type as those
+                         declared in the function prototype.
+
+     assign_in_condition Detects assignment expressions in loca-
+                         tions where conditional expressions are
+                         expected, such as <EM>for</EM> statements and <EM>if</EM>
+                         statements.
+
+     bad_escape          The compiler encountered an unknown
+                         escape sequence. Acceptable escape
+                         sequences in all compatibility modes
+                         are: \', \", \?, \\, \b, \f, \n, \r, \t,
+                         and \v. The escape sequences \a and \x
+                         are interpreted as the characters 'a'
+                         and 'x', respectively, in the backward-
+                         compatible mode.
+
+     class_ignored       Indicates that an explicit storage class
+                         is used to declare a <EM>struct</EM> tag, <EM>union</EM>
+                         tag, <EM>enum</EM> tag, or <EM>enum</EM> member.
+
+     const_not_init      Detects uninitialized constant vari-
+                         ables.
+
+     division_by_zero    Detects compile time division by zero.
+
+     dollar_names        Detects identifiers embedded with the <STRONG>$</STRONG>
+                         character.
+
+     escape_range_sequence
+                         Detects when an escape sequence in an
+                         integer constant is greater than 0xff.
+
+     float_suffix        Detects when the floating-point suf-
+                         fixes, f, F, l, or L, are used. This
+                         option has no effect in the strict and
+                         conforming compatibility modes.
+
+     function_parameter  Reports when a function is used as a
+                         function parameter; only function
+                         pointers can be used as a function
+                         parameter.
+
+     hidden_arg          Indicates that the parameter of a func-
+                         tion is hidden by an identifier with the
+                         same name declared in the outermost
+                         block of that function. This diagnostic
+                         affects only the backward-compatible
+                         mode.
+
+     hidden_extern       Indicates that a declaration using
+                         <EM>extern</EM> inside a function definition
+                         causes an identifier not in the block to
+                         be obscured. This diagnostic affects
+                         only the backward-compatible mode.
+
+     hides_outer         Indicates that an identifier prevents
+                         access to an identifier of the same name
+                         in an enclosing block.
+
+     implicit_decl       Detects when an implicit declaration is
+                         used because a function has not been
+                         declared previously.
+
+     integer_overflow    Detects when an integer constant larger
+                         than 64 bits is used.
+
+     long_long_suffix    Detects when the integer literal suf-
+                         fixes LL or ll are used.  These suffixes
+                         are permitted only in the extended and
+                         backward-compatible modes because the
+                         <EM>long</EM> <EM>long</EM> data type is not available in
+                         the strict and conforming compatibility
+                         modes.
+
+     metrics_file        Indicates that the specified metrics
+                         file could not be opened.
+
+     metrics_off         Indicates that metrics collection has
+                         ceased. This occurs because the metrics
+                         file could not be opened or because a
+                         error was encountered in your source
+                         code.
+
+     negative_to_uns     Indicates when a negative constant is
+                         assigned to an unsigned type.
+
+     no_arg_type         Checks for function arguments declared
+                         without a data type.
+
+     no_external_declaration
+                         Detects when no declarations are acces-
+                         sible to other compilation units.
+
+     no_newline          Indicates that a source file is not ter-
+                         minated with the <EM>newline</EM> character.
+
+     non_int_bit_field   Check for bit fields that have type
+                         other than <EM>int</EM> or <EM>unsigned</EM> <EM>int</EM>.
+
+     nothing_declared    Detects empty declarations such as <EM>int</EM>;.
+
+     null_effect_expression
+                         Detects intrinsic math function calls
+                         that have no effect.
+
+     pointer_alignment_efficiency
+                         Checks for operations that can result in
+                         inefficient memory alignment.
+
+     pp_argcount         Indicates that the number of arguments
+                         in the actual argument list of a macro
+                         does not match the number of arguments
+                         in the formal argument list.
+
+     pp_argsended        Indicates that an actual argument list
+                         of a function-like macro does not have a
+                         terminating right parenthesis.
+
+     pp_badstr           Indicates incorrect use of #, the
+                         stringizing operator that is used in
+                         macro definitions.
+
+     pp_badtp            Indicates that an invalid token paste
+                         was attempted - the result of combining
+                         the left and right operands of the ##
+                         macro definition operator is not a valid
+                         token.
+
+     pp_badtp_cmdl       Indicates that the result of combining
+                         the left and right operands of the ##
+                         macro definition operator on the command
+                         line is illegal.
+
+     pp_error_directive  Indicates that a #error preprocessor
+                         directive has been encountered in the
+                         source code.
+
+     pp_extra            Indicates that a preprocessor directive
+                         has extra arguments. One common example
+                         is when the #<EM>endif</EM> directive is followed
+                         by text.
+
+     pp_idexpected       Indicates that a #<EM>ifdef</EM> or #<EM>ifndef</EM> does
+                         not have a legal identifier as an argu-
+                         ment, or a formal argument of a
+                         function-like macro is not a legal iden-
+                         tifier.
+
+     pp_line_range       Indicates the argument for the #<EM>line</EM>
+                         preprocessor directive does not have a
+                         value between 1 and 32767, inclusive.
+
+     pp_macro_arg        Indicates that two or more formal macro
+                         arguments have the same name.
+
+     pp_macro_redefinition
+                         Indicates that the replacement list for
+                         a function-like macro is not the same as
+                         its original definition. The preproces-
+                         sor uses the most recent replacement
+                         list.
+
+     pp_macro_redefinition_cmdl
+                         Indicates that the replacement list for
+                         a function-like macro is not the same as
+                         its original definition on the command
+                         line. The preprocessor uses the most
+                         recent replacement list.
+
+     pp_malformed_directive
+                         Indicates that the proper syntax for a
+                         preprocessor directive was not used.
+
+     pp_old_dir          Indicates that the comment style syntax
+                         for a compiler directive (pragma) was
+                         used.
+
+     pp_parse            Indicates that a #if directive has an
+                         invalid integer expression.
+
+     pp_undef            Indicates that the argument of the
+                         #undef directive is not permitted.
+
+     pp_undef_cmdl       Indicates that you attempted to unde-
+                         fined a macro that cannot be undefined
+                         on the command line.
+
+     pp_unrecognized_directive
+                         Detects a preprocessor directive that
+                         the preprocessor does not recognize.
+
+     pp_unrecognized_pragma
+                         Detects a pragma that the compiler does
+                         not recognize.
+
+     ptr_convert_truncates
+                         Indicates that the cast operator data
+                         type does not provide enough space for
+                         the pointer that it is retyping.
+
+     qualified_cast      Indicates that the cast operator data
+                         type is qualified (const or volatile).
+                         The qualification is ignored.
+
+     record_fn_call      Checks for function calls that are
+                         affected by the new method for returning
+                         structures from functions. Refer to the
+                         description of the -compat option for
+                         more details.
+
+     record_fn_defn      Checks for function definitions that are
+                         affected by the new method for returning
+                         structures from functions. Refer to the
+                         description of the -compat option for
+                         more details.
+
+     shift_too_large     Checks for constant right operands of
+                         shift operands that are too large.
+
+     short_cvt_truncates Indicates that an integral type larger
+                         than a short integer is being assigned
+                         to a short integer.
+
+     skip_to_char        This diagnostic indicates that the com-
+                         piler is skipping to a character to
+                         recover from an error.
+
+     skip_to_eof         This diagnostic indicates that the com-
+                         piler must skip to the end of a file to
+                         recover from an error.
+
+     strict_syntax       Detects the lack of a semicolon after
+                         the last member in a struct or union
+                         declaration or the presence of a comma
+                         after the last enumeration constant in
+                         an enum declaration list.
+
+     unsigned_suffix     Detects use of the integer literal suf-
+                         fixes <STRONG>U</STRONG> or <STRONG>u</STRONG>.  This option is not effec-
+                         tive with the =<STRONG>e</STRONG> setting.
+
+
+</PRE>
+<H2>MISCELLANEOUS OPTIONS</H2><PRE>
+     <STRONG>-altcc</STRONG> <EM>path</EM>
+          This option invokes an alternate compiler driver. For
+          example,
+            <EM>cc</EM> -<EM>altcc</EM> /<EM>usr</EM>/<EM>lib</EM>/<EM>newcc</EM>/<EM>cc</EM> <EM>bar.c</EM>
+          is equivalent to
+            /<EM>usr</EM>/<EM>lib</EM>/<EM>newcc</EM>/<EM>cc</EM> <EM>bar.c</EM>.
+          To invoke an alternate C compiler, it is necessary to
+          specify both the driver and the components, as in:
+            <EM>cc</EM> -<EM>altcc</EM> /<EM>usr</EM>/<EM>lib</EM>/<EM>newcc</EM>/<EM>cc</EM> -<STRONG>B</STRONG>/<EM>usr</EM>/<EM>lib</EM>/<EM>newcc</EM> <EM>bar.c</EM>
+
+     <STRONG>-B</STRONG><EM>dir</EM>
+          Finds substitute compiler components (<EM>cocc</EM>, <EM>cpp</EM>, and
+          <EM>errmsg.cc)</EM> in the directory <EM>dir</EM>.  If <EM>dir</EM> is not speci-
+          fied, the standard backup version in the directory
+          /<EM>usr</EM>/<EM>lib</EM>/<EM>oldcc</EM> is used instead.  For example, the com-
+          mand
+            <EM>cc</EM> -<STRONG>B</STRONG>/<EM>usr</EM>/<EM>new</EM>
+          would invoke the compiler in
+            /<EM>usr</EM>/<EM>new</EM>
+          instead of the default
+            /<EM>usr</EM>/<EM>lib</EM>/<EM>cc</EM>/<EM>cocc</EM>.
+          To invoke an alternate C compiler, it is necessary to
+          specify both the components and the driver, as in:
+            <EM>cc</EM> -<STRONG>B</STRONG>/<EM>usr</EM>/<EM>lib</EM>/<EM>newcc</EM> -<EM>altcc</EM> /<EM>usr</EM>/<EM>lib</EM>/<EM>newcc</EM>/<EM>cc</EM> <EM>bar.c</EM>
+
+     <STRONG>-o</STRONG> <STRONG>name</STRONG>
+          Specifies that <EM>name</EM> is the name of the executable file
+          produced by <EM>ld</EM>.  If this option is not specified, the
+          default name is <EM>a.out</EM>.  If <STRONG>-c</STRONG> was specified and there
+          is only one file to compile or assemble, <EM>name</EM> is the
+          name of the object module produced.
+
+     <STRONG>-tl</STRONG> <EM>time</EM>
+          Sets the maximum CPU time limit on compilations to <EM>time</EM>
+          minutes.  If the CPU time exceeds the allotted time,
+          the compilation is aborted.
+
+     <STRONG>-vn</STRONG>  Identifies compiler version.
+
+
+
+
+</PRE>
+<H2>VENDOR COMPATIBILITY OPTIONS</H2><PRE>
+     The following options are provided for compatibility with
+     compilers of other vendors.
+
+     <STRONG>-g</STRONG>   A synonym for -<EM>db</EM>.
+
+     <STRONG>-n</STRONG>   Ignored with a warning.
+
+     <STRONG>-O</STRONG>   A synonym for -<EM>O1</EM>.
+
+     <STRONG>-OL</STRONG>  A synonym for -<EM>O1</EM>.
+
+     <STRONG>-V</STRONG>   A synonym for -<EM>vn</EM>.
+
+     <STRONG>-w</STRONG>   A synonym for -<EM>nw</EM>
+
+
+
+</PRE>
+<H2>PREPROCESSOR OPTIONS</H2><PRE>
+     The CONVEX C compiler invokes an internal C macro preproces-
+     sor on each file and compiles the resulting text.  The fol-
+     lowing options affect the preprocessing phase of transla-
+     tion.
+
+     <STRONG>-C</STRONG>   Retains comments in the output.  C style comments are
+          usually removed.
+
+
+     <STRONG>-D</STRONG><EM>name</EM>
+     <STRONG>-D</STRONG><EM>name</EM>=<EM>def</EM>
+          Define the <EM>name</EM> (as if by #<EM>define)</EM> as <EM>def</EM>, or 1 if <EM>def</EM>
+          is omitted.
+
+
+     <STRONG>-E</STRONG>   Runs only the internal C preprocessor on the named C
+          source files and sends the result to the standard out-
+          put stream (<EM>stdout)</EM>.  The source is not checked for
+          errors and no object, assembly or executable code is
+          produced.
+
+
+     <STRONG>-I</STRONG><EM>dir</EM>
+          Adds <EM>dir</EM> to the search list for #<EM>include</EM> files.
+
+
+     <STRONG>-I-</STRONG>  The `-I-' option inhibits the use of the current direc-
+          tory (where the current input file came from) as the
+          first search directory for `#include'.  There is no way
+          to override the effect of `-I-'
+
+
+     <STRONG>-k</STRONG>   Runs the internal C preprocessor on the named C source
+          files and generates a dependency description for
+          <STRONG><A HREF="make,1,">make(1)</A></STRONG>; results are printed out on the standard output
+          stream.
+
+
+     <STRONG>-P</STRONG>   This option gives you preprocessed code without the
+          control lines. It does not allow you to redirect the
+          output; the output is placed in a file in the current
+          directory with the same root name as the source
+          filename and a suffix of ".i".
+
+
+     <STRONG>-U</STRONG><EM>name</EM>
+          Remove any initial definition of <EM>name</EM>.  Names prede-
+          fined by the preprocessor are discussed below.
+
+     The compiler passes these options directly to the internal C
+     preprocessor without interpretation.  See <STRONG><A HREF="cpp,1,">cpp(1)</A></STRONG> for further
+     details.
+
+     If the compiler option -<EM>pcc</EM> is present it is passed to each
+     invocation of the internal preprocessor.
+
+
+
+
+</PRE>
+<H2>PREDEFINED SYMBOLS</H2><PRE>
+     The following macros are predefined in the preprocessor.
+
+     <STRONG>__convex__</STRONG>
+          This symbol is predefined in all compatibility modes as
+          1. To remain compatible with previous preprocessors,
+          the ``convex'' symbol is also predefined only in the
+          backward-compatible mode, but its availability may be
+          discontinued in a future release of the preprocessor.
+
+     <STRONG>_CONVEX_SOURCE</STRONG>
+
+     <STRONG>_POSIX_SOURCE</STRONG>
+          The symbols _CONVEX_SOURCE and _POSIX_SOURCE are prede-
+          fined in extended mode.  In -<EM>std</EM> mode the user will
+          generally want to define the symbol _POSIX_SOURCE to
+          make the POSIX symbols available in the include files.
+
+     <STRONG>_CONVEX_FLOAT_</STRONG>
+
+     <STRONG>_IEEE_FLOAT_</STRONG>
+          The symbol _CONVEX_FLOAT_ is defined when the compiler
+          is operating in native float point mode, _IEEE_FLOAT_
+          is defined in IEEE mode.  See the description of the
+          options -<EM>fi</EM> and -<EM>fn</EM> above.
+
+     <STRONG>__DATE__</STRONG>
+          This symbol is predefined in the extended, standard,
+          and strict modes of the preprocessor. It returns the
+          current date. This definition may not be removed with
+          the #undef directive or the -<STRONG>U</STRONG> command line option.
+
+     <STRONG>__FILE__</STRONG>
+          This symbol is predefined in all modes of the prepro-
+          cessor. It returns the current file name. This defini-
+          tion cannot be removed with the #undef directive or the
+          -<STRONG>U</STRONG> command line option.
+
+     <STRONG>__LINE__</STRONG>
+          This symbol is predefined in all modes of the prepro-
+          cessor. It returns the current line number. This defin-
+          ition cannot be removed with the #undef directive or
+          the -<STRONG>U</STRONG> command line option.
+
+     <STRONG>__STDC__</STRONG>
+          The symbol __STDC__ is defined as the decimal constant
+          1 when either the -<EM>std</EM> or -<EM>str</EM> flags are specified.
+          The definition of this symbol indicates that the com-
+          piler conforms to the ANSI C Standard.  This definition
+          may not be removed by the -<STRONG>U</STRONG> option or #<EM>undef</EM>.
+
+     <STRONG>__stdc__</STRONG>
+          The symbol __stdc__ is defined as the decimal constant
+          1 in all modes except the -<EM>pcc</EM> mode.  It indicates that
+          the compiler is an ANSI style compiler, but not that it
+          is conforming, due to CONVEX extensions.
+
+     <STRONG>__NO_INLINE_MATH</STRONG>
+          The symbol __NO_INLINE_MATH is defined in -<EM>str</EM> and -<EM>std</EM>
+          modes to suppress recognition of macros which define
+          certain library functions.  This is necessary to get
+          conforming implementations of some functions which
+          would otherwise not set <EM>errno</EM> in a standard conforming
+          manner. Refer to <STRONG><A HREF="intro,3,m">intro(3m)</A></STRONG> for more details.
+
+     <STRONG>__TIME__</STRONG>
+          This symbol is predefined in the extended, standard,
+          and strict modes of the preprocessor. It returns the
+          current time. This definition may not be removed with
+          the #undef directive or the -<STRONG>U</STRONG> command line option.
+
+     <STRONG>__unix__</STRONG>
+          This symbol is always predefined as constant 1. To
+          remain compatible with previous preprocessors, the
+          ``unix'' symbol is also predefined only in the
+          backward-compatible mode, but its availability may be
+          discontinued in a future release of the preprocessor.
+
+     <STRONG>__convexc__</STRONG>
+          This symbol is always defined.  It should be used to
+          identify the compiler.  Other symbols defined by the
+          internal preprocessor (see <STRONG><A HREF="cpp,1,">cpp(1)</A></STRONG>) identify the machine
+          and operating system.
+
+     <STRONG>convexvc</STRONG>
+          This symbol is defined in -<EM>pcc</EM> mode.  Its use is
+          obsolescent; the symbol __convexc__ should be used
+          instead.
+
+     The internal preprocessor defines a number of symbols as
+     well; see <STRONG><A HREF="cpp,1,">cpp(1)</A></STRONG> for a discussion of these symbols.
+
+     Other names beginning with "__" or _[A-Z] may be predefined
+     by <EM>cc</EM>.  Such names are reserved to CONVEX; their usage or
+     availability may change in subsequent releases.  Applica-
+     tions should not depend on the <EM>presence</EM> <EM>or</EM> <EM>absence</EM> of such
+     names except as defined above.
+
+
+</PRE>
+<H2>LOADER USAGE</H2><PRE>
+     A number of compiler options impact the manner in which <EM>cc</EM>
+     invokes the loader.  Options for the loader may also be
+     specified directly by the user.  CONVEX recommends always
+     using the appropriate compiler to invoke the loader rather
+     than invoking it directly.  This will insulate the program
+     from changes in library structure when new compiler releases
+     are installed.
+
+     The compiler always passes the flags -<STRONG>X</STRONG>, -<EM>NL</EM>, and -<STRONG>L</STRONG>/<EM>usr</EM>/<EM>lib</EM>
+     to the loader.  The compiler flags -<EM>fi</EM> and -<EM>fn</EM> are passed to
+     the loader (in addition to the effects they have on the com-
+     piler).  The compiler option -<STRONG>o</STRONG> causes a similar -<STRONG>o</STRONG> option
+     to be passed to <EM>ld</EM>.  -<EM>Eposix</EM> is passed to the loader except
+     when -<EM>pcc</EM> is given, in which case -<EM>Enoposix</EM> is passed.
+
+     The compiler compatibility mode controls the libraries
+     searched by the loader; this is normally accomplished by
+     passing one or more -<STRONG>l</STRONG> options to the loader.
+     The following options, when present on the <EM>cc</EM> command line
+     are passed to <STRONG><A HREF="ld,1,">ld(1)</A></STRONG>:
+          <STRONG>-D</STRONG> <STRONG>-E</STRONG> <STRONG>-F</STRONG> <STRONG>-L</STRONG> <STRONG>-M</STRONG> <STRONG>-T</STRONG> <STRONG>-X</STRONG> <STRONG>-d</STRONG> <STRONG>-e</STRONG> <STRONG>-l</STRONG> <STRONG>-m</STRONG> <STRONG>-r</STRONG> <STRONG>-s</STRONG> <STRONG>-t</STRONG> <STRONG>-u</STRONG> <STRONG>-x</STRONG> <STRONG>-y</STRONG>
+
+     See the <EM>CONVEX</EM> <EM>Compiler</EM> <EM>Utilities</EM> <EM>User</EM>'<STRONG>s</STRONG> <EM>Guide</EM> for their
+     meaning and use.  The -<STRONG>l</STRONG> option must be specified after all
+     object files on the <EM>cc</EM> command line to be effective.  Loader
+     options which require a value (e.g., -<STRONG>L</STRONG> and -<STRONG>E</STRONG>) must be
+     written with no spaces between the flag and value (e.,g.,
+     -L/mydir) when passed through <EM>cc</EM>.
+
+     The -<EM>link</EM> option causes  the following argument to be passed
+     to <EM>ld</EM>.  If the following argument does not start with - or
+     starts with -<STRONG>l</STRONG> the argument is added to the loader's file
+     list, otherwise it is added to the loader's flag list.  For
+     example, -<EM>link</EM> -<EM>v3.2</EM>.<EM>8.5</EM> -<EM>link</EM> -<EM>link</EM> passes the flag
+     -<EM>v3.2</EM>.<EM>8.5</EM> to the loader causing it to set the version number
+     of the executable, and passes -<EM>link</EM> in the file list causing
+     the loader to search the library libink.a.
+
+
+
+
+</PRE>
+<H2>OBJECT FILE COMPATIBILITY</H2><PRE>
+     When invoked without the -<EM>pcc</EM> flag CONVEX C generates object
+     files that are not compatible with object files created by
+     compilers prior to CONVEX C V4.1.
+
+     When invoked with the -<EM>pcc</EM> flag, object files created by
+     previous C compilers can be linked with those created by the
+     CONVEX C; the -<EM>pcc</EM> flag must be used when linking the
+     objects and you must use the CONVEX C compiler to perform
+     the link step.
+
+     Object files created by any mode of CONVEX C can be mixed
+     with object files created by any other mode of CONVEX C.
+
+     Object files created by CONVEX C should not be linked using
+     other C compilers.
+
+
+
+
+
+</PRE>
+<H2>ENVIRONMENT VARIABLES</H2><PRE>
+     The CONVEX C compiler prepends the value of the environment
+     variable <STRONG>CCOPTIONS</STRONG> (if it is set) to each command line so
+     that options need not be specified every time <EM>cc</EM> is invoked.
+     For example,
+          setenv CCOPTIONS '-O2'
+     causes all compilations to be done at -<EM>O2</EM> and
+          setenv CCOPTIONS '-pcc'
+     causes all compilations to be done in backwards compatible
+     mode.
+     The preprocessor /<EM>lib</EM>/<EM>cpp</EM> has a similar variable <EM>CPPOPTIONS</EM>
+     that can be used to affect its behavior.  However, <EM>CPPOP-</EM>
+     <EM>TIONS</EM> does not have any effect when the compiler invokes its
+     internal C preprocessor.
+
+
+</PRE>
+<H2>FILES</H2><PRE>
+     file.c                        C language input file
+     file.o                        object code output file
+     file.met                      metrics output file
+     a.out                         executable output file
+     .CXdb                         subdirectory containing files
+                                   generated for cxdb
+     /tmp/cocc*                    temporary file
+     /lib/cpp                      standalone preprocessor -
+                                   compatible with traditional C
+     /usr/lib/cc/cpp               standalone preprocessor -
+                                   CONVEX preprocessor
+     /usr/lib/cc/cocc              compiler
+     /usr/lib/cc/errmsg.cc         compiler error message text
+     /bin/cc                       compiler control program
+     /usr/lib/crt/crt0.o           runtime start off
+     /usr/lib/crt/mcrt0.o          startup routine for prof
+                                   profiling
+     /usr/lib/crt/gcrt0.o          startup routine for gprof
+                                   profiling
+     /usr/lib/crt/bcrt0.o          startup routine for bprof
+                                   profiling
+     /usr/lib/libbint.a            Cray-compatible bit intrinsics
+                                   library
+     /usr/lib/libc_old.a           backward mode library
+     /usr/lib/libc.a               extended mode library
+     /usr/lib/libp1.a              standard mode library
+     /usr/lib/libansic.a           strictly conforming mode
+                                   library
+     /usr/lib/libC1.a              C1 machine dependent library
+     /usr/lib/libC2.a              C2 machine dependent library
+     /usr/lib/libC1_old.a          backward compatible C1 machine
+                                   dependent library
+     /usr/lib/libC2_old.a          backward compatible C2 machine
+                                   dependent library
+     /usr/include                  standard directory for
+                                   "#include" files
+     /lib/bscan                    optional bprof scanner
+     mon.out                       file produced for analysis by
+                                   <STRONG><A HREF="prof,1,">prof(1)</A></STRONG>
+     gmon.out                      file produced for analysis by
+                                   <STRONG><A HREF="gprof,1,">gprof(1)</A></STRONG>
+     bmon.out                      file produced for analysis by
+                                   <STRONG><A HREF="bprof,1,">bprof(1)</A></STRONG>
+     Each library has a profiled version whose name is formed by
+     by inserting _p before the .a.
+
+
+</PRE>
+<H2>BUGS</H2><PRE>
+     See the CONVEX C release notes in /usr/doc for a description
+     of known bugs causing wrong answers.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+     <STRONG><A HREF="adb,1,">adb(1)</A></STRONG>, <STRONG><A HREF="as,1,">as(1)</A></STRONG>, <STRONG><A HREF="cpp,1,">cpp(1)</A></STRONG>, <STRONG><A HREF="csd,1,">csd(1)</A></STRONG>(optional product),
+     <STRONG><A HREF="cxdb,1,">cxdb(1)</A></STRONG>(optional product), <STRONG><A HREF="gprof,1,">gprof(1)</A></STRONG>(optional product),
+     <STRONG><A HREF="ld,1,">ld(1)</A></STRONG>, <STRONG><A HREF="prof,1,">prof(1)</A></STRONG>(optional product), <STRONG><A HREF="bprof,1,">bprof(1)</A></STRONG>(optional pro-
+     duct), <STRONG><A HREF="metrics,1,">metrics(1)</A></STRONG>(optional product), <STRONG><A HREF="monitor,3,">monitor(3)</A></STRONG>, <STRONG><A HREF="a.out,5,">a.out(5)</A></STRONG>
+
+     <EM>CONVEX</EM> <STRONG>C</STRONG> <EM>Guide</EM>
+     <EM>CONVEX</EM> <STRONG>C</STRONG> <EM>Optimization</EM> <EM>Guide</EM>
+     <EM>CONVEX</EM> <STRONG>C</STRONG> <EM>Quick</EM> <EM>Reference</EM>
+     <EM>CONVEX</EM> <EM>Compiler</EM> <EM>Utilities</EM> <EM>User</EM>'<STRONG>s</STRONG> <EM>Guide</EM>
+     B. W. Kernighan and D. M. Ritchie, <EM>The</EM> <STRONG>C</STRONG> <EM>Programming</EM>
+     <EM>Language</EM>, <EM>Second</EM> <EM>Edition</EM>, Prentice-Hall, 1988
+     B. W. Kernighan and D. M. Ritchie, <EM>The</EM> <STRONG>C</STRONG> <EM>Programming</EM>
+     <EM>Language</EM>, Prentice-Hall, 1978
+     B. W. Kernighan, <EM>Programming</EM> <EM>in</EM> <STRONG>C</STRONG>-<STRONG>a</STRONG> <EM>tutorial</EM>
+
+
+</PRE>
+<H2>DIAGNOSTICS</H2><PRE>
+     The <EM>CONVEX</EM> <STRONG>C</STRONG> <EM>Guide</EM> provides detailed information regarding
+     error messages produced by the compiler.
+
+     A successful compilation is indicated by returning status 0.
+
+     Occasional messages may be produced by the assembler or
+     loader.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

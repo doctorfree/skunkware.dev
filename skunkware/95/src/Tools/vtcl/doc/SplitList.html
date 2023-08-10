@@ -1,0 +1,219 @@
+<HTML>
+<HEAD>
+<TITLE>SplitList</TITLE>
+</HEAD>
+<BODY>
+<H1>SplitList</H1>
+<HR>
+<PRE>
+     _________________________________________________________________
+
+     <STRONG>NAME</STRONG>
+          Tcl_SplitList,          Tcl_Merge,          Tcl_ScanElement,
+          Tcl_ConvertElement - manipulate Tcl lists
+
+     <STRONG>SYNOPSIS</STRONG>
+          <STRONG>#include</STRONG> <STRONG>&lt;tcl.h&gt;</STRONG>
+
+          int
+          <STRONG>Tcl_SplitList</STRONG>(<EM>interp</EM>, <EM>list</EM>, <EM>argcPtr</EM>, <EM>argvPtr)</EM>
+
+          char *
+          <STRONG>Tcl_Merge</STRONG>(<EM>argc</EM>, <EM>argv)</EM>
+
+          int
+          <STRONG>Tcl_ScanElement</STRONG>(<EM>src</EM>, <EM>flagsPtr)</EM>
+
+          int
+          <STRONG>Tcl_ConvertElement</STRONG>(<EM>src</EM>, <EM>dst</EM>, <EM>flags)</EM>
+
+     <STRONG>ARGUMENTS</STRONG>
+          Tcl_Interp   *<EM>interp</EM>      (out)     Interpreter to  use  for
+                                              error reporting.
+
+          char         *<EM>list</EM>        (in)      Pointer to a string with
+                                              proper list structure.
+
+          int          *<EM>argcPtr</EM>     (out)     Filled in with number of
+                                              elements in <EM>list</EM>.
+
+          char         ***<EM>argvPtr</EM>   (out)     *<EM>argvPtr</EM> will be  filled
+                                              in  with  the address of
+                                              an array of pointers  to
+                                              the strings that are the
+                                              extracted  elements   of
+                                              <EM>list</EM>.    There  will  be
+                                              *<EM>argcPtr</EM>  valid  entries
+                                              in  the  array, followed
+                                              by a NULL entry.
+
+          int          <EM>argc</EM>         (in)      Number  of  elements  in
+                                              <EM>argv</EM>.
+
+          char         **<EM>argv</EM>       (in)      Array  of   strings   to
+                                              merge  together  into  a
+                                              single    list.     Each
+                                              string   will  become  a
+                                              separate element of  the
+                                              list.
+
+          char         *<EM>src</EM>         (in)      String that is to become
+                                              an element of a list.
+
+          int          *<EM>flagsPtr</EM>    (in)      Pointer to word to  fill
+                                              in    with   information
+                                              about <EM>src</EM>.  The value of
+                                              *<EM>flagsPtr</EM> must be passed
+                                              to <STRONG>Tcl_ConvertElement</STRONG>.
+
+          char         *<EM>dst</EM>         (in)      Place to copy  converted
+                                              list    element.    Must
+                                              contain           enough
+                                              characters    to    hold
+                                              converted string.
+
+          int          <EM>flags</EM>        (in)      Information  about  <EM>src</EM>.
+                                              Must  be  value returned
+                                              by  previous   call   to
+                                              <STRONG>Tcl_ScanElement</STRONG>,
+                                              possibly   OR-ed    with
+                                              <STRONG>TCL_DONT_USE_BRACES</STRONG>.
+     _________________________________________________________________
+
+
+     <STRONG>DESCRIPTION</STRONG>
+          These procedures may be used to disassemble  and  reassemble
+          Tcl   lists.   <STRONG>Tcl_SplitList</STRONG>  breaks  a  list  up  into  its
+          constituent elements, returning an array of pointers to  the
+          elements  using  <EM>argcPtr</EM>  and <EM>argvPtr</EM>.  While extracting the
+          arguments, <STRONG>Tcl_SplitList</STRONG> obeys the usual rules for backslash
+          substitutions  and braces.  The area of memory pointed to by
+          *<EM>argvPtr</EM> is dynamically allocated;  in addition to the array
+          of  pointers, it also holds copies of all the list elements.
+          It is the caller's responsibility to free  up  all  of  this
+          storage.    For   example,  suppose  that  you  have  called
+          <STRONG>Tcl_SplitList</STRONG> with the following code:
+
+               int argc, code;
+               char *string;
+               char **argv;
+               ...
+               code = Tcl_SplitList(interp, string, &amp;argc, &amp;argv);
+9          Then you should eventually free the storage with a call like
+          the following:
+
+               free((char *) argv);
+9
+          <STRONG>Tcl_SplitList</STRONG> normally returns <STRONG>TCL_OK</STRONG>, which means the  list
+          was  successfully  parsed.   If  there was a syntax error in
+          <EM>list</EM>, then <STRONG>TCL_ERROR</STRONG> is  returned  and  <EM>interp</EM>-&gt;<EM>result</EM>  will
+          point  to  an  error  message  describing  the  problem.  If
+          <STRONG>TCL_ERROR</STRONG> is  returned  then  no  memory  is  allocated  and
+
+
+          <STRONG>Tcl_Merge</STRONG> is the  inverse  of  <STRONG>Tcl_SplitList</STRONG>:   it  takes  a
+          collection of strings given by <EM>argc</EM> and <EM>argv</EM> and generates a
+          result string that has proper list  structure.   This  means
+          that commands like <STRONG>index</STRONG> may be used to extract the original
+          elements again.  In addition, if the result of <STRONG>Tcl_Merge</STRONG>  is
+          passed  to <STRONG>Tcl_Eval</STRONG>, it will be parsed into <EM>argc</EM> words whose
+          values will be the  same  as  the  <EM>argv</EM>  strings  passed  to
+          <STRONG>Tcl_Merge</STRONG>.   <STRONG>Tcl_Merge</STRONG>  will  modify  the list elements with
+          braces and/or backslashes in order  to  produce  proper  Tcl
+          list  structure.  The result string is dynamically allocated
+          using <STRONG>malloc()</STRONG>;  the  caller  must  eventually  release  the
+          space using <STRONG>free()</STRONG>.
+
+          If the result of <STRONG>Tcl_Merge</STRONG> is passed to  <STRONG>Tcl_SplitList</STRONG>,  the
+          elements  returned  by  <STRONG>Tcl_SplitList</STRONG>  will  be identical to
+          those passed into <STRONG>Tcl_Merge</STRONG>.  However, the converse  is  not
+          true:   if  <STRONG>Tcl_SplitList</STRONG>  is passed a given string, and the
+          resulting  <EM>argc</EM>  and  <EM>argv</EM>  are  passed  to  <STRONG>Tcl_Merge</STRONG>,  the
+          resulting  string may not be the same as the original string
+          passed to <STRONG>Tcl_SplitList</STRONG>.  This is because <STRONG>Tcl_Merge</STRONG> may  use
+          backslashes and braces differently than the original string.
+
+          <STRONG>Tcl_ScanElement</STRONG> and <STRONG>Tcl_ConvertElement</STRONG>  are  the  procedures
+          that  do all of the real work of <STRONG>Tcl_Merge</STRONG>.  <STRONG>Tcl_ScanElement</STRONG>
+          scans its <EM>src</EM> argument and determines how to use backslashes
+          and braces when converting it to a list element.  It returns
+          an overestimate of the  number  of  characters  required  to
+          represent  <EM>src</EM>  as a list element, and it stores information
+          in *<EM>flagsPtr</EM> that is needed by <STRONG>Tcl_ConvertElement</STRONG>.
+
+          <STRONG>Tcl_ConvertElement</STRONG>   is    a    companion    procedure    to
+          <STRONG>Tcl_ScanElement</STRONG>.   It  does  the actual work of converting a
+          string to a list element.  Its <EM>flags</EM> argument  must  be  the
+          same    as    the   value   returned   by   <STRONG>Tcl_ScanElement</STRONG>.
+          <STRONG>Tcl_ConvertElement</STRONG> writes a proper list  element  to  memory
+          starting  at *<EM>dst</EM> and returns a count of the total number of
+          characters written, which will be no more  than  the  result
+          returned  by <STRONG>Tcl_ScanElement</STRONG>.  <STRONG>Tcl_ConvertElement</STRONG> writes out
+          only the actual list element without any leading or trailing
+          spaces:  it  is  up  to the caller to include spaces between
+          adjacent list elements.
+
+          <STRONG>Tcl_ConvertElement</STRONG> uses one of two different  approaches  to
+          handle the special characters in <EM>src</EM>.  Wherever possible, it
+          handles special characters by surrounding  the  string  with
+          braces.   This  produces  clean-looking output, but can't be
+          used in some situations, such as when <EM>src</EM> contains unmatched
+          braces.   In  these  situations,  <STRONG>Tcl_ConvertElement</STRONG> handles
+          special characters by  generating  backslash  sequences  for
+          them.   The  caller may insist on the second approach by OR-
+
+          <STRONG>TCL_DONT_USE_BRACES</STRONG>.   Although  this will produce an uglier
+          result, it is useful in some  special  situations,  such  as
+          when  <STRONG>Tcl_ConvertElement</STRONG> is being used to generate a portion
+          of an argument for a Tcl command.  In this case, surrounding
+          <EM>src</EM>  with  curly  braces  would  cause the command not to be
+          parsed correctly.
+
+
+     <STRONG>KEYWORDS</STRONG>
+          backslash, convert, element, list, merge, split, strings
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

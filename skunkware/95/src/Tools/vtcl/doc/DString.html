@@ -1,0 +1,167 @@
+<HTML>
+<HEAD>
+<TITLE>DString</TITLE>
+</HEAD>
+<BODY>
+<H1>DString</H1>
+<HR>
+<PRE>
+     _________________________________________________________________
+
+     <STRONG>NAME</STRONG>
+          Tcl_DStringInit, Tcl_DStringAppend,
+          Tcl_DStringAppendElement, Tcl_DStringStartSublist,
+          Tcl_DStringEndSublist, Tcl_DStringLength, Tcl_DStringValue,
+          Tcl_DStringTrunc, Tcl_DStringFree, Tcl_DStringResult -
+          manipulate dynamic strings
+
+     <STRONG>SYNOPSIS</STRONG>
+          <STRONG>#include</STRONG> <STRONG>&lt;tcl.h&gt;</STRONG>
+
+          <STRONG>Tcl_DStringInit</STRONG>(<EM>dsPtr)</EM>
+
+          char *
+          <STRONG>Tcl_DStringAppend</STRONG>(<EM>dsPtr</EM>, <EM>string</EM>, <EM>length)</EM>
+
+          char *
+          <STRONG>Tcl_DStringAppendElement</STRONG>(<EM>dsPtr</EM>, <EM>string)</EM>
+
+          <STRONG>Tcl_DStringStartSublist</STRONG>(<EM>dsPtr)</EM>
+
+          <STRONG>Tcl_DStringEndSublist</STRONG>(<EM>dsPtr)</EM>
+
+          int
+          <STRONG>Tcl_DStringLength</STRONG>(<EM>dsPtr)</EM>
+
+          char *
+          <STRONG>Tcl_DStringValue</STRONG>(<EM>dsPtr)</EM>
+
+          <STRONG>Tcl_DStringTrunc</STRONG>(<EM>dsPtr</EM>, <EM>newLength)</EM>
+
+          <STRONG>Tcl_DStringFree</STRONG>(<EM>dsPtr)</EM>
+
+          <STRONG>Tcl_DStringResult</STRONG>(<EM>interp</EM>, <EM>dsPtr)</EM>
+
+     <STRONG>ARGUMENTS</STRONG>
+          Tcl_DString   *<EM>dsPtr</EM>      (in/out)  Pointer   to   structure
+                                              that is used to manage a
+                                              dynamic string.
+
+          char          *<EM>string</EM>     (in)      Pointer to characters to
+                                              add to dynamic string.
+
+          int           <EM>length</EM>      (in)      Number   of   characters
+                                              from  string  to  add to
+                                              dynamic string.  If  -1,
+                                              add all characters up to
+                                              null         terminating
+                                              character.
+
+          int           <EM>newLength</EM>   (in)      New length  for  dynamic
+                                              string,   not  including
+                                              null         terminating
+                                              character.
+     _________________________________________________________________
+
+
+     <STRONG>DESCRIPTION</STRONG>
+          Dynamic  strings  provide  a  mechanism  for   building   up
+          arbitrarily long strings by gradually appending information.
+          If the dynamic string is short then there will be no  memory
+          allocation  overhead;  as the string gets larger, additional
+          space will be allocated as needed.
+
+          <STRONG>Tcl_DStringInit</STRONG> initializes a dynamic string to zero length.
+          The  Tcl_DString  structure  must have been allocated by the
+          caller.  No assumptions are made about the current state  of
+          the  structure; anything already in it is discarded.  If the
+          structure has been used previously,  <STRONG>Tcl_DStringFree</STRONG>  should
+          be  called first to free up any memory allocated for the old
+          string.
+
+          <STRONG>Tcl_DStringAppend</STRONG> adds new information to a dynamic  string,
+          allocating  more memory for the string if needed.  If <EM>length</EM>
+          is less than zero then everything in <EM>string</EM> is  appended  to
+          the  dynamic  string;  otherwise <EM>length</EM> specifies the number
+          of bytes to append.  <STRONG>Tcl_DStringAppend</STRONG> returns a pointer  to
+          the  characters  of  the new string.  The string can also be
+          retrieved  from  the  <EM>string</EM>  field   of   the   Tcl_DString
+          structure.
+
+          <STRONG>Tcl_DStringAppendElement</STRONG>  is  similar  to  <STRONG>Tcl_DStringAppend</STRONG>
+          except  that  it  doesn't take a <EM>length</EM> argument (it appends
+          all of <EM>string)</EM> and it converts the string to a  proper  list
+          element  before  appending.  <STRONG>Tcl_DStringAppendElement</STRONG> adds a
+          separator space before the new list element unless  the  new
+          list element is the first in a list or sub-list (i.e. either
+          the current string is  empty,  or  it  contains  the  single
+          character  ``{'',  or the last two characters of the current
+          string are  ``  {'').   <STRONG>Tcl_DStringAppendElement</STRONG>  returns  a
+          pointer to the characters of the new string.
+
+          <STRONG>Tcl_DStringStartSublist</STRONG>  and  <STRONG>Tcl_DStringEndSublist</STRONG>  can  be
+          used  to create nested lists.  To append a list element that
+          is itself a  sublist,  first  call  <STRONG>Tcl_DStringStartSublist</STRONG>,
+          then  call <STRONG>Tcl_DStringAppendElement</STRONG> for each of the elements
+          in the sublist, then call <STRONG>Tcl_DStringEndSublist</STRONG> to  end  the
+          sublist.   <STRONG>Tcl_DStringStartSublist</STRONG> appends a space character
+          if needed, followed by an open brace;  <STRONG>Tcl_DStringEndSublist</STRONG>
+          appends a close brace.  Lists can be nested to any depth.
+
+          <STRONG>Tcl_DStringLength</STRONG> is a macro that returns the current length
+          of  a  dynamic  string  (not  including the terminating null
+          character).  <STRONG>Tcl_DStringValue</STRONG> is a   macro  that  returns  a
+          pointer to the current contents of a dynamic string.
+
+          <STRONG>Tcl_DStringTrunc</STRONG> truncates  a  dynamic  string  to  a  given
+          length.   It has no effect if the string was already smaller
+          than  <EM>newLength</EM>.   This  procedure  does  not  free  up  the
+          string's  storage  space, even if the string is truncated to
+          zero length,  so  <STRONG>Tcl_DStringFree</STRONG>  will  still  need  to  be
+          called.
+
+          <STRONG>Tcl_DStringFree</STRONG> should be called when you're finished  using
+          the  string.   It frees up any memory that was allocated for
+          the string and reinitializes the string's value to an  empty
+          string.
+
+          <STRONG>Tcl_DStringResult</STRONG> sets the result of <EM>interp</EM> to the value  of
+          the dynamic string given by <EM>dsPtr</EM>.  It does this by moving a
+          pointer from <EM>dsPtr</EM> to <EM>interp</EM>-&gt;<EM>result</EM>.  This saves  the  cost
+          of   allocating   new   memory   and   copying  the  string.
+          <STRONG>Tcl_DStringResult</STRONG> also reinitializes the dynamic  string  to
+          an empty string.
+
+
+     <STRONG>KEYWORDS</STRONG>
+          append, dynamic string, free, result
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

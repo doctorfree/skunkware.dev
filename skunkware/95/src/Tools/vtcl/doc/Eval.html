@@ -1,0 +1,167 @@
+<HTML>
+<HEAD>
+<TITLE>Eval</TITLE>
+</HEAD>
+<BODY>
+<H1>Eval</H1>
+<HR>
+<PRE>
+     Confidential.
+      *---------
+     --------------------------------------------------------------------
+      */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     _________________________________________________________________
+
+     <STRONG>NAME</STRONG>
+          Tcl_Eval,  Tcl_VarEval,   Tcl_EvalFile,   Tcl_GlobalEval   -
+          execute Tcl commands
+
+     <STRONG>SYNOPSIS</STRONG>
+          <STRONG>#include</STRONG> <STRONG>&lt;tcl.h&gt;</STRONG>
+
+          int
+          <STRONG>Tcl_Eval</STRONG>(<EM>interp</EM>, <EM>cmd)</EM>                                         |
+
+          int
+          <STRONG>Tcl_VarEval</STRONG>(<EM>interp</EM>, <EM>string</EM>, <EM>string</EM>, ... <STRONG>(char</STRONG> <STRONG>*)</STRONG> <STRONG>NULL</STRONG>)
+
+          int
+          <STRONG>Tcl_EvalFile</STRONG>(<EM>interp</EM>, <EM>fileName)</EM>
+
+          int
+          <STRONG>Tcl_GlobalEval</STRONG>(<EM>interp</EM>, <EM>cmd)</EM>
+
+     <STRONG>ARGUMENTS</STRONG>
+          Tcl_Interp   *<EM>interp</EM>      (in)      Interpreter in which  to
+                                              execute   the   command.
+                                              String  result  will  be
+                                              stored     in    <EM>interp</EM>-
+                                              &gt;<EM>result</EM>.
+
+          char         *<EM>cmd</EM>         (in)      Command (or sequence  of
+                                              commands)   to  execute.
+                                              Must  be   in   writable
+                                              memory  (<STRONG>Tcl_Eval</STRONG>  makes
+                                              temporary  modifications
+                                              to the command).
+
+          char         *<EM>string</EM>      (in)      String forming  part  of
+                                              Tcl command.
+
+          char         *<EM>fileName</EM>    (in)      Name of file  containing
+                                              Tcl command string.
+     _________________________________________________________________
+
+
+     <STRONG>DESCRIPTION</STRONG>
+          All four of these procedures execute Tcl commands.  <STRONG>Tcl_Eval</STRONG>
+          is  the  core  procedure:   it  parses commands from <EM>cmd</EM> and
+          executes them in order until either an error  occurs  or  it  |
+          reaches  the  end  of  the  string.   The  return value from
+          <STRONG>Tcl_Eval</STRONG> is one of the Tcl return codes  <STRONG>TCL_OK</STRONG>,  <STRONG>TCL_ERROR</STRONG>,
+          <STRONG>TCL_RETURN</STRONG>,  <STRONG>TCL_BREAK</STRONG>,  or <STRONG>TCL_CONTINUE</STRONG>, and <EM>interp</EM>-&gt;<EM>result</EM>
+          will point to a string with additional  information  (result
+          value   or   error   message).    This   return  information
+          corresponds to the last command executed from <EM>cmd</EM>.
+
+          <STRONG>Tcl_VarEval</STRONG> takes any number  of  string  arguments  of  any
+          length,  concatenates  them into a single string, then calls
+          <STRONG>Tcl_Eval</STRONG> to execute  that  string  as  a  Tcl  command.   It
+          returns  the result of the command and also modifies <EM>interp</EM>-
+          &gt;<EM>result</EM> in the usual fashion for  Tcl  commands.   The  last
+          argument  to <STRONG>Tcl_VarEval</STRONG> must be NULL to indicate the end of
+          arguments.
+
+          <STRONG>Tcl_EvalFile</STRONG> reads the file given by <EM>fileName</EM> and  evaluates
+          its  contents  as  a  Tcl  command  by calling <STRONG>Tcl_Eval</STRONG>.  It
+          returns a standard Tcl result that reflects  the  result  of
+          evaluating  the  file.   If the file couldn't be read then a
+          Tcl error is returned to describe why the file  couldn't  be
+          read.
+
+          <STRONG>Tcl_GlobalEval</STRONG>  is  similar  to  <STRONG>Tcl_Eval</STRONG>  except  that   it
+          processes  the command at global level.  This means that the
+          variable  context  for  the  command  consists   of   global
+          variables  only  (it  ignores  any  Tcl  procedure  that  is
+          active).  This produces an effect similar to the Tcl command
+          ``<STRONG>uplevel</STRONG> <STRONG>0</STRONG>''.
+
+          During the processing of a Tcl command it is legal  to  make
+          nested  calls  to  evaluate  other  commands  (this  is  how
+          conditionals, loops, and procedures are implemented).  If  a
+          code  other  than  <STRONG>TCL_OK</STRONG> is returned from a nested <STRONG>Tcl_Eval</STRONG>
+          invocation,  then  the   caller   should   normally   return
+          immediately,  passing  that  same  return  code  back to its
+          caller,  and  so  on  until  the  top-level  application  is
+          reached.   A  few commands, like <STRONG>for</STRONG>, will check for certain
+          return codes, like <STRONG>TCL_BREAK</STRONG> and <STRONG>TCL_CONTINUE</STRONG>,  and  process
+          them specially without returning.
+
+          <STRONG>Tcl_Eval</STRONG> keeps track of how many nested Tcl_Eval invocations
+          are  in  progress  for  <EM>interp</EM>.   If  a  code of <STRONG>TCL_RETURN</STRONG>,
+          <STRONG>TCL_BREAK</STRONG>, or <STRONG>TCL_CONTINUE</STRONG> is about to be returned from  the
+          topmost   <STRONG>Tcl_Eval</STRONG>  invocation  for  <EM>interp</EM>,  then  <STRONG>Tcl_Eval</STRONG>
+          converts the return  code  to  <STRONG>TCL_ERROR</STRONG>  and  sets  <EM>interp</EM>-
+          &gt;<EM>result</EM>  to  point  to  an error message indicating that the
+          <STRONG>return</STRONG>,  <STRONG>break</STRONG>,  or  <STRONG>continue</STRONG>  command  was  invoked  in  an
+          inappropriate place.  This means that top-level applications
+          should never see a return  code  from  <STRONG>Tcl_Eval</STRONG>  other  then
+          <STRONG>TCL_OK</STRONG> or <STRONG>TCL_ERROR</STRONG>.
+
+
+     <STRONG>KEYWORDS</STRONG>
+          command, execute, file, global, interpreter, variable
+
+
+
+</PRE>
+</BODY>
+</HTML>

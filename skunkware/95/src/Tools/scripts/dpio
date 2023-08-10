@@ -1,0 +1,55 @@
+:
+# dpio - use cpio to archive the specified directories to tape
+#        or read a cpio archive
+# 
+# Written 22 Dec 93 by Ronald Joe Record (rr@sco.com) after having
+# executed "man cpio" hundreds of times over the last decade.
+#
+# Normal use of this script would be to read or write a cpio archive
+# from/to a 150 Mb cartridge tape. The usual invocation would be
+# "dpio -i" to read and "dpio dir1 dir2 dir3" or "dpio ." to write.
+#
+
+usage() {
+	echo "Usage: dpio [-itvu] [-K Volume-size] [-f file] [dir list ...]"
+	exit 1
+}
+
+DIRS=
+VOLSIZ=150000
+DEVICE=/dev/rct0
+V=
+T=
+READ=
+
+while getopts itvuK:f: c
+do
+	case $c in
+		K)  VOLSIZ=$OPTARG
+			;;
+		f)  DEVICE=$OPTARG
+			;;
+		i)  READ=1
+			;;
+		t)  T=t
+			;;
+		u)  usage
+			;;
+		v)  V=v
+			;;
+		?)  usage
+			;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+DIRS=$*
+
+[ "$DIRS" = "" ] && [ "$READ" = "" ] && usage
+
+if [ "$READ" ]
+then
+	cpio -icd${T}${V}B -I$DEVICE
+else
+	find $DIRS -depth -print | cpio -oc${T}${V}BK $VOLSIZ -O$DEVICE
+fi

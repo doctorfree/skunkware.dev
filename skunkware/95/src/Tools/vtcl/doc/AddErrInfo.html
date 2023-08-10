@@ -1,0 +1,167 @@
+<HTML>
+<HEAD>
+<TITLE>AddErrInfo</TITLE>
+</HEAD>
+<BODY>
+<H1>AddErrInfo</H1>
+<HR>
+<PRE>
+     _________________________________________________________________
+
+     <STRONG>NAME</STRONG>
+          Tcl_AddErrorInfo, Tcl_SetErrorCode, Tcl_PosixError -  record
+          information about errors
+
+     <STRONG>SYNOPSIS</STRONG>
+          <STRONG>#include</STRONG> <STRONG>&lt;tcl.h&gt;</STRONG>
+
+          <STRONG>Tcl_AddErrorInfo</STRONG>(<EM>interp</EM>, <EM>message)</EM>
+
+          <STRONG>Tcl_SetErrorCode</STRONG>(<EM>interp</EM>, <EM>element</EM>, <EM>element</EM>, ... <STRONG>(char</STRONG> <STRONG>*)</STRONG> <STRONG>NULL</STRONG>)
+
+          char *
+          <STRONG>Tcl_PosixError</STRONG>(<EM>interp)</EM>
+
+     <STRONG>ARGUMENTS</STRONG>
+          Tcl_Interp   *<EM>interp</EM>    (in)      Interpreter  in  which  to
+                                            record information.
+
+          char         *<EM>message</EM>   (in)      Identifying   string    to
+                                            record     in    <STRONG>errorInfo</STRONG>
+                                            variable.
+
+          char         *<EM>element</EM>   (in)      String to  record  as  one
+                                            element    of    <STRONG>errorCode</STRONG>
+                                            variable.   Last   <EM>element</EM>
+                                            argument must be NULL.
+     _________________________________________________________________
+
+
+     <STRONG>DESCRIPTION</STRONG>
+          These procedures are used to manipulate two global variables
+          that  hold information about errors.  The variable <STRONG>errorInfo</STRONG>
+          holds a stack trace of the operations that were in  progress
+          when  an  error  occurred,  and  is  intended  to  be human-
+          readable.  The variable <STRONG>errorCode</STRONG> holds a list of items that
+          are  intended  to  be  machine-readable.   The first item in
+          <STRONG>errorCode</STRONG> identifies the class of error that occurred  (e.g.  |
+          POSIX  means  an  error occurred in a POSIX system call) and
+          additional elements in <STRONG>errorCode</STRONG> hold additional  pieces  of
+          information  that depend on the class.  See the Tcl overview
+          manual  entry  for  details  on  the  various  formats   for
+          <STRONG>errorCode</STRONG>.
+
+          The <STRONG>errorInfo</STRONG> variable is gradually built  up  as  an  error
+          unwinds  through  the nested operations.  Each time an error
+          code  is  returned  to  <STRONG>Tcl_Eval</STRONG>  it  calls  the   procedure
+          <STRONG>Tcl_AddErrorInfo</STRONG>   to   add  additional  text  to  <STRONG>errorInfo</STRONG>
+          describing the command that  was  being  executed  when  the
+          error  occurred.   By the time the error has been passed all
+          the way back to the application, it will contain a  complete
+          trace of the activity in progress when the error occurred.
+
+          It is sometimes useful  to  add  additional  information  to
+          <STRONG>errorInfo</STRONG>  beyond  what  can  be  supplied  automatically by
+          <STRONG>Tcl_Eval</STRONG>.  <STRONG>Tcl_AddErrorInfo</STRONG> may be used  for  this  purpose:
+          its  <EM>message</EM>  argument  contains  an additional string to be
+          appended to <STRONG>errorInfo</STRONG>.   For  example,  the  <STRONG>source</STRONG>  command
+          calls  <STRONG>Tcl_AddErrorInfo</STRONG> to record the name of the file being
+          processed and the line number on which the  error  occurred;
+          for  Tcl  procedures,  the  procedure  name  and line number
+          within the procedure are recorded, and so on.  The best time
+          to call <STRONG>Tcl_AddErrorInfo</STRONG> is just after <STRONG>Tcl_Eval</STRONG> has returned
+          <STRONG>TCL_ERROR</STRONG>.  In calling <STRONG>Tcl_AddErrorInfo</STRONG>,  you  may  find  it
+          useful  to  use  the <STRONG>errorLine</STRONG> field of the interpreter (see
+          the <STRONG>Tcl_Interp</STRONG> manual entry for details).
+
+          The procedure <STRONG>Tcl_SetErrorCode</STRONG> is used to set the  <STRONG>errorCode</STRONG>
+          variable.  Its <EM>element</EM> arguments give one or more strings to
+          record in <STRONG>errorCode</STRONG>:  each <EM>element</EM> will become one item of a
+          properly-formed    Tcl    list    stored    in    <STRONG>errorCode</STRONG>.
+          <STRONG>Tcl_SetErrorCode</STRONG> is typically invoked just before  returning
+          an   error.    If  an  error  is  returned  without  calling
+          <STRONG>Tcl_SetErrorCode</STRONG> then the Tcl interpreter automatically sets
+          <STRONG>errorCode</STRONG> to <STRONG>NONE</STRONG>.
+
+          <STRONG>Tcl_PosixError</STRONG> sets the <STRONG>errorCode</STRONG> variable after an error in  |
+          a  POSIX  kernel  call.   It  reads the value of the <STRONG>errno</STRONG> C  |
+          variable and calls <STRONG>Tcl_SetErrorCode</STRONG> to set <STRONG>errorCode</STRONG> in  the  |
+          <STRONG>POSIX</STRONG>  format.  In addition, <STRONG>Tcl_PosixError</STRONG> returns a human-  |
+          readable diagnostic message for the error (this is the  same
+          value  that  will appear as the third element in <STRONG>errorCode</STRONG>).
+          It may be convenient to include this string as part  of  the
+          error message returned to the application in <EM>interp</EM>-&gt;<EM>result</EM>.
+
+          It is important to call the procedures described here rather
+          than   setting   <STRONG>errorInfo</STRONG>   or   <STRONG>errorCode</STRONG>   directly  with
+          <STRONG>Tcl_SetVar</STRONG>.  The reason for this is that the Tcl interpreter
+          keeps  information  about whether these procedures have been
+          called.  For example, the  first  time  <STRONG>Tcl_AppendResult</STRONG>  is
+          called  for  an  error,  it  clears  the  existing  value of
+          <STRONG>errorInfo</STRONG> and adds the error message  in  <EM>interp</EM>-&gt;<EM>result</EM>  to
+          the variable before appending <EM>message</EM>;  in subsequent calls,
+          it just appends the new <EM>message</EM>.  When  <STRONG>Tcl_SetErrorCode</STRONG>  is
+          called,  it  sets  a flag indicating that <STRONG>errorCode</STRONG> has been
+          set;  this allows the Tcl interpreter to  set  <STRONG>errorCode</STRONG>  to
+          <STRONG>NONE</STRONG>  <STRONG>if</STRONG>  <STRONG>it</STRONG>  <STRONG>receives</STRONG> <STRONG>an</STRONG> <STRONG>error</STRONG> <STRONG>return</STRONG> <STRONG>when</STRONG> <STRONG>Tcl_SetErrorCode</STRONG>
+          hasn't been called.
+
+          If the procedure <STRONG>Tcl_ResetResult</STRONG> is called, it clears all of
+          the  state  associated  with <STRONG>errorInfo</STRONG> and <STRONG>errorCode</STRONG> (but it
+          doesn't actually modify the variables).   If  an  error  had
+          occurred,  this will clear the error state to make it appear
+          as if no error had occurred after all.
+
+
+     <STRONG>SEE</STRONG> <STRONG>ALSO</STRONG>
+          Tcl_ResetResult, Tcl_Interp
+
+
+     <STRONG>KEYWORDS</STRONG>
+          error, stack, trace, variable
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

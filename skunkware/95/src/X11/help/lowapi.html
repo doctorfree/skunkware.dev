@@ -1,0 +1,668 @@
+<TITLE>Help Api for OpenServer</TITLE>
+<BODY BGCOLOR="#C0C0C0" TEXT="#000000" LINK="#0000FF" vlink="#238E68"
+BACKGROUND="/skunkware/pics/jpg/small-wh.jpg">
+
+<CENTER>
+<H1>Help Api for OpenServer<BR>
+<I>&copy 1992 The Santa Cruz Operation, Inc.</I></H1>
+<H2>Introduction</H2> 
+</CENTER>
+<H3>Synopsis</H3>
+This document describes the context-sensitive help functionality that
+is available for X clients in Everest.  It provides some general background
+information, details
+about using help and the help api, and information about authoring help
+files.  It is designed for both client developers and authors responsible for
+writing online help (although it does assume some level of knowledge
+about Motif/X).
+<P>
+This document does not cover adding help to vtcl applications, although
+the same document architecture applies.
+<H3>Revision History</H3>
+<DL>
+<DT> 30 June 95 
+<DD> Created this document from Help Api Functional Specification for Everest
+</DL>
+<CENTER>
+<H2>General Information</H2>
+</CENTER>
+Graphical help is currently implemented as a separate client process, 
+scohelp, which acts as a help server for a particular display.
+Scohelp is based on Mosaic, a general-purpose networked browser written by the
+National Center for Supercomputing Applications (NCSA).
+The following sections provide the general background information necessary
+to understand the api described in this document.
+
+<H3>Summary of Terms</H3>
+Following is a summary of some the most common terminology used throughout 
+this document:
+<DL>
+<I><DT>help server</I><DD>
+General term for the client responsible for displaying help on a particular
+display, in this case scohelp.  In the current implementation there
+is only one help server per display, per machine.  
+<P>
+This should not be confused with the <I>http server</I> which is responsible
+for sending HTML documents to the scohelp (or mosaic) clients.  
+The <I>http server</I>
+will be documented as part of the scohelp functional specification.
+<P><I><DT>browser</I><DD>
+Synonymous with <I>help server</I> in the context of this document.
+<P><I><DT>viewer</I><DD>
+Synonymous with <I>help server</I> in the context of this document.
+<P><I><DT>client</I><DD>
+Refers to any Motif/X application.
+<P><I><DT>help api</I><DD>
+A programmatic interface that enables a developer to add help to 
+X/Motif applications.
+<P><I><DT>hard-coded topic</I><DD>
+A literal string representing the name of a topic within a help book.
+<P><I><DT>topic name</I><DD>
+Synonymous with <I>hard-coded topic name</I>.
+<P><I><DT>hook file</I><DD>
+A simple text file that provides a mechanism for mapping 
+hard-coded topic names to actual topics.
+<P><I><DT>help request</I><DD>
+The request sent from the client to the help server indicating which
+help topic and book to display.  The request is sent as a result
+of the user requesting help within an application (eg., via the Help
+menu).
+<P><I><DT>help book</I><DD>
+The online documentation unit that contains all the help information about
+a particular client or set of clients.  In scohelp a help book is actually
+the name of a directory that contains all of the help topics contained
+within a particular book (eg., XDeskHelp).
+<P><I><DT>help topic</I><DD>
+A help topic is the unit of documentation displayed when a user requests help.
+In scohelp, the help topic is typically a single physical file that resides 
+within the help book directory.
+<P><I><DT>help window</I><DD>
+A scohelp window, or document viewing area, that is associated with a 
+particular client.
+<P><I><DT>docServer</I><DD>
+A SCOhelp resource used by the help viewer that specifies the 
+location of help books.  By default the documentation resides on the
+local machine (in /usr/lib/scohelp).
+</DL>
+
+<H3>Help Requests</H3>
+Since context-sensitive help is provided via a separate server process,
+when this document refers to the "help api" it is really referring to
+the set of routines that enable an X client to communicate with the
+help server.  When a user requests help in a client, the help api
+is responsible for communicating this request to the server.
+Note that the descriptions provided here are meant to provide a basic
+understanding of the concepts, not a detailed technical explanation.
+Implementation and usage
+details are provided in later sections.
+
+<H4>Using Hard-coded Topic Names</H4>
+Most help systems only support the use of hard-coded,
+or literal,
+topic names.  A hard-coded topic name is essentially just a string, 
+or tag, that is associated with part of an application (such as a window
+or widget).  This tag represents the name of a valid topic in a help book.
+When a user requests help from within a client this tag, or topic name,
+is what is sent to the help server.  It is the responsibility of the 
+application programmer to associate this topic name appropriately so that when
+the user requests help a meaningful help topic is displayed
+by the help viewer.  This association is typically done through
+the use of the helpCallback facility provided by Motif.
+<P>
+Although using hard-coded topic names is fairly simple conceptually,
+there are some definite disadvantages to this approach:
+<UL>
+<LI>
+It typically requires that the application programmer "litter" the code
+with calls to help.  At the very least it requires some specific forethought
+on how to associate the topic names with the correct pieces of the application.
+The more complicated the client the more tedious this task becomes.
+<LI>
+It requires a great deal of interaction between writers and 
+programmers - both to decide where help needs to be associated and what 
+the topic names should be.  It also means that it is difficult 
+to add/change help topics after a source code freeze.
+</UL>
+
+<CENTER>
+<H2>Using Help</H2>
+</CENTER>
+There are multiple ways that a user may request help from within a client:
+<UL>
+<LI>
+Help pulldown menus
+<LI>
+Help buttons 
+<LI>
+Pressing the &lt;F1&gt; key when the mouse cursor is over the widget (or general
+context) for which help is desired
+</UL>
+<P>
+All of these methods result in a request being sent to the help 
+server indicating which help book and topic should be displayed.  
+While this request is being sent, a wait cursor should be displayed
+to provide the user with visual feedback.
+General descriptions of the behaviour the user should see in various
+situations are provided in the following sections. 
+<P>
+Note that a given client may support any, all, or none
+of the above methods.  Any deviations from the functionality described here
+should ideally be documented in the functional specification for the client
+in question (at least in the case of clients actively supported by SCO).
+Also, the behaviour described here is dependent on the online documentation
+provided.  If the online documentation is incorrect or incomplete then
+help will not work correctly.
+<P>
+The technical details about what the developer and author actually
+need to do to make this behaviour occur are provided in the sections
+below, "Adding Help to an X Client" and "Authoring Help Files".
+<H3>The Help Menu</H3>
+A Help pulldown menu is available in the menu bar of many scoclients.
+There are seven possible options to select from, although not all will
+necessarily be present in every client.  The following lists the possible
+items along with a description of the behaviour that should occur when 
+the item is selected from the Help menu:
+<DL>
+<DT>On Context<DD>
+Selecting On Context allows the user to select the context 
+for which help is desired.  The cursor is first changed to the standard
+Motif help cursor (a question mark with an arrow at the bottom indicating
+the hot spot).  The user can then select a widget within
+the client by placing the cursor over the spot of interest and clicking
+the left mouse button.  The help server should then display information
+about the particular widget (or general context) where the selection was
+made.  The level of detail displayed depends on how the documentation for
+that particular client has been written and organized.
+<P>
+If the user makes a selection outside of the client window (or in the window
+border) an error message is displayed indicating that help must
+be requested from within the application.
+<P><DT>On Window<DD>
+Selecting this item should result in the help server displaying general
+information about the window from which the selection was made. In
+scomail, for example, selecting Help On Window from the "Create Message"
+window should display general information about creating mail messages.
+<P><DT>On Keys<DD>
+Should result in the help server displaying information about the accelerator
+keys and mnemonics available in the client.
+<P><DT>Index<DD>
+Should result in the display of the Index for that particular client's 
+help book.
+<P><DT>On Help<DD>
+Selecting Help On Help should display general information about
+using the help system.  The topic displayed should probably be the same
+for all clients that are using scohelp to provide help services.
+<P><DT>Tutorial<DD>
+Results in the help server bringing up a tutorial about the client.
+<P><DT>On Version<DD>
+Causes an application-specific dialog box containing version information
+about the client to come up.  On Version is the only item in the Help menu 
+that does not result in a request being sent to the help server.
+</DL>
+<P>
+None of the Help menu items described above are required, it is up to the
+client developer to decide which options are appropriate for each client,
+and create the specified user interface in a manner consistent with other 
+X clients.
+
+<H3>Help Buttons</H3>
+Clients may provide Help buttons in dialog boxes or in place of the
+Help pulldown menu.  Pressing a Help button should cause the
+help server to display general information about the dialog box 
+or window from which the Help button was pressed.
+<H3>Using the &lt;F1&gt; Key</H3>
+The &lt;F1&gt; key provides equivalent functionality to Help On Context,
+that is, it should provide help on the specific context in which
+help is requested.  Pressing &lt;F1&gt; when the mouse pointer is
+over a widget (in a client that has focus) should
+cause help for that particular widget or general context to
+be displayed.  As with Help On Context, the level of detail 
+that is actually displayed depends on how the documentation
+for the client has been written and organized.  The primary
+difference between using &lt;F1&gt; and Help On Context 
+is that &lt;F1&gt; allows you to request help in situations where
+Help On Context can't be used (eg., requesting help for
+an item in a pulldown menu).
+<CENTER>
+<H2>The Help Server</H2>
+</CENTER>
+This section contains general information about the behaviour of the help 
+server, scohelp.
+<H3>Standalone vs. Server Mode</H3>
+When scohelp is started from the command line it is said to be
+running in <B>standalone mode</B>, when it is invoked from a client to provide 
+help it is referred to as being in <B>server mode</B>.  A scohelp client
+that is running standalone will never act as a help server.  Consequently
+if scohelp is brought up from the command line and help is then requested
+from a client, the client would start up a second scohelp process
+to act as the help server rather than attempt to attach to the first
+process.  
+On a given display there can be any number
+of standalone scohelp processes, but there should be at most one
+scohelp process acting as a help server.
+<P>
+The process command <B>ps(C)</B> will show that one of the command line
+arguments to the scohelp process is "-cshelpservermode" when it is in
+server mode.
+<H3>Management of Help Windows</H3>
+Each client process that requests help will automatically have a <B>primary
+help window</B> associated with it.  Subsequent requests for help from
+the same client process will cause the contents of the primary help window to 
+change rather than opening a new window (or replacing the contents
+of some arbitrary help window).  In addition, any other help windows
+that are created from the primary help window of a client (ie., via the 
+New Window command)
+will also be associated with that client.  When a client exits, all
+of the help windows associated with that client should automatically
+close.  
+<P>
+Selecting "Close Window" from the scohelp client will only close 
+that particular help window.  If the window that was closed
+was a primary help window for a client then subsequent help requests 
+from that client will create a new primary help window, either by
+using one of the other windows associated with the client or by
+creating a new window if no others exist.
+<P>
+It is important to note that closing the last visible help window
+will not actually cause the scohelp client to exit.  Scohelp will only exit when
+the last client connected exits.
+<H3>Topic Selection</H3>
+This section describes what actually happens when the help server
+receives a help request.
+<P>
+When the help server receives a request to open a hard-coded topic
+name it checks
+to see if an entry containing the hard-coded topic name exists
+in the hook file.  If one does exist, it attempts to
+open the topic that it maps to, otherwise it will attempt
+to open the original topic directly.
+<P>
+Most SCO clients use widget tree sums instead of the hard-coded
+topic names, but this scheme is for internal SCO use only, and is
+not supported in this API, except that the sums are communicated to
+the help server.
+<CENTER>
+<H2>Adding Help to an X Client</H2>
+</CENTER>
+The following sections provide the information necessary
+to add help to a client.  It provides general background along
+with the technical details about using the api.
+<H3>The Motif helpCallback</H3>
+The Motif helpCallback is the building block for providing help in 
+most Motif clients.  Most help requests rely on this callback to some degree.
+The helpCallback, if it exists, is automatically called by the 
+Motif toolkit when the &lt;F1&gt; key is pressed over a widget.
+Even if there is no helpCallback associated with the widget where 
+the event occurred, Motif will automatically go up the widget hierarchy
+until it either finds a widget that does have a helpCallback
+or until the widget hierarchy is exhausted.
+<P>
+This feature of Motif means that the helpCallback only needs to be
+added to certain key widgets.  For example, a helpCallback 
+could be added to the parent of the set of widgets for which you wanted to 
+provide a common help topic.   
+<H3>Help Api</H3>
+The help api provides a basic facility for sending help
+requests to the help server.  It supports the use of both hard-coded
+topic names and widget tree names, although widget tree
+names are intended for SCO internal use only
+(this api does not provide the facilities for building widget tree names).  
+<P>
+The three functions provided by this api are:
+<PRE>
+HelpStatus HelpOpen()	 Initalize data structures for communicating with server
+HelpStatus HelpDisplay() Sends requests to the help server
+HelpStatus HelpClose()	 Closes the help connection
+</PRE>
+<P>
+<H4>Initialization</H4>
+<PRE>
+#include &lt;/usr/skunk/include/scohelp/api.h&gt;
+
+HelpStatus HelpOpen(client_context, toplevel, bookdir, 
+                                  wait_cursor, error_handler)
+XtPointer       *client_context;
+Widget           toplevel;
+char            *bookdir;
+void            ((*wait_cursor)(Boolean));
+void            ((*error_handler)(char *));
+</PRE>
+<B>
+HelpOpen()
+</B>
+performs the initialization necessary for communicating with the help server.
+It returns <I>helpSuccess</I> on success and <I>helpCreateClientFailure</I>
+if the initialization fails.
+<P>
+Upon successful return from this function, the address specified by 
+<I>client_context</I> 
+will point to an allocated and initialized structure containing information 
+about the client.  The pointer to this structure is used in subsequent calls to
+<B>
+HelpDisplay()
+</B>
+and
+<B>
+HelpClose().  
+</B>
+The memory allocated for this structure is automatically free'd when
+<B>
+HelpClose()
+</B>
+is called by the client. 
+Note that <I>client_context</I> and the structure that it points to 
+should not be modified by the client.
+<P>
+<I>toplevel</I> is the widget id of the calling application's toplevel
+widget (after Xt initalization).
+NOTE:  In earlier versions of the api it was required
+that this widget be an always present, realized widget.  This is
+no longer required.
+<P>
+<I>bookdir</I> is the name of the default book used by the client
+(eg., XDeskHelp).  This value can be overriden in subsequent calls to 
+<B>
+HelpDisplay()
+</B>
+if the client needs to open multiple books.  
+<I>Ibookdir</I> is assumed to be the name of a valid help book,
+no checking is done by this routine.
+The client's default help book should
+ideally be specified via a resource named "helpBook" so that
+there is a consistent way of specifying books across the clients.
+<P>
+The name specified by <I>bookdir</I> is actually the name of
+a subdirectory where the topics contained in the client's help book
+reside.  By default, this subdirectory resides on the clients machine
+in /usr/lib/scohelp (although this can be overridden via the scohelp
+docServer resource and/or by changing DocumentRoot on the server).  
+For more information, see the section below, "Online Book Organization".
+<P>
+<I>wait_cursor</I>, if non-NULL, points to a function within the client that
+is responsible for turning the wait cursor on and off.  The <I>wait_cursor</I>
+routine is called with a value of TRUE when the client should display
+a wait cursor (eg., when waiting for a response from the help server)
+and FALSE when the client should display its default cursor.
+<P>
+<I>error_handler</I>, if non-NULL, points to a function in the client responsible
+for displaying error messages (typically in an error dialog box).
+This routine will be called with a character string containing
+the error message that should be displayed.  For example, if 
+the help server is not installed this routine would be called
+with a message indicating that the help server is not available.
+<H4>Sending a Help Request</H4>
+<PRE>
+#include &lt;/usr/skunk/include/scohelp/api.h&gt;
+
+HelpStatus HelpDisplay(client_context, bookdir, obj_type, entry)
+XtPointer        client_context;
+char            *bookdir;
+HelpObject       obj_type;
+char            *entry;
+</PRE>
+<P>
+<B>
+HelpDisplay() 
+</B>
+sends a request to the help server indicating which topic should be displayed.
+It would typically be called from a client's helpCallback. 
+<I>helpSuccess</I> is returned upon success, otherwise it returns one of:
+<I>helpBusy</I>, <I>helpStartupFailure</I>, <I>helpInvalidObject</I>, 
+<I>helpSendEventFailure</I>, or <I>helpNoBookSpecified</I> indicating that
+an error occurred while attempting to send a request.
+<P>
+<I>client_context</I> points to the data structure initialized in the
+call to 
+<B>
+HelpOpen().
+</B>
+Note that in this case the pointer to the structure is passed, not
+the address of the pointer.  
+<P>
+<I>bookdir</I>, if non-NULL, specifies the name of the book to open.
+If this value is NULL, then the default book specified in the call
+to 
+<B>
+HelpOpen()
+</B>
+will be used.  If neither name is valid the function will return
+<I>helpNoBookSpecified</I>. 
+<P>
+<I>obj_type</I> specifies what type of request is being made.  Possible
+values for this parameter include: <I>helpTopic</I> for hard-coded
+topic names and <I>helpWidget</I> for widget tree names.  
+<P>
+<I>entry</I> is a null-terminated string specifying the topic to
+be displayed.  If the request is for a hard-coded topic name,
+as specified by the <I>obj_type</I> parameter, then this parameter
+contains the literal string representing the topic name to display.
+If the request is for a widget tree name, then this argument
+contains the full pathname of the widget for which help is desired. 
+Widget trees are for internal SCO use only.
+<H4>Closing the Help Server Connection</H4>
+<PRE>
+#include &lt;/usr/skunk/include/scohelp/api.h&gt;
+
+HelpStatus HelpClose(client_context)
+XtPointer        client_context;
+</PRE>
+<P>
+<B>
+HelpClose()
+</B>
+should be called when the client wants to close all of its associated
+help windows, typically when the client exits.  
+<P>
+<I>client_context</I> points to the data structure initialized in the
+call to 
+<B>
+HelpOpen().
+</B>
+The space that was allocated for this structure in
+<B>
+HelpOpen()
+</B>
+is free'ed by this call.
+Note that in this case the pointer to the structure in passed, not
+the address of the pointer.  
+<P>
+<B>
+HelpClose()
+</B>
+always returns <I>helpSuccess</I>.
+<H4>Examples</H4>
+Following are some example code fragments of using the low-level help api:
+<OL>
+<LI>
+Initializing help within a client:
+<P>
+<PRE>
+  main()
+  {
+       XtPointer ClientInfo;
+            .
+            .
+       TopLevel = XtAppInitialize(&appContext, CLASSNAME, NULL, 0, &argc, argv,
+                                                                          NULL, NULL, 0);
+       ret = HelpOpen(&ClientInfo, TopLevel, AppData.helpBook, displayWaitCursor, errHandler);
+       if (ret != helpSuccess)
+            .
+            .
+       XtRealizeWidget(TopLevel);
+            .
+            .
+  }
+ 
+  static void
+  displayWaitCursor(on)
+  Boolean on;
+  {
+            .
+            .
+       if (on)
+             XDefineCursor(display, XtWindow(TopLevel), WaitCursor);
+       else
+             XUndefineCursor(display, XtWindow(TopLevel));
+  }
+
+  static void
+  errHandler(message)
+  char *message;
+  {
+            .
+            .
+        xm_errstr = XmStringCreateLtoR(message, XmSTRING_DEFAULT_CHARSET);
+        XtVaSetValues(errorDialog, XmNmessageString, xm_errstr, NULL);
+        XmStringFree(xm_errstr);
+
+        if (!XtIsManaged(errorDialog))
+                XtManageChild(errorDialog);
+  }
+</PRE>
+<LI>
+Displaying a specific hard-coded topic name in the default book:
+<P>
+<PRE>
+       extern XtPointer ClientInfo;
+           .
+           .
+       ret = HelpDisplay(ClientInfo, NULL, helpTopic, "ReadingMail");
+       if (ret != helpSuccess)
+           .
+           .
+</PRE>
+<LI>
+Closing the help server connection:
+<P>
+<PRE>
+  exitClient()
+  {
+        extern XtPointer ClientInfo;
+            .
+            .
+        HelpClose(ClientInfo);
+  }
+</PRE>
+</OL>
+<H4>Warnings</H4>
+This api is being provided to SCO customers with the understanding
+that it or its underlying implementation may change in the future.
+Client developers should understand that if this happens, it may
+be necessary to rework their client to be compatible with future
+versions of scohelp.
+<P>
+This api currently uses a property on the root window to prevent 
+multiple invocations of the help server from occurring.  Although
+this property is present only temporarily, if something out of
+the ordinary happens (ie., the client or scohelp dies before the
+help server comes up) this property may be left around and will
+prevent the help server from ever starting.  If help requests are failing
+silently, check for this property and remove it by using the xprop
+command as follows:
+<P>
+To check for the existence of this property:
+<P>
+<PRE>
+xprop -root | grep -y "lock"
+</PRE>
+<P>
+To remove the property:
+<P>
+<PRE>
+xprop -root -remove "_SCO_HELP_SERVER_LOCK for <host>"
+</PRE>
+<P>
+where <host> will look something like "ohlone.sco.com"
+<P>
+If you see this problem, please notify SCO.
+
+<H3>Availability</H3>
+The api described in this section is currently part of the
+<B>
+libhelp.a
+</B>
+library.  It is available for SCO Development System customers as
+a TLS and is also on Skunkworks (in /usr/skunk/lib).  
+This is not a published api, it
+is subject to change, use at your own risk.
+<CENTER>
+<H2>Authoring Help Files</H2>
+</CENTER>
+This section describes how to author help files. 
+It is primarily intended for authors responsible for writing online-help.
+<H3>Online Book Organization</H3>
+As was mentioned in an earlier section a <B>book</B> in scohelp is 
+just the name of a directory.  A <B>help topic</B> within a particular book 
+is the name of a physical file in that book directory.  
+<P>
+The default location of all books is on the local machine in /usr/lib/scohelp.  
+The docServer resource can be used to specify an alternative server.  
+The server configuration files can set DocumentRoot to some other location
+besides /usr/lib/scohelp (but all the documentation must be in the same 
+directory).  The documentation can be viewed directly using scohelp in
+Web Browser Mode.  The DocumentRoot is automatically inserted by the server.
+For example, using the default location of the topic "UsingTheDesktop" 
+in the book "XDeskHelp" could be viewed by executing Open URL and specifying:
+<PRE>
+http://localhost/XDeskHelp/UsingTheDesktop.html
+</PRE>
+on the localmachine the file can be found in
+<PRE>
+/usr/lib/scohelp/XDeskHelp/UsingTheDesktop.html
+</PRE>
+For more information on the documentation architecture, see the scohttp(ADM)
+man page.
+<H3>Hook Files</H3>
+A hook file is an optional text file that provides
+a facility for mapping hard-coded topic names to the 
+actual names of topics in books.  It allows multiple
+symbols to represent a single help topic.
+<P>
+If a hook file does exist, it must be located on the
+client machine and in the directory specified by the
+scohelp resource hookPath (by default /usr/lib/scohelp)
+in a subdirectory with the same name as the book,
+and the hookfile must have the same name as the
+book plus a ".hk" extension (eg., "XDeskHelp.hk").
+<H4>Hook File Syntax</H4>
+Each line in a hook file is a separate entry.  The first field on
+the line is the sum or topic name to be mapped.  The second field,
+separated from the first by white space, is the name
+of the actual topic (ie., file) to display.  This topic name cannot
+contain white space. A comment line can be 
+specified by starting a line with '!'.   Comments can also appear at the
+end of entries, as long as they are preceded by white space.
+A partial hook file might look as follows:
+<P>
+<PRE>
+! XDeskHelp.hk
+intro           UsingTheDesktop
+icons           DesktopIcons               Describes icons available
+mouse           ../GECG/UsingTheMouse      Describes the scomouse client
+click           ../GECG/UsingTheMouse      Describes the scomouse client
+color           Controls#ChangingPalettes  Using scocolor
+paint           Controls#ChangingPalettes  Using scocolor
+A1534898        UsingTheDesktop            SCO use only
+</PRE>
+<P>
+Because the topic names specified in the second column are the name
+of actual physical files, it is possible to use relative pathnames
+in this field to specify topics that exist in other books.  It 
+is also possible to use the "#" syntax supported in scohelp
+cross references (HREF) to refer to a section in the middle
+of a file.  
+<P>
+<B>Note
+that only relative pathnames are supported, full pathnames should
+never be used in this context.</B>
+
+<CENTER>
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<P><A HREF="index.html">
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.left.gif" ALT="">
+Return to Welcome Home Page</A> or
+<A HREF="tools.html">Continue to Browse
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.right.gif" ALT=""></A>
+</CENTER>
+</BODY>
+</HTML>

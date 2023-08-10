@@ -1,0 +1,1555 @@
+<HTML>
+<TITLE>FreeWAIS-sf</TITLE>
+<H1>FreeWAIS-sf</H1>
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT=""><P>
+<H2>freeWAIS Documentation</H2>
+<P>
+The majority of freeWAIS documents will be made available by WAIS, WWW,
+and Gopher.  Try the 
+<A HREF="http://cnidr.org/welcome.html">
+CNIDR WWW server (http://cnidr.org/welcome.html)</A> for
+the latest documents.  Now that we have some moderately stable (although
+certainly not bug-free) code, we will be spending a bit of time on
+installation documents, etc.
+<P>
+Your comments are welcome.  Please send them to freewais@cnidr.org.
+<P>
+Sample SCO implementation scripts and a <A HREF="README.SCO">README.SCO</A>
+are available. The sample SCO implementation scripts are in the source directory
+/skunkware/src/Tools/freeWAIS-sf-1.1 and are called
+indexsfftp.sh, indexsfhtml.sh and  kidsf1.1.pl.
+<P>
+What follows is taken from the freeWAIS-sf README from the source directory.
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT=""><P>
+<PRE>
+
+
+                             FreeWAIS-sf*
+
+
+                            Ulrich Pfeifer
+
+                              Tung Huynhz
+
+                          University of Dortmund
+
+                         Lehrstuhl Informatik  VI
+
+                           D-44221 Dortmund
+
+
+                           January 10, 1995
+
+
+
+                               Abstract
+
+  FreeWAIS-sf1  is an extension of the freeWAIS software provided by the the
+  Clearinghouse for Networked Information Discovery and Retrieval (CNIDR)2 .
+  The SF suf#x in the software name stands for "structured3  #elds," an indexing
+  and search feature which distinguishes this software from its predecessors.
+  It is based on the  version 0.2024 of this software but includes and enhances 
+  much of what  freeWAIS-0.35 contains.
+  Major extensions of FreeWAIS-sf include:
+
+  o  Introduction of text, date, and numeric #eld structures within a document,
+     which allows a document to be indexed using potentially overlapping #elds.
+
+  o  Support for complex Boolean searches (a query parser is integrated in the
+     server).
+
+  o  Stemming and phonetic coding may be switched on and off for each indivi-
+     dual #eld.
+
+  o  De#nition of document format and layout of the headlines are now con#-
+     gurable by a new speci#cation language based on regular expressions.  No
+     C-code must be written to index new document types.
+
+  o  Installation procedure now just requires running a sh script and answering
+     simple questions. The script is generated using the GNU  autoconf6 utility.
+     No Make#le sets for individual systems are necessary. For development pur-
+     poses, additional Imake#les are provided since the Make#les do not contain
+     dependencies
+
+  o  Support for country speci#c character sets (8-Bit)
+
+  o  Lots of bug #xes.
+
+  All changes are restricted to the indexer and server to allow existing 
+  clients to query FreeWAIS-sf databases.  Document types contained in the 
+  original distribution remain intact.  You can use FreeWAIS-sf as you would 
+  use original freeWAIS or take advantage of its enhanced features.
+
+  ________________________________________________*
+  You can get a  Postscript Versionyof this document.
+  email: pfeifer,huynh1@ls6.informatik.uni-dortmund.de
+  ftp://ls6-www.informatik.uni-dortmund.de/pub/wais/freeWAIS-sf-1.1/freeWAIS-sf-1.1.tgz
+  http://cnidr.org/welcome.html
+  Histoically the #s# meant #soundex#
+  ftp://nic.switch.ch/mirror/wais/servers/freeWAIS/freeWAIS-0.202.tar.Z
+  ftp://ftp.bio.indiana.edu/util/wais/freeWAIS-0.3.tar.gz
+  ftp://hpcsos.col.hp.com/mirrors/.hpib0/gnu/autoconf-1.10.tar.gz
+
+
+1      Supported Systems
+
+
+FreeWAIS-sf is known to compile cleanly on many different UNIX platforms, 
+particularly using the GNU C compiler. The known platforms include:
+
+
+OS                 Version        Hardware          Compiler
+____________________________________________
+A/UX              3.1                mc68040            gcc  2.5.7
+AIX                2                    0000001964      cc
+AIX                2                    0000008314      cc
+AIX                2                    0000024535      cc
+AIX                2                    000003085C      cc
+AIX                2                    0000052366      cc
+AIX                2                    0000056118      cc
+AIX                2                    0000061138      cc
+AIX                2                    0000080931      cc
+AIX                2                    0000091446      cc
+AIX                2                    0000195011      cc
+AIX                2                    0000201518      cc
+AIX                2                    0000261834      cc
+AIX                2                    0000298037      cc
+AIX                2                    0000334735      cc
+AIX                2                    0000420476      cc
+AIX                2                    0000603735      cc
+AIX                2                    0000610646      cc
+AIX                2                    0000826246      cc
+AIX                2                    0000840341      cc
+AIX                2                    0002048547      cc
+AIX                2                    0003809731      cc
+BSD/386        1.0                i386                  gcc
+BSD/386        1.1                i386                  gcc
+FreeBSD        1.1.5(RELE  i386                  gcc
+FreeBSD        1.1.5.1(RE  i386                  gcc
+HP-UX            A.09.00        9000/822          gcc  2.5.6
+HP-UX            A.09.01        9000/720          gcc  2.5.8
+HP-UX            A.09.01        9000/755          gcc  2.5.8
+HP-UX            A.09.04        9000/816          gcc  2.5.8
+HP-UX            A.09.04        9000/887          gcc  2.3.3
+HP-UX            A.09.05        9000/715          cc
+IRIX              4.0.5F          IP20                  gcc  2.5.2
+IRIX              5.2                IP19                  cc
+IRIX              5.2                IP22                  gcc  2.5.8
+Linux            1.0.8            i486                  gcc  2.5.8
+Linux            1.0.9            i486                  gcc  2.5.8
+Linux            1.1.18          i486                  gcc  2.5.8
+Linux            1.1.18          i586                  gcc  2.5.8
+Linux            1.1.33          i486                  gcc  2.5.7
+Linux            1.1.45          i486                  gcc  2.6.0
+Linux            1.1.47          i486                  gcc  2.5.8
+Linux            1.1.49          i486                  gcc  2.5.8
+Linux            1.1.50          i486                  gcc  2.5.8
+Linux            1.1.51          i486                  gcc  2.5.8
+Linux            1.1.52          i486                  gcc  2.6.0
+Linux            1.1.55          i486                  gcc  2.5.8
+Linux            1.1.57          i486                  gcc  2.5.8
+Linux            1.1.59          i486                  gcc  2.5.8
+Linux            1.1.60          i486                  gcc  2.5.8
+Linux            1.1.61          i486                  gcc  2.5.8
+Linux            1.1.62          i486                  gcc  2.5.7
+Linux            1.1.64          i486                  gcc  2.5.8
+Linux            1.1.65          i486                  gcc  2.5.8
+Linux            1.1.70          i486                  gcc  2.5.8
+OSF1              V2.0              alpha                cc
+OSF1              V2.0              alpha                gcc  2.5.4
+OSF1              V2.1              alpha                cc
+OSF1              V2.1              alpha                gcc  2.5.8
+OSF1              V2.1              alpha                gcc  2.6.0
+OSF1              V3.0              alpha                cc
+SCO OpenServer 5 3.2.v5           i486                cc
+SunOS            4.1.1            sun4c                cc
+SunOS            4.1.1            sun4c                gcc  2.5.8
+SunOS            4.1.1            sun4c                gcc  2.6.1
+SunOS            4.1.1-JL      sun4c                gcc  2.6.2
+SunOS            4.1.2            sun4                  cc
+SunOS            4.1.2            sun4                  gcc  2.5.8
+SunOS            4.1.2            sun4c                cc
+SunOS            4.1.2            sun4c                gcc  2.2.2
+SunOS            4.1.2            sun4c                gcc  2.4.2
+SunOS            4.1.2            sun4c                gcc  2.4.5
+SunOS            4.1.2            sun4c                gcc  2.5.8
+SunOS            4.1.3            sun4                  gcc  2.5.8
+SunOS            4.1.3            sun4c                cc
+SunOS            4.1.3            sun4c                gcc  2.3.3
+SunOS            4.1.3            sun4c                gcc  2.5.5
+SunOS            4.1.3            sun4c                gcc  2.5.8
+SunOS            4.1.3            sun4m                acc
+SunOS            4.1.3            sun4m                cc
+SunOS            4.1.3            sun4m                gcc  2.3.2
+SunOS            4.1.3            sun4m                gcc  2.3.3
+SunOS            4.1.3            sun4m                gcc  2.5.6
+SunOS            4.1.3            sun4m                gcc  2.5.7
+SunOS            4.1.3            sun4m                gcc  2.5.8
+SunOS            4.1.3            sun4m                gcc  2.6.1
+SunOS            4.1.3-JL      sun4c                gcc  2.5.8
+SunOS            4.1.3C          sun4m                gcc  2.5.8
+SunOS            4.1.3_Axil  sun4m                gcc  2.6.0
+SunOS            4.1.3_U1      sun4c                gcc  2.4.5
+SunOS            4.1.3_U1      sun4c                gcc  2.5.8
+SunOS            4.1.3_U1      sun4m                cc
+SunOS            4.1.3_U1      sun4m                gcc
+SunOS            4.1.3_U1      sun4m                gcc  2.4.2
+SunOS            4.1.3_U1      sun4m                gcc  2.5.7
+SunOS            4.1.3_U1      sun4m                gcc  2.5.8
+SunOS            4.1.3_U1      sun4m                gcc  2.6.0
+SunOS            5.2                sun4c                gcc  2.5.6
+SunOS            5.2                sun4m                gcc  2.5.6
+SunOS            5.3                sun4c                gcc  2.5.6
+SunOS            5.3                sun4c                gcc  2.5.8
+SunOS            5.3                sun4d                gcc  2.4.5
+SunOS            5.3                sun4d                gcc  2.5.6
+SunOS            5.3                sun4d                gcc  2.5.7
+SunOS            5.3                sun4d                gcc  2.5.8
+SunOS            5.3                sun4m                acc
+SunOS            5.3                sun4m                gcc
+SunOS            5.3                sun4m                gcc  2.4.5
+SunOS            5.3                sun4m                gcc  2.5.6
+SunOS            5.3                sun4m                gcc  2.5.7
+SunOS            5.3                sun4m                gcc  2.5.8
+SunOS            5.3                sun4m                gcc  2.6.0
+SunOS            5.3                sun4m                gcc  2.6.1
+SunOS            5.4                i86pc                gcc  2.5.8
+ULTRIX          4.2                RISC                  gcc  2.5.6
+ULTRIX          4.3                RISC                  gcc  2.5.6
+ULTRIX          4.3                RISC                  gcc  2.5.8
+ULTRIX          4.3                RISC                  gcc  2.6.1
+ULTRIX          4.4                RISC                  gcc  2.6.3
+dgux              5.4R2.10      AViiON              gcc
+dgux              5.4R2.10      AViiON              gcc  2.4.1
+
+
+This is not an exhaustive list of supported platforms but represents those 
+systems reported to the authors.  If you have ported FreeWAIS-sf to an 
+additional platform, please provide the name, OS number, and compiler used 
+to the authors for inclusion in updated release notes.
+
+
+
+2      History
+
+
+Development of FreeWAIS-sf was begun in Summer 1993 as bug #xes for 
+version 0.202 of the CNIDR distribution.  These #xes included boolean 
+operators, partial match search and phonetic indexing.  We mailed the #xes 
+to CNIDR but received no acknowledgement.  We decided to redesign the server 
+to parse the queries since we felt that boolean operations cannot be performed 
+correctly without ensuring that the query conforms to a syntax.  At the same 
+time we felt that adding C-code for indexing new document formats is too much
+to require of most data or system system administrators.  We also saw a need to 
+split up documents into a number of different #elds with possibly different 
+indexing methods.
+
+Since  feedback  from  CNIDR  was  still  missing  in  February  1994,  we  
+released  our  #rst version called freeWAIS-0.2-sf-alpha.tar.gz. This #rst 
+version used Imake#les for installation and was successfully compiled on many 
+systems. Due to #xes to installation code and numerous bug #xes 8 subsequent 
+versions (through freeWAIS-0.2-sf09-- alpha.tar.gz) were released.
+Since  this  last  alpha  version  contained  most  of  the  features  we  want
+to  implement,  we generated the #rst beta version. Many people, (namely running
+AIX and DG/UX systems) had no working imake on their machines, we added a 
+con#gure script generated by autoconf for  the  installation  procedure.   
+This  script  generates  templates  containing  system  and installation 
+information.  Simple make#les are thereby generated which allow compilation
+and installation of FreeWAIS-sf on a great variety of systems.  See the list 
+of supported systems in Section 1. This Make#les do not contain dependencies 
+of the generated #les. To recompile after changes, run make  clean then make  
+all or use Make#les generated by imake. The last beta version was  
+freeWAIS-0.2-sf-beta-05.tar.gz7 At this time we decided not to wait for CNIDR, 
+which seems mainly concerned with the Z39.50 Version 38  de#nition and 
+differentiate this version from the CNIDR products by
+________________________________________________7
+    8ftp://ls6-www.informatik.uni-dortmund.de/pub/wais/beta-05/freeWAIS-0.2-sf-beta-05.tar.gz
+     http://www.research.att.com/ wald/z3950.html
+
+dropping the -0.2- in the name.
+During July, August and September we removed some bugs in memory handling. Purify is
+now completely happy with waisindex, waissearch and waisserver.  For more
+information on some minor changes, look at sections 2.3 to 2.9.
+A couple of beta testers spent their time for porting to other systems.  From all the people
+helped us with comments, suggestions and patches (63 netters!), we would like to mention
+the following (which had a really hard time):
+
+  Eric Hagberg <hagberg@med.cornell.edu>
+  Steve Hsieh <steveh@eecs.umich.edu>
+  Douglas D. Nebert <ddnebert@usgs.gov>
+  Jean-Philippe Martin-Flatin <syj@ecmwf.co.uk>
+
+Thank you all!
+After that we be released
+
+
+                                            freeWAIS-sf-1.1
+
+
+in September 1994.
+
+
+
+Releases
+
+
+2.1      1.1
+
+Patches 1-9 for 1.0 are integrated.  Also ctypes are faster now.  Added #eld description to
+the *.src #les.
+
+
+patch001       Scandir
+
+
+
+Fixes a problem with waisindex. Indexing a database the #rst time causes core dump
+on some systems because the return value of scandir was not checked.
+
+patch002       X11R6
+
+
+Makes the x client compile with X11R6.
+
+patch003       waisserver
+
+
+
+Adds a forgotten f#ush which caused problems on some systems.
+
+patch004       xwais
+
+
+
+Fixes an "one-off" bug in qcommands.c.
+
+patch005       server security
+
+
+
+when the server accepted a connection from a client, the host_name and host_address
+variables were left as empty strings (and so never matched the entries in theDATA_SEC
+#le)! These need to be reset for each new client connection, which is what the patch
+does.
+
+patch006       long headlines
+
+
+
+Fixes a bug regarding long headlines.  This bug prevents long headlines from being
+returned using waisq, waissearch, etc.
+
+
+patch007       line numbers for format #le parsing
+
+
+
+Due to incompatibilities of #ex, the fmt #le parser always complains about syntax
+errors in line 0. This patch #xes this problem - you now will get the real line number,
+where the error occurred.
+
+patch008       unreadable #les
+
+
+
+Indexing with the '-r' option caused core dumps when encountering an unreadble
+#le.  Also encountering already indexed #les was fatal.  The patch solves this.  A
+message is printed in both cases.
+
+patch009       date in headline
+
+
+
+The date format for the headline did not work.  This patch solves most of the known
+problems with this.
+
+
+
+2.2      1.0
+
+Jae W. Chang wrote in  his article in comp.infosystems.wais9 : What happens is that scandir
+is  searching  for  #les  of  the  form  field_<db>.<field>.   If  it  exists,  then  they  are
+removed since the user speci#ed a new database to be created and new #les have to be
+created by the same name.
+This is a bug. The result from scandir should've been checked. If the result is 0 - meaning
+no #les of the above form were found - the matches array is never allocated, BUT the code
+still dereferences matches as if it were allocated thus seg fault.
+Just looking brie#y at an Ultrix man page, freeWAIS-sf will bomb on this dec as well at the
+same spot, so it's not just isolated to a "linux" quirk.
+Here's my diff:
+
+
+diff  -c  -r1.22  field_index.c
+***  1.22                1994/09/07  13:29:22
+---  field_index.c              1994/10/05  14:10:26
+***************
+***  760,776  ****
+        strcpy(path,dir);
+        strncat(path,"/",MAX_FILENAME_LEN);
+
+
+!      scandir(dir,  &matches,  rmselector,  NULL);
+!      for(i=0;matches[i];i++)  -
+!          path[strlen(dir)+1]  =  '"0';
+!          strncat(path,matches[i]->d_name,MAX_FILENAME_LEN);
+!          s_free(matches[i]);
+!          waislog(WLOG_LOW,  WLOG_INFO,  "deleting  ""%s""",  path);
+!          if  (unlink(path))  -
+!              waislog(WLOG_HIGH,  WLOG_ERROR,  "unlink  failed");
+!          "
+        "
+-      s_free(matches);
+        return(i);
+    "
+
+________________________________________________9
+     news:UiYNLx600WB_RYIYUW@andrew.cmu.edu
+
+
+---  760,777  ----
+        strcpy(path,dir);
+        strncat(path,"/",MAX_FILENAME_LEN);
+
+
+!      if  (  scandir(dir,  &matches,  rmselector,  NULL)  >  0  )  -
+!              for(i=0;matches[i];i++)  -
+!                  path[strlen(dir)+1]  =  '"0';
+!                  strncat(path,matches[i]->d_name,MAX_FILENAME_LEN);
+!                  s_free(matches[i]);
+!                  waislog(WLOG_LOW,  WLOG_INFO,  "deleting  ""%s""",  path);
+!                  if  (unlink(path))  -
+!                          waislog(WLOG_HIGH,  WLOG_ERROR,  "unlink  failed");
+!                  "
+!              "
+!              s_free(matches);
+        "
+        return(i);
+    "
+
+
+
+2.3      0.9.10
+
+     o   Support for HPUX_SOURCES added.
+
+     o   Compiler version is now reorted by udping
+
+
+
+2.4      0.9.8
+
+     o   Patch from Alberto Accomazzi,  which causes stopwords to be taken either from
+         the internal list or from the speci#ed #le.   Option -stop  /dev/null will run
+         waisindex without any stopwords.
+
+     o   Passes cc again.
+
+
+
+2.5      0.9.7
+
+     o   Removed the ANSI_LIKE de#ne in Default.tmpl.in, which caused problems in com-
+         pilation on some platforms. We will postpone the ANSI stuff.
+
+     o   Added tests for overlapping copies with bcopy() and memcpy(). If neither bcopy
+         nor memcpy can handle this, a slow but working function in cutil.c is used.
+
+     o   Support for caching the synonyms in shared memory provided by Alberto Accomazzi
+         <alberto@cfa.harvard.edu> was added. Here is what he wrote about it:
+
+         Caching is turned on by running waisserver with the #ag -cachesyn.
+
+         For those of you who have fairly large synonym #les (> 10Kb) and are running the
+         software on a machine that supports shared memory (all the UNIX boxes that I have
+         worked with do now), enabling this feature will speed up the waisserver response
+         time by a signi#cant factor.
+
+         For  those  of  you  who  do  not  have  shared  memory,  I  have  rewritten  the  memory
+         allocation part of synonym.c so that bigger memory chunks are allocated and used
+         rather than allocating memory for each word and synonym, so the code should be a
+         little faster for you too.
+
+         You can #nd a brief explanation of how caching works in the header of synonym.c.
+
+
+2.6      0.9.6
+
+     o   Added the headline #x from Marko Niinimaki. Moved all de#nes to Defaults.tmpl.
+         Removed ir/irlex.h from dist.
+
+     o   Clean the #uninitialized Memory Read# bug in waissserver.
+
+
+
+2.7      0.9.5
+
+     o   Changed numbering for versions (to make jp happy)
+
+     o   Changed con#gure code for -lsocket and -lnsl
+
+     o   Fixed the TELL_USER code again to conform to ANSI
+
+     o   Added install.lib target for the Make#les. (Only with Imake)
+
+     o   Some additions to documentation
+
+     o   Files on waisindex command line may now have extension ".gz".
+
+
+
+2.8      0.94
+
+     o   Some little #xes to make purify happy.
+
+     o   Fixed the keyword code.
+
+     o   config.h is not in the distribution any more, which was a bug.
+
+     o   The result of getenv("USER") will not break waisserver any more if NULL is returned.
+
+
+
+2.9      0.93
+
+In this version code was added to send me a UDP packet each time the INFO database gets
+re-indexed.  This should not disturb the normal operation of the server, even if the sending
+fails.   I included that to track use of the software.   You can switch this off by de#ning
+DO_NOT_TELL_ABOUT_ME in Defaults.tmpl
+
+
+
+2.10       Beta 05
+
+     o   A bug in calculation the #Total word count# has been #xed
+
+     o   Indexing and retrieval of #les compressed by the GNU gzip is now supported. If you
+         want to index a #le TEST.gz, call waisindex with the extension stripped:
+
+
+         waisindex  -t  text  -d  test  TEST
+
+
+         This worked formerly only with the standard compress command and the #.Z#
+         extension.
+
+
+3      Indexing
+
+
+If you want to index a collection of #les containing one or more documents using FreeWAIS-
+sf #rst look at the supported document type formats.  You may look at the  manual page
+of waisindex10  or type waisindex without arguments for information about supported
+document types.
+If your document object is one of the supported types, run the waisindex command with the
+t -t argument:
+waisindex  -d  index_file_root_name  -t  doc_type  object  object  : : :
+where:
+
+-d   denotes the rootname to be used for the collection of index #les and will include suf#xes
+         created by the waisindex program
+
+-t  denotes the document types supported by the waisindex command
+
+object     is the #le name of a target object to be indexed by the command.
+
+Both the -d and object speci#cations support full pathnames and default to the current
+directory if no pathnames are provided.
+If you have a document in an unsupported format or would like to split individual documents
+into #elds, you must generate two document format #les.
+First you should decide which #elds you will use, and what their name should be. Usually
+it is a good idea to provide further information about what the #elds contain or mean.  The
+#eld de#nition #le <database>.fde contains this information. Here is an example:
+
+
+py:  publication  year
+au:  author
+ti:  title
+jt:  journal  title
+ck:  citation  key
+
+
+Waisindex will put the names of the generated #elds in the server description (<database>.-
+src) it will produce if a #eld de#nition #le is encountered.
+Now comes the hard part.  You now have to generate a format #le <database>.fmt for
+your new database. Look at  the examples11  on our ftp server if the following is too obscure.
+The abstract syntax for the speci#cation #les follows:
+________________________________________________10
+  11 http://ls6-www.informatik.uni-dortmund.de/htbin/man?waisindex()
+     ftp://ls6-www.informatik.uni-dortmund.de/pub/wais
+
+
+3.1      Document Speci#cation Syntax
+
+  format              !      <record-end> regexp speclist
+  speclist            !      spec | spec speclist
+                               <#eld>         REGEXP regexp
+                                              #eld-list
+  spec                !                       options
+                                              index-specs
+                               <end>          regexp
+  options             !      2 | option options
+                               NUMERIC regexp INT
+  options             !        HEADLINE regexp INT
+                               DATE REGEXP REGEXP date date date regexp
+  index-specs         !      2 | index-spec index-specs
+  index-spec          !      index-type dicts
+  index-type          !      TEXT | SOUNDEX | PHONIX
+  dicts               !      GLOBAL | LOCAL | BOTH
+  date                !      DAY | MONTH month-spec | YEAR
+  month-spec          !      2 | STRING
+  #eld-list           !      2 | WORD #eld-list
+Now what do the index types LOCAL, GLOBAL and BOTH mean?
+Note that FreeWAIS-sf generates dictionaries and inverted #les for each #eld. If there were
+no global or default #eld for general text search one would always have to specify a #eld
+in your queries.  To avoid this inconvenience waisindex generates a default #eld which is
+used for searching if there is no #elds speci#ed. This #eld is called global, since it usually
+contains the information of some of the other #elds which the administrator assumes to be
+useful for unexperienced users.
+The contents of the index #eld are de#ned by using the keywords LOCAL, GLOBAL and
+BOTH in the #eld de#nitions.
+
+
+LOCAL         Words in this #eld are not inserted in the global database and are only retrievable
+         by #eld query.  Numeric and date #elds are particularly well suited to the use of this
+         option.
+
+GLOBAL          Words in this #eld are only inserted in the global database.  This is analogous
+         to the default free-text search of other versions of freeWAIS but allows all or part of
+         the document to be indexed for general search.  Do not specify a #eld name in this
+         case since the #eld will be empty!
+
+BOTH       Words in this #eld are inserted in both the current #eld database and the global
+         database.
+
+
+Regular expressions are used to #nd, match, and parse strings encountered in a document.
+These regular expressions are used within the .fmt #le to delimit #eld entries. For those not
+familiar with regular expressions, some conventions are provided in the following section:
+
+
+3.1.1     REGULAR EXPRESSION SYNTAX
+
+__Operator____________Meaning___________________________________
+  x                   the character "x"
+  "x"                 an "x", even if x is an operator
+  "x                  an "x", even if x is an operator
+  [xy]                the character x or y
+  [x-z]               the characters x, y or z
+  [^x]                any character but x
+  .                   any character but newline
+  ^x                  an x at the beginning of a line
+  x$                  an x at the end of a line
+  x?                  an optional x
+  x*                  0,1,2, ... instances of x
+  x+                  1,2,3, ... instances of x
+  x_y                 an x or a y
+  (x)                 an x
+  x-m,n"              m through n occurrences of x
+Note that the scanner requires an aditional level of escaping because the '/' indicates the
+end of the regular expression. So '/' must be escaped by a backslash: '"/'. If you need
+a backslash in you regexp, it must me escaped to: '""'. Since formfeed and other control
+characters are often needed '"x' for x from 'A' to 'Z' is mapped to '^x' (ctrl x, ). This
+means 'A' is subtracted from the original character.
+For example "A=^A(ctrnl  A), "B  =  ^B, : : :"J  =  "n (newline).  This is somewhat
+ad-hoc,  but  was  easy  to  implement  and  allows  users  of  limited  editors  to  enter  control
+characters in the format #le.
+Here is a #rst small example of a structured document collection to be indexed.
+
+
+3.1.2     Small example
+
+Suppost you have #les containing many documents, from which you will only index thier
+titles contained between <TI:> tags:
+
+
+<TI:>  Information  Retrieval  <:TI>
+[...]
+<TI:>  Database  Systems  <:TI>
+
+
+You format #le (.fmt) should look like this:
+
+
+<field>  /<TI:>/
+ti  TEXT  LOCAL
+<end>  /<:TI>/
+
+
+Now  that  you  have  you  format  #le  <database>.fmt,  call  waisindex  with  option  '-t
+fields'. Because the .fmt #le already begins with the index #le root name it is used by
+the FreeWAIS-sf waisindex program. The -t #elds option must have a .fmt #le present.
+Now its time to give a more complicated example:
+
+
+3.1.3     DOCUMENT SPEC EXAMPLE
+
+For an example #le like this
+
+
+CK:  Mostert/etal:89
+AU:  Mostert,  D.N.J.;  Eloff,  J.H.P.;  von  Solms,  S.H.
+TI:  A  Methodology  for  Measuring  User  Satisfaction.
+JT:  Information  processing  &  management.
+ED:  JAN-01-1994
+VO:  25
+PY:  1989
+NO:  5
+PP:  545
+^L
+CK:  Qiu:90
+AU:  Qiu,  Liwen
+TI:  An  Empirical  Examination  of  the  Existing  Models  for
+        Bradford's  Law.
+JT:  Information  processing  &  management.
+ED:  JAN-01-1994
+VO:  26
+PY:  1990
+NO:  5
+PP:  655
+^L
+
+
+the following format #le could be used:
+
+
+  <record-end>  /^L/                                 records are separated by form feeds (Cntrl-L not
+                                                     '^L' ! "L would be equivalent)
+  <layout>
+    <headline>                                       line  which  starts  with  'TI:  '  and  ends  with
+         /^TI:  /  /^[A-Z][A-Z]:/                    /^[A-Z][A-Z]:/ #rst 50 chars after 'TI:  '
+         50  /TI:  /                                 are copied to the chars 1 to 50 of the headline.
+
+    <headline>                                       line  which  starts  with  'AU:  '  and  ends  with
+         /^AU:  /  /^[A-Z][A-Z]:/                    /^[A-Z][A-Z]:/ #rst 50 chars after 'AU:  '
+         50  /AU:  /                                 are copied to chars 51 to 100 of the headline.
+
+    <date>  /^ED:  /                                 line   starts   with   /^ED:  /  /%s-%d-%d/   is
+         /%s-%d-%d/                                  sscanf_argument Month is a string (nummber by
+         month  string  day  year
+         /^ED:  [^  ]/                               default if you don't type 'string') after month
+                                                     is day, then year.  /^ED:  [^  ]/ is the begin of
+                                                     index position. <end>
+                                                     end of layout.
+    <field>  /^PY:  /                                It  is  a  numeric  #eld  of  length  4,  begin  at  #rst
+    py  <numeric>                                    number of PY, e.g if the number is 1990 then the
+    /^PY:  [^  ]/  4  TEXT  LOCAL
+    <end>  /^[A-Z][A-Z]:/                            regexp /^PY:  [^  ]/ means ^ here is the begin
+                                                     of the number (begin of line by default) indexed
+                                                     with type TEXT in the local dictionary only and
+                                                     ends  with  the  next  tag.   Note  that  matching  for
+                                                     the end tag is restricted to posintions after the skip
+                                                     regexp /^PY:  [^  ]/.  This enshures, that the
+                                                     PY: is not recognized as end tag, causing the #eld
+                                                     to be empty.
+    <field>  /^AU:  /                                #eld 'au' is indexed with types TEXT and SO-
+    au  SOUNDEX  LOCAL  TEXT  LOCAL                  UNDEX in the local dictionary.
+    <end>  /^[A-Z][A-Z]:/
+    <field>  /^CK:  /                                #eld 'ck' is indexed with type text in the local
+    ck  TEXT  BOTH                                   and the global dict.
+    <end>  /^[A-Z][A-Z]:/
+    <field>  /^TI:  /                                #eld 'ti' is indexed with type text in the local
+    ti  stemming  TEXT  BOTH                         and the global dict.  'stemming' indicate that
+    <end>  /^[A-Z][A-Z]:/                            the stemmer is to call for this #eld (no stemming
+
+                                                     by default).
+    <field>  /^AU:  /                                #eld 'au' is indexed with type text in the local
+    au  TEXT  BOTH                                   and the global dict.
+    <end>  /^[A-Z][A-Z]:/
+    <field>  /^JT:  /  /^JT:  [^  ]/                 #elds 'jt' and 'jt' are indexed with type text
+    ti  jt  TEXT  BOTH                               in the local and the global dict. The begin is at the
+    <end>  /^[A-Z][A-Z]:/                            #rst  character  after  this  regexp  /^JT:  [^  ]/
+
+                                                     (optional, begin of line by default), e.g JT: Infor-
+                                                     mation processing & management.  ^ here is the
+                                                     beginning to index.
+    <field>  /^AU:  /                                line  which  begins  with  the  regexp  /^AU:  /
+    TEXT  GLOBAL                                     should be indexed only in global dictionary.
+    <end>  /^[A-Z][A-Z]:/
+
+
+3.2      Note
+
+     o   If a separator is a empty line the regexp for this is "J.
+
+     o   The length of a headline is 100 characters. If you want to change the length of headline
+         update MAX_HEADER_LEN and MAX_HEADLINE_LEN in Defaults.tmpl.
+
+     o   Of course, you can use other options too, e.g, waisindex  -d  index_filename
+         -t  fields  -r  filename
+
+
+     o   If you want to create only one #eld, but the old #elds should not be deleted you can
+         use the option -nfields.  In the document speci#cation you must add new #elds
+         which you want to index.
+
+         Example
+
+
+           ...
+           <field>  /^AU:  /
+           names  TEXT  LOCAL  _  BOTH
+           <end>  /^[A-Z][A-Z]:/
+
+
+         Only #eld 'names' would be created.
+
+     o   If you want to specify the headline corresponding to the format de#ned, e.g.  (irlist,
+         mail_or_rmail, etc.), and don't want to use the standard #eld format for headlines you
+         must call this:
+         waisindex  -d  test  -t  fields  -t  mail_or_rmail  TEST.
+
+         The -t  mail_or_rmail option must be after the -t      fields option!
+
+
+When you have generated your format #le, run waisindex with the '-t  fields' #ag
+and see if your speci#cation works.  If the parser encounters a syntax error, there is very
+limited support for debugging the offending part of your speci#cation.
+Best way to circumvent this is to start with a very simple de#nition and try waisindex every
+now and then.
+
+
+
+4      Queries
+
+
+4.1      How can you make a search query ?
+
+4.1.1     QUERY SYNTAX
+
+  query                !      expression
+  expression           !      term
+                              expression OR term
+                              expression term                           OR may be ommited
+  term                 !      factor
+                              term AND factor
+                              term NOT factor                           NOT really means AND NOT
+  factor               !      word
+                              ( expression )
+                              #eld = ( s_expression )
+                              #eld = word
+                              #eld = phonix_soundex word                phonix or soundex search
+                              #eld = = word                             for numeric #elds
+                              #eld < word
+                              #eld > word
+  same as above, but no #eld spec is allowed, since one is given already
+  s_expression         !      s_term
+                              s_expression OR s_term
+                              s_expression s_term
+  s_term               !      s_factor
+                              s_term AND s_factor
+                              s_term NOT s_factor
+  s_factor             !      WORD
+                              ( s_expression )
+
+
+
+4.1.2     QUERY EXAMPLES
+
+  information  retrieval                                         free text queries
+  information  OR  retrieval                                     same as above
+  ti=information  retrieval                                      information must be in the title
+  ti=(information  retrieval)                                    one of them in title
+  ti=(information  OR  retrieval)                                one of them in title
+  ti=(information  AND  retrieval)                               both of them in title
+  ti=(information  NOT  retrieval)                               #information# in title and #retrieval# not
+                                                                 in title
+  py==1990                                                       numeric equal
+  py<1990
+  py>1990
+  au=(soundex  salatan)                                          soundex search matches eg. #Salton#
+  ti=('information  retrieval')                                  literal search
+  ti=(information  system*)                                      partial search
+The use of capital letters for the Boolean operators is not required but is provided in this
+example for clarity. All search matching is case-insensitive.
+
+
+
+5      Weighting
+
+
+Here is an excerpt of the corresponding smart routine:
+The documents would be presented by term vectors of the form
+
+
+                                     D = (t0 ; wd0 ; t1 ; wd 1; :::; tt; wdt )
+
+
+where each tk  identi#es a content term assigned to some sample document and wdk  repres-
+ents the weight of term tk  in Document D (or query Q). Thus, a typical query Q might be
+formulated as
+                                     Q = (q0 ; wq0 ; q1 ; wq 1; :::; qt; wqt )
+
+where qk  once again reprents a term assigned to query Q. The weights could be allowed to
+vary continuosly between 0 and 14, the higher weight assignments near 1 being used for the
+most important terms, whereas lower weights near 0 would characterize the less important
+terms. Given the vector representation, a query-document similarity value may be obtained
+by comparing the corresponding vectors, using for example the conventional vector product
+formula
+                           similarity(Q; D) = sum(wqk  * wdk ); k = 1tot:
+
+Three factors important for term_weighting:
+
+    1.   term frequency in individual document (recall)
+
+    2.   inverse document frequency (precision)
+
+    3.   document length (vector length)
+
+Term frequency component used:  new _wgt  =  0:5 + 0:5 * tf =max_tf  augmented nor-
+malized term frequency (tf  factor normalized by maximum tf  in the vector, and further
+normalized to lie between 0:5 and 1:0).
+Collection frequency component used: 1:0 no change in weight; use original term frequency
+component.                    p   __________________P
+Normalization component used:         new _wgt2      = vector _length.
+Thus, document term weight is: wdk  = new _wgt=vector _length
+By query term weighting, it is assumed that tf is equal to 1. So that wqk  = 1.
+
+
+
+5.1      Document term weighting by standard Boolean formulations
+
+Given queries "AorB", "AandB", and "AnotB" (A and-not B), a document X with weights
+dA (X ) and dB  (X ) for terms A and B. The retrieval values are:
+
+     o   dA (X ) + dB  (X ) for query (AorB)
+
+     o   min(dA (X; dB  (X ) for query (AandB)
+
+     o   min(A; 1 - dB  (X )) for query (AnotB(Aand - notB))
+
+Note: If you use these new formula the inverted #les (.inv) will have a new structure.
+
+
+5.1.1     Term weighting in wais
+
+
+
+               wdk  = ((log(tf ) + 10) * idf )=number _of _terms_in_a_document
+
+
+     o   tf = term frequency. Initially is tf = 5.
+
+     o   idf = 1/term_frequency_in_the_collection
+
+
+5.1.2     Disadvantages
+
+     o   For example a database consists of 10 documents. A term which occurs 10 times in a
+         document has the idf = 1/10. The same term which occurs in 10 documents has also
+         idf = 1/10. One can say in both cases the term has the same relevance. This may not
+         be correct.
+
+     o   The normalization factor is not the weight of each term in the document but number
+         of terms in a document.
+
+
+
+6      Installation
+
+
+Just run the configure script in the Distribution. If you have a working imake on you
+system, enter xmkmf  -a now.
+Then type:
+
+make
+         to build the system and run the tests
+
+make  install
+         to install binaries and scripts
+
+make  install.man
+         to install the manual pages only with imake.  The default Make#les install them with
+         make  install
+
+make  install.lib
+         to install the libraries only with imake.
+
+make  clean
+         removes object #les, libraries, backups, : : :
+
+make  veryclean
+         removes #les generated by #ex, bison, dvips, latex
+
+
+
+7      FreeWAIS-sf and WWW
+
+
+Linking was tested with:
+
+
+     o   NCSA Mosaic 2.4
+
+     o   Tuebingen Univ Mosaic 2.4.2
+
+     o   CERN httpd 3.0
+
+
+
+7.1      freeWAIS-sf and CERN httpd
+
+Direct WAIS access for CERN httpd 3.0 is easy to provide with freeWAIS-sf 1.1. The only
+thing you need to do is rename the WAIS libraries in CERN httpd Make#le's.
+If you're a lucky guy and your system supports imake, you need to:
+
+
+     o   Retrieve  Rainer Klute's Imake extension to CERN httpd 3.012
+
+     o   Replace WWW.cf in the top-level directory with this code in Appendix A
+
+     o   Update the location of your freeWAIS-sf code in WWW.cf (variable WAISDIR)
+
+
+If your system doesn't support imake, you need to update manually the WAIS libraries in
+the Make#le pertaining to your architecture and the top-level Make#le.  And think about
+how easy life would be if only you had imake.
+Enjoy
+Jean-Philippe (syj@ecmwf.co.uk)
+There is also a CGI Gateway especially suited for FreeWAIS-sf  which enables usage of
+Mosaic forms for searching.   See the   SFgate Documentation and Demos13  on our http
+server.
+
+
+
+8      FreeWAIS-sf and gopher 2.1.1 (by Steve Hsieh)
+
+
+Files used:
+
+gopher2_1_1.tar.Z
+freeWAIS-sf-1.0.tgz
+
+
+Changes made to the distribution:
+
+
+Apply patches 1-6,8-9 (not 7) to the original freewais-sf-1.0 source tree.  You may or may
+not want to apply all of them.   Patches available in the pub/wais directory on ftp://ls6-
+www.informatik.uni-dortumund.de
+
+
+SPECIAL NOTES:
+
+Linux:     you must at least apply patch001
+
+Solaris:     do not apply patch005
+________________________________________________12
+  13 ftp://ftp.germany.eu.net/pub/infosystems/www/cern/WWW-Imake.tar.gz
+     http://ls6-www.informatik.uni-dortmund.de/SFgate/SFgate
+
+
+
+How to    in gopher2_1_1/gopherd/Make
+replaced original SFWAISOBJ with:
+
+
+(linux):
+
+
+
+         SFWAISOBJ              =  ../regexp/libregexp.a  ../ir/libinv.a  ../ir/libclient.a  "
+                                            ../ir/libwais.a  ../ir/liblocal.a  ../ir/libsig.a  "
+                                            ../ui/source.o  ../lib/libftw.a
+
+
+
+(solaris & SunOS):
+
+
+
+         SFWAISOBJ              =  ../ir/libinv.a  ../ir/libclient.a  ../ir/libwais.a  "
+                                            ../ir/liblocal.a  ../ir/libsig.a  ../ui/source.o  "
+                                            ../regexp/libregexp.a  ../lib/libftw.a
+
+
+in gopher2_1_1/gopherd/waisgopher.c: change
+
+                MIN(
+
+to
+
+                MINIMUM(
+
+run con#gure in freeWAIS-sf-1.0
+For the following con#gure questions, 'required' means that I had to use that value to get
+gopher to work with freewais-sf. 'doesn't matter' means that the decision is up to you...
+
+
+Do  you  want  to  use  your  systems  regexp.h  (no)?    no  <--  required
+Will  you  have  HEADLINE  files  greater  than  16  MB  (no)?      no  <--  doesn't  matter
+Use  your  systems  ctype  (no)?        yes  <--  required
+Do  you  want  to  compile  with  -DLOCAL_SEARCH  (yes)?              yes  <--  required
+Do  you  want  to  use  the  modified  URL  handling  (no)?            no  <--  doesn't  matter
+Where  should  the  installation  go  (/usr/local/wais)?  (specify  your  own  path)
+Do  you  want  to  use  shm  cache  (no)?            no  <--  doesn't  matter
+Disable  the  UDP  packet  sending  (no)?        no  <--  doesn't  matter
+
+
+make freewais-sf-1.0 : : :
+create symbolic links to in gopher2_1_1 to the appropriate freewais-sf directories...
+In gopher2_1_1:
+
+ln  -s  ../freeWAIS-sf-1.0/ir
+ln  -s  ../freeWAIS-sf-1.0/ui
+ln  -s  ../freeWAIS-sf-1.0/lib
+ln  -s  ../freeWAIS-sf-1.0/regexp
+
+Edit gopher2_1_1/Makefile.conf  gopher2_1_1/conf.h as necessary for your
+system and site.
+Make sure to uncomment -DFREEWAIS_SF in Makefile.conf !
+make gopher...
+In the case of an index type not recognized error, test an index on an database that has been
+reindexed using the newly compiled waisindex in freeWAIS-sf-1.0/ir (as opposed
+to gopherindex) just to make sure that there really still is a problem...
+
+
+
+9      FreeWAIS-sf and gopher 2.016 (by Steve Hsieh)
+
+
+Here  are  the  changes  that  I  made  to  get  freewais1.0  and  gopher2.016  running  happily
+together the way we wanted:
+
+
+     o   The important freewais-sf con#gure options (questions below with no value can take
+         on a value of your choice):
+
+
+             use  your  systems  regexph.h?  (no)          <--  necessary  for  gopher  to  work
+             headlines  >  16MB?  (yes)
+             use  systems  ctype?  (yes)                      <--  necessary  for  gopher  to  work
+             compile  with  -DLOCAL_SEARCH?  (yes)       <--  necessary  for  gopher  to  do  local  searches
+             modify  URL?
+             install  where?
+             use  shm  cache?
+             disable  UDP  packet  sending?
+
+
+
+     o   make freewais-sf
+
+     o   cd to freeWAIS-sf-dir/ir and type, ar  cq  sfextra.a  query_y.o  field_y.o
+         query_l.o. Some systems need a call of ranlib: ranlib  sfextra.a.
+
+     o   cd to freeWAIS-sf-dir/bin and type,
+
+
+         ln  -s  ../regexp/libregexp.a  regexp.a
+         ln  -s  ../lib/libftw.a  libftw.a
+
+
+     o   Create ui, ir, and bin symbolic links in gopher source directory to corresponding
+         ui, ir, and bin dirs in freewais-sf-dir as instructed in gopherd installation docs
+         regarding wais.
+
+     o   Apply  this patch14  to the gopher-dir/gopherd directory.  Instructions on how to do
+         this are included with the #le.
+
+     o   make gopher
+
+
+That's all there is to it...
+
+
+
+Contents of patch #le
+
+Below, I have summarized (in words) the changes that the patch above makes to #les in
+gopher-dir /gopherd.  Please use the patch to make the actual changes, as there may be
+typos or other kinds of errors below...
+
+     o   in gopher-dir/gopherd/waisgopher.c Between the two lines
+
+
+                readSearchResponseAPDU(&query_response,  response_message  +
+         HEADER_LENGTH);
+
+                display_search_response(query_response,  server_name,  service,  database,
+         SourceName,  sockfd,  view,  isgplus);
+
+
+         added:
+
+
+                LOGGopher(sockfd,  "search  %s  for  %s",  database,  keywords);
+
+
+         Also replaced:
+________________________________________________14
+     ftp://ls6-www.informatik.uni-dortmund.de/pub/wais/gopher2.016.patch.gz
+
+
+
+                             MIN
+
+
+    with
+
+
+                             MINIMUM
+
+
+o   in gopher-dir/gopherd/Make  Commented out existing WAISOBJ and re-
+    placed with:
+
+
+        WAISOBJ  =  ../ir/libinv.a  ../ir/libclient.a  "
+                        ../ir/libwais.a  $(WAISGATEOBJ)  "
+                        ../bin/regexp.a  ../ir/libinv.a  "
+                        ../ir/sfextra.a  ../bin/regexp.a  ../bin/libftw.a
+
+
+o   For Path=7/indexdir/index to work in .links #les, we could do this by
+    changing the openDatabase call Waisindex.c from
+
+
+           db  =  openDatabase(new"_db"_name,  false,  true);
+
+
+           db  =  openDatabase(new"_db"_name,  false,  true,  false);
+
+
+    But booleans don't work when we do this...so instead, we modify the following #les:
+
+o   In gopher-dir/gopherd/gopherd.c:
+
+    Replace
+
+
+           case  '7':
+                   /***  It's  an  index  capability  ***/
+                   result  =  GDCCanSearch(Config,  CurrentPeerName,  CurrentPeerIP,
+                                                      NUMgopherds);
+
+                   if  (result  ==  SITE_NOACCESS)  -
+                           Abortoutput(sockfd,  GDCgetBummerMsg(Config));
+                           LOGGopher(sockfd,  "Denied  access  for  %s",  Selstr+1);
+                           break;
+                   "  else  if  (result  ==  SITE_TOOBUSY)  -
+                           Abortoutput(sockfd,  "Sorry,  too  busy  now...");
+                           break;
+                   "
+
+                   Do_IndexTrans(sockfd,  Selstr+1,  cmd,  TRUE);
+
+                   break;
+
+
+    with:
+
+
+           case  '7':
+           -
+                   int  Index_type=0;
+
+                   /***  It's  an  index  capability  ***/
+                   result  =  GDCCanSearch(Config,  CurrentPeerName,  CurrentPeerIP,
+                                                      NUMgopherds);
+
+                   if  (result  ==  SITE_NOACCESS)  -
+                           Abortoutput(sockfd,  GDCgetBummerMsg(Config));
+                           LOGGopher(sockfd,  "Denied  access  for  %s",  Selstr+1);
+                           break;
+                   "  else  if  (result  ==  SITE_TOOBUSY)  -
+                           Abortoutput(sockfd,  "Sorry,  too  busy  now...");
+                           break;
+                   "
+
+
+
+                   /*  see  if  index  is  type  1,  which  is  a  wais  index  */
+                   Index_type  =  Find_index_type(Selstr+1);
+
+                   if  (Index_type  ==  1)
+                       -
+                           char  waisfname[512];   /***  Ick  this  is  gross  ***/
+
+                           strcpy(waisfname,  Selstr+1);
+                           if  (strlen(waisfname)  <=  4  __
+                                  strncmp(&waisfname[strlen(waisfname)-4],".src",4)  )
+                                   strcat(waisfname,  ".src");
+                           SearchRemoteWAIS(sockfd,  waisfname,  cmd,  view);
+                        "
+                   else
+                       -
+                          Do_IndexTrans(sockfd,  Selstr+1,  cmd,  TRUE);
+                       "
+
+                   break;
+           "
+
+
+o   Then for mindex searches to work,  edit gopher-dir/gopherd/mindexd.c and
+    comment out:
+
+
+                   if  (strcmp(slaves[i].host,  "localhost")  ==  0  __
+                          strcasecmp(slaves[i].host,  Zehostname)   ==  0)  -
+                           CMDsetSelstr(cmd,  GSgetPath(gs));
+                           CMDsetSearch(cmd,  queryline);
+                           CMDsetGplus(cmd,  FALSE);
+
+                           Do_IndexTrans(sockfd,  slaves[i].pathname+1,  cmd,  FALSE);
+                   "  else  -
+
+
+    I also commented out the associated closing } with that paragraph a little over 30
+    lines down.
+
+o   In function do_mindexd(sockfd,  config_filename,  search,  isgplus,
+    view): Between the two lines
+
+
+           HandleQuery(sockfd,  search);
+           close(sockfd);
+
+
+    added:
+
+
+           LOGGopher(sockfd,  "mindex  search  using  %s.mindex  for  %s",
+    config_filename,
+    search);
+
+
+    There is also a bug in gopher-dir/gopherd/waisgopher.c As it stands, if you
+    do a search using Path=waissrc:..., and search is empty, server does not return
+    a '.', leaving old clients hanging
+
+    To #x, found the line (near or on line 557)
+
+
+           writestring(sockfd,  "."r"n");
+
+
+    and moved it to after the second to last curly brace of that procedure call.  In other
+    words, at the end of this procedure:
+
+
+
+                            Mydisplay_text_record_completely(  info->Text[k++],  false,  sockfd);
+                                "
+                        "
+                "
+         "
+
+
+         became
+
+
+                            Mydisplay_text_record_completely(  info->Text[k++],  false,  sockfd);
+                                "
+                        "
+                "
+                writestring(sockfd,  "."r"n");
+         "
+
+
+     o   Some additional enhancements to gopher-dir/gopherd/mindexd.c were made
+         as well to make it more robust and handle connections that time out.  They are not
+         documented here; see the patch for details.
+
+
+
+10        Special needs
+
+
+10.1       Increasing the index block size (by Steve Hsieh)
+
+In order to increase the index block size, so that words that appear many many times are
+indexed:
+
+
+     o   In freewais-sf-dir/ir/irfiles.h change
+
+
+              #else
+              #define  INDEX_BLOCK_SIZE_SIZE  2
+              #endif
+
+
+         to
+
+
+              #else
+              #define  INDEX_BLOCK_SIZE_SIZE  3
+              #endif
+
+
+     o   In freewais-sf-dir/ir/server.h change
+
+
+                        #define  BUFSZ  100000          /*  size  of  our  comm  buffer  */
+
+
+         to
+
+
+                        #define  BUFSZ  1000000        /*  size  of  our  comm  buffer  */
+
+
+     o   In freewais-sf-dir/ui/waissearch.c Change
+
+
+                        #define  MAX_MESSAGE_LEN  100000
+
+
+         to
+
+
+                        #define  MAX_MESSAGE_LEN  BUFSZ
+
+
+         The last step will be obsolet in version > 1:0.
+
+
+
+11        TODO
+
+
+Here is a somewhat adhoc list of things to #x and features to add:
+
+
+X11R6       Some might have noticed that the X clients do not (yet) compile with the new X11
+         release. Porting should not be too dif#cult for someone with some X11 Knowledge
+
+ANSI      Code currently does not pass a strikt ANSI Compiler.  We intend to switch to the
+         Prototyping scheme known from the WWW library:
+
+
+         #ifdef  __STDC__
+         #define  ARGS1(t,a)  "
+                                  (t  a)
+         #else   /*  not  ANSI  */
+         #define  ARGS1(t,a)  (a)  "
+                                  t  a;
+         #endif  /*  __STDC__  (ANSI)  */
+
+
+waisindex BUGS
+
+
+
+         #lenames      Waisindex has still problems with #lenames.  E.g.  #les with apostophes
+                or asterics in them are not handled properly.  Filenames with wildcards may
+                enter the #lename table despite the fact, that they do not exists.
+
+         -a   The -a #ag is not handled properly. Adding a #le, which contains only a subset
+                of the declared #elds causes the other #elds to be ignored by the server until a
+                #complete# document is added.
+
+Compressed Indexes             There are several know methods for compressing inverted #les which
+         could save us disc space and signi#catly improve search speed.
+
+Spatial Indexes        (Notes from Doug Nebert)
+
+         We would like to add a #eld type into the SF software which would allow for the
+         parsing of and indexing of geographic coordinates that describe the outline of a data
+         set or document.  Software has been written outside of SF to do the parsing (using
+         #ex), and the indexing and overlay routines have been included into the freeWAIS-0.3
+         code.  Now we need to integrate the code so that we can perform full #eld searching
+         of text, dates, numbers, and geography in one indexing system.
+
+Forms      (Notes from Doug Nebert)
+
+         It seems to me that if the SF crowd can consistently use the .fde #le incorporated into
+         the available .src #le that a functionality like "explain" can be developed to allow the
+         client to determine what attributes are being used and formulate a query window to
+         match it.  probably easier would be to have a "form" resource #le which could be
+         retrieved from the server (e.g. query.html) by a "smart" http client...
+
+Relevance Feedback            Notice, that the thing build in freeWAIS* is not #Relevance Feed-
+         back#. It is rathersome kind of query expansion. Real Relevance Feedback is proved
+         to produce much more effective ranking.
+
+update      (Notes from Marc Edgar)
+
+         How about having a script that could automatically update a the database.  That is, a
+         record would be kept of which #les were in the database.  This record (.rec or some
+         such) could be used instead of having to remember or #nd the command that created
+         it. That is, it would support something like,
+
+
+                      waisindex  -update  filename.rec
+
+
+
+         to rebuild the database.
+
+format #les       (Notes from Marc Edgar)
+
+         Programs like this become immortal when they do not take any special knowlege to
+         use. Format #les for common data types would make FreeWAIS-sf more accessible.
+         Maybe you've already done this but format #les like, FAQ.fmt, email.fmt, usenet.fmt
+         would be very helpful,  (and probably not that hard to write.)   Maybe creating an
+         incoming directory on your ftp server would be useful, so that users could post their
+         .fmt #les and save you from having to do the work.
+
+Z39.50 V2       (Notes from Doug Nebert)
+
+         It seems that the functionality you have provided matches very well the basic abilities
+         of Z39.50 V2 and V3 in terms of #elds and search.  If there were a way to identify
+         registered attributes then the construction of a gateway from ZDIST to an FreeWAIS-
+         sf store of data would be possible, allowing people to keep their data in one format
+         and serve the V1 and non V1 communities.
+
+         My  thoughts  regarding  a  linkage  between  FreeWAIS-sf  and  a  full  Z39.50  V2-3
+         release such as ZDIST were to provide a link into the new capabilities and other
+         "compliant" clients out there.  But I think much of the API work could be done with
+         the help of CNIDR personnel # their "linkage" back into freeWAIS-0.3 disabled some
+         of the functionality whereas FreeWAIS-sf is more on the same level of sophistication
+         as V2 and should be easier to connect to. If such a connection can be made it would
+         allow  you  all  to  maintain  and  enhance  the  existing  code  and  have  some  partners
+         out here work on maintaining the API connection, taking the load off you except in
+         consultation : : :
+
+Fields    Note from Alberto Accomazzi (Darin McKeever proposed similar features).
+
+         First of all,  when indexing the documents,  the user should be able to specify the
+         following for each #eld to be indexed:
+
+
+             o  minimum word length
+
+             o  set of characters composing the terms # i.e. the delimiter set
+
+             o  synonym #le
+
+             o  stopword #le
+
+         This could be done by allowing the entries in the format #le to look like:
+
+
+                     <field>  /^Authors:  /
+                     au  TEXT  BOTH  minchars  2  word  /[^  ;"n=()]+/
+                            stop  abstracts_field_au.stop  syn  abstracts_field_syn.syn
+                     <end>
+
+
+         Other things such as headline length should be speci#able in the .fmt #le as well.
+
+Documentation           Counting the mails I receive every day leads to the conclusion that there
+         is a lack of documentation.
+
+         man    The online manuals are out of date.
+
+         document specs         Many people have dif#culties in building document speci#cations.
+                Either there should be a nicer input format or someone should provide a compiler
+                (+checking and testing?) for some prettier speci#cation format.
+
+         other systems       There  should  be  more  info  on:  How  do  i  use  FreeWAIS-sf  with
+                Gopher, Mosaic, httpd, perl, : : :
+
+         : : :
+
+</PRE>
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT=""><P>
+<A HREF="/skunkware/index.html">
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.left.gif"
+ALT="">
+Return to Welcome Home Page</A> or
+<A HREF="/skunkware/tools.html">
+Continue to Browse
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.right.gif"
+ALT=""></A>
+</HTML>

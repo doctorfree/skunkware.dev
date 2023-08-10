@@ -1,0 +1,556 @@
+<HTML><HEAD>
+<!-- Version: @(#) LangRef.html 1.3 -->
+<!-- Copyright (C) 1995 IXI Limited -->
+<TITLE>Object Tcl - Language Reference</TITLE>
+<LINK rev="Made" href = "mailto:otcl@x.co.uk">
+<LINK rel="Contents" href="cover.html">
+<LINK rel="Next" href="BindingRef.html">
+<LINK rel="Previous" href="LangRef.html">
+</HEAD><BODY>
+
+<IMG SRC="ObjectTcl.gif">
+
+<H2>Contents</H2>
+
+<UL>
+	<LI><a href="#Classes">Classes</a>
+	<UL>
+		<LI><a href="#Interface">Class Interface</a>
+		<LI><a href="#Implementation">Class Implementation</a>
+		<LI><a href="#Inheritance">Inheritance</a>
+		<LI><a href="#Attributes">Attributes</a>
+		<UL>
+			<LI><a href="#This">This</a>
+			<LI><a href="#AttributeNaming">Naming</a>
+			<LI><a href="#AttributeAccess">Access</a>
+			<LI><a href="#AttributeArrays">Arrays</a>
+		</UL>
+		<LI><a href="#Methods">Methods</a>
+		<UL>
+			<LI><a href="#MethodNaming">Naming</a>
+			<LI><a href="#Unknown">Unknown</a>
+			<LI><a href="#Dynamic">Dynamic Binding</a>
+			<LI><a href="#PubAndPriv">Public &amp; Private</a>
+			<LI><a href="#Constructors">Constructors</a>
+			<LI><a href="#Destructors">Destructors</a>
+			<LI><a href="#Invocation">Invocation</a>
+			<LI><a href="#Results">Results</a>
+		</UL>
+	</UL>
+	<LI><a href="#Objects">Objects</a>
+	<UL>
+		<LI><a href="#Constructing">Constructing</a>
+		<LI><a href="#Destructing">Destructing</a>
+	</UL>
+</UL>
+
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT=""><P>
+<a name="Classes"><H2>Classes</H2></a>
+
+<P>In Object Tcl, a class describes the behavior and state information 
+common to a particular collection of objects. Objects are of a particular
+class in the same way as variables are of a particular type.
+
+<P>Objects are created by instantiating a class and specifying its initial
+creation parameters.
+
+<P>There are two parts to the description of a class.
+The first part is the <a href="#Interface">class interface</a> 
+which is a description of the class
+with respect to the outside world. 
+The second part is the <a href="#Implementation">class implementation</a>
+which is the description of how the behavior of the class is implemented.
+
+<a name="Interface"><H3>Class Interface</H3></a>
+
+<P>The command:
+
+<PRE>otclInterface <VAR>name ?-isA classlist? body</VAR></PRE>
+
+<P>provides a new class interface description.
+
+<P>The <VAR>name</VAR> parameter specifies the name of the new class.
+
+<P>The <var>-isA classList</var> parameter is optional and may be used to specify 
+class <a href="#Inheritance">inheritance</a>.
+The <var>classList</var> must be a list of names of classes 
+that have already been fully described to the Object Tcl interpreter, or built-in 
+<a href="BindingRef.html">C++ classes</a>. No name may be repeated in the list
+of classes.
+
+<P>The <var>body</var> parameter is a Tcl script that describes the interface
+of the new class. Within the body script, the following commands may be used:
+
+<dl>
+
+<dt><code>constructor <var>argList</var></code>
+
+<dd>This command describes the interface of the <a href="#Constructors">
+constructor method</a> 
+for the class in question. The <var>argList</var> parameter specifies a 
+list of arguments for the constructor. Default values may be specified. 
+
+<p>
+
+<dt><code>method <var>name argList</var></code>
+
+<dd>This command describes the interface of an
+<a href="#Methods">instance method</a> 
+for the class in question. The <var>argList</var> parameter specifies a list 
+of arguments for the instance method. Default values may be specified.
+
+<p>
+
+<dt><code>classMethod <var>name argList</var></code>
+
+<dd>This command describes the interface of a <a href="#Methods">class method</a>
+for 
+the class in question. The <var>argList</var> parameter specifies a list of
+argments for the class method. Default values may be specified.
+</dl>
+
+<P>All methods described in the class interface section, class or instance,
+are <a href="#PubAndPriv">public</a>.
+
+<a name="Implementation"><H3>Class Implementation</H3></a>
+
+<P>The command:
+
+<pre>otclImplementation <var>name body</var></pre>
+
+<P>provides the class implementation description. 
+
+<P>The <var>name</var> parameter specifies the name of the class that
+this command is providing
+the implementation for. The class named must be a class that has
+previously had its class interface specified using the 
+<a href="#Interface">otclInterface</a>
+command and has not had its class implementation specified.
+
+<P>The <var>body</var> parameter is a Tcl script that describes the implementation
+of the 
+class. Within the <var>body</var> script, the following commands may be used:
+
+<dl>
+
+<dt><code>constructor <var>argList parentList body</var></code>
+
+<dd>This command describes the implementation of the 
+<a href="#Constructors">constructor method</a>.
+The <var>argList</var> parameter specifies the arguments 
+to the constructor, the <var>parentList</var> parameter describes the
+construction of the parent classes and the <var>body</var> parameter is a Tcl
+script 
+that describes the body of the constructor.
+
+<p>
+
+<dt><code>destructor <var>body</var></code>
+
+<dd>This command describes the implementation of the
+<a href="#Destructors">destructor  method</a>.
+The <var>body</var> parameter is a Tcl script that describes 
+the body of the destructor.
+
+<p>
+
+<dt><code>method <var>name argList body</var></code>
+
+<dd>This command describes the implementation of an 
+<a href="#Methods">instance method</a>.
+The <var>name</var> parameter specifies the name of the method, the 
+<var>argList</var> specifies the arguments accepted by the method and the 
+<var>body</var> is a Tcl script that describes the body of the method.
+
+<p>
+
+<dt><code>classMethod <var>name argList body</var></code>
+
+<dd>This command describes the implementation of a 
+<a href="#Methods">class method</a>. 
+The <var>name</var> parameter specifies the name of the method, the 
+<var>argList</var> specifies the arguments accepted by the method and the 
+<var>body</var> is a Tcl script that describes the body of the method.
+
+<p>
+
+<dt><code>attribute <var>name ?value?</var></code>
+
+<dd>This command describes an 
+<a href="#Attributes">instance attribute</a>. The <var>name</var> 
+parameter specifies the name of the attribute and the optional <var>value</var> 
+parameter specifies the value to initialize the attribute with when an 
+instance is created.
+
+<p>
+
+<dt><code>classAttribute <var>name value</var></code>
+
+<dd>This command describes a
+<a href="#Attributes">class attribute</a>. The <var>name</var>
+parameter specifies the name of the attribute and the <var>value</var> parameter 
+specifies the value to initialize the attribute with when the
+otclImplementation command has completed.
+</dl>
+
+<a name="Inheritance"><H3>Inheritance</H3></a>
+
+<P>An Object Tcl class may use the <var>-isA classList</var> option in the 
+<a href="#Interface">otclInterface</a> command to specify class inheritance.
+Object Tcl supports 
+single and multiple inheritance. Object Tcl classes may inherit from other 
+Object Tcl classes or built-in 
+<a href="BindingRef.html">C++ classes</a>.
+
+<P>Object Tcl classes may only inherit from other Object Tcl classes that have
+had both their interface and implementation successfully described.
+
+<P>Multiple inheritance of a single root class results in tree inheritance
+rather than lattice. Object Tcl does not provide an equivalent to the C++
+virtual base classes. 
+
+<a name="Attributes"><H3>Attributes</H3></a>
+
+<P>Attributes are used to record state information within classes and objects. 
+There are two types of attribute: instance and class. Instance attributes have 
+separate instantiations for each object of that class. Each object may alter
+its 
+instance attributes independently of any other object of that class. Class 
+attributes have only one instance that is shared by all objects of that class.
+
+<P>Both instance and class attributes are private in that they are not
+accessible 
+from outside the class, only from within the class by class or instance method 
+bodies.
+
+<P>Both instance attributes and class attributes may have an initial value
+specified. For class attributes, the initial value is mandatory. Instance attributes are
+initialized with 
+their initial value or "" before the 
+<a href="#Constructors">constructor</a> for that class is executed.
+Class attributes are initialized with their initial value when
+the
+<a href="#Implementation">class implementation</a> description is complete.
+
+<a name="This"><H4>This</H4></a>
+
+<P>An implicit instance attribute exists called <STRONG>this</STRONG>.
+This attribute is only in 
+scope within an <a href="#Methods">instance method</a> and its value
+is a reference to the current 
+object. The <STRONG>this</STRONG> attribute may be used to invoke other instance methods 
+upon the current object or be passed to other commands as an argument.
+
+<P>It is forbidden to modify the value of <STRONG>this</STRONG>, but this is
+not detected by the Object Tcl system.
+
+<a name="AttributeNaming"><H4>Naming</H4></a>
+
+<P>Class attributes and instance attributes share the same name space and must 
+be unique within a class.
+
+<P>The name "this" is reserved.
+
+<a name="AttributeAccess"><H4>Access</H4></a>
+
+<P>From within an <a href="#Methods">instance method</a> all instance
+attributes and
+class 
+attributes are available as local Tcl variables. The Tcl <code>$</code> substitution syntax 
+may be used.
+
+<P>From within <a href="#Methods">class methods</a> all class attributes
+are available as
+local 
+Tcl variables. The Tcl <code>$</code> substitution syntax may be used.
+
+<a name="AttributeArrays"><H4>Arrays</H4></a>
+
+<p>Object Tcl supports instance and class array attributes. The 
+description of an array attribute takes the following form:
+
+<dl>
+<dt><code>attribute <var>name</var>() <var>?value?</var></code>
+<dd>The brackets after the attribute <var>name</var>, with no white space,
+indicates that the attribute is an array. If an initial value is supplied 
+it must be a list of <code>{<var>key value</var>}</code> pairs. For example:
+
+<p><code>attribute sales() {{jan 12} {feb 13} {mar 44}}</code>
+</dl>
+
+<p>Array attributes may be manipulated in the same way as Tcl arrays using
+the <code>$</code> substitution syntax with a key as a bracketed suffix. For example:
+
+<p><code>puts $sales(mar)</code>
+
+
+<a name="Methods"><H3>Methods</H3></a>
+
+<P>Methods are used to give behavior to a class of object. There are two types of 
+methods: class and instance. Class methods operate at the class scope and 
+may manipulate <a href="#Attributes">class attributes</a>. Instance methods
+operate on an 
+object scope and must be invoked upon an object of that class. 
+Instance methods
+may access <a href="#Attributes">class attributes</a> and 
+<a href="#Attributes">instance attributes</a>. 
+Instance methods may invoke class methods. Class methods may only invoke 
+instance methods if an object reference is available.
+
+<a name="MethodNaming"><H4>Naming</H4></a>
+
+<P>Method names must be unique within a class. Instance and class methods of 
+the same class share the same name space.
+
+<P>If a class uses <a href="#Inheritance">inheritance</a> then it may 
+describe a method with
+the 
+same name as a method in one of its parent classes. This is allowed as the 
+<a href="#Dynamic">dynamic binding</a> resolves the name at invocation time.
+
+<P>A class may also describe a class method with the same name as a class or 
+instance method in one of its parent classes. In this case the syntax of class 
+method <a href="#Invocation">invocation</a> identifies the class to find the 
+method in.
+
+<P>The names "constructor" and "destructor" are reserved.
+
+<P>Naming an instance method 
+<a href="#Unknown">unknown</a>
+implies specific behavior.
+
+<a name="Unknown"><H4>Unknown</H4></a>
+
+<P>Object Tcl classes, and even C++ classes exported to Object Tcl, may have
+an instance method called <STRONG>unknown</STRONG>. The 
+<STRONG>unknown</STRONG> method is 
+invoked automatically by the Object Tcl system when an attempt is made to
+invoke a method upon the object that is not in the class's implementation.
+
+<P>The <STRONG>unknown</STRONG> method is called with the arguments
+specified in the original method invocation with the name of the requested
+method prepended.
+
+<P>The <STRONG>unknown</STRONG> method may be inherited from a superclass
+and the rules of <a href="#Dynamic">dynamic binding</a> operate.
+
+<a name="Dynamic"><H4>Dynamic Binding</H4></a>
+
+<P>Classes that use <a href="#Inheritance">inheritance</a> may provide methods
+that are also
+provided
+by their parent classes. Dynamic binding is the mechanism whereby the 
+method of the most specific class is executed. This allows classes to
+specialize 
+the classes they inherit from to make them more specific.
+
+<P>Given an object of a particular class, the invocation of a method involves a 
+search through the inheritance hierarchy for that method. The search starts at 
+the most specific class, the instantiated class, and proceeds in a depth-first 
+search. If multiple inheritance is used, the list of superclasses is searched
+in 
+the order they were given in the <var>-isA classList</var> option of the
+<a href="#Interface">otclInterface</a> command. There is no checking for
+two descriptions of 
+the named method at the same level in the hierarchy. The first method in the 
+search order will be executed.
+
+<a name="PubAndPriv"><H4>Public &amp; Private Methods</H4></a>
+
+<P>Class or instance methods may be public or private. If a method is public 
+then it may be invoked by any other piece of Tcl code. If a method is private 
+then it may only be invoked from another method of that class.
+
+<P>Methods are public if their interface is described in the 
+<a href="#Interface">otclInterface</a>
+command, otherwise they are private.
+
+<P>For public methods, default parameter values must be specified in the 
+<a href="#Interface">class interface</a>. Private methods must have their
+default values
+specified in the 
+<a href="#Implementation">class implementation</a>.
+
+<a name="Constructors"><H4>Constructors</H4></a>
+
+<P>The constructor method is a special instance method that is invoked
+automatically upon the <a href="#Constructing">construction</a> of a new instance of
+the class.
+Constructors may be used to initialize attribute values and perform
+initialization 
+behavior.
+
+<P>The implementation description for a constructor method contains a
+parameter called <var>parentList</var>. This list contains a description of the 
+parameters to pass to the constructor of any inherited classes. The
+<var>parentList</var> takes the form of a list of scripts, where each script starts
+with the 
+name of the parent class and is followed by a series of Tcl expressions that
+are 
+to be passed to the parent class constructor. If an inherited class constructor 
+takes no arguments then it need not appear as an item in the <var>parentList</var>. 
+The expressions in the <var>parentList</var> may make use of any class or instance 
+attributes of the calling class or any of the formal arguments passed to the 
+calling class constructor.
+
+<p>The <var>parentList</var> parameter is mandatory even for classes that do
+not use inheritance. In this case they must specify an empty
+<var>parentList</var>.
+
+<P>Constructors are optional.
+
+<P>When using <a href="#Inheritance">inheritance</a>, the most general class
+constructor body is evaluated 
+first and the most specific last. If multiple inheritance is used then the
+constructor for the inherited classes are executed in the order they are
+described 
+in the <var>-isA classList</var> option of the <a href="#Interface">otclInterface</a>
+command for that class.
+
+<P>A constructor is considered an instance method in that the 
+<a href="#This">this</a> attribute is 
+available and may be used to invoke other methods upon the object. The 
+dynamic binding of methods will operate correctly but it must be
+remembered that the object is undergoing construction. Using dynamic binding it 
+would be possible to invoke a method from a part of the class hierarchy for 
+that object that is still waiting for its constructor to be evaluated.
+
+<a name="Destructors"><H4>Destructors</H4></a>
+
+<P>The destructor is a special method that cannot be public (there is no
+command 
+appropriate for making it public anyway). Destructors are the opposite to
+<a href="#Constructors">constructors</a>
+in that they are invoked automatically upon the destruction of an 
+instance of the class.
+
+<P>Destructors are optional.
+
+<P>Destructors are executed in the reverse order to constructors. The most
+specific destructor is executed first, and if multiple inheritance is used the 
+destructors for the multiple superclasses are invoked in the reverse order to 
+that specified in the <var>-isA classList</var> option of the
+<a href="#Interface">otclInterface</a> command for that class.
+
+<P>As with constructors, destructors are treated the same as instance methods.
+They may call other methods upon the object, so it is possible to call methods 
+upon parts of the object that have already had their destructor invoked.
+
+<a name="Invocation"><H4>Invocation</H4></a>
+
+<P>Class <a href="#Methods">methods</a> and instance methods are invoked in
+different ways.
+
+<P>A class method may be invoked using the following syntax:
+
+<pre><var>class method ?args ...?</var></pre>
+
+<P>where <var>class</var> is the name of the class to invoke the method upon,
+<var>method</var> is 
+the name of the class method to invoke and <var>arg</var> is an argument to pass
+to the class method.
+
+<P>An instance method may be invoked using the following syntax:
+
+<pre><var>obref method ?arg ...?</var></pre>
+
+<P>where <var>obref</var> is an object reference, <var>method</var> is the name of
+the method to 
+invoke and <var>arg</var> is an argument to pass to the instance method.
+
+<P>Another instance method may be invoked from within the body of another
+instance method using the following syntax:
+
+<pre>$this <var>?-parent? method ?arg ...?</var></pre>
+
+<P>where <var>method</var> is the name of the method to invoke and
+<var>arg</var> is an argument 
+to pass to the instance method. The <var>?-parent?</var> option may be used to
+force 
+the invocation of the method from the immediate parent class. This facility 
+may be used to override the dynamic binding feature, thus allowing the most 
+specific version of a method to utilize a more general version of the method. 
+The parent class must be one of the classes named in the <var>-isA classList</var> 
+section of the <a href="#Interface">otclInterface</a> command.
+
+<P>Constructors and destructors cannot be invoked explicitly.
+
+<a name="Results"><H4>Results</H4></a>
+
+<P>Class methods and instance methods may return results using the Tcl return 
+command as in normal Tcl procedures.
+
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT=""><P>
+<a name="Objects"><H2>Objects</H2></a>
+
+<P>Objects in Object Tcl are instances of classes. All instances of the same
+class 
+share common behavior, through methods, and maintain similar state
+information, through attributes.
+
+<P>Objects are <a href="#Constructing">constructed</a> by instantiating
+an Object Tcl 
+<a href="#Classes">class</a> or a 
+built-in 
+<a href="BindingRef.html">C++ class</a>.
+<a href="#Methods">Methods</a> may then be invoked upon that object 
+which alter its state. Finally an object may be 
+<a href="#Destructing">destroyed</a>.
+
+<a name="Constructing"><H4>Constructing</H4></a>
+
+<P>An object is constructed by instantiating a class using the following
+command:
+
+<pre>otclNew <var>class ?arg...?</var></pre>
+
+<P>where <var>class</var> specifies the name of the class to instantiate and
+<var>arg</var> specifies 
+an argument to pass to the <a href="#Constructors">constructor</a>
+of the class. The result
+of 
+this command is a reference to the new object. This reference may be used to 
+<a href="#Invocation">invoke methods</a> upon that object.
+
+<a name="Destructing"><H4>Destructing</H4></a>
+
+<P>When an object is finished with it may be deleted using the following
+command:
+
+<pre>otclDelete <var>objref</var></pre>
+
+<P>where <var>objref</var> is a reference to an Object Tcl object as created by the
+<a href="#Constructing">otclNew</a>
+command.
+
+<P>After an object has been deleted, all references to that object are invalid
+and 
+must not be used. The result of dereferencing an invalid reference will vary 
+depending on the object mapping implementation. If the object 
+mapper is capable of detecting the dereference then a Tcl error will be 
+reported, otherwise the dereference will result in memory misuse and
+probable core dump.
+
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT=""><P>
+
+<A REL="Contents" HREF = "cover.html">Object Tcl</A> |
+<A REL="Previous" HREF = "Overview.html">Overview</A> |
+Language Reference |
+<A REL="Next" HREF = "BindingRef.html"><B>C++ Binding Reference</B></A> |
+<A HREF = "Example.html">Example</A> |
+<A HREF = "../../../src/Tools/ObjectTcl-1.1">Source Code</A>
+
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT=""><P>
+
+<ADDRESS><A HREF = "mailto:otcl@x.co.uk">otcl@x.co.uk</A></ADDRESS>
+
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<P><A HREF="/skunkware/index.html">
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.left.gif"
+ALT="">
+Return to Welcome Home Page</A> or
+<A HREF="BindingRef.html">
+Continue to Browse
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.right.gif"
+ALT=""></A>
+</BODY></HTML>

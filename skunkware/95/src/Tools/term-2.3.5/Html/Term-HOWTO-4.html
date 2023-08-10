@@ -1,0 +1,753 @@
+<title>Setting Things Up</title>
+<h1>4 <a name="s4"> Setting Things Up </h1>
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<p> <a href="Term-HOWTO.html#toc4"> Contents of this section</a></p>
+
+<p></p>
+<p></p>
+<h2>4.1 <A Name="ss4.1"> What has to be available </h2>
+
+<p></p>
+<p>Before you start building and using <code>TERM</code> you have to make sure that you have built TCP/IP support into the kernel. Furthermore, make sure that the TCP/IP loopback interface is activated. When this is the case you can go on with the rest of this section. </p>
+<p></p>
+
+<h2>4.2 <A Name="ss4.2"> Explanation of concepts </h2>
+
+<p></p>
+<p>In newer <code>TERM</code> version two new concepts have entered <code>TERM</code>. These two concepts will be explained in the next two subsections.</p>
+<p></p>
+<h3> Sharing </h3>
+
+<p></p>
+<p>Starting with version 1.16 the concept of <code>sharing</code> the <code>TERM</code> connection with other users has entered <code>TERM</code>. This means that when you enable shared features, other people can use the same <code>TERM</code> connection you are using, i.e. when you are working on your remote machine via your <code>TERM</code> connection (say, from your local machine you used trsh to get in) another person on your local machine can use the same <code>TERM</code> connection at the same time to ftp a file to his login on your local machine from an ftp site somewhere in the world.</p>
+<p>When you disable shared features (i.e. you execute <code>TERM</code> in private mode) you and only you (we do not count root :-) can use the <code>TERM</code> connection.</p>
+<p>Of course, you only need to install shared <code>TERM</code> at the end at which you want to allow people to use the same <code>TERM</code> connection you are using. So, if other people have a login on your local machine and they want to use it from somewhere on your remote network you enable shared features on the remote end of your <code>TERM</code> connection. In this way all these people can login on your machine at the same time sharing the same <code>TERM</code> connection with each other and with you. (NOTE: the first example needed shared features to be enabled at the local end of the <code>TERM</code> connection).</p>
+<p><b>NOTE for installation as root:</b>
+When you install <code>TERM</code> as root you have to create a 'term' group first (before compilation) with no member by adding the following line in '/etc/group':</p>
+<p>
+<pre>
+  term::16:root
+</pre>
+</p>
+<p>or any other unused GID than 16 when 16 is already in use.</p>
+<p>After compilation and installation make <code>TERM</code> and its clients SGID 'term':</p>
+<p>
+<pre>
+  chgrp term &lt;term_client&gt;
+  chmod g+s &lt;term_client&gt;
+</pre>
+</p>
+<p>Also any other program that you make TERM-aware must be made SGID 'term'.</p>
+<p></p>
+<h3> Full TERM networking </h3>
+
+<p></p>
+<p>Starting with <code>TERM</code> version 2.0.0 the statement <code>full TERM networking</code> is used. When your only connection with the outside world is a <code>TERM</code> connection, you have a full <code>TERM</code> network and you should build <code>TERM</code> with full <code>TERM</code> networking. In this case in the shared directory a file called <code>termnet</code> is placed. This tells <code>TERM</code> that your only connection to the outside world is via <code>TERM</code>.</p>
+<p>When you also have some other type of network connection beside your <code>TERM</code> connection TERM-aware programs first try to fulfil their job using this network connection. When this fails <code>TERM</code> is invoked and it is tried to fulfil the job via the <code>TERM</code> connection. To make this more clear now an example is given in which <code>TERM-aware telnet</code> is used. This telnet should work both with and without <code>TERM</code>.</p>
+<p>
+<pre>
+  telnet localhost
+</pre>
+</p>
+<p>does not use <code>TERM</code> to connect, but</p>
+<p>
+<pre>
+  telnet zeus.cs.kun.nl
+</pre>
+</p>
+<p>will use <code>TERM</code> only if you do not have some other type of network connection.</p>
+<p><code>Full TERM networking</code> also means to lie about the host name, and say it is the remote host instead.  Furthermore, it causes bind(0) to always act on the
+remote host.  In essence it makes many programs unusable when they are not going through <code>TERM</code>, while <code>TERM</code> is
+running.  Unfortunately, most UDP programs
+and daemons will not work with <code>TERM</code> without these nasty tricks.</p>
+<p></p>
+
+<h2>4.3 <A Name="ss4.3"> Build <code>TERM</code> </h2>
+
+<p></p>
+<p>When you are lucky, this should just involve a <code>make</code>. Most probably however, you need to do more. Due to new features in newer versions of <code>TERM</code> it is now a bit more complicated to create your <code>TERM</code> binary. A couple of ways can be followed to obtain your binary.</p>
+<p>To cover all these ways <code>TERM</code> can be built this section will be split into three parts:</p>
+<p>
+<ol>
+<li>Build <code>TERM</code>, versions 2.0.0 and higher</li>
+<li>Build <code>TERM</code>, versions 1.16 up to 1.19 </li>
+<li>Build <code>TERM</code> up to version 1.15 </li>
+</ol>
+</p>
+<p></p>
+<h3> Build <code>TERM</code>, versions 2.0.0 and higher </h3>
+
+<p></p>
+<p>First, make sure you have read the section about 'full TERM networking' above.</p>
+<p>For <code>TERM</code> versions 2.0.0 and higher there are many ways to build the <code>TERM</code> binary and the clients. All of these can be done both by root and by ordinary user:</p>
+<p>
+<ol>
+<li>Build <code>TERM</code> in private mode without full <code>TERM</code> networking</li>
+<li>Build <code>TERM</code> in private mode with full <code>TERM</code> networking</li>
+<li>Build <code>TERM</code> in shared mode without full <code>TERM</code> networking</li>
+<li>Build <code>TERM</code> in shared mode with full <code>TERM</code> networking</li>
+</ol>
+</p>
+<p>In these versions of <code>TERM</code> a new way for compilation has entered <code>TERM</code> using the script <code>configure</code>. When configure is run it checks on what operating system you are trying to install <code>TERM</code>, whether the source directory is available or not, and if any runtime options are set. According to the things found configure then creates a <code>Makefile</code> using Makefile.in which is provided in the <code>TERM</code> package.</p>
+<p>Two of the more important options to configure are <code>--root</code> and <code>--user</code> which state whether <code>TERM</code> will be installed by root or an ordinary user. Other options can be used to install <code>TERM</code> the way you want (non-standard paths for example).</p>
+<p>
+<ol>
+<li> Build <code>TERM</code> in private mode without full <code>TERM</code> networking.
+
+To build <code>TERM</code> in this way you need to execute the following commands (both for root and ordinary user):
+
+<pre>
+  ./configure --root  OR --user
+  make install installman
+</pre>
+
+
+This builds the binaries and installs these binaries and the manual pages.</li>
+<li> Build <code>TERM</code> in private mode with full <code>TERM</code> networking.
+
+To build <code>TERM</code> in this way you need to execute the following commands (both for root and ordinary user):
+
+<pre>
+  ./configure --root  OR --user
+  make installnet installman
+</pre>
+
+
+This builds the binaries and installs these binaries and the manual pages.</li>
+<li> Build <code>TERM</code> in shared mode without full <code>TERM</code> networking.
+
+To build <code>TERM</code> in this way you need to execute the following commands (both for root and ordinary user):
+
+<pre>
+  ./configure --root  OR --user
+  make share installman
+</pre>
+
+
+This builds the binaries and installs these binaries and the manual pages.</li>
+<li> Build <code>TERM</code> in shared mode with full <code>TERM</code> networking.
+
+To build <code>TERM</code> in this way you need to execute the following commands (both for root and ordinary user):
+
+
+<pre>
+  ./configure --root  OR --user
+  make share installnet installman
+</pre>
+
+
+This builds the binaries and installs these binaries and the manual pages.</li>
+</ol>
+</p>
+<p></p>
+<h3> Build <code>TERM</code>, versions 1.16 up to 1.19 </h3>
+
+<p></p>
+<p>To build these versions of <code>TERM</code> you can now choose one of the following ways:</p>
+<p>
+<ol>
+<li>As an ordinary user, build <code>TERM</code> in private mode</li>
+<li>As an ordinary user, build <code>TERM</code> in shared mode</li>
+<li>As root, build <code>TERM</code> in private mode</li>
+<li>As root, build <code>TERM</code> in shared mode</li>
+</ol>
+</p>
+<p>Below, it will be explained how to enable/disable shared features during the compilation of <code>TERM</code>.</p>
+<p>
+<ol>
+<li>You are an ordinary user (no root access) and you do NOT want to SHARE the <code>TERM</code> connection with other users.
+
+As a user who does not want to share the <code>TERM</code> connection with other users you should do the following to build <code>TERM</code>:
+
+<pre>
+  make DO=install OS-type
+  make installman
+</pre>
+
+
+After this <code>TERM</code>, its clients and the manual pages are built and installed.
+
+Furthermore, you need to create a directory '$HOME/.term'. This is the directory in which <code>TERM</code> will look for its 'termrc' file.
+</li>
+<li>You are an ordinary user (no root access) and you want to SHARE the <code>TERM</code> connection with other users.
+
+As a user who wants to share the <code>TERM</code> connection you should do the following:
+
+<pre>
+  make DO=installshare USERSHARE=$HOME/term OS-type
+  make installman
+</pre>
+
+
+After this <code>TERM</code>, its clients and the manual pages are built and installed.
+
+Furthermore, you will have a directory '$HOME/term' (default) with permissions 'drwxrwxr-x'. In this directory you will find at least the socket used by <code>TERM</code> for its connection ('tmp/private/socket=').</li>
+<li>You are <code>root</code> and you do NOT want to SHARE the <code>TERM</code> connection with other users.
+
+As root who does not want the <code>TERM</code> connection to be shareable you should do the following to build <code>TERM</code>:
+
+<pre>
+  make DO=install OS-type
+  make installman
+</pre>
+
+
+After this <code>TERM</code>, its clients and the manual pages are built and installed.
+
+Furthermore, you now have a directory called '/usr/local/lib/term' (default) with permissions 'drwxr-xr-x'. In this directory you will at least find the socket used by <code>TERM</code> for its connection ('tmp/private/socket=').
+</li>
+<li>You are <code>root</code> and want to SHARE the <code>TERM</code> connection.
+
+First, make sure you have read the section about 'sharing' above.
+
+As root who wants to share the <code>TERM</code> connection you should do the following:
+
+<pre>
+  make DO=installshare OS-type
+  make installman
+</pre>
+
+
+After this <code>TERM</code>, its clients and the manual pages are built and installed.
+
+Furthermore, you now have a directory called '/usr/local/lib/term' (default) owned by group <code>TERM</code> and with permissions 'drwxrwxr-x'. In this directory you will at least find the socket used by <code>TERM</code> for its connection ('tmp/private/socket=').
+</li>
+</ol>
+</p>
+<p></p>
+<h3> Build <code>TERM</code> up to version 1.15 </h3>
+
+<p></p>
+<p>For these versions of <code>TERM</code> building should invoke no more than the commands</p>
+<p>
+<pre>
+  make DO=install OS-type
+  make installman
+</pre>
+</p>
+<p>You will find <code>TERM</code>, its clients and the manual pages nicely built and installed and ready for use after this.</p>
+<p>Furthermore, you need to create a directory '$HOME/term'. This directory <code>TERM</code> will use to look for its termrc file.</p>
+<p>The only thing you may want to do is change some of the paths in the <code>Makefile</code> or change some of the compiler flags.</p>
+<p></p>
+
+<h2>4.4 <A Name="ss4.4"> client.a, libtermnet.a, libtermnet.sa, libtermnet.so </h2>
+
+<p></p>
+<p>With <code>TERM</code> a library with functions for <code>TERM</code> clients is provided.</p>
+<p>Up to version 1.16 this library was called <code>client.a</code>. During compilation of <code>TERM</code> this library was built and then used during the compilation of the <code>TERM</code> clients. It was not installed in another directory.</p>
+<p>Starting with version 1.16 the name of the library is changed to <code>libtermnet.a</code>. Up to version 1.19 this library is created in the <code>TERM</code> directory and then used during compilation of the <code>TERM</code> clients. It is not installed in another directory.</p>
+<p>Starting with version 2.0.0, beside libtermnet.a also <code>libtermnet.so</code> and <code>libtermnet.sa</code> (shared library and exported initialized library data) are created during compilation of the <code>TERM</code> package. During the installation of all the parts of the package also these three library files are installed in the directory '/usr/local/lib' (default). Then a link is made from libtermnet.so.2 to libtermnet.so.2.x.x. Finally, <code>ldconfig</code> is run to create the necessary links and cache (for use by the run-time linker, ld.so) to the most recent shared libraries found in the directories specified on the command line, in the file '/etc/ld.so.conf', and in the trusted directories ('/usr/lib' and '/lib'). If the installation is done correctly the three library files can now be used by <code>TERM</code> clients which are built with dynamic instead of static libraries. Also, these libraries can now be used to port your own software to make it <code>TERM</code> aware (see belo!
+w).</p>
+<p></p>
+
+<h2>4.5 <A Name="ss4.5"> Setting environment variables </h2>
+
+<p></p>
+<p><code>TERM</code> knows a couple of environment variables which can be set by users. The first three of those that I will explain are</p>
+<p>
+<ul>
+<li>TERMDIR</li>
+<li>TERMSHARE</li>
+<li>TERMMODE</li>
+</ul>
+</p>
+<p>By setting these variables you can control the way <code>TERM</code> is run.</p>
+<p>For <code>TERM</code> versions up to 1.15 only the variable <code>TERMDIR</code> is important (these versions do not know the shared mode). For these versions TERMDIR should be set as follows:</p>
+<p>
+<pre>
+  setenv TERMDIR $HOME     (csh or tcsh)
+  export TERMDIR=$HOME     (bash)
+</pre>
+</p>
+<p>Starting with version 1.16 <code>TERM</code> also knows the variables <code>TERMSHARE</code> and <code>TERMMODE</code>. With these variables <code>TERM</code> can be told to run in <code>private</code> mode or in <code>shared</code> mode. I will explain how to set the variables for private mode and shared mode.</p>
+<p>TERMMODE knows the following three values;
+<ul>
+<li> 0 = private</li>
+<li> 1 = system shared</li>
+<li> 2 = user shared</li>
+</ul>
+</p>
+<p>
+<ol>
+<li>Running <code>TERM</code> in private mode can be done setting the variables TERMDIR and TERMMODE in the following way:
+
+For csh or tcsh
+<pre>
+  setenv TERMDIR $HOME
+  setenv TERMMODE 0
+</pre>
+
+
+For bash
+<pre>
+  export TERMDIR=$HOME
+  export TERMMODE=0
+</pre>
+</li>
+<li>When you want to use <code>TERM</code> in shared mode there are two ways of setting the variables:
+
+<ol>
+<li>When <code>TERM</code> is installed as a SUID program only TERMMODE has to be set.
+
+<pre>
+  setenv TERMMODE 2    (csh or tcsh)
+  export TERMMODE=2    (bash)
+</pre>
+</li>
+<li>When <code>TERM</code> is installed as a SGID program the variables have to be set in the following way:
+
+For csh or tcsh
+<pre>
+  setenv TERMMODE 1
+  setenv TERMDIR /usr/local/lib/term
+  setenv TERMSHARE $TERMDIR
+</pre>
+
+
+For bash
+<pre>
+  export TERMMODE=1
+  export TERMDIR=/usr/local/lib/term
+  export TERMSHARE=$TERMDIR
+</pre>
+
+
+Setting the variables in this way makes it possible to start old clients (clients linked to an older version of <code>client.a</code>) in shared mode.</li>
+</ol>
+</li>
+</ol>
+</p>
+<p>Starting with version 2.0.0 <code>TERM</code> also knows the variable <code>TERMSERVER</code>. You need to set this variable when you have multiple modems and you have more than one connection at a time. To specify which connection to use, you must start <code>TERM</code> with a server name:</p>
+<p>
+<pre>
+  nohup term -v /dev/modem1 Connection1 &
+  nohup term -v /dev/modem2 Connection2 &
+</pre>
+</p>
+<p>Users should then set the variable TERMSERVER to the connection name they want to use:</p>
+<p>
+<pre>
+  setenv TERMSERVER Connection1   (csh or tcsh)
+  export TERMSERVER=Connection2   (bash)
+</pre>
+</p>
+<p></p>
+
+<h2>4.6 <A Name="ss4.6"> Test <code>TERM</code> </h2>
+
+<p> </p>
+<p>Do a <code>make test</code> (or <code>make termtest</code> for newer versions of <code>TERM</code>) to build <code>TERM</code>'s test daemon. (term)test
+works by running two copies of <code>TERM</code> on your system, a
+'local' and a 'remote'' copy. Both of these will read your
+'termrc'; so you can adjust their behaviour. Now execute (term)test. You 
+should now be able to do a <code>trsh</code> and a <code>tupload</code> (try</p>
+<p>
+<pre>
+  tupload ./term /usr/tmp
+</pre>
+</p>
+<p>- you should get a copy of the
+<code>TERM</code> binary in '/usr/tmp'). The local
+<code>TERM</code>'s output should show up in 'local.log', the
+remote's one in 'remote.log'. You can start <code>TERM</code> up with
+a <code>-d255</code> flag to enable debugging output to be written to
+these files, or enable debugging in your 'termrc' file.</p>
+<p>NOTE: Run <code>test</code> as <code>./test </code> so as to avoid your system's <code>test</code>.</p>
+<p></p>
+
+<h2>4.7 <A Name="ss4.7"> <code>TERM</code> and communication programs </h2>
+
+<p></p>
+<p>Before you can use <code>TERM</code> you must have established a connection via the modem using a communication program like kermit or seyon. In the documentation of your communication program you can find what you need to do to establish the conection with the remote machine.</p>
+<p>when you have established the connection with the remote machine and you want to run <code>TERM</code> you need to suspend or quit your communication program without closing the connection with the remote machine. This needs to be done as otherwise the communication program will steal characters from linecheck or <code>TERM</code>.</p>
+<p>Below for some communication programs I will explain how you can make sure that the connection will stay alive and the communication programs will not steal characters from linechech or <code>TERM</code>.</p>
+<p></p>
+<h3> Kermit </h3>
+
+<p></p>
+<p>Starting <code>TERM</code> when you use kermit is easy. At the local kermit prompt you type <i>suspend</i>. Now you see back your Linux prompt. From this prompt you can establish your <code>TERM</code> conection.</p>
+<p></p>
+<h3> Seyon </h3>
+
+<p></p>
+<p>An easy way to start linecheck or <code>TERM</code> when you are using seyon is to put linecheck and <code>TERM</code> in the Transfer Menu (controlled by the file '$HOME/.seyon/protocols').</p>
+<p>In the file '$HOME/.seyon/protocols' add:</p>
+<p>
+<pre>
+  "Line check" "$cd /tmp; linecheck"
+  "Term" "$term -c off -w 10 -t 150 -s 38400 -l $HOME/tlog"
+</pre>
+</p>
+<p>Then, when you want to execute linecheck or <code>TERM</code> on the local machine, you can select the Transfer Menu, either the "Line check" or the "Term" item, and Go.</p>
+<p>Of course, you can also use the shell command button, and type 'linecheck' or 'term' in the pop-up dialog box. This also does automatic redirection of input and output.</p>
+<p></p>
+
+<h2>4.8 <A Name="ss4.8"> Make a Transparent Link </h2>
+
+<p></p>
+<p>Presumably, you can establish a modem connection between your local
+and remote hosts. Typically, you are dialling into some kind of terminal
+server and connecting to your remote host from there. You are also
+using some kind of terminal software, such as <code>kermit</code> or
+<code>seyon</code> to talk to your modem (the examples in this document
+will use kermit, since that is what its author uses). If
+you are having trouble with your modem, or your terminal software, take
+a look at the Serial-HOWTO; that should help you out.</p>
+<p>Having established your link, you want to make it as transparent as
+possible.  Check the commands on the terminal server (help or ? will
+usually get you started). Go for the 8 bit options whenever possible.
+This may mean changing the way you log in to a system, <i>e.g.</i> if
+the server uses rlogin, you may have to use it and give it the -8 flag
+to make it transparent.  Especially watch out for xon/xoff flow
+control. You do not want that. Try to enable rts/cts (hardware) flow
+control.  You may need to check your modem documentation to learn how to
+configure it to do 8-bit rts/cts communications.</p>
+<p></p>
+
+<h2>4.9 <A Name="ss4.9"> Run linecheck </h2>
+
+<p></p>
+<p><b>WARNING:</b> In some of the documents the command line options for <code>linecheck</code> are mentioned in an incorrect order. I have checked this and found the order of options mentioned below to be the correct ones.</p>
+<p><b>NOTE:</b> Starting with <code>TERM</code> version 2.3.0 linecheck no longer needs to have the name of a log-file on its command line. It will write its output to the file 'linecheck.log' in the directory you start linecheck in.</p>
+<p><code>Linecheck</code> is a program that is supplied with <code>TERM</code>.
+It checks the transparency of a link, providing configuration
+information that <code>TERM</code> needs to run correctly.
+linecheck will send each of the 256 possible eight bit
+characters over the link and verify that each was transmitted
+successfully. <code>TERM</code> needs to be configured to deal with
+characters that cannot be transmitted over the link, and
+linecheck determines what characters these are. You use linecheck after you have established as transparent a modem
+link as possible. To run linecheck, do the following</p>
+<p>
+<ol>
+<li> On the remote system run 
+<pre>
+  linecheck linecheck.log
+</pre>
+</li>
+<li> Escape back to your local system and suspend your communication program (see above)</li>
+<li> On the local system run 
+<pre>
+  linecheck linecheck.log &gt; /dev/modem &lt; /dev/modem
+</pre>
+</li>
+</ol>
+</p>
+<p>When linecheck is done, you will find a set of numbers at the
+bottom of the 'linecheck.log' files. These should be escaped
+in the termrc at the other end of the link. For example, in my system my local 'linecheck.log' said nothing and my remote 'linecheck.log' said to escape 29 and 157.  Therefore, my local
+'termrc' escapes these characters and my remote 'termrc' escapes nothing. If I <i>escape</i> a character at one end,
+I have to also <i>ignore</i> it at the other; so, in this example,
+I shall have to ignore 29 and 157 in my remote system.</p>
+<p>If linecheck hangs, try using  </p>
+<p>
+<pre>
+  linecheck linecheck.log 17 19
+</pre>
+</p>
+<p>on the remote system and</p>
+<p>
+<pre>
+  linecheck linecheck.log 17 19 &gt; /dev/modem &lt; /dev/modem 
+</pre>
+</p>
+<p>on the local system. This will escape your xon/xoff (flow control) characters, which will
+hang your line if you have got software flow control. If this solves the
+hanging problems, you will want to <i>escape</i> /<i>ignore</i>
+17/19 in both 'termrc's'. If your terminal server has other characters that will shut it down, try running linecheck with
+those characters escaped, as above. You can spot these characters if
+linecheck hangs. If this is the case, kill it, then look in
+the log-files. The last characters transmitted are likely to be the
+culprits. Try it again with these characters escaped.</p>
+<p>In summary, my local termrc has the lines
+<pre>
+  escape 29
+  escape 157
+</pre>
+</p>
+<p>and my remote termrc has the lines</p>
+<p>
+<pre>
+ 
+  ignore 29
+  ignore 157
+</pre>
+</p>
+<p>since my <i>remote</i> 'linecheck.log' said to escape 29
+and 157.</p>
+<p></p>
+
+<h2>4.10 <A Name="ss4.10"> Try Running <code>TERM</code> </h2>
+
+<p></p>
+<p>Log into the remote system, making the link as transparent as possible
+(if you have not already done so).  Fire up <code>TERM</code> at the remote end.
+I use the following:</p>
+<p>
+<pre>
+  exec term -r -l $HOME/tlog -s 38400 -c off -w 10 -t 150.
+</pre>
+</p>
+<p>Let us run down each option one by one (note that I could just as
+easily have put these options in my termrc. I did it this way because
+it saves editing a file while getting <code>TERM</code> set up).</p>
+<p><code>exec</code> means to destroy your current shell, running the given
+program in its place. I exec things because I do not intend
+to use my login shell again; so it is just wasting memory. If you are
+debugging the link and can reliably kill the remote <code>TERM</code>,
+you might not want to do an exec.</p>
+<p>The <code>-r</code> option is needed at exactly one end. <code>TERM</code> will then see this end as the remote end of the connection (Note that <code>TERM</code>'s remote end can thus be your local machine). If you do not use this option at one end <code>TERM</code> clients will spontaneously crash.</p>
+<p><code>-l $HOME/tlog</code>. This logs errors to the file <code>tlog</code> in my home directory. Very useful for debugging. No reason not
+to do this.</p>
+<p><code>-s 38400</code> : I have got a 14400 baud modem, with compression.
+For optimal compression ratios, I want to be able to push bits down
+the pipe as fast as possible. For a slower modem, you should use
+something lower. Note that if you have a slower machine with 16450
+uart on your serial port, high baud rates can cause data loss by
+overloading the chip on your serial port. <code>TERM</code> will recover
+from this, but if you see a lot of error messages in your log file,
+(or get overrun warnings from linux kernel versions 0.99pl15 and up)
+you again might want to lower this number.</p>
+<p><code>-c off</code> : This turns data compression off. I have got a
+compressing modem, and I do not want to compress things twice.</p>
+<p><code>-w 10 -t 150</code> : Again, these are options to optimize my fast
+modem link. I have set my window to 10 and my timeout to 150. This is
+according to the recommendation in the <code>term_setup</code> man page.</p>
+<p>Escape back to your local machine and suspend your communication program (see above). You do not want
+it running while <code>TERM</code> is running, because it will fight
+with <code>TERM</code> over the serial port. If you can convince your
+modem to not hang up when you exit your communication program (when it toggles
+DTR), you could just exit the program at this point.</p>
+<p>Now run <code>TERM</code> locally. I use:</p>
+<p>
+<pre>
+  term -c off -l $HOME/tlog -s 38400 -w 10 -t 150 &lt; /dev/modem &gt; /dev/modem &amp;  
+</pre>
+</p>
+<p>I need to tell <code>TERM</code>
+where the modem is; so I point both standard input and output at '/dev/modem' (that is what the <code><</code> and <code>></code> do). I
+also run it in the background; so I can use this screen for something
+else if I want to.</p>
+<p><code>TERM</code> should work now :-). Try a <code>trsh,</code> and see
+what happens. If you hang, or your link seems slow, take a look at
+your 'tlog' at each end.  Are you getting timeouts or error
+messages? If so, then you have configured something incorrectly. Try
+again (after you have finished reading this :-). Note that the
+connection will not seem blazingly fast, especially if you are using
+compression - it will be a little jumpy. The real speed comes in
+during file transfer and the like.</p>
+<p></p>
+
+<h2>4.11 <A Name="ss4.11"> Terminate your <code>TERM</code> connection </h2>
+
+<p></p>
+<p>Most certainly, after you have done a lot of work using <code>TERM</code>, you want to finish your work and bring your <code>TERM</code> connection down. For this to be realized there are four ways:</p>
+<p>
+<ol>
+<li>Kill the <code>TERM</code> programs at both sides of the connection. This is the least recommended way of terminating your connection.</li>
+<li>A better way is to execute the following command locally:
+
+<pre>
+  echo '00000' &gt; /dev/modem
+</pre>
+
+
+This will nicely terminate your <code>TERM</code> connection. It will work for all version of <code>TERM</code>. Make sure that the sequence of zeros contains at least <i>five</i> zeros.</li>
+<li>In the termrc of <code>TERM</code> versions 2.0.0 and higher you can now enter a statement called <code>terminate '&lt;some string&gt;'</code>. This sets a string that will cause <code>TERM</code> to exit ('00000' by default). It must be at least <i>five</i> characters long, to avoid accidently terminations. </li>
+<li>Starting with version 1.14 there is the program <code>tshutdown</code> (actually for version 1.14 it is available as a patch, for newer versions it is in the package). Executing tshutdown nicely terminates your <code>TERM</code> connection.</li>
+</ol>
+</p>
+<p></p>
+
+<h2>4.12 <A Name="ss4.12"> Removing <code>TERM</code> from your partition </h2>
+
+<p></p>
+<p>Ok, you asked for this. As some of you want to get rid of <code>TERM</code> I here
+present you the steps to be done in removing <code>TERM</code>. In the process of
+removing <code>TERM</code> you have to fulfil the following steps:</p>
+<p>
+<ul>
+<li>Removing directories with their contents. Depending on how you installed
+<code>TERM</code>, one or more of the following directorieswill exist on your machine:
+
+<pre>
+  $HOME/.term/termrc
+  $HOME/.term/termrc.&lt;server&gt;
+  $HOME/term/termrc
+  $HOME/term/termrc.&lt;server&gt;
+  /usr/local/lib/term/termrc
+  /usr/local/lib/term/termrc.&lt;server&gt;
+  /etc/termrc
+  /etc/termrc.&lt;server&gt;
+</pre>
+
+
+These directories can be removed together with their contents. Use '/bin/rm -rf' to get this done.</li>
+<li>The group 'term'. For some of the ways of installation you had to create a group 'term'. Check the file '/etc/group' for the 'term' entry. When it exists you can remove the entry.</li>
+<li>The <code>TERM</code>-package and <code>TERM</code>-aware executables. This is probably the hardest part in removing <code>TERM</code>. For the executables coming with the <code>TERM</code>-package you have to look in the directory '/usr/local/bin' or the directory '$HOME/bin'.
+
+With executables you made <code>TERM</code>-aware yourself I cannot help you. You need to know what executables you made <code>TERM</code>-aware in order to know what executables you have to remove. Do not forget configuration, default and other files coming with some of these executables.</li>
+<li>Library files. To remove these you best can execute the following commands:
+
+<pre>
+  cd /
+  find . -name libtermnet* -exec /bin/rm {}
+</pre>
+
+
+This will find and remove the library files.</li>
+<li>Include file. Also for this one the easiest way is to execute the following two commands:
+
+<pre>
+  cd /
+  find . -name termnet.h -exec /bin/rm {}
+</pre>
+
+
+This will remove the include file.</li>
+<li>Manual pages. When you have installed the <code>TERM</code> manual pages you can now find them back in one of the following directories:
+
+<pre>
+  /usr/local/man/man1
+  /usr/local/man/cat1
+  $HOME/man/man1
+  $HOME/man/cat1
+</pre>
+
+
+At least you have to check for the following manual pages: term, term_clients, term_setup, tdownload, linecheck, trdate, trdated, termrc, termtest, tmon, tredir, trsh, tshutdown, tudpredir, tupload, txconnand finally tiptest.</li>
+<li>Temporary user directory. This is de directory '/usr/tmp/private' and its contents.</li>
+</ul>
+</p>
+<p>After this exercise you can be quite sure that you have removed everything related to <code>TERM</code>.</p>
+<p></p>
+
+<h2>4.13 <A Name="ss4.13"> Optimizing your connection </h2>
+
+<p></p>
+<p>Once you have got <code>TERM</code> running, you might want to try to get
+things optimized. A good way to measure the speed of your link is to
+run <code>tmon</code> in one window while up/downloading a file in
+another. Try both (big) text files and compressed files; the plain
+text should go a factor of two-ish faster than the compressed files.
+The parameters you want to fiddle with are baud rate (<code>-s</code>), compression (<code>-c</code>), windows (<code>-w</code>), timeout (<code>-t</code>) and retrain (<code>-A</code>).</p>
+<p>Watch out with the retrain parameter. With <code>TERM</code> version 1.19 I got a performance decrease of 80% to 90% compared to running <code>TERM</code> without the retrain parameter. It is not clear if this is a bug in <code>TERM</code> version 1.19 and if this problem exists only with <code>TERM</code> version 1.19.</p>
+<p><code>Baudrate</code>: the maximum number of bits per second <code>TERM</code> will try to send over the serial link. <code>TERM</code> will avoid sending characters at a higher data rate than this. The default is to use the speed of your computer's serial port, but be warned that this may be too high if your modem runs at a lower rate over the phone line. The baud rate option is intended for systems that buffer output to the modem. During setup and tuning it is better to use a small baud rate rather than one which is too large. For high speed links (&gt; 38400), making it unlimited is probably advantageous. This is achieved by using the value 'off'. <code>TERM</code> will then rely solely on your kernel to do flow control. </p>
+<p><code>Compression</code>: you want this on if you do not have a
+compressing modem.  If you do have such a modem, turn compression off,
+otherwise you will be compressing things twice, which typically <i>increases</i> the amount of data transmitted. Compressing modems are
+those that use the MNP-5 or V42.bis protocols. Check your modem
+documentation and the message when your modem connects.</p>
+<p><code>Windows</code>: this is the number of chunks of data, or packets,
+that <code>TERM</code> will let go over the line before it gets an
+acknowledgment (or ack) from the remote <code>TERM</code>. For fast
+modems, increasing this can be a win; for slower links this can
+overwhelm the remote end.</p>
+<p><code>Timeout</code>: the time <code>TERM</code> will wait for an ack. If
+you have increased windows, and you are getting timeouts in your log-file,
+try increasing this.</p>
+<p>For 14400/V42.bis, I use <code>-c off -w 10 -t 150</code>. I get around 1700 cps on compressed files and 3500 cps on ASCII files
+using tupload.</p>
+<p></p>
+
+<h2>4.14 <A Name="ss4.14"> Troubleshooting </h2>
+
+<p></p>
+<p>In this section some thoughts are given about what to check when you have problems executing <code>TERM</code> or one of its clients.</p>
+<p>
+<ul>
+<li>Did you clean up the <code>TERM</code> directory structure? With newer versions of <code>TERM</code> the structure of the directory tree under '/usr/local/lib/term' has changed a couple of times. If you are not aware of this, it can cause all kinds of error messages. The best thing to do is to delete the directory tree under '/usr/local/lib/term' (save your 'termrc') and then install your new <code>TERM</code> version. This way, you avoid the struggle with a messed up directory tree.</li>
+<li>Did you remove old sockets? When you update your <code>TERM</code> version remove all the sockets (called 'socket=') created by <code>TERM</code>. No doing this can cause strange problems. To find out what socket <code>TERM</code> is listening to you can use the "netstat" program.</li>
+<li><code>TERM</code> does not compile correct on sunOS 4.1.3? You have configured <code>TERM</code> with './configure --user'. During compilation you are getting a assembler error on a unknown '-k' flag. The reason of this error is unknown. The solution to this error is to configure <code>TERM</code> with static libraries. So, you have to do './configure --user --static' and then continue with the compilation process the way you normally do. Now <code>TERM</code> should compile correct.
+</li>
+<li><code>termtest</code> is presenting you the error: 'Term: failed to connect to term socket '/root/.term/sockettest''? When termtest runs it expects the executable 'term' to be in the same directory as termtest. When you do a 'make install' prior to running termtest, the TERM binary is moved to '/usr/local/bin' (or some other bin directory).
+
+The workaround for this is to link the binary to the source directory:
+
+<pre>
+  ln -s /usr/local/bin/term /usr/src/term-&lt;version_number&gt;/term
+</pre>
+
+</li>
+<li>Are you running the right binary? <code>TERM</code> has been updated
+quite a lot, and many systems have different versions of the programs
+floating around. Make sure you are using the right version. Note that
+this applies to linecheck too. You can use bash's <code>type -a</code>
+or the <code>whereis</code> command to find which program is being run.
+<code>TERM</code> versions after 1.11 should print out their version
+number when they start up.  (Although version 1.14 claims to be 1.12.
+Sigh.)</li>
+<li>Do you have the right 'termrc' in the right place? Depending on the version of <code>TERM</code> you are running and the way you installed <code>TERM</code> (being root or user) this file has to be in one of the following directories: 
+
+<pre>
+  $HOME/.term/termrc
+  $HOME/.term/termrc.&lt;server&gt;
+  $HOME/term/termrc
+  $HOME/term/termrc.&lt;server&gt;
+  /usr/local/lib/term/termrc
+  /usr/local/lib/term/termrc.&lt;server&gt;
+  /etc/termrc
+  /etc/termrc.&lt;server&gt;
+</pre>
+
+
+Some systems have pre-installed 'termrc' files; make
+sure they are gone before you set things up. If you are running things
+as root, lookout for '/.term'. <code>TERM</code> creates files
+(sockets actually) while it is running; so it has its own directory,
+'$HOME/.term', where the file 'termrc' goes
+(note, there is <i>no</i> leading dot in 'termrc'!). </li>
+<li>Does <code>TERM</code> find its 'termrc' file? when you start up <code>TERM</code> at both sides, you should see messages like the one below:
+
+<pre>
+  Term version: 2.2.9
+  Reading   /usr/local/lib/term/termrc
+  Using shared mode.
+</pre>
+
+
+When the second line is missing <code>TERM</code> cannot find its 'termrc' file and you know that something is gone wrong during the installation (unless you are not using a 'termrc' file and enter all the options to the command line :-). Check the place and the permissions of the 'termrc' file on the site <code>TERM</code> cannot find its 'termrc' file.</li>
+<li>Is you 'term' or '.term' directory mounted with NFS? If your 'term' or '.term' directory is mounted with NFS you need to set the flag -DTERM_NFS_DIR in the CFLAGS line of the Makefile. Alas, for the author this flag causes a compile error when <code>TERM</code> 1.19 is compiled on a machine running sunOS 4.*.</li>
+<li>Are all files and directories owned by the correct user and group and do they have the correct permissions? This should be no problems as these permissions are set during the installation phase. However, when you port your own programs to <code>TERM</code> you must be aware of this. Also when you change the mode <code>TERM</code> is working in (i.e. from private mode to shared mode) file and directory ownerships and permissions have to be adapted.
+</li>
+<li>You are getting the error <i>gethostbyname: &lt;hostname&gt;: Non-authoritative `host not found', or, server failed</i>
+
+To solve this you have to check the following things:
+
+<ol>
+<li>Is the file '/etc/hosts' configured correctly? &lt;hostname&gt; is not the name of your host (old SLS releases and some old and new Slackware releases are shipped with hostname 'darkstar' for example). Change this in this file. It must at least contain a line like below (the format is described above it):
+
+<pre>
+  # Local Hosts Format:
+  #  IP_NUMBER            HOSTNAME        ALIASES
+  #
+  # Here is the name of your host, first, followed by any aliases
+  127.0.0.1       localhost       linuxpc.domain  linuxpc
+</pre>
+</li>
+<li>Are your '/etc/rc*' and '/etc/resolv.conf' files world readable (chmod ugo+r)?</li>
+<li>Last, make sure that you have installed the TCP/IP loopback-interface on your machine.</li>
+</ol>
+</li>
+<li>You are getting all kinds of 'timed out' messages in your <code>TERM</code> log files?  This means that your <code>TERM</code> connection is not optimized. A small number of these messages every now and then is not a problem. These are most certainly due to temporal factors influencing the physical connection between your local and remote hosts. 
+
+When you get a lot of these messages all the time your connection will slow down considerably. You have to fiddle with the parameters mentioned in the section 'Optimizing your connection' above. Alas, this part of the installation is a process of trial and error. No hard rules can be given about the numbers to be presented to the various parameters as many factors have an influence on the connection. These factors differ between the connections and even in time.</li>
+<li>Normal FTP with redirected ports does not work for you? Alas, it is a known problem that redirection of the ports needed by FTP (20 and 21) does not give you a working FTP. The only solution is to get a <code>TERM</code>-aware ftp or ncftp version. Alas, also some <code>TERM</code>-aware ftp versions seem not to work.</li>
+</ul>
+</p>
+<p></p>
+
+<p><a href="Term-HOWTO-5.html"> Next </a> Chapter, <a href="Term-HOWTO-3.html"> Previous </a> Chapter</p><p>Table of contents of <a href="Term-HOWTO.html#toc4">this chapter</a>,
+ General <a href="Term-HOWTO.html#toc">table of contents</a></p>
+<p><a href="Term-HOWTO.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>
+
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<P><A HREF="/skunkware/index.html">
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.left.gif"
+ALT="">
+Return to Welcome Home Page</A> or
+<A HREF="/skunkware/tools.html">
+Continue to Browse
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.right.gif"
+ALT=""></A>

@@ -1,0 +1,159 @@
+<HTML>
+<!--SCONAV--><I><A HREF=/VTCLRefGuide/CONTENTS.html><I>SCO Visual Tcl Reference Guide</I></A>
+<!--SCONAV--><BR><A HREF=/VTCLRefGuide/BOOKCHAPTER-1.html>Chapter 1, Tcl - tool command language</A></I><HR>
+<TITLE>Variables used by Tcl</TITLE><P>
+<A HREF=/cgi-bin/getnav/VTCLRefGuide/tclintro.tclvars.html><H1>Variables used by Tcl</H1><P></A>
+These global variables are created and managed
+automatically by the Tcl library.  Except where noted, 
+these variables should normally be treated as
+read-only by application-specific code and by users.
+<DL COMPACT>
+<P><DT><B>env</B><DD>
+This variable is maintained by Tcl as an array whose
+elements are the environment variables for the process.
+Reading an element will return the value of the
+corresponding environment variable.  Setting an element of
+the array will modify the corresponding environment
+variable or create a new one if it does not already exist.
+Unsetting an element of <B>env</B> will remove the
+corresponding environment variable.  Changes to the
+<B>env</B> array will affect the environment passed to
+children by commands like <B>exec</B>.  If the entire
+<B>env</B> array is unset then Tcl will stop monitoring
+<B>env</B> accesses and will not update environment
+variables.
+<P><DT><B>errorCode</B><DD>
+After an error has occurred, this variable will be set to
+hold additional information about the error in a form that
+is easy to process with programs.  <B>errorCode</B>
+consists of a Tcl list with one or more elements.  The
+first element of the list identifies a general class of
+errors, and determines the format of the rest of the list.
+These formats for <B>errorCode</B> are used by
+the Tcl core; individual applications may define additional
+formats.
+<DL COMPACT>
+<P><DT><B>ARITH</B> <I>code msg</I><DD>
+This format is used when an arithmetic error occurs (e.g.
+an attempt to divide by zero in the <B>expr</B>
+command).  <I>code</I> identifies the precise error and
+<I>msg</I> provides a human-readable description of the
+error.  <I>code</I> will be either <B>DIVZERO</B>
+(for an attempt to divide by zero), <B>DOMAIN</B> (if an
+argument is outside the domain of a function, such as
+<B>acos(-3)</B>), <B>IOVERFLOW</B> (for integer
+overflow), <B>OVERLFLOW</B> (for a floating-point
+overflow), or <B>UNKNOWN</B> (if the cause of the error
+cannot be determined).
+<P><DT><B>CHILDKILLED</B> <I>pid sigName msg</I><DD>
+This format is used when a child process has been killed
+because of a signal.  The second element of
+<B>errorCode</B> will be the process's identifier (in
+decimal).  The third element will be the symbolic name of
+the signal that caused the process to terminate; it will be
+one of the names from the include file <I>signal.h</I>,
+such as <B>SIGPIPE</B>.  The fourth element will be a
+short human-readable message describing the signal, such as
+``write on pipe with no readers'' for <B>SIGPIPE</B>.
+<P><DT><B>CHILDSTATUS</B> <I>pid code</I><DD>
+This format is used when a child process has exited with a
+non-zero exit status.  The second element of
+<B>errorCode</B> will be the process's identifier (in
+decimal) and the third element will be the exit code
+returned by the process (also in decimal).
+<P><DT><B>CHILDSUSP</B> <I>pid sigName msg</I><DD>
+This format is used when a child process has been suspended
+because of a signal.  The second element of
+<B>errorCode</B> will be the process's identifier, in
+decimal.  The third element will be the symbolic name of
+the signal that caused the process to suspend; this will be
+one of the names from the include file <I>signal.h</I>,
+such as <B>SIGTTIN</B>.  The fourth element will be a
+short human-readable message describing the signal, such as
+``background tty read'' for <B>SIGTTIN</B>.
+<P><DT><B>NONE</B><DD>
+This format is used for errors where no additional
+information is available for an error besides the message
+returned with the error.  In these cases
+<B>errorCode</B> will consist of a list containing a
+single element whose contents are <B>NONE</B>.
+<P><DT><B>POSIX</B> <I>errName msg</I><DD>
+If the first element of <B>errorCode</B> is
+<B>POSIX</B>, then the error occurred during a
+POSIX kernel call.  The second element of the
+list will contain the symbolic name of the error that
+occurred, such as <B>ENOENT</B>; this will be one of the
+values defined in the include file <I>errno.h</I>.  The
+third element of the list will be a human-readable message
+corresponding to <I>errName</I>, such as ``no such file
+or directory'' for the <B>ENOENT</B> case.
+</DL>
+<P>
+To set <B>errorCode</B>, applications should use library
+procedures such as <B>Tcl_SetErrorCode</B> and
+<B>Tcl_PosixError</B>, or they may invoke the
+<B>error</B> command.  If one of these methods has not
+been used, then the Tcl interpreter will reset the variable
+to <B>NONE</B> after the next error.
+<P><DT><B>errorInfo</B><DD>
+After an error has occurred, this string will contain one
+or more lines identifying the Tcl commands and procedures
+that were being executed when the most recent error
+occurred.  Its contents take the form of a stack trace
+showing the various nested Tcl commands that had been
+invoked at the time of the error.
+<P><DT><B>tcl_precision</B><DD>
+If this variable is set, it must contain a decimal number
+giving the number of significant digits to include when
+converting floating-point values to strings.  If this
+variable is not set then 6 digits are included.  17 digits
+is perfect for IEEE floating-point in that it
+allows double-precision values to be converted to strings
+and back to binary with no loss of precision.
+</DL>
+<LINK HREF=/VTCLRefGuide/CONTENTS.html REL=contents>
+<LINK HREF=/cgi-bin/getnav/VTCLRefGuide/tclintro.tclvars.html REL=navigate>
+<LINK HREF=/VTCLRefGuide/tcl_libraries.html REL=next>
+<LINK HREF=/VTCLRefGuide/tclintro_syntax.html REL=previous>
+
+<!--NAVIGATE <TITLEgReATerTHanNavigational information for ``Variables used by Tcl''</TITLEgReATerTHan -->
+<!--NAVIGATE <H2gReATerTHanNavigational information for ``Variables used by Tcl''</H2gReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Book title: <IgReATerTHanSCO Visual Tcl Reference Guide</IgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Next topic:  -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tcl_libraries.htmlgReATerTHanStandard library of Tcl procedures</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE Previous topic:  -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro_syntax.htmlgReATerTHanTcl language syntax summary</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/CONTENTS.htmlgReATerTHanTable of contents</AgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE <H3gReATerTHanPartial table of contents</H3gReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro.tclintro.htmlgReATerTHanChapter 1, Tcl - tool command language</AgReATerTHan -->
+<!--NAVIGATE <ULgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro_syntax.htmlgReATerTHanTcl language syntax summary</AgReATerTHan -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tclintro.tclvars.htmlgReATerTHanVariables used by Tcl</AgReATerTHan -->
+<!--NAVIGATE &lt;--------- YOU ARE HERE -->
+<!--NAVIGATE <LIgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/tcl_libraries.htmlgReATerTHanStandard library of Tcl procedures</AgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE </ULgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <A HREF=/cgi-bin/printchapter/VTCLRefGuide/BOOKCHAPTER-1.htmlgReATerTHan -->
+<!--NAVIGATE Entire chapter assembled for printing -->
+<!--NAVIGATE </AgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <BRgReATerTHan -->
+<!--NAVIGATE <A HREF=/VTCLRefGuide/COPYRIGHT.htmlgReATerTHan&#169; 1995 The Santa Cruz Operation, Inc.  All rights reserved</AgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/CONTENTS.html REL=contentsgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/tcl_libraries.html REL=nextgReATerTHan -->
+<!--NAVIGATE <LINK HREF=/VTCLRefGuide/tclintro_syntax.html REL=previousgReATerTHan -->
+<!--NAVIGATE  -->
+

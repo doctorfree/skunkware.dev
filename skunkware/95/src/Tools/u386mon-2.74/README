@@ -1,0 +1,582 @@
+u386mon 2.70 README - Thu Aug 26 04:41:50 EDT 1993
+==================================================
+
+This is u386mon 2.70, a "performance" monitor, ostensibly for SCO
+UNIX V/386 and ISC 386/ix on 386/486 processors, although it has
+been ported to a 68k VME System V Release 3.1 platform and to ISC
+1.0.x and to the Tandem Integrity S2 (both S5R3.0-ish).  Also, a
+renice is included as an example of alternate uses of the
+kmem/mem/swap utility objects.
+
+This list is probably obsolete by now (I've heard no news from
+you guys), but u386mon has been known to work on:
+
+    Motorola Delta 88k SVR3e 3.1 (good luck)
+    DELL System V (ISC derived)
+    ISC 1.x
+    ISC 2.x
+    Tandem Integrity S2 Non-Stop UX
+    Various System 5 Release 3.1 (good luck)
+    SCO UNIX 3.2, 3.2.1, 3.2r2, ODT 1.x
+
+U386mon previous to 2.60 was tested on SCO 3.2.0, 3.2.1, 3.2v2
+and ODT and ISC 1.0.x, 2.0.x and 2.2.x, Tandem Integrity S2
+NonStop-UX and at least one MC68000 VME-based Sys V Rel 3.1
+system.  Version 2.70 has been tested only on ODT 2.0 (3.2v4)
+and Motorola Delta 88k SVR32, but problems with the other
+environments are not anticipated :->.
+
+These may work with other UNIX System 5 Release 3.x systems with
+a little work.  XENIX systems have greatly different kernel
+implementations and use xlist instead of nlist.  These programs
+will not work there; sorry. 
+
+U386mon requires terminfo style curses and will use the curses
+color facility if you have it.  In addition, color choice may be
+customized.  It works best with a 43 line (or greater) screen,
+but will work with a 25 line screen with some limitations.  It
+works very well on SCO ODT, Metro Link X11R4 and ISC xterms.  On
+a Wyse 60, the SCO color curses does some interesting attribute
+mappings.
+
+On a 20Mhz Compaq 386 running SCO UNIX 3.2.0, u386mon on a 43-line VGA,
+with a two second update interval, appears to consume 3 to 5% of the CPU
+when in the "main" display and about 7 to 11% when displaying process
+status (NPROC, v.v_proc == 100).  This is a bit expensive, but the job
+is sorta hard: according to prof(1)/prof(CP), 50% of the time is spent
+in curses.  Of course, on the Tandem Integrity S2 (a MIPS based
+machine), these figures were MUCH, MUCH lower :-).  On a 486 33 MHz
+machine, I get very much lower figures as well.  In fact, the guy was so
+fast we found a divide by zero possibility where u386mon could run a
+whole cycle without ticking the clocks, getting zero total cpu ticks
+over the cycle.
+
+Acknowledgments
+===============
+
+Thanks to martin@hppcmart.grenoble.hp.com (Martin Croome), who
+gets complete credit for the nice STREAMS, table and
+winchester statistics.  Neils Baggesen ported/tested them on
+S5R3.1.
+
+Thanks to peter@radig.de (Peter Radig), dug@kd4nc (Doug Drye),
+jdc@uudell.dell.com (Jeremy Chatfield), andy@rbdc (Andy Pitts),
+trb@ima.ima.isc.com (Andrew Tannenbaum) for the help with ISC 386/ix.
+
+Thanks to nba@sysware.dk (Neils Baggesen) and allbery@ncoast.org
+(Brandon Allbery) for the System V Release 3.1 work.
+
+Thanks to jmd@tdmsou.uucp (John Dashner) for the Tandem S2 work.
+
+Thanks to Dion Johnson <dionj@sco.com>, Bob Lewis (robertle@sco.com),
+Bob Tinsman <bobti@sco.com> and David Gurr <davidgu@sco.com> for
+encouragement to keep work going.
+
+If I missed mentioning some work you did, please accept my apology and
+remind me.
+
+Yellow Brick Road
+=================
+
+Read through this and you will finally reach "How to get going" below.
+
+Sample output (somewhat obsolete)
+=================================
+(with 43-line screen; a 25 line screen will be missing Var/Bootinfo/Tune/Proc
+on the 'main' display)
+
+ u386mon 2.11/SCO 3.2 - n4hgf                                 04:39:36 wht@n4hgf
+---- CPU --- tot usr ker brk ---------------------------------------------------
+ Instant %    93  54  39   0 uuuuuuuuuuuuuuuuuuuuuuuuuuukkkkkkkkkkkkkkkkkkk     
+ 5 Sec Avg %  87  26  61   0 uuuuuuuuuuuuukkkkkkkkkkkkkkkkkkkkkkkkkkkkkk        
+10 Sec Avg %  89  45  44   0 uuuuuuuuuuuuuuuuuuuuuukkkkkkkkkkkkkkkkkkkkkk       
+---- Wait -- tot  io pio swp -- (% of real time) -------------------------------
+ Instant %     5   5   0   0 ii                                                 
+ 5 Sec Avg %  12  12   0   0 iiiiii                                             
+10 Sec Avg %   9   9   0   0 iiii                                               
+---- Sysinfo/Minfo --- (last  1000 msec activity) ------------------------------
+bread          5  readch    60416  pswitch    21   vfault    1    unmodsw   0   
+bwrite         9  writch     2507  syscall   261   demand    1    unmodfl   0   
+lread        331  rawch         2  sysread   100   pfault   15    psoutok   0   
+lwrite        42  canch         0  syswrit     4   cw        0    psinfai   0   
+phread         0  outch      2508  sysfork     1   steal    15    psinok    0   
+phwrite        0  msg           0  sysexec     0   frdpgs    0    rsout     0   
+swapin         0  sema          0                  vfpg      0    rsin      0   
+swapout        0  maxmem    5724k  runque      0   sfpg      0                  
+bswapin        0  frmem     3284k  runocc      0   vspg      0    pages on      
+bswapout       0  mem used    43%  swpque      0   sspg      0    swap      0   
+iget          72  nswap    10000k  swpocc      0   pnpfault  0    cache     0   
+namei         71  frswp    10000k                  wrtfault  0    file      0   
+dirblk        92  swp used     0%                                               
+                                                                                
+                                                                                
+                                                                                
+-- Var ---------  -- Bootinfo ----------   -- Tune ---------  -- Proc ---       
+v_autoup      10  basemem      640k        t_ageintvl      9  sleep    22       
+v_buf        600  extmem      6144k        t_bdflushr      1  run       1       
+v_clist      200  bflags   00000000        t_gpgshi       40  zombie    0       
+v_file       200  memory available         t_gpgslo       25  stop      0       
+v_hbuf        64  00000000 000a0000        t_gpgsmsk   0x420  idle      0       
+v_inode      200  00100000 00600000        t_maxfc         1  onproc    1       
+v_maxpmem      0  00f40000 00060000 NODM   t_maxsc         1  xbrk      0       
+v_maxup       60  memory used              t_maxumem    2560  total    24       
+v_mount        5  00000000 00004000 RSVD   t_minarmem     25  in mem   24       
+v_pbuf        20  006bb000 00037000 KBSS   t_minasmem     25                    
+v_proc       100  006f2000 0000e000 KDTA                                        
+v_region     210  00fa9000 00057000 KTXT                                        
+v_vhndfrac    16                                                                
+
+The main display
+================
+
+In the description below, color references are to the
+default color choices.  You may customize color through
+the use of ~/.u386monrc and/or /usr/local/lib/u386monrc (see later).
+
+A brief description of reported information:
+
+0.  The '+' and '-' command adds or subtracts one second from the
+    update interval.  The value at startup is 2 seconds, the
+    range 1 to 4.  Below, the terms "x1", "x5" and "x10" mean
+    "interval X 1", "interval times 5" and "interval times 10,"
+    respectively.
+
+    You can determine the update interval by looking at the top
+    CPU histogram, labeled "Instant" for 1, "X sec" for 2-4 second
+    intervals.
+
+    On some *fast* systems, values may be too large in 3 and 4
+    second intervals and corrupt the display.  But the, you have
+    the extra CPU to run it more often :-).
+
+1.  The CPU utilization is shown with smoothing of x1 ("instant" if
+    the update interval is 1 second), x5 and x10 seconds.  Total
+    CPU usage is shown, with user, kernel and "break" subdivided.
+    Most performance utilities (vmstat) lump kernel (CPU_KERNEL)
+    and wait (CPU_WAIT) times together as kernel time.  u386mon
+    considers CPU_WAIT time as idle (the CPU could have been
+    doing something if an otherwise ready process wasn't waited).
+
+    On a color display, total cpu utilization is displayed in
+    green if the cpu utilization is below 70%, yellow if utilization
+    is between 70% and 89% and red if 90% or above.
+
+2.  The Wait display shows the x1, x5 and x10 second smoothed
+    percentages of real time no process could be run because
+    otherwise ready to run processes were waiting on logical,
+    swap or physical I/O.
+
+    On a color display, total wait time is displayed in green if
+    it is below 30%, yellow if utilization is between 30% and 49%
+    and red if 50% or above.
+
+3.  Sysinfo/Minfo display shows, generally, the number of events
+    for a measured value since the last display update.  For
+    example, runque shows the number of times a process was
+    placed on the run queue.  An exception is the memory and swap
+    space fields: These numbers reflect absolute current
+    utilization over the period shown in the "last XXXXX msec"
+    value in the banner.  Periods of 4000 milliseconds are shown
+    in red, 1500 to 3990 milliseconds in blue and less than 1500
+    milliseconds in the normal banner color.
+
+    My guess as to the meaning of the sysinfo and minfo values is
+    in the file EXPLAIN.  I am not familiar with the meanings of
+    all the items, having looked through the header files, sar
+    man pages and the other UNIX hacker-ganda I could find.
+    Comments are appreciated.
+
+4.  If you run u386mon on a 43 line display, extra information is displayed
+    on the bottom of the screen (from the struct var v, bootinfo
+    and proc kernel databases).
+
+    On a 24/25-line screen, the 'e' command accesses the Var/Bootinfo/
+    Tune/Proc display, overlaying the Sysinfo/Minfo display.
+    Using 'm' returns you to the main display.
+
+    Bootinfo will be missing from version running on platforms which
+    do not support it.
+
+5.  On a color display, static numeric values, such as maxmem appear
+    in blue (the same color as screen literals/labels).  Dynamic
+    numeric values are displayed in green, with the exception of
+    total cpu and wait percentages, which appear in light green,
+    red or yellow.
+
+6.  An "INEXACT" indication on the top line means that u386mon was
+    not scheduled quickly enough to capture accurate 1 second (nominal)
+    values.  Continued INEXACT indication suggests the x5 and x10
+    second smoothed values are also wrong.
+
+    An "INVALID" indication means u386mon was scheduled 3 or more
+    seconds late; all percentage isplays are now suspect.
+
+7.  IN GENERAL, if you see any red characters on the display,
+    immediately take grain of salt. If you have no color screen
+    and still see red, add tequila to salt.
+
+8.  If you are running as root, you may use the -l switch or the
+    'l' command to lock u386mon into memory.  If you do this, PLOCK
+    will appear at the top of the screen to remind you of this hoggy
+    behavior.  The u386mon process will not be listed in a process
+    status display since SSYS (locked, resident) processes are not
+    shown.
+
+9.  The ISC bootinfo field will have different information due to
+    different porting by ISC and SCO.
+
+Process Status Display
+======================
+
+1.  Pressing 'p' causes a process status display of sorts to be
+    shown, overlaying Sysinfo/Minfo on a 25 line screen or
+    Var/Bootinfo/Tune/Proc on a 43 line screen.  On a 43 line screen, 'P'
+    causes a larger ps display to be shown, overlaying Sysinfo/Minfo and
+    Var/Bootinfo/Tune/Proc.
+
+    Sample output:
+
+S     USER   PID  CPU PRI NI  UCPU   SCPU  SIZE TTY CMD
+s     root    148   0  26 20   0:00   0:05  108  ?? /etc/cron
+s      wht  14946   2  39 20   0:02   0:11  224  05 TMR 01000a12
+s      wht  14947   2  39 20   0:02   0:11  220  05 TMR 01011101
+s      wht  14950   0  27 20   0:00   0:02  228  05 IP 01000a12
+s      wht  14951   1  27 20   0:00   0:02  224  05 IP 01011101
+s      wht  14952   0  27 20   0:01   0:02  228  05 TP4 01000a12
+s      wht  14953   1  27 20   0:01   0:03  224  05 TP4 01011101
+s      wht  14957   0  27 20   0:00   0:04  200  05 smpad.x
+s      wht  14960   1  27 20   0:00   0:04  204  05 mmpad.x
+s     root  15044   0  28 20   0:01   0:01  296  12 vi README
+s     uucp  15053   0  30 26   0:00   0:00  696  ?? /usr/lib/uucp/uusched
+s     uucp  15055   0  30 26   0:00   0:00  748  ?? UUCICO -r1 -sgatech
+s     uucp  15060   0  28 26   0:00   0:00  768  ?? dialTBIT tty2E 2222222UC 192
+
+    NOTES
+    a.   S - two character status
+            1st character - process status
+               s - sleeping
+               R - ready to run (might be running if u386mon were not)
+               z - zombie
+               d - stopped by debugger
+               d - signal handler in progress (88k SVR32)
+               i - idle (in creation?)
+               p - running on processor (on single CPU systems, only u386mon
+                   will show this)
+               x - XBREAK - process growing or shrinking
+               w - waiting on Waitchan (88k SVR32)
+            2nd character - process swap status
+               S - process is swapped
+               blank - process is in memory
+
+    b.  If the process is running with setuid, a '#' appears to
+        the right of the username.
+
+    c.  On color systems, processes ready to run are shown in yellow
+        unless they are ready, but swapped out, in which case they
+        are shown in red.
+
+3.  Since a limited space is available for displaying process
+    status, particularly on a 25-line screen, a selective elimination
+    algorithm is used to whittle the list when insufficient room
+    is available.  init (pid 1) and system/resident (SSYS)
+    processes are never displayed.  When a display cycle is to begin
+    and there is not room for all of the processes to be shown,
+    processes are eliminated in the following order:
+
+    a. 'getty', 'uugetty', 'sh', 'csh', and 'ksh'
+    b. swapped and zombie processes
+    c. no cpu processes (no cpu time during last cycle)
+    d. sleeping processes
+
+    If there is still insufficient room, an indication to the effect
+    is displayed (tough cookies).
+
+Disk (Winchester) display
+=========================
+
+This display shows each disk and diskette device known to the system
+and performance statistics for each.  Currently, the information is
+available only on SCO systems.  The percentages will be inaccurate for
+one or two display cycles after the 'w' (winchester) selection
+becomes active.  Further updates may be inaccurate due to either
+noisy kernel data, data capture latency, our having to guess a
+lot, or any combination of the above.
+
+STREAMS (Net) display
+=====================
+
+This display shows STREAMS queues and buffers utilization a bit
+faster and more dynamically than /etc/crash strstat!  Currently,
+the information is available only on SCO systems.  It should be
+easy to get going for others, though.
+
+Table Display
+=============
+
+The current and maximum occupancy of various kernel tables are displayed.
+This may not be enabled for all systems (I couldn't test Everywhere!).
+
+Sio display
+===========
+
+The experimental, "undocumented" sio display is a stab at tty I/O
+monitoring for SCO only. If you don't mind doing a bit of hacking,
+it can be adapted for other tty drivers whose data is an
+array of struct tty (see det_sio.c and ttynm.h and grep for SIO_IS_FAS
+to see how I have adapted it for my FAS configuration).  See also
+the discussion of siotools below in _How to get going_.
+
+A $0.0002 tour: why nlsym and /unix.nlsym?
+==========================================
+
+Access to kernel (/dev/kmem) and physical (/dev/mem) memory and
+swap (/dev/swap) is required for u386mon to do its thing.
+To find kmem addresses of interest, an nlist(S) call must be made
+against /unix.  This can be quite expensive.
+
+The 'nlist' procedure is performed by a separate program (nlsym)
+and the resulting nlist structure array is stored in /unix.nlsym.
+u386mon thus may obtain nlist information rapidly without nlist(S) each
+time it is executed.  Also stored in /unix.nlsym is a stat structure of
+/unix at the time of nlsym execution.  A unique word is stored at the
+end of the file in case /unix.nlsym's nlist structure is expanded for
+other applications.  The u386mon program reads /unix.nlsym by means
+of facilities in libnlsym.c.  If the stat structure in /unix.nlsym
+does not match a dynamic stat of /unix or if the unique word does
+not match, the nlist information is not trusted and u386mon prompts
+the user to run (or have run) the nlsym program to update /unix.nlsym.
+
+Many symbols are nlist'ed by nlsym which are not used by u386mon.
+You may find other uses for libnlsym/libkmem which make use of them.
+
+U386MONRC
+=========
+
+For systems with color curses, a color customization feature
+is available through the use of ~/.u386monrc or /usr/local/lib/u386monrc.
+
+If ~/.u386monrc cannot be found, /usr/local/lib/u386monrc is
+sought.  If neither can be found, the default colors are used.
+
+There are at least eight available colors (those on the left of
+the table below).  The brighter versions of those eight colors
+are available in the hardware, but you must take actions with
+color curses that are beyond the scope of this work.  In the
+usual situation, the right hand color is accepted in lieu of the left).
+
+    black     gray
+    blue      lt_blue
+    brown     yellow
+    cyan      lt_cyan
+    green     lt_green
+    magenta   lt_magenta
+    red       lt_red
+    white     hi_white
+
+The supplied U386monrc contains definitions which match the
+program defaults.  It looks like:
+
+   literal cyan
+   info green
+   reverse red white
+   low lt_green
+   medium lt_green
+   high red
+   banner black white
+   banwarn blue white
+
+Literals are the labels for info fields.
+
+Info fields are numbers or values not subject to range checking by
+u386mon (generally, fields not in the CPU or Wait histograms)
+
+Reverse video fields are those u386mon wishes to bring to your
+attention; as of this writing, reverse is used to report a
+statistics cycle that took excessively longer than requested
+and to report a large unread input queue on a serial port
+
+Low, medium and high are used to report values that u386mon
+"grades" for acceptibility. Numeric values in the histograms
+are painted in low, medium or high colors based on an algorithm
+in u386mon that is described in the README.  Histogram bars
+are colored as follows:
+
+  field  CPU     Wait     default
+  low    user    io       green
+  medium kernel  pio      yellow
+  high   break   swap     red
+
+Banner fields are used to separate histograms and other panels
+
+"banwarn" is so named as an artifact that the "last xx msec activity"
+field is in a banner.  When this value exceeds the expected period
+by 500 msec, the banwarn attribute is used. (When it exceeds by
+1 second, reverse is used.)
+
+How to get going
+================
+
+1.  Copy the appropriate Make. file to Makefile, depending on
+    your type of system.  It has been a while since I have had
+    good reports on the various OSs other than SCO UNIX, so good luck.
+
+    Make.88k32          Motorola Delta 88k SVR3e 3.1 (good luck)
+    Make.dell           DELL System V (ISC derived)
+    Make.isc1           ISC 1.x
+    Make.isc2           ISC 2.x
+    Make.isc2.gcc       ISC 2.x with gcc (untested)
+    Make.s2             Tandem Integrity S2 Non-Stop UX
+    Make.sVr31          Various System 5 Release 3.1 (good luck)
+    Make.sco            SCO UNIX 3.2, 3.2.1, 3.2r2, ODT 1.x
+    Make.sco.gcc        same (tested with gcc 1.39 through 2.1)
+
+2.  Edit Makefile to change BINDIR to match your local requirements.
+    If you have a kernel that knows about MERGE386 as with SCO ODT,
+    add -DMERGE386 to CFLAGS. Likewise, if you have VPIX, add -DVPIX.
+    You may need to add -Dm68k for a MC68000 system if your
+    compiler does not (This may sound like an odd statement for a
+    program with 386 in the name, but we are broadening our territory :->).
+
+3.  make all.  Please report compile errors to me.  You shouldn't
+    get any on SCO 3.2.x or ISC 2.x.x for any "recent" or current versions.
+
+3a. Note: Don't worry, if on SCO makes, you see warnings on many modules'
+    compilation similar to the following:
+
+                 cc -nointl -c -Octl -CSON -DLINT_ARGS u386mon.c
+        u386mon.c
+        /usr/include/tinfo.h(442) : warning C4005: 'box' : redefinition
+        /usr/include/tinfo.h(443) : warning C4005: 'newterm' : redefinition
+
+    This is confusion on part of tinfo.h resulting from our use of
+    some valuable speedup macros built into tinfo.h, but not quite
+    kosher enough to satisfy the compiler we know what we are doing.
+    If it bothers you, or something breaks, remove #define CURSES_MACROS
+    from u386mon's config.h.  This problem does not occur with the
+    3.2v4 development system.
+
+3b. If you get undefined externs for is_linetouched and is_wintouched(),
+    you can try editing config.h and #define NO_ISTOUCH.  Good luck -
+    these are hack attempts and I have no idea if they will work.
+
+4.  You must run make install as root since u386mon must be setuid to
+    'mem' ('sys' for ISC) and nlsym must produce /unix.nlsym.
+    For S5R3.1 systems, all bets on "make install" are off.  I don't
+    know what it takes, it'll vary from system to system, and the
+    Make.sVr31 is only a guide.  For instance, you may want to
+    rename the program to u68kmon on 68000 systems :-).
+
+    If you are a user of old u386mon versions, run the new nlsym since
+    the older /unix.nlsym format is not compatible with this version.
+
+5.  Sources are in 4-spaced tab format (please don't flame :->).
+
+6.  You'll need to check out config.h and your /usr/include/sys/proc.h.
+    If you find a p_sid element in the proc structure, then enable
+    #define HAVE_P_SID in config.h so that processes running under job
+    control will have their control ttys displayed properly. 
+    Thanks for the tip to rw@namu01.gwdg.de (Rainer Wittmann STAT).
+
+7.  usage: u386mon [-l] [-p | -P]
+    -l lock process into memory (if root)
+    -p begin with short ps display
+    -P begin with long ps display (if 43 line screen)
+    -w begin with disk (winchester) stats [SCO and S5R3.1 only]
+    -n begin with STREAMS (net) stats [SCO and S5R3.1 only]
+
+8.  If you are running SCO and get 4 as the size of most or all processes,
+    try adding -DUSIZE_FIXED.  SCO 3.2.0 had this info in the struct
+    user fields u_tsize, u_dsize, u_ssize wrong, IMHO, and fixed it
+    in ODT/3.2.1.  See det_proc.c for more detail.  Your port
+    may/WILL vary.
+
+9.  The renice program by Ford Ditto, from which the kmem routines
+    came, has been reworked and in included with this release.
+    It needs a current /unix.nlsym.
+
+    usage: renice -# pid     decrease nice by #
+           renice +# pid     increase nice by #
+           renice =# pid     set nice to #
+
+    The traditional privileges for root and non-root are supported.
+
+10. The libpanel.c module is not an efficient replacement for the
+    SVR3.2 panel facility.  It is, however, fully featured and serves
+    the needs of u386mon, assisting a port to SVR3.1.  It seems
+    efficient enough to use in lieu of native (vendor-supplied)
+    panels.
+
+11. Siotools, a package of tty and uucp monitors, was previously
+    released separately.  Both programs in the package have been
+    reorganized to use the nlsym mechanism.  It seemed reasoanble
+    to merge the two packages.  HoneyDanBer UUCP is required.
+    The package may fail on SCO 3.2v4 if files have been created
+    in /usr/spool/uucp/* with filenames in excess of 14 characters.
+    This is not likely to become a problem, but I'll fix the
+    hack directory search mechanism upon demand.  The method
+    I use currently is very quick.  Refer to the README in the
+    siotools subdirectory for more information.
+
+Comments are appreciated, especially bug fixes and information
+helping to port the program to another 386 SVR3 system.
+
+Warren Tucker - n4hgf!wht -or- wht@n4hgf.Mt-Park.GA.US
+
+Thanks for various reasons to (alphabetically):
+
+aaron@odt.icom.com
+alan@cms2
+allbery@ncoast.org
+andy@rbdc
+annie@axis-design.axis-design.fr (Annie Tanguy)
+bel@trout.nosc.mil
+bobti@sco.com
+davidg@aegis.or.jp
+davidgu@sco.com
+davis@csrg2.ee.iastate.edu (Jim Davis)
+dionj@sco.com (Dion Johnson)  [triple plus thanks!!]
+dynsim1.litwin.com!avg (Anil Gokhale)
+eao@mvucl.att.com
+elsn4000@w107zrz.zrz.tu-berlin.dbp.de
+focsys!larry
+fredj@wang.com (Fred Jewell)
+gregf@sco.com (Greg Forrest)
+howardl@wb3ffv.ampr.org
+jdc@dell.com (Jeremy Chatfield)
+jdm1@eds1.eds.com (Jonathan D. McCown)
+jennen@aball.in-berlin.de (Andreas Jennen)
+jimmy@denwa.info.com (Jim Gottlieb)
+jonl@sco.com
+jpradley.jpr.com!root (J-P Radley )
+kariy@vataks71.vat-vai.valmet.com
+kd4nc!dug
+kent@sparky.IMD.Sterling.COM (Kent Landfield)
+larry@focsys
+lele@idea.sublink.org
+marlor@cup.portal.com
+martin@hppcmart.grenoble.hp.com
+mpd@anomaly.sbs.com
+nba@sysware.dk
+pat@rwing (Pat Myrto)
+petej@ssg2.pharmacia.com (Peter M. Jansson)
+peter@radig.de
+pgd@bbt.se
+randy@chinet.chi.il
+rexago8!hc05 (Beirne Konarski)
+rll@sco.com (Robert Lewis)
+robertt@sco.com
+root@candle.uucp (Bruce Momjian)
+root@dinosaur.lonestar.org
+rtf.bt.co.uk!traub
+rw@namu01.gwdg.de (Rainer Wittmann STAT)
+soward@ms.uky.edu
+ssb@cs.umn.edu!quest
+steen@kiku.dk
+steen@kiku.dk (Steen Hammerum)
+stevea@i88.isc.com (Steve Alexander)
+sunriv!johnc
+sysware.sysware.dk!nba (Niels Baggesen)
+tore@kiku.dk
+trb@ima.ima.isc.com (Andrew Tannenbaum)
+wgs6386!budp
+xenicon!steveh

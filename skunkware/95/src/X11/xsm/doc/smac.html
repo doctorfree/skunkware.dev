@@ -1,0 +1,818 @@
+<TITLE>X Share Manager (XSM)</TITLE>
+<A NAME="smacmain">
+<H1>The XSM Macro language (SMAC) </H1>
+<P>
+<HR>
+<P>
+<A NAME="langcons">
+<H1>Language Constructs</H1>
+<H2>Data Types</H1>
+The macro language provides a set of basic types that you may use in
+your programs:
+<PRE>
+int	An integer capable of storing signed whole numbers 
+real	A real value
+string	A sequence of ascii characters 
+char	An ascii character
+</PRE>
+A variable can be declared using these types through a simple declaration
+either at the start of your program (visible to the entire program) or
+at the start of a function (only visible to that function). A typical 
+declaration is of the form:
+<PRE>
+int sharenumber;
+</PRE>
+You can build on these basic types in two ways, arrays allow you
+to design storage areas that contain a sequence of data values of
+a particular type and structures allow you to combine multiple
+types within a larger container.
+<P>
+An array is declared through the use of the <CODE>typedef</CODE> statement.
+If you are used to the C language then, you should be aware that you must
+use <CODE>typedef</CODE> to produce arrays.
+<PRE>
+typedef real pricetype[100] 
+pricetype prices;
+</PRE>
+In the example above a new type called <CODE>pricetype</CODE> is 
+created.  This new
+type consists of 100 reals. The program then defines the variable
+<CODE>prices</CODE> to be of the <CODE>pricetype</CODE> type. When you
+define an array in this manner, you can index each element within the
+array using <CODE>[x]</CODE>, where x is the member of interest. All 
+references start at 0.
+<P>
+A structure is produced with the <CODE>struct</CODE> statement.  This
+allows any number of data types to be grouped together.
+<PRE>
+struct group {
+	string securityname;
+	real price;
+};
+</PRE>
+This defines a structure named <CODE>group</CODE> that has fields called 
+<CODE>securityname</CODE> (a string) and <CODE>price</CODE> (a 
+real).  Having defined a structure you may declare a variable <CODE>
+newvar</CODE> that is of this type with:
+<PRE>
+struct group newvar;
+</PRE>
+You can can also combine the definition of the structure with the
+declaration of the variable:
+<PRE>
+struct group {
+        string securityname;
+        real price;
+} newvar;
+</PRE>
+It is also possible to use typedef with structures, for example
+to create a new type <CODE>groupt</CODE> that is an alias 
+for the <CODE>group</CODE> structure you would use: 
+<PRE>
+typedef struct group groupt
+</PRE>
+<P>
+To reference fields within a structure simply use the <CODE>.</CODE>
+operator:
+<PRE>
+	newvar.securityname="security name not set";
+	newvar.price=0.0;
+</PRE>
+<P> 
+You may store a date using the <CODE>DATE</CODE> type.  The date type
+is set to a specific date with
+<A HREF="#dialogdaterange">dialogdaterange</A> and 
+<A HREF="#getdate">getdate</A> commands. Most operators are defined
+on the date type and you can add a whole number of days to a date
+by simply adding an integer (the number of days) to the date in question.
+<P>
+Securities are stored using the <CODE>SECURITY</CODE> type. Typically
+this is set by calling the
+<A HREF="#dialogsecurity">dialogsecurity</A> function that prompts the
+user for a valid security name.  Few operators are valid on the
+<CODE>SECURITY</CODE> type.
+<P>
+<H2>Statements</H2>
+A statement in the macro language is the basic building block. A statement
+can consist of:
+<UL>
+<LI> <A HREF="#ifthen">if expression statement</A>
+<LI> <A HREF="#ifthen">if expression statement else statement</A>
+<LI> <A HREF="#while">while (expression) statement</A>
+<LI> <A HREF="#while">do statement while (expression)</A>
+<LI> <A HREF="#for">for (expression;expression;expression) statement</A>
+<LI> <A HREF="#expressions">expression</A>
+<LI> <A HREF="#functions">return (expression)</A>
+<LI> <A HREF="#functions">return</A>
+<LI> <A HREF="#while">continue</A>
+<LI> <A HREF="#while">break</A>
+<LI> <A HREF="#functions">function calls</A>
+</UL>
+All statements should be terminated with a semicolon.
+When multiple statements are combined a compound statement is produced. The
+macro language uses braces to specify a compound statement:
+<PRE>
+	{
+	statement1;
+	statement2;
+	}
+</PRE>
+<P>
+<A NAME="expressions">
+<H2>Expressions</H2>
+<P>
+An expression in the macro language can include an assignment. For example
+the expression:
+<PRE>
+	b=(a=10)+1
+</PRE>
+Will assign a to 10, b to 11 and has a value of 11.
+<P>
+A complete set of operators, with full precedence, is supported. The
+normal mathematical operations are available using the conventional
+symbols:
+<PRE>
+*	Multiplication
+/	Division
++	Addition
+-	Subtraction
+</PRE>
+<P>
+For comparisons the operators are:
+<PRE>
+!=	Not equal
+=	Equal
+<	Less than
+>	Greater than
+<=	Less than or equal to
+>=	Greater than or equal to
+</PRE>
+<P>
+Other operators are:
+<PRE>
+^	Exclusive or
+&	bitwise and
+|	bitwise or
+&&	logical and
+||	logical or
+(expr)	Parenthesis
+<P>
+You should note that not all types will support all operators.
+<P>
+Constants can be included within expressions.  The available constants
+include integers, real numbers and strings enclosed within quotes.
+</PRE>
+<A NAME="functions">
+<H2>Functions</H2>
+<P>
+A function allows you to group a number of statements together so
+that you may reuse the same code in multiple ways.  A function is
+declared using the syntax:
+<PRE>
+typename function_name(arguments)
+{
+	variable_declarations
+
+	statements
+}
+</PRE>
+The <CODE>typename</CODE> declaration specifies the type that will
+be returned by the function and can be omitted if the function
+returns no values. 
+<P>
+In the simplest form, the arguments used by a function are declared
+in the same way as normal variables but using a comma to delimit
+each argument. For example, if a function requires two arguments, the
+first being an integer and the second a string the declaration would
+be:
+<PRE>
+function_name(int num,string text)
+{
+	......
+	......
+}
+</PRE>
+This creates two variables for use by the function.  The first 
+<CODE>num</CODE> is
+the integer and the second, <CODE>text</CODE>, is the
+string.  So if the function
+was called with:
+<PRE>
+function_name(10,"hello");
+</PRE>
+Then <CODE>num</CODE> would be 10 and 
+<CODE>text</CODE> would be "hello". Note with this syntax
+the variables are strictly local so you CANNOT assign new values to them
+and have the caller see those new values.  The assignment will only
+apply while the program is executing within the context of the function.
+Frequently you may wish to return multiple values from the function and
+therefore need to assign values that can be seen outside of the scope
+of the function. This can be achieved with the <CODE>byref</CODE>
+qualifier.
+<PRE>
+function_name(byref int num,byref string text)
+{
+	num=100;
+}
+</PRE>
+When arguments are declared in this manner, the function is able
+to modify the actual values passed by the caller:
+<PRE>
+a=200;
+function_name(a,"hello");
+print(a);
+</PRE>
+In this instance the value that will be displayed will be 100 and
+NOT 200.  If the <CODE>byref</CODE> keyword had not been included,
+the value 200 would have been shown.
+<P>
+When you wish to pass structures to a function, either by value or
+by reference, you will need to declare the argument that is a structure
+using a real type and not with the struct keyword.  For example:
+<PRE>
+struct simplestruct {
+	.....
+	};
+
+typedef simplestruct structtype;
+
+function(byref structtype arg)
+{
+	....	
+	.....
+}
+</PRE>
+This same method should also be employed when you wish to pass arrays
+to functions. 
+<P>
+Functions can return values using the <CODE>return</CODE> command.  
+The type that
+is to be returned should be specified in front of the function name. For
+example if the macro has a function called <CODE>createname</CODE> that
+returns a string the function would be written:
+<P>
+<CODE>
+<PRE>
+string createname()
+{
+	....
+	....
+}
+</CODE>
+</PRE>
+At any point within the function, a call can be made to <CODE>return</CODE>
+command passing a value that evaluates to a string.  If you need to be
+able to return, prior to the last statement in a function, from a function
+that has no return value then you can simply use <CODE>return</CODE>
+without an argument.
+<A NAME="ifthen">
+<H2>Conditional Expressions</H2>
+<P>
+The macro language provides a complete if..then..else construct:
+<PRE>
+	if (expression)
+		statement
+	else
+		statement
+</PRE>
+The else part of the construct is entirely optional and can be omitted
+when not necessary. At execution time, the expression within the if
+statement is evaluated.  When it is non-zero (TRUE), the first statement
+will be executed. If it is zero and an else clause is specified, the
+second statement following the else will be executed. Although the
+expression in the if statement is treated as having boolean properties,
+it can be of any integer type.
+<P>
+<A NAME="while">
+<H2>The while and do..while Constructs</H2>
+<P>
+The while construct provides the basic building block for iteration
+within macros. The while construct allows a statement (including
+a compound statement) to be continually executed:
+<PRE>
+while (condition) {
+	.....
+	code
+	.....
+	.....
+}
+</PRE>
+The statements within the braces will be executed until the boolean
+expression given by condition becomes FALSE. With most macros it
+is usually that the code that is executed within the loop will
+eventually result in the condition becoming FALSE. If the condition
+is FALSE before the loop starts then the loop will not be executed.
+If the loop should always be executed at least once, then the do..while
+construct should be used:
+<PRE>
+do {
+	.....
+	code
+	.....
+	.....
+} while (condition);
+</PRE>
+The loop is executed once and the condition is evaluated. If it is FALSE
+the loop will be executed from the top, otherwise the statement following
+the while() command will be executed. 
+<P>
+Within a while (or do...while) loop, the <CODE>continue</CODE> and
+<CODE>break</CODE> commands may be used. The <CODE>continue</CODE>
+statement takes the point of execution back to the top of the loop.
+The <CODE>break</CODE>
+command will change the point of execution to the first statement
+that follows the loop.
+<A NAME="for">
+<H2>The for construct</H2>
+<P>
+The for construct is based upon the while construct. The statement
+<PRE>
+for( i=0; i<100; i=i+1)
+	print(i,"\n");
+</PRE>
+Is equivalent to the statement:
+<PRE>
+i=0; 
+while (i<100) {
+	print(i,"\n");
+	i=i+1;
+}
+</PRE>
+Unlike C or C++ you must specify all three expressions within the for
+statement.
+<A NAME="mathconst">
+<H1>Builtin Constants</H1>
+<P>
+<HR> PI
+<P>
+The constant PI.
+<P>
+<A NAME="noprice">
+<HR> NOPRICE
+<P>
+The NOPRICE constant gives a real number that indicates that no
+valid price was available.  These are used by the price database
+and by the graph plotting functions to indicate no information
+and in the case of graph plotting, that interpolation/extrapolation
+is required.
+<A NAME="mathfunc">
+<H1>Builtin Mathematic Functions</H1>
+acos(x)
+<P>
+Returns the arc cosine of x in the range of 0 to PI. 
+x should be in the range of -1 to 1.
+<HR>asin(x)
+<P>
+Returns the arc sine of x in the range of -PI/2 to PI/2 radians. 
+x should be in range of -1 to 1. 
+<HR>atan(x)
+<P>
+Returns the arc tangent of x in the range -PI/2 to PI/2 radians. 
+<HR>cos(x)
+<P>
+The cos function returns the cosine of its argument x measured in radians.
+<HR>sin(x)
+<P>
+The sin function returns the sine of its argument x measured in radians.
+<HR>tan(x)
+<P>
+Returns the tangent of x measured in radians.
+<HR>cosh(x)
+<P>
+Returns the hyperbolic cosine of x.
+<HR>sinh(x)
+<P>
+Returns the hyperbolic sine of x.
+<HR>tanh(x)
+<P>
+Returns the hyperbolic tangent of x.
+<HR>exp(x)
+<P>
+Returns e^x.
+<HR>log(x)
+<P>
+Returns the natural logarithm of x.   Argument x must be positive.
+<HR>log10(x)
+<P>
+Returns the logarithm base ten of x. Argument x must be positive.
+<HR>sqrt(x)
+<P>
+Returns the square root of x.  Argument x must be positive.
+<HR>ceil(x)
+<P>
+Returns the smallest integer not less than x.
+<HR>fabs(x)
+<P>
+Returns the absolute value of x.
+<HR>floor(x)
+<P>
+Returns the largest integer not greater than x.
+<HR>pow(x,y)
+<P>
+Returns x^y.  
+<HR>fmod(x,y)
+<P>
+Returns the real remainder of the division of x by y.
+<HR>atan2(x,y)
+<P>
+Returns the arc tangent of y/x in the range of -PI to PI.
+<HR>
+<A NAME="windowfunc">
+<H1>Using Windows</H1>
+<PRE>
+windowopen(name,refreshfnc,menu)
+string name;
+string refreshfnc;
+MENU menu;
+</PRE>
+<P>
+Opens a window with the title specified by <VAR>name</VAR>. The function
+will return a value of type WINDOW and this value should be used in 
+future window based functions when this window is to be referenced. The
+argument <VAR>refreshfnc</VAR> names the function that will be executed
+when the window is resized and <VAR>menu</VAR> specifies the menus 
+that should be attached to the window.
+<P>
+<PRE>
+<HR>windowclose(window)
+WINDOW window;
+</PRE>
+Closes the window specified by <VAR>window</VAR>.
+<PRE>
+<HR>clearpage(window)
+WINDOW window;
+</PRE>
+Clears the window specified by <VAR>window</VAR>.
+<P>
+<PRE>
+<HR>drawpage(window)
+WINDOW window;
+</PRE>
+Ensures the window specified by <VAR>window</VAR> is up to date.
+<PRE>
+<HR>drawto(window,x,y)
+WINDOW window;
+real x,y;
+</PRE>
+Draws a line from the current position in  <VAR>window</VAR> to
+the coordinate <VAR>x,y</VAR>.
+<PRE>
+<HR>moveto(window,x,y)
+WINDOW window;
+real x,y;
+</PRE>
+Moves the current position in  <VAR>window</VAR> to
+the coordinate <VAR>x,y</VAR>.
+<PRE>
+<HR>size(window,width,height)
+WINDOW window;
+real width,height;
+</PRE>
+Sets <VAR>width</VAR> and <VAR>height</VAR> to the current width and
+height of the window <VAR>window</VAR>.
+<PRE>
+<HR>axis_date(window,date1,date2,min_y,max_y)
+WINDOW window;
+DATE date1,date2;
+real min_y,max_y;
+</PRE>
+Draws a complete axis in the window <VAR>window</VAR>. On the X axis
+dates will range from <VAR>date1</VAR> to <VAR>date2</VAR> and on the
+Y axis values will go from <VAR>min_y</VAR> to <VAR>max_y</VAR>.
+<PRE>
+<HR>plot(window,data,maxsize, start, end)
+WINDOW window;
+typedef real realarray[x]
+realarray data;
+int maxsize;
+int start,end;
+</PRE>
+Plots the data given by
+<VAR>data</VAR> in <VAR>window</VAR> using information
+previously set by axis_date. The <VAR>maxsize</VAR> argument should
+specify how many numbers are stored in <VAR>data</VAR>.  The <VAR>start</VAR>
+and <VAR>end</VAR> arguments give the range of indices within <VAR>data</VAR>
+that should be plotted.
+<P>
+Note that the information in  <VAR>data</VAR> may be sparse. If a 
+value is not known and extrapolation is required then the value
+in question should be set to the constant 
+<A HREF="#noprice">NOPRICE</A>
+<PRE>
+<HR>linewidth(window,width)
+WINDOW window;
+real width;
+</PRE>
+Sets the line width for <VAR>window</VAR>.
+<PRE>
+<HR>colour(window,colour)
+<P>color(window,colour)
+WINDOW window;
+string colour,color;
+</PRE>
+Sets the current colour for <VAR>window</VAR>.
+<HR>
+<A NAME="menufunc">
+<H1>Using Menus</H1>
+<PRE>
+menuopen(menu)
+MENU menu;
+</PRE>
+Opens the specified menu. The menu can then be built and passed to
+a windowopen() call:
+<PRE>
+<CODE>
+	WINDOW win;
+	MENU mymenu;
+
+	....
+	....
+
+        menuopen(mymenu);
+        menu(mymenu,"Project","Exit","window_exit");
+        menu(mymenu,"Project","Select security","selectsecurity");
+        win=windowopen("Prices of a security","window_refresh",mymenu);
+</CODE>
+</PRE>
+<PRE>
+<HR>menuclose(menu)
+MENU menu;
+</PRE>
+Closes the specified menu.
+<PRE>
+<HR>menu(menu,barname,itemname,functionname)
+MENU menu;
+string barname;
+string itemname;
+string functionname
+</PRE>
+Adds the menu bar and item to the specified menu that should already
+have been opened with menuopen.  The menu item <VAR>itemname</VAR>
+should appear in the bar <VAR>barname</VAR>. The function named
+<VAR>functionname</VAR> will be called when the menu item is selected
+by the user.
+<HR>
+<A NAME="filefunc">
+<H1>Using Files</H1>
+<PRE>
+fileopen(name,access)
+string name;
+string access;
+</PRE>
+<P>
+Opens the file specified by name with the access permissions specified by
+the access string.  The access permissions are convential stdio values:
+<P>
+<PRE>
+         r    reading
+
+         w    create for writing (or truncate if file already exists)
+
+         a    append at end of file
+
+         r+   open for reading and writing
+
+         w+   truncate or create for update
+
+         a+   open (append) or create for update
+</PRE>
+<P>
+The returned value from fileopen is of type FILE and should be assigned
+to a variable of FILE type.  The file can be read or
+written as appropriate.  However before the file is accessed it is 
+recommended you use eof() to determine that the file is correctly open.
+A typical code fragment for reading from a file would be:
+<PRE>
+<CODE>
+	FILE file;
+	string input;
+
+	....
+	....
+	
+        file=fileopen("pricedump","r");
+        if ( eof(file)== 2) {
+                print("Could not open file");
+                return;
+        }
+	.....
+        while (eof(file)==0) {
+                filereadline(file,input);
+                print(input,"\n");
+        }
+        fileclose(file);
+</CODE>
+</PRE>
+<P>
+<PRE>
+<HR>fileclose(file)
+FILE file;
+</PRE>
+<P>
+Closes a previously opened file.  A file for which eof() returns 2 
+does not need to be closed with this function.
+<P>
+<PRE>
+<HR>fileprint(file,arg1,...,argn)
+FILE file;
+(any) argi;
+</PRE>
+<P>
+Writes the arguments arg1 to argn to the specified file in ascii format. 
+The arguments can be of any type, provided they have an ascii 
+representation. Those that types that are appropriate include:
+<UL>
+<LI>All numeric types (int, real)
+<LI>The string type
+<LI>The SECURITY type
+<LI>The DATE type
+</UL>
+<PRE>
+<HR>filewrite(file,arg1,...,argn)
+FILE file;
+(any) argi;
+</PRE>
+Writes the arguments arg1 to argn to the specified file in binary format. 
+Although all types can be written using this function, the output
+file may not be transferable or readily readable.
+<P>
+<PRE>
+<HR>fileread(file,arg1,..,argn)
+FILE file;
+(any) argi;
+</PRE>
+Reads the arguments arg1 to argn from the file.  The arguments can be of
+any type.  Typically to read ascii files you will need to use the
+filereadline() command that is able to interpret files on a line by
+line basis.
+<P>
+<PRE>
+<HR>filereadline(file,arg1,..,argn)
+FILE file;
+string argi;
+</PRE>
+Reads the arguments arg1 to argn from the file.  The arguments must be of
+type string.  Each line in the file will be read into the relevant
+argument.  
+<PRE>
+<HR>eof(file)
+FILE file;
+</PRE>
+<P>
+Returns the state of the file:
+<UL>
+<LI>0 file open and not at the end of the file
+<LI>1 file open and at the end of the file
+<LI>2 file not open
+</UL>
+This function allows one to read from a file while there is data to read:
+<PRE>
+<CODE>
+        file=fileopen("pricedump","r");
+	if ( eof(file)== 2) {
+		print("Could not open file");
+		return;
+	}
+        while (eof(file)==0) {
+                filereadline(file,input);
+                print(input,"\n");
+        }
+        fileclose(file);
+</CODE> 
+</PRE>
+<A NAME="miscfunc">
+<H1>Other Functions</H1>
+<PRE>
+<HR>mainmenu(barname,itemname,funcname)
+string barname;
+string itemname;
+string funcname;
+</PRE>
+<P>
+Attaches a new menu item to a bar on the main window.  For example to
+create a new menu option for the 'Project' menu one would use:
+<CODE>
+<PRE>
+        mainmenu("Project","Write prices to file","dump_prices");
+</PRE>
+</CODE>
+This will result in the function dump_prices being called whenever the
+'Write prices to file' menu item is selected.
+<P>
+<PRE>
+<A NAME="dialogsecurity">
+<HR>dialogsecurity(title)
+string title;
+</PRE>
+<P>
+Allows the user to select a security from all the securities that are
+known to the system.  This returns a value of type SECURITY.
+<CODE>
+<PRE>
+	SECURITY security;
+	
+	....
+	....
+
+        security=dialogsecurity("Enter a security");
+</CODE>
+</PRE>
+<PRE>
+<HR>int dialogyesno(message,okmsg,cancelmsg)
+string message;
+string okmsg;
+string cancelmsg;
+</PRE>
+<P>
+Displays a yes/no dialog with the message specified.  The "OK" button
+will be labeled with the string specified by <CODE>okmsg</CODE>
+and the "CANCEL" button will be labeled by <CODE>cancelmsg</CODE>. 
+The function returns 1 if the user selects "OK", otherwise 0 will
+be returned. 
+<P>
+<PRE>
+<HR>dialogmessage(message)
+string message;
+</PRE>
+<P>
+Displays a dialog with the message specified.  
+<P>
+<PRE>
+<HR>int dialogstring(windowtitle, message, stringedit,length)
+string windowtitle;
+string message;
+string stringedit;
+int length;
+</PRE>
+<P>
+Displays a dialog where the user can edit the string given by
+<CODE>stringedit</CODE>. The maximum length of the string is given
+by <CODE>length</CODE>. The dialog will be in a window with the
+title given by <CODE>windowtitle</CODE> and the string edit area
+will be labeled with <CODE>message</CODE>.
+<P>
+<PRE>
+<A NAME="dialogdaterange">
+<HR>int dialogdaterange(title,startdate,enddate)
+string title;
+DATE startdate;
+DATE enddate;
+</PRE>
+<P>
+Allows the user to select a range of dates starting with the
+date specified by <CODE>startdate</CODE> and finishing
+with <CODE>enddate</CODE>.  If the user hits the "OK" button
+then the function returns 1, else the function returns 0
+indicating the user canceled the operation.  When 1 is returned
+the  <CODE>startdate</CODE> and <CODE>enddate</CODE> arguments will
+be set to the new date range.
+<P>
+<PRE>
+<A NAME="getdate">
+<HR>getdate(date,stringdate)
+<P>
+getdate(date)
+DATE date;
+string stringdate;
+</PRE>
+Converts a date in ascii form to a date (in the first form) or sets 
+a date to today (in the second form).
+<P>
+<PRE>
+<HR>int date2days(date)
+DATE date;
+</PRE>
+Converts a date to the number of days elapsed since 1st Jan 1970.
+<P>
+<PRE>
+<HR>getprices(security,data,date,num)
+<P>
+SECURITY security;
+typedef real realarray[x];
+realarray data;
+DATE date;
+int num; 
+</PRE>
+<P>
+Fetches the prices for the specified security. The array given by
+data should be large enough to store all the prices for the given 
+security.  The date that data[0] represents will be returned in
+<VAR>date</VAR> and the total number of prices in the array will
+be returned in <VAR>num</VAR>.
+<PRE>
+<HR>int isaprice(price)
+real price;
+</PRE>
+Returns TRUE if the value given by <VAR>price</VAR> represents a 
+valid price. Not all real numbers are prices so as to allow
+information to be held in the price database indicating that 
+no price exists for a given date.  See the constant 
+<A HREF="#noprice">NOPRICE</A>
+<PRE>
+<HR>int system(cmdstring)
+string cmdstring;
+</PRE>
+Executes a shell with the commands given in <VAR>cmdstring</VAR>. The
+return value will be 0 if the command executed correctly, otherwise
+it will be -1 if a process could not be forked or -127 if the
+commands could not otherwise be executed.

@@ -1,0 +1,96 @@
+                                   sockinfo
+
+sockinfo lets the system administrator or programmer obtain more information
+on TCP, UDP, ICMP, RAW, and IGMP protocol control blocks (PCB) in a format 
+similar to netstat(TC).  sockinfo identifies and shows:
+
+- the process, file descriptor in the process, user, and tty device 
+  (if present) associated with the PCB.
+- all TCP options (SO_KEEPALIVE, SO_LINGER, etc.) set on the connection.
+- TCP external state information like ESTABLISHED or SYN_SENT as well as
+  internal state like ISCONNECTED and CANTRCVMORE.
+- TCP timers in effect.  You can watch retransmissions, keepalive timers, and
+  other timers expire.
+- TCP internal parameters (sequence numbers, window sizes, etc.).
+- where the last UDP packet was sent to and how long ago that was.
+- the route and interface the PCB is currently using.
+- when route was added to routing table and how it was added.
+- any process sending ICMP packets.
+- any process sending RAW packets.
+- any process sending IGMP packets (OpenServer 5.0 only)
+- lines pertaining to netbios.
+- lines pertaining to in-kernel NFS (these are guesses on ODT3.0 but 
+  accurate on OpenServer 5.0).
+- the upstream driver (socket for BSD socket programs, timod for TLI programs, 
+  ktmod for NFS, or netbios)
+
+sockinfo can also limit its output to one particular process or PCB and
+display the information at fixed intervals for further analysis.
+
+sockinfo has been compiled for SCO UNIX 3.2.4.2/TCP1.2.1 (ODT3.0, OSES3.0)
+as well as Open Server 5.0.
+
+sockinfo requires read access on /unix and /dev/kmem in order to obtain the
+above information.
+
+Installing sockinfo:
+--------------------
+sockinfo can be copied into and run from any directory.  Copy sockinfo to 
+an appropriate directory (such as /bin or /opt/SCO/TLS/) and type:
+
+# chgrp mem sockinfo
+# chmod 2511 sockinfo
+
+This allows any user to run sockinfo without being root.  If you make sockinfo
+setuid root users will not be able to use the -h or -n options; these are
+reserved for user root.  Note that sockinfo does not need to be setuid root
+to work and making sockinfo setgid mem as described above is preferred.
+
+Running sockinfo:
+-----------------
+type sockinfo without any arguments to see a usage line.  
+
+Interpreting sockinfo output:
+-----------------------------
+While sockinfo mimics netstat as much as possible, some fields with some
+options may be unfamiliar to the user.  When in doubt, grep for the field
+name in /usr/include/sys, /usr/include/sys/net, or /usr/include/sys/netinet.
+Sockinfo shows fields values literally:  some information such as
+dates or aging information may not be correct until data has actually been
+sent, or a process may not exist for all PCB's, etc.
+
+Caveat for -h option on OpenServer 5.0:
+---------------------------------------
+As root, if you use the -h "hurry" option on OpenServer 5.0 you will obtain more
+accurate information if you are concerned with timers or are trying to monitor
+a process which is rapidly manipulating/creating connections.  To do this, 
+sockinfo will have substantially higher priority than other user processes as 
+shown with ps -efl; this will degrade the performance of other runnable 
+processes on the machine.  This effect is worse when using the -l "loop" option
+since sockinfo will only stop running for the number of "interval" seconds you 
+specify.  In fact, with -h -l 0, sockinfo will completely "hog" the CPU and 
+prevent nearly all other user processes from running!
+To lessen this effect, set the environment variable SOCKINFO_PRIORITY 
+to an integer number between 1 and 127 before running sockinfo. 
+The value 1 means sockinfo will have a low priority while 127 means that 
+sockinfo will have an extremely high priority as far as the scheduler is 
+concerned.  You will see the new process priority with ps -efl.
+
+OpenServer 5.0 note:
+--------------------
+If a dynamic kernel table size grows while sockinfo is running you may see 
+strange behaviour.  restart sockinfo and the problem will disappear.  
+I intend to add dynamic table support in a future release.
+
+The format used to display TCP control block information will be cleaned up 
+in a future release.
+
+For performance reasons, sockinfo will not work if kernel auditing is active.
+
+Due to licensing restrictions, source for sockinfo is not available.
+
+I am interested in feedback(good and bad!) as well as any bugs you find.
+
+Nathan Peterson
+nathan@sco.com
+30 June 1995

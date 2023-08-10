@@ -1,0 +1,119 @@
+
+To build Fresco on a UNIX system using Imake...
+______________________________________________________________________
+
+1.  Unpack the tar file on a filesystem with at least 50 MB of free
+    disk space.  This is the grand total of the disk space that the
+    fully built and installed source tree will occupy.  Let us call
+    the top of the source tree (the directory containing the Copyright
+    file) $FRESCO.
+
+2.  Copy a site.def file into the $FRESCO/build/Unix/config/cf
+    directory.  We've provided a sample site.def, $FRESCO/site.def,
+    that is set up for Solaris 2.x with Sun's C++ compiler.  You can
+    modify it as you see fit or provide your own site.def. There
+    are versions of site.def available for a certain platforms in the
+    directory://ftp.faslab.com/pub/Fresco/BldNotes
+
+    Your compiler must be able to find the X11 headers and libraries
+    somewhere on your system since Fresco is no longer a part of the
+    X11 source tree.  Set either ProjectRoot or BinDir, IncDir,
+    LibDir, ManDir, and UsrLibDir if your compiler can't find them by
+    default.
+
+    If you want to build Dish (Fresco's Tcl-based script interpreter),
+    then you'll also have to set TclIncludes and TclPreLib if tcl.h or
+    libtcl.a aren't installed in the default locations searched by
+    your compiler.
+
+    Once you've written a site.def for your platform, copy it to
+    $FRESCO/build/Unix/config/cf as follows:
+
+      % cp site.def $FRESCO/build/Unix/config/cf/site.def
+
+    IMPT: When you build Fresco, you'll be using Fresco's config files
+    in $FRESCO/build/Unix/config/cf.  Please don't attempt to use your
+    system's X11 config files, as this will lead to problems when
+    building.  This can happen if you accidentally type "xmkmf"
+    instead of "make Makefile".  Deleting $FRESCO/build/Unix/Makefile
+    and saying
+
+      % cd $FRESCO/build/Unix
+      % make -f Makefile.ini Makefiles BOOTSTRAPCFLAGS=<...>
+
+    will always rebuild all the Makefiles correctly.
+
+3.  Check the appropriate $FRESCO/build/Unix/config/cf/vendor.cf
+    (sgi.cf, sun.cf, etc.) to make sure that OSMajorVersion and
+    OSMinorVersion are set correctly for your system (change them if
+    necessary).
+
+    Also check if there is a BootstrapCFlags mentioned in the
+    vendor.cf file.  If there is one, you must set BOOTSTRAPCFLAGS to
+    its value when saying "make World" or "make Makefiles".  If you
+    have ever built X11 on your system, use the same value for
+    BOOTSTRAPCFLAGS that you used then.
+
+    If you plan to build Fresco on only one system, you may want to
+    set BOOTSTRAPCFLAGS in $FRESCO/Makefile so you won't have to
+    remember to set it on the command line when saying "make World" or
+    "make Makefiles".
+
+4.  "Make the world" with the proper bootstrap flags for your system: 
+    First, cd to the Unix build directory:
+
+      % cd $FRESCO/build/Unix
+
+    Initially, you will have no Makefile in this directory,
+    create one as follows:
+
+      % make -f Makefile.ini BOOTSTRAPCFLAGS=-DSVR4	  (Solaris 2.x)
+
+    Make the world:
+
+      % make World
+
+    If something goes wrong, try to fix the problem and then restart
+    the appropriate stage of the build by saying "make Makefiles",
+    "make depend", or "make all" until the build completes
+    successfully.
+
+    If your Makefile in $FRESCO/build/Unix ever gets out of whack
+    so you can no longer make, you can fix it by removing the
+    Makefile and saying
+
+      % make -f Makefile.ini BOOTSTRAPCFLAGS=-DSVR4	  (Solaris 2.x)
+
+    as shown above.
+
+    If you cannot build the ixx interface translator during "make depend",
+    simply create an empty file,
+
+      % touch $FRESCO/build/Unix/bin/ixx
+
+    to make the build continue without trying to build ixx.  You do
+    not need a working ixx to build Fresco unless you modify one of
+    the .idl interface files; the .h and .cxx files are already
+    generated for you.
+
+5.  If the build completes successfully, you can start using Fresco
+    immediately.  Fresco is designed to be built and used completely
+    in place.  Simply include the bin and lib directories in your PATH
+    and LD_LIBRARY_PATH.  For example, on Solaris 2.x we do:
+
+      % setenv PATH $PATH:$FRESCO/build/Unix/bin
+      % setenv LD_LIBRARY_PATH $LD_LIBRARY_PATH:$FRESCO/build/Unix/lib
+
+6.  Try out the examples:
+
+      % cd $FRESCO/build/Unix/examples
+      % ./hello
+
+7.  Try out dish:
+
+      % cd $FRESCO/Fresco/examples/dish
+      % dish fdemo
+
+8.  Try out fdraw:
+
+      % fdraw

@@ -1,0 +1,375 @@
+<title><code>tredir</code></title>
+<h1>7 <a name="s7"> <code>tredir</code> </h1>
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<p> <a href="Term-HOWTO.html#toc7"> Contents of this section</a></p>
+
+<p></p>
+<p><code>tredir</code> is one of <code>TERM</code>'s most powerful utilities,
+allowing most important network services to be performed over a <code>TERM</code> link. Before we explain how to use tredir, it is
+necessary to give some background on network services. We have talked
+about network services before, but we have not said exactly what they
+are. Services are just that - services that are provided by the
+network. Examples of services include <code>telnet</code>, which provides
+logins between machines, the File Transfer Protocol, <code>ftp</code>,
+which transfers files between machines, and smtp, the Simple Mail
+Transfer Protocol, which is used whenever you send electronic mail.
+Each network service has a <i>port number</i> associated with it.
+The mapping of port numbers to services is given in the file
+'/etc/services'. This file should be the same on all
+internet-connected machines.</p>
+<p>How are these services invoked? Each networked machine runs a daemon
+called <code>inetd</code>, which listens for attempts to connect to the
+network ports. These requests can come from either the network or the
+local machine. A network service is obtained by connecting to a
+particular inetd port.  When a network request is made,
+inetd knows exactly which service is involved by the port
+number the request is made on. If inetd is configured to do
+so, it provides the relevant service to the requesting
+connection. inetd's configuration is given by the file '/etc/inetd.conf', which has a list of the services that inetd provides. For more information, see the man pages for inetd and inetd.conf.</p>
+<p>You can communicate directly with network services by using
+<code>telnet</code> (<i>n.b.</i> not <code>termtelnet</code>). For example,
+to talk to the <code>sendmail</code>, (or smtp) daemon on machine
+<code>machine_name</code>, you can do a <code>telnet machine_name smtp,</code>
+or <code>telnet machine_name 25</code>, (since 25 is the number assigned
+to smtp in '/etc/services'). You should get a polite greeting
+from the daemon on the remote machine. This is a very useful trick for
+debugging network problems and checking ports redirected with tredir (see below).</p>
+<p>Tredir works very much like inetd. It runs in the
+background as a daemon, listening to the network ports, waiting for a
+request. When a request for a service is made, instead of providing
+that service, as inetd does, tredir forwards the
+request over the <code>TERM</code> link to the remote <code>TERM</code>, which
+makes the request over the network, returning the result back over the
+link to the local client. Tredir can forward the request to
+any machine on the network, but by default sends it to the machine at
+the other end of the <code>TERM</code> link. Tredir <i>redirects</i> TCP (Transmission Control Protocol) network services over the <code>TERM</code> link.</p>
+<p>The common command format of tredir is:</p>
+<p>
+<pre>
+  tredir [this_computer:]port [that_computer:]port
+</pre>
+</p>
+<p>An example should make this clear. Let us redirect a local port to the
+telnet port on the remote machine. To do this we would do </p>
+<p>
+<pre>
+  tredir 2023 23
+</pre>
+</p>
+<p>Now, anyone who connects to port 2023 on the local
+machine will be redirected to port 23 (telnet) on the remote machine.
+Here is an example session; the local machine is <code>mymachine.modem.home</code> and the remote machine is <code>netsun</code>.</p>
+<p>
+<pre>
+ 
+  $ tredir 2023 23 
+  Redirecting 2023 to 23 
+  $ telnet localhost 2023 
+  Trying 127.0.0.1... 
+  Connected to mymachine.modem.home 
+  Escape character is '^]'. 
+
+
+  SunOS UNIX (netsun)
+  login: 
+</pre>
+</p>
+<p>This example is actually quite useful. If I were instead to do the
+tredir on <code>netsun</code>. I could then telnet in to <code>mymachine</code> from the network simply by connecting to the redirected port on
+the networked machine (using telnet) - <i>i.e.</i> <code>telnet
+netsun 2023</code>.</p>
+<p>The general principle in using tredir is to redirect the
+desired service to a machine on the network. Our next example will
+allow us to read news on the local machine over our <code>TERM</code> link
+from a news server on the network. News is provided by the nntp
+service, port number 119.  All decent news readers allow you to specify
+what port number they will use, either via a configuration file or an
+environment variable. Let us specify this local port to be 2119. Now,
+let us say that our news server is <code>news.domain.org</code>. We will
+redirect port 2119 to port 119 on <code>news.domain.org</code>; we will
+then tell our news reading software that the nntp server is located at
+port 2119 on the local host. Since this will depend on the news reader
+that you use, I will just test the link with <code>telnet</code> instead
+of firing up a news reader:</p>
+<p>
+<pre>
+  $ tredir 2119 news.domain.org:119
+  Redirecting 2119 to news.domain.org:119 
+  $ telnet localhost 2119 
+  Trying 127.0.0.1... 
+  Connected to mymachine.modem.home. 
+  Escape character is '^]'. 
+  200 news.domain.org InterNetNews NNRP server INN 1.4 07-Dec-41 ready 
+  (posting ok). 
+</pre>
+</p>
+<p>If you can get this far, all you have to do is configure your news
+reader to be able to read news via <code>TERM</code>. (<i>n.b.,</i> if
+you read news like this, be sure that in all your posts you set a
+Reply-To: header to an network email address that you can be reached
+at, otherwise people who want to get in touch with you will be sending
+mail to whatever (wrong) data your news reader puts in the From:
+header).</p>
+<p></p>
+<h2>7.1 <A Name="ss7.1"> <code>tredir</code> can bite! </h2>
+
+<p></p>
+<p>The astute reader, after reading the last example will be wondering
+why port 2119 was redirected to port 119 - since news readers default
+to port 119, why could I not do a <code>tredir 119 news.domain.org:119</code> and skip the news reader configuration? The answer is that all
+ports numbered less than 1024 are ``reserved ports'', and only the
+superuser can listen to them. If one is willing to take a security
+risk and make tredir an SUID program, or run tredir as root, then one can redirect reserved ports and avoid the
+hassle of renaming services.</p>
+<p>Another problem with using reserved ports is that inetd is
+often already listening to these ports, and only one program at a time
+can listen to a port. In order to use such a port, you must change
+'inetd.conf' so that inetd no longer listens to the
+port you want to redirect. This is most easily done by commenting out
+the line with the offending service by putting a <code>#</code>
+character at the beginning of the line. The superuser must then send
+inetd a HUP signal (kill -1 inetd-pid) to get it to reread its configuration.</p>
+<p></p>
+
+<h2>7.2 <A Name="ss7.2"> Stupid <code>tredir</code> tricks </h2>
+
+<p></p>
+<p>In this section we will describe some of the more common uses for tredir. We have already described how to redirect nntp and
+telnet services; here we will give some more complicated examples.</p>
+<p></p>
+<h3> X windows </h3>
+
+<p></p>
+<p>In a previous section, we described how to get an X client running on
+the network to open a window on your home machine using <code>txconn</code>. The same technique could be used on your home machine to display
+a client on the machine at the remote end of your <code>TERM</code> link.
+But how does one display an X client on a network machine that is not
+the remote end? The answer lies in knowing that X uses a particular
+network service just like the other programs we have been discussing. An
+X server listens for a network request on a port whose number is given
+by the formula <F> port = 6000 + display number</F>, <i>e.g.</i> an X
+server managing screen 0 on a machine would listen to port 6000, if it
+were managing screen 2, it would listen to port 6002.  When you set
+your DISPLAY environment variable to <code>xmachine:n</code>, your X
+clients will try to connect to port <F>6000 +n</F> on <code>xmachine</code>.</p>
+<p>We can use this to trick X clients on your local machine to open up
+windows on remote displays. Let us say I want to open up an <code>xterm</code>, running on my local machine, on display 0 of machine <code>xmachine</code>, which is running some place on the network. I first
+pick a local display number, say 2 (do not use 0, since that is what
+your local X server will be using). I will map this display to display
+0 on <code>xmachine</code>. In terms of ports, this means I want to
+redirect the local port 6002 to the remote port 6000.  I do the
+following</p>
+<p>
+<pre>
+  $ tredir 6002 xmachine:6000 
+  $ setenv DISPLAY localhost:2
+  $ xterm 
+</pre>
+</p>
+<p></p>
+<p>This should open up an <code>xterm</code> on machine <code>xmachine</code>.
+Note that I set the DISPLAY to <code>localhost:2</code>. This is because X
+clients will sometimes use unix domain sockets instead of internet
+domain sockets, at their own option, when connecting to a local
+display, if DISPLAY is set to <code>:2</code>. <code>localhost:2</code> says
+to use a TCP connection.</p>
+<p>Note that as far as <code>xmachine</code> is concerned, the X request is
+coming from the machine on the remote end of your <code>TERM</code> link
+(<code>remotemachine</code>) - so if you need to authorize the connection,
+you should either do an <code>xhost + remotemachine</code> on <code>xmachine</code> or use xauth to update the '.Xauthority' file on your local machine for display number 2, using the key
+from <code>xmachine</code>.</p>
+<p>Again, to speed up X connections, you can use the program sxpc, which includes an explanation of how to use tredir
+to establish the link and authorize it using xauth.</p>
+<p></p>
+<h3> Mail with <code>TERM</code> </h3>
+
+<p></p>
+<p>Well, you asked for it. Electronic mail has the justifiable
+reputation of being one of the most difficult things to get working
+right on a UNIX system. To really get <code>TERM</code> working
+correctly with mail means that you have to understand how mail works,
+which is beyond the scope of this document. To learn more about mail,
+you should consult a book on UNIX system administration and/or the
+comp.mail.misc FAQ, available for anonymous ftp on rtfm.mit.edu:pub/usenet/comp.mail.misc. There are also currently two
+packages available for anonymous ftp on sunsite.unc.edu that will help you get mail running under <code>TERM</code> - they are
+<code>term.mailerd+smail</code> by Byron A. Jeff and the <code>BCRMailHandlerXXX</code> by Bill C. Riemers.</p>
+<p>That being said, we will give a thumbnail description of how mail works.
+There are two parts to getting mail running, sending messages and
+receiving messages. We will begin with sending messages from your local
+box to the network.</p>
+<p>There are two classes of mail programs. The first is the mail user
+agent (MUA). MUA's help you read, compose and send messages. Examples
+of MUA's are <code>elm</code>, <code>pine</code>, <code>Mail</code> and
+<code>vm</code>.  MUA's do not really do any networking; they just put the
+messages together - the real work of sending mail is done by the
+second class of mail programs, the mail transfer agents (MTA's). These
+are invoked by the MUA's. They take the message, decide where to send
+it by looking at the address, and then actually deliver it over the
+network.</p>
+<p>The two most common MTA's on Linux systems are <code>sendmail</code> and
+<code>smail</code>. The basic idea is to get your MTA to connect to
+another MTA running on a machine on the net that will know what to do
+with your message. This is done by redirecting a local port to the
+smtp port on the net machine. You then have to tell you MTA to take
+any message it does not know what to do with, and send it out over the
+redirected port on your local machine to the MTA on the remote
+machine, which will then route your message to its correct
+destination.</p>
+<p>How do we do this using smail?  We first redirect a port to
+the smtp port on the network mail machine (<code>mailhost</code>):</p>
+<p><code>tredir XXXX mailhost:25</code></p>
+<p>here XXXX is the port number that the <code>smail</code> on the
+localhost will connect to (note that I have to give this port a name
+in my '/etc/services' to get smail to recognize
+it). Smail has several configuration files that usually
+live in '/usr/local/lib/smail'. The ones we care about are
+'config', 'routers' and 'transports'. Note
+that I am assuming you have already got smail configured
+correctly for local mail - delivery to files and pipes and such things.
+Again, consult the documentation if you have not.</p>
+<p>In the file 'config', we put the following definition:</p>
+<p>
+<pre>
+  smart_path=localhost
+</pre>
+ </p>
+<p>localhost is the machine that smail connects to when
+it does not know what to do with a message.</p>
+<p>In 'routers' we put</p>
+<p>
+<pre>
+ 
+  smart_host: 
+  driver=smarthost, 
+  transport=termsmtp; 
+  path = localhost 
+</pre>
+</p>
+<p>In 'transports' we put</p>
+<p>
+<pre>
+  
+  termsmtp:        driver=tcpsmtp, 
+        inet,                    
+        return_path, 
+        remove_header="From", 
+        append_header="From: YOUR_NET_ADDRESS", 
+        -received, 
+        -max_addrs, -max_chars; 
+        service=YOUR_SMTP_SERVICE, 
+</pre>
+</p>
+<p>In the above, the header lines change the <code>From</code> header in all
+your outgoing mail to the address, <code>YOUR_NET_ADDRESS</code>, which is
+the network address you want mail sent to. If more than one user is
+going to be using your <code>TERM</code> link, you will have to do something
+more fancy, like keep a database of local user's network addresses and
+insert these in the <code>From:</code> headers.</p>
+<p>The service line is the name of the local port number that you have
+redirected to the smtp port on the network connected machine. In my
+version of smail, I cannot just set this to a number, I have
+to set it to a name, like ``foo'', and then define ``foo'' in my '/etc/services' to be the number of my redirected port. If you use
+a SUID tredir and just redirect the smtp port (25), you
+do not need to define this.</p>
+<p>This should be enough to get you going. If you decide to use <code>sendmail</code>, the principles are the same but the details differ.
+Ronald Florence (ron@mlfarm.com) told me that the stock Sun
+sendmail will not send multiple queued messages over a
+redirected port; BSD sendmail 8.6.9 works fine.  He made the following
+changes to '/etc/sendmail.cf' to get it working with <code>TERM</code>. In his
+case, the default sendmail port (25) is used for SMTP traffic over a
+local ethernet so Internet mail is forwarded to a redirected TCP
+port.</p>
+<p>
+<pre>
+  #
+  #Create the termsmtp mailer, which sends mail via a re-directed TCP port  
+  #
+  Mtermsmtp,P=[TCP], F=mDFMuCXe, S=22, R=22, A=TCP $h PORTNUMBER
+</pre>
+</p>
+<p>Here, <code>PORTNUMBER</code> is the number of the redirected port on the
+local machine. This should be an unused port over 2000. We next tell
+sendmail which machine to connect to, and set termsmtp as the
+default mailer.</p>
+<p>
+<pre>
+  #
+  # major relay mailer
+  #
+  DMtermsmtp
+  #
+  # major relay host: use the $M mailer to send mail to other domains
+  #
+  DR HOSTNAME
+  CR HOSTNAME
+</pre>
+</p>
+<p>Here <code>HOSTNAME</code> is the name of your local host (does
+<code>localhost</code> work?). The last entry goes under Rule 0 to forward
+Internet mail.</p>
+<p>
+<pre>
+  # Pass other valid names up the ladder to our forwarder
+  R$*&lt;@$*.$+&gt;$*         $#$M    $@$R $:$1&lt;@$2.$3&gt;$4     user@any.domain
+</pre>
+</p>
+<p>When the <code>TERM</code> connection is established to the Internet host, run the
+following commands on the local machine.</p>
+<p>
+<pre>
+  tredir PORTNUMBER internet.host:25
+  /usr/lib/sendmail -q
+</pre>
+</p>
+<p>We now turn to receiving electronic mail using <code>TERM</code>. We will
+assume that mail is sent to your account on the network machine <code>mailhost</code>. The simplest solution is to just use trsh or
+termtelnet to log on to <code>mailhost</code> and read your mail
+on there. However, it is also possible to have your mail
+automatically downloaded to your local machine. One way to do this is
+to use the Post Office Protocol, (POP). POP was designed for exactly
+this purpose: to deliver mail to machines that have intermittent
+network connections. To use POP, you must have a POP server installed
+on <code>mailhost</code>. Assuming that you do, you can then use a POP
+client to download your mail every few minutes. This is done, as you
+might expect, using tredir. The POP service is 110 (<b>note</b> that there is an older protocol, POP-2, which uses port 109;
+in this document we describe POP-3, which is the latest version of
+POP). There are several POP clients available. One, written in the
+script language <code>perl</code> is pop-perl-1.X, written by William
+Perry and maintained by myself - it can be found on sunsite.unc.edu:pub/Linux/system/Mail.</p>
+<p>To use POP, you redirect a local port to port 110 on <code>mailhost</code> and configure your client to retrieve your mail from localhost
+using the local port. As an example, we will assume that there is a POP
+server running on <code>mailhost</code>. We will redirect the local port
+2110, and fire up the pop-perl client:</p>
+<p>
+<pre>
+  $ tredir 2110 mailhost:110
+  Redirecting 2110 to mailhost:110
+  $ pop 
+  Username: bill 
+  Password: &lt;enter your password for mailhost&gt;
+  Pop Host: name of local 
+  Pop Port: 2110 
+  Starting popmail daemon for bill 
+</pre>
+</p>
+<p>If you do not have a POP server available, the BCRMailHandler package
+has a program to download your mail over a <code>TERM</code> link to
+your local machine. I have not used it, but anyone who has is welcome
+to comment. You can also use the term.mailerd+smail package for this purpose. 
+Alas, both BCRMailHandler and the term.mailerd.smail package do not work anymore with <code>TERM</code> versions 2.0.0 and higher.</p>
+<p></p>
+
+<p><a href="Term-HOWTO-8.html"> Next </a> Chapter, <a href="Term-HOWTO-6.html"> Previous </a> Chapter</p><p>Table of contents of <a href="Term-HOWTO.html#toc7">this chapter</a>,
+ General <a href="Term-HOWTO.html#toc">table of contents</a></p>
+<p><a href="Term-HOWTO.html"> Top </a> of the document,
+ <a href="#0"> Beginning of this Chapter</a></p>
+
+<P><IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/line.blue.gif" ALT="">
+<P><A HREF="/skunkware/index.html">
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.left.gif"
+ALT="">
+Return to Welcome Home Page</A> or
+<A HREF="/skunkware/tools.html">
+Continue to Browse
+<IMG ALIGN=MIDDLE SRC="/skunkware/pics/gif/buttons/arrow.plain.right.gif"
+ALT=""></A>

@@ -1,0 +1,115 @@
+<HTML>
+<HEAD>
+<TITLE>CrtMathFnc</TITLE>
+</HEAD>
+<BODY>
+<H1>CrtMathFnc</H1>
+<HR>
+<PRE>
+     _________________________________________________________________
+
+     <STRONG>NAME</STRONG>
+          Tcl_CreateMathFunc  -  Define  a  new  math   function   for
+          expressions
+
+     <STRONG>SYNOPSIS</STRONG>
+          <STRONG>#include</STRONG> <STRONG>&lt;tcl.h&gt;</STRONG>
+
+          <STRONG>Tcl_CreateMathFunc</STRONG>(<EM>interp</EM>, <EM>name</EM>, <EM>numArgs</EM>, <EM>argTypes</EM>, <EM>proc</EM>, <EM>clientData)</EM>
+
+     <STRONG>ARGUMENTS</STRONG>
+          Tcl_Interp      *<EM>interp</EM>      (in)      Interpreter in  which
+                                                 new  function will be
+                                                 defined.
+
+          char            *<EM>name</EM>        (in)      Name     for      new
+                                                 function.
+
+          int             <EM>numArgs</EM>      (in)      Number  of  arguments
+                                                 to    new   function;
+                                                 also  gives  size  of
+                                                 <EM>argTypes</EM> array.
+
+          Tcl_ValueType   *<EM>argTypes</EM>    (in)      Points  to  an  array
+                                                 giving            the
+                                                 permissible types for
+                                                 each    argument   to
+                                                 function.
+
+          Tcl_MathProc    *<EM>proc</EM>        (in)      Procedure        that
+                                                 implements        the
+                                                 function.
+
+          ClientData      <EM>clientData</EM>   (in)      Arbitrary    one-word
+                                                 value to pass to <EM>proc</EM>
+                                                 when it is invoked.
+     _________________________________________________________________
+
+
+     <STRONG>DESCRIPTION</STRONG>
+          Tcl allows a number of mathematical functions to be used  in
+          expressions,     such    as    <STRONG>sin</STRONG>,    <STRONG>cos</STRONG>,    and    <STRONG>hypot</STRONG>.
+          <STRONG>Tcl_CreateMathFunc</STRONG> allows  applications  to  add  additional
+          functions  to  those  already  provided by Tcl or to replace
+          existing functions.  <EM>Name</EM> is the name of the function as  it
+          will  appear  in expressions.  If <EM>name</EM> doesn't already exist
+          as a function then a new function is created.   If  it  does
+          exist,  then the existing function is replaced.  <EM>NumArgs</EM> and
+          <EM>argTypes</EM> describe the arguments to the function.  Each entry
+          in the <EM>argTypes</EM> array must be either TCL_INT, TCL_DOUBLE, or
+          TCL_EITHER to indicate whether  the  corresponding  argument
+          must  be  an  integer, a double-precision floating value, or
+          either, respectively.
+
+          Whenever the function is invoked in an expression  Tcl  will
+          invoke  <EM>proc</EM>.   <EM>Proc</EM>  should  have arguments and result that
+          match the type <STRONG>Tcl_MathProc</STRONG>:
+               typedef int Tcl_MathProc(
+                    ClientData <EM>clientData</EM>,
+                    Tcl_Interp *<EM>interp</EM>,
+                    Tcl_Value *<EM>args</EM>,
+                    Tcl_Value *resultPtr);
+
+          When <EM>proc</EM> is invoked the  <EM>clientData</EM>  and  <EM>interp</EM>  arguments
+          will  be  the  same  as  those passed to <STRONG>Tcl_CreateMathFunc</STRONG>.
+          <EM>Args</EM> will point to an array of <EM>numArgs</EM> Tcl_Value structures,
+          which describe the actual arguments to the function:
+               typedef struct Tcl_Value {
+                    Tcl_ValueType <EM>type</EM>;
+                    int <EM>intValue</EM>;
+                    double <EM>doubleValue</EM>;
+               } Tcl_Value;
+
+          The <EM>type</EM> field indicates the type of  the  argument  and  is
+          either  TCL_INT  or  TCL_DOUBLE.  It will match the <EM>argTypes</EM>
+          value specified for the function unless the  <EM>argTypes</EM>  value
+          was  TCL_EITHER.  Tcl  converts the argument supplied in the
+          expression to the type requested in  <EM>argTypes</EM>,  if  that  is
+          necessary.   Depending  on  the value of the <EM>type</EM> field, the
+          <EM>intValue</EM> or <EM>doubleValue</EM> field will contain the actual  value
+          of the argument.
+
+          <EM>Proc</EM> should compute its result and store  it  either  as  an
+          integer  in  <EM>resultPtr</EM>-&gt;<EM>intValue</EM>  or  as a floating value in
+          <EM>resultPtr</EM>-&gt;<EM>doubleValue</EM>.  It should set also  <EM>resultPtr</EM>-&gt;<EM>type</EM>
+          to  either TCL_INT or TCL_DOUBLE to indicate which value was
+          set.  Under normal circumstances <EM>proc</EM> should return  TCL_OK.
+          If an error occurs while executing the function, <EM>proc</EM> should
+          return TCL_ERROR and  leave  an  error  message  in  <EM>interp</EM>-
+          &gt;<EM>result</EM>.
+
+
+     <STRONG>KEYWORDS</STRONG>
+          expression, mathematical function
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>
