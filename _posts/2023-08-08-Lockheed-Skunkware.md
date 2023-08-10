@@ -2,7 +2,7 @@
 title: When Lockheed Sued SCO over Skunkware
 author: doctorfree
 date: 2023-08-08 16:20:00 +0800
-tags: [lockheed, skunkware, petard, sco, suit, skunkworks, skunk works]
+tags: [lockheed, skunkware, hoist, petard, sco, suit, skunkworks, skunk works, skunkworks]
 pin: true
 img_path: "/posts/20230808"
 ---
@@ -38,11 +38,11 @@ That's trademark law protecting your rights.
 
 ## Lockheed Sues SCO
 
-In 1996 Lockheed sued SCO claiming that use of the term 'SCO Skunkware'
-was an infringement on their 'Skunk Works' trademark. SCO and Lockheed
-settled out of court with the agreement that SCO could continue to use
-'SCO Skunkware' but only if every mention of 'SCO Skunkware' was
-accompanied by the statement:
+During this flood of 'skunk' suits, Lockheed sued SCO claiming that use
+of the term 'SCO Skunkware' was an infringement on their 'Skunk Works'
+trademark. SCO and Lockheed settled out of court with the agreement that
+SCO could continue to use 'SCO Skunkware' but only if every mention of
+'SCO Skunkware' was accompanied by the statement:
 
 ***The Santa Cruz Operation, Inc. and SCO Skunkware are not related to,
 affiliated with or licensed by the famous Lockheed Martin Skunk Works (R),
@@ -57,14 +57,19 @@ delighted to do so. However, there were hundreds if not thousands
 of SCO Skunkware web pages and almost all of them included the
 offensive term. I worked hard and got the job done.
 
+## Hoist on their own Petard
+
 I went about my business, not thinking much about it. Then one day
-I happened to search for "Lockheed SR-71 Blackbird" in one of the
-many Internet search engines we had back then. What I got as the
-first few dozen hits returned from my search were all SCO Skunkware
-web pages. Haha!
+I happened to search for "**SR-71**" in one of the many Internet
+search engines we had back then. What I got as the first few dozen
+hits returned from my search were all SCO Skunkware web pages. Haha!
+I searched for **Stealth Fighter** and got the same results, all
+SCO Skunkware links. Anyone looking for information on the Internet
+about any of the Lockheed products mentioned in our forced disclaimer
+was going to learn a lot about SCO Skunkware and nothing about Lockheed.
 
 Lockheed was hoist on its own petard. Their insistence on 'owning'
-the work 'skunk' had resulted in burying any mention of their
+the word 'skunk' had resulted in burying any mention of their
 famous works under pages and pages of SCO Skunkware links.
 
 Yes, Mary, there is justice in this world.
