@@ -1,0 +1,190 @@
+#!/bin/ksh
+# chr: convert decimal numbers to characters
+# @(#) chr.ksh 1.1 97/06/23
+# 90/07/07 john h. dubois iii (john@armory.com)
+# 91/02/25 added comments
+# 92/02/16 added -h option for help
+# 92/09/14 Read input if no args given
+# 94/04/23 Added all options, multibyte conversions,
+#          and conversion of C constant & ksh style integers.
+# 95/08/02 Added e option.
+
+name=${0##*/}
+Usage="Usage: $name [-[bl]<wordsize>] [-o<byte-order>] n [ n ... ]"
+typeset -i WordSize=1 i
+Debug=false
+PrintEsc=
+set -A ByteOrder 1
+
+while getopts ehb:l:o:x opt; do
+    case $opt in
+    h)
+	print \
+"$name: convert integers to byte values.
+$Usage
+For each integer value n, one or more characters (bytes) with the value of n
+are output.  Integers may be given in C contant style (decimal, 0<octal>,
+0x<hex>) or ksh style (base#value).  The values given must be less than or
+equal to the largest value that can be encoded in the wordsize, which by
+default is 1 byte, giving a maximum value of 255.  If no numbers are given on
+the command line, chr reads its input for numbers.
+Options:
+-e: Instead of printing the bytes directly, print a string argument that could
+    be passed to \"echo\" to cause it to print the bytes.  The string will
+    contain only non-whitespace printing characters; octal escape codes
+    (recognized by echo) will be used for other characters, and for certain
+    characters that are liable to cause a problem if used directly in an echo
+    statement: single and double quotes, backslashes, dollar signs, and
+    hyphens.  A single string will be printed for all of the bytes, with a
+    newline at the end.
+-b<wordsize>, -l<wordsize>: Set the byte order to big-endian (high-end bytes
+    of each value emitted first) or little-endian (low-end bytes first), with
+    a word size of <wordsize> bytes.  The default is a word size of 1 byte,
+    for which endianness is meaningless.  <wordsize> can be set up to 4, but
+    due to limitations of ksh arithmetic, only values up to 2^31-1 (2147483647)
+    can be given.
+-o<byte-order>: Specify a specific byte order.  Byte order is given as a
+    comma-separated series of integers from 1 to n.  n (the highest valued
+    integer given) sets the word size. Bytes of each word are emitted in the
+    given order.  1 refers to the low-end byte, n to the high-end byte.
+    Not all bytes need to be emitted.
+-h: Print this help."
+	exit 0
+	;;
+    b)
+	WordSize=$OPTARG || exit 1
+	i=0
+	while [ i -lt WordSize ]; do
+	    let ByteOrder[i]=WordSize-i
+	    let i+=1
+	done
+	;;
+    e)
+	PrintEsc=true
+	;;
+    l)
+	WordSize=$OPTARG || exit 1
+	i=0
+	while [ i -lt WordSize ]; do
+	    let ByteOrder[i]=i+1
+	    let i+=1
+	done
+	;;
+    o)
+	OIFS=$IFS
+	IFS=,
+	set -A ByteOrder $OPTARG
+	IFS=$OIFS
+	for i in "${ByteOrder[@]}"; do
+	    [ i -gt WordSize ] && WordSize=i
+	done
+	;;
+    x)
+	Debug=true
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    ?)
+        print -r -u2 "Use -h for help."
+        exit 1
+        ;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+# Usage: PrintChrs value1 ...
+# Print the characters whose ASCII value are value1 ....
+# Globals used:
+# ByteOrder[]: Tells the order that bytes should be emitted in.
+# Index 0 of ByteOrder[] tells which byte should be emitted first, etc.
+# Bytes are numbered 1..n for low to high byte.
+# PrintEsc: Non-null if instead of printing the actual characters, the
+# string to pass to echo to print the characters should be printed.
+# No newline is printed at the end whether or not PrintEsc is used.
+# This string will contain only non-whitespace printing characters.
+function PrintChrs {
+    # Result[1..n] stores low..high bytes of value
+    typeset -i ByteNum word Result
+    # Print value in octal for use in echo sequence
+    typeset -i8 value
+
+    # Build up the entire string before echoing it so that the echo
+    # command can be echoed instead if we want
+    cbase "$@" || exit 1
+    for word in ${cbase_ret[@]}; do
+	if [ word -gt MaxVal ]; then
+	    print -u2 "Value too large: $word"
+	    exit 1
+	fi
+	ByteNum=1
+	while [ ByteNum -le WordSize ]; do
+	    let Result[ByteNum]=word%256
+	    word=word/256
+	    let ByteNum+=1
+	done
+	# Print selected bytes in specified order.
+	for ByteNum in "${ByteOrder[@]}"; do
+	    value=${Result[ByteNum]}
+	    # strip leading #8 from printed value so it will be in the
+	    # form expected by echo
+	    EscSeq="\0${value#8#}"
+	    # Even if PrintEsc is on, print byte values directly if they are
+	    # printable & not whitespace or other problem chars
+	    [[ -z "$PrintEsc" || ( value -gt 32 && value -lt 127 &&
+	    value -ne 39 && value -ne 34 && value -ne 92 && value -ne 45 &&
+	    value -ne 36 ) ]] &&
+	    print -n -- "$EscSeq" || print -nr -- "$EscSeq"
+	done
+    done
+}
+
+# Usage: cbase c-contant ...
+# convert hex (0xnnn and 0Xnnn), octal (0nnn), and decimal C constants, and
+# ksh-style (base#value) contants, to integers & store in global
+# cbase_ret[0..n-1]
+# 1 is returned on error, 0 on success
+typeset -i10 cbase_ret
+cbase() {
+    typeset -i10 d i=0
+    unset cbase_ret[*]
+    while [ $# -gt 0 ]; do
+	case $1 in
+	    0[xX]*([0-9a-fA-F]) ) d=16#${1#0[xX]};;	# hex
+	    0*([0-7]) ) d=8#$1;;			# octal
+	    [1-9]*([0-9]) ) d=$1;;			# decimal
+	    +([0-9])#+([0-9]) ) d=$1;;			# ksh
+	    *) print -u2 "Bad number: $1"; return 1;;
+	esac
+	cbase_ret[i]=$d
+	let i+=1
+	shift
+    done
+    return 0
+}
+
+typeset -i MaxVal
+case $WordSize in
+1)  MaxVal=255;;
+2)  MaxVal=65536;;
+3)  MaxVal=16777215;;
+4)  MaxVal=2147483647;;
+*)  print -u2 "$Name: bad wordsize: $WordSize."
+    exit 1;;
+esac
+
+$Debug && 
+print -u2 "Word size: $WordSize; MaxVal: $MaxVal; Byte order: ${ByteOrder[*]}"
+
+if [ $# -eq 0 ]; then
+    while read line; do
+	set -- $line
+	PrintChrs "$@"
+    done
+else
+    PrintChrs "$@"
+fi

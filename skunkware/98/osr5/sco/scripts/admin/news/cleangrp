@@ -1,0 +1,28 @@
+:
+# @(#) cleangrp.sh 1.0 94/07/15
+# 94/07/15 john h. dubois iii (john@armory.com)
+
+if [ $# -gt 0 ]; then
+    echo \
+"$0: Remove files from spool directories for newsgroups that have
+been disabled in the active file."
+    exit 0
+fi
+
+newsdir=/usr/spool/news
+cd $newsdir
+awk '
+$NF ~ "x" {
+    gsub(/\./,"/",$1)
+    print $1
+}
+' /usr/lib/news/active | while read groupdir; do
+    for file in $groupdir/* $groupdir/.thread; do
+	if [ -f "$file" ]; then
+	    echo "$file"
+	    echo "$file" 1>&2
+	fi
+    done
+    echo -n "." 1>&2
+done | xargs rm -f
+echo ""

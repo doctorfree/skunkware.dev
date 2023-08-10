@@ -1,0 +1,164 @@
+#!/bin/ksh
+# @(#) chklost.ksh 2.0 95/10/22
+# 90/10/29 john h. dubois iii (john@armory.com)
+# 91/03/09 fixed bug which prevented chklost from being able to do 'file'
+#	   on files from more than one dir (do a final read from coprocess
+#	   so that coprocess pipe will be closed, so it can be opened again)
+# 91/03/19 added check to determine whether filesystem name and mount dir
+#	   are swapped as under UNIX, and switch them if so
+# 93/02/06 Added -v option
+# 95/10/22 Cleaned up, made more robust, added ability to spec fs names on
+#          command line, added hrRt options.
+
+typeset -i verbose=0
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+name=${0##*/}
+Usage="Usage: $name [-hrtv] [-R<pattern>] [filesystem ...]"
+remove=false
+removePat='ksh history file'
+tell=false
+
+while getopts :hvrtR: opt; do
+    case $opt in
+    h)
+	echo \
+"$name: check lost+found directories for files reconnected by fsck.
+$Usage
+The number of files found in the lost+found directory each filesystem is
+printed, followed by a long listing of the inode data for each file and what
+/bin/file thinks the file contains.  If no filesystem names are given, all
+mounted filesystems (as reported by mount(ADM)) are checked.  $name can only
+check mounted filesystems.  The device or mount point for a filesystem may be
+given.
+Options:
+-h: Print this help.
+-r: Remove certain files from the lost+found directories that are examined,
+    based on what file(C) reports.  Removed files are those for which file(C)
+    reports 'ksh history file'.
+-R<pattern>: Remove any files from the lost+found directories that are examined
+    whose type as reported by file(C) matches <pattern>.  <pattern> may be a
+    ksh pattern, e.g. '@(ksh history file|SecureWare ttys database)'.  If a
+    pattern or a string contain whitespace is given, it should be quoted to
+    protect it from the shell.
+-t: Used in conjunction with -r or -R.  Tell which files would be removed,
+    but do not remove them.
+-v: Report filesystems that have no lost files or no lost+found directory."
+	exit 0
+	;;
+     v)
+	verbose=1
+	;;
+    t)
+	tell=true
+	;;
+    r)
+	remove=true
+	;;
+    R)
+	removePat=$OPTARG
+	remove=true
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$name: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?)
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+# Usage: CheckFS filesys mountdir
+function CheckFS {
+    typeset filesys=$1 mountdir=$2 tm lfdir file fileno description
+
+    if [[ $mountdir = /dev/* ]]; then    # if swapped, swap them back
+	tm=$filesys
+	filesys=$mountdir
+	mountdir=$tm
+    fi
+    lfdir="${mountdir%/}/lost+found"    # find lost+found dir for filesystem
+    # change to lost+found dir if it exists; 
+    # otherwise continue with next filesystem
+    if [ ! -d "$lfdir" ]; then
+	istrue verbose && print -ru2 -- "$mountdir has no lost+found directory."
+	return 1
+    fi
+    cd "$lfdir" || {
+	print -ru2 "Could not cd to $mountdir"
+	return 1
+    }
+    set -- *
+    if [ "$1" = "*" ]; then
+	istrue verbose && print -ru2 -- "$filesys: no files in $lfdir."
+	return 0
+    fi
+    print -n -- "$filesys: $# files found in $lfdir"
+    if $remove; then
+	if $tell; then
+	    print "; would remove:"
+	else
+	    print "; removing:"
+	fi
+    else
+	print ""
+    fi
+    # start up /bin/file as a coprocess, 
+    # so its output can be read along with the output of l
+    /bin/file "$@" |&
+    # use -d to make sure l lists only the files matched by *,
+    # so its output lines will sync with /bin/file *
+    l -d -- "$@" | while read file; do
+	# read from /bin/file
+	read -p fileno description
+	fileno=${fileno%:}
+	# in case something funny happens
+	if [[ "$file" != *"$fileno" ]]; then
+	    print -u2 "l and file out of sync."
+	    return 1
+	fi
+	if $remove; then
+	    # Must eval to match extended ksh patterns.  But, that causes
+	    # simple patterns that contain spaces to be split.  Can't quote
+	    # pattern because extended patterns are protected from being
+	    # recognized as patterns by quotes.  So, make all expressions be
+	    # extended patterns by putting @() around them.
+	    if eval [[ \"\$description\" = "@($removePat)" ]]; then
+		print -r -- "$file  $description"
+		$tell || rm -- "$fileno"
+	    fi
+	else
+	    print -r -- "$file  $description"
+	fi
+    done 
+    # read from coprocess again so its pipe will be closed
+    read -p
+    return 0
+}
+
+if [ $# -eq 0 ]; then
+    # for each filesystem listed by mount...
+    /etc/mount | while read filesys on mountdir date; do
+	CheckFS "$filesys" "$mountdir"
+    done
+else
+    for fsName; do
+	[[ "$fsName" != */* ]] && fsName=/dev/$fsName
+	mount | egrep "(^| )$fsName " | read filesys on mountdir date &&
+	CheckFS "$filesys" "$mountdir" || 
+	print -u2 -- "$fsName: no such filesystem, or filesystem not mounted."
+    done
+fi

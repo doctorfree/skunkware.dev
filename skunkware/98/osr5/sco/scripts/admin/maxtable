@@ -1,0 +1,69 @@
+#!/bin/ksh
+# @(#) maxtable.ksh 1.1 97/03/19
+# 94/02/12 john h. dubois iii
+# 94/06/27 Added help.
+# 97/03/19 Let abbreviations for file be given.  Deal with 5.0 output format.
+
+Name=${0##*/}
+if [ "$1" = -h ]; then
+    print -u2 \
+"$Name: Find maximum usage of various kernel tables in sadc files.
+Usage: $Name sadc-logfile ...
+For each of the proc table, inode table, and open file table, the largest
+number used is printed, along with the file it was found in and the table size.
+Note that since sadc samples at discrete intervals, this will not neccessarily
+be the largest number used during the period covered by the sadc logs.
+If a filename does not include any '/' characters, it is searched for in the
+directory /usr/adm/sa.  If a number in the range 1-31 is given, the sadc
+logfile for that day in /usr/adm/sa is read.  If no filenames are given, all
+files in /usr/adm/sa are used.
+Example:
+$Name 12"
+    exit 0
+fi
+
+if [ $# -eq 0 ]; then
+    cd /usr/adm/sa || exit 1
+    set -- sa[0-3][0-9]
+    if [ $# -eq 1 -a ! -f "$1" ]; then
+	print -ru2 -- "$Name: No sadc logfiles in /usr/adm/sa; exiting."
+	exit 1
+    fi
+fi
+
+typeset -Z2 mday
+
+for file; do
+    if [[ "$file" = @([0-9]) && file -ge 1 && file -le 31 ]]; then
+	mday=$file
+	file=sa$mday
+    fi
+    [[ "$file" != */* ]] && file=/usr/adm/sa/$file
+    sar -v -f "$file" |
+    sed "/^[0-9][0-9]:/!d;s'^'$file ';s'/  *'/'g" > $file.sar-v || exit
+    sarfiles="$sarfiles $file.sar-v"
+done
+
+# sar -v output formats:
+# 3.2v5:
+# 00:00:02 proc-sz ov inod-sz ov file-sz ov lock-sz
+# 01:00:01  56/100  0 173/450  0 204/350  0   3/100
+# 3.2v4:
+# 00:00:01  proc-sz   ov  inod-sz   ov  file-sz   ov  lock-sz
+# 01:00:01  105/ 130   0  443/1075   0  424/ 682   0    6/ 128
+
+set -A Names procs inode files
+set -A cols 3 5 7
+
+typeset -i i=0
+while [ i -le 2 ]; do
+    s=${cols[i]}
+    set -- $(sort -nr +$(($s-1)) -$s $sarfiles | head -1)
+    filename=$1
+    echo -n "Max ${Names[i]}: $1 $2"
+    shift $((s-1))
+    echo " $1"
+    let i+=1
+done
+
+rm -f $sarfiles

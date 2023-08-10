@@ -1,0 +1,189 @@
+#!/bin/ksh
+# ^^^ replace this with #!/bin/sh if you do not have /bin/ksh
+# @(#) smtpcull.sh 1.3 97/07/22
+# 96/07/18 john h. dubois iii (john@armory.com)
+# 96/07/25 Portability: avoid fgrep -q and print.
+# 97/02/06 Also search for "parents" of domains/networks
+# 97/02/10 If resolver gives multiple names, search for all of them.
+# 97/05/02 Give a more verbose message to spamsites.
+# 97/07/22 1.3 Added hostname mapping
+
+# The most recent version of this utility is always available at:
+# ftp://ftp.armory.com./pub/admin/mmdf/smtpcull
+
+# This program is invoked as: smtpsrvr remotename localname channel-list
+# If resolver gives multiple names for an IP address, they will all be passwd
+# as arg 1 to smtpsrver, separated by whitespace.
+
+blacklist=/usr/mmdf/table/blacklist
+hostmap=/usr/mmdf/table/hostmap
+
+###
+# This first code implements hostname mapping.  This allows the value
+# returned by a PTR lookup to be mapped to some other name.  This can be used
+# to e.g. deal with the problem of an uncooperative ISP who refuses to make
+# PTR records resolve correctly.  For example, if a PTR lookup on a host gives
+# a bogus name, it will be accepted by MMDF, but if handed off to a very picky
+# MTA (one that checks each hostname in the return path for validity) it may be
+# rejected. The hostname map is stored in the file /usr/mmdf/table/hostmap and
+# consists of one pair of hostnames on each line, separated from each other by
+# whitespace.
+# If the value returned by a PTR lookup (or any superdomain of it) appears on
+# the lefthand side of any line, its value will be replaced by whatever appears
+# on the righthand side.  This currently only works for PTR lookups that return
+# a single value.  Example line:
+# dynamic.foo.com realhost.domain.name
+# A PTR return of dynamic.foo.com or *.dynamic.foo.com will be replaced by
+# realhost.domain.name (realhost.domain.name will appear in the return address)
+###
+if [ -f $hostmap -a -r $hostmap ]; then
+    mapped=`awk -v "host=$1" ' BEGIN { hlen = length(host); } $1 == host || \
+    ("." $1) == substr(host,hlen - length($1)) { print $2; }' $hostmap`
+    if [ -n "$mapped" ]; then
+	shift
+	set -- "$mapped" "$@"
+    fi
+fi
+
+### The rest of the code implements the blacklist
+if [ ! -f $blacklist -o ! -r $blacklist ]; then
+    /usr/bin/logger -i -tsmtpsrvr "Accepted (no blacklist): $1"
+    exec /usr/mmdf/chans/smtpsrvr.bin "$@"
+fi
+
+# For each hostname/IP address passed, add the hostname/IP address and all
+# of its parent domains/supernets to the list of names to be searched for in
+# the blacklist.
+if [ "$RANDOM" != "$RANDOM" ]; then
+    # if in ksh, use builtins
+    for hostname in $1; do
+	if [ -z "$names" ]; then
+	    names=$hostname
+	else
+	    names="$names
+$hostname"
+	fi
+	pname=$hostname
+	while [[ "$pname" = *.*.* ]]; do
+	    [[ "$hostname" = *[!0-9.]* ]] && pname=${pname#*.} ||
+	    pname=${pname%.*}
+	    names="$names
+$pname"
+	done
+    done
+else
+    names=`echo "$1" | awk '
+{
+    for (i = 1; i <= NF; i++) {
+	hostname = $i
+	print hostname
+	while (hostname ~ /\..*\./) {
+	    if (hostname ~ /[^0-9.]/)
+		sub("^[^.]+.","",hostname)
+	    else
+		sub(".[^.]+$","",hostname)
+	    print hostname
+	}
+    }
+}'`
+fi
+
+# If your fgrep does not understand '--' to end an option list, replace the
+# -- with /dev/null.
+if /usr/bin/fgrep -ix -- "$names" $blacklist >/dev/null 2>&1
+then
+    /usr/bin/logger -i -tsmtpsrvr "Rejected: $1"
+    /bin/sleep 3
+    # RFC821 allows multiline responses for all commands.
+    # All but the last must begin with "<reply-code>-".
+    echo \
+"550-We do not accept mail from sites that primarily originate spam.  If the
+550-site that your mail passes through has been incorrectly identified as a
+550-source of unsolicited commercial email, please send mail to this effect to
+550-postmaster@`/usr/bin/hostname` to have the situation rectified.  You will
+550-have to send mail through an alternate host in order for it to get through.
+550 We apologize for any inconvenience."
+    /bin/sleep 3
+    exit 0
+else
+    /usr/bin/logger -i -tsmtpsrvr "Accepted: $1"
+    exec /usr/mmdf/chans/smtpsrvr.bin "$@"
+fi
+
+# Instructions and description (keep these at the end so that sh does not have
+# to read the comments every time it runs this script):
+# In /usr/mmdf/chans, move smtpsrvr to smtpsrvr.bin
+# Save this file there as smtpsrvr, and give it mode 755.
+# Create the file /usr/mmdf/table/blacklist, and in it list each domain name
+# that mail should not be accepted from, one per line, with no whitespace
+# before or after the name.  Case is not significant, everything else is.
+# For each domain name, connections from a host with that name or any subdomain
+# of it will be rejected.  E.g. if "spammers.com" is listed, connections from
+# spammers.com, lame.spammers.com, extremely.lame.spammers.com, etc. will be
+# rejected.  If an IP address is looked up (see below), connections from a
+# listed network or any subnet of it are rejected; i.e. components of the IP
+# address are removed from the right when searching for matches to "parent"
+# networks, rather than the left as is done with hostnames.  So, if 1.2.3 is
+# listed, connections from 1.2.3.* will be rejected.
+# Names & IP addresses must have at least two components (i.e., must contain
+# at least one '.').  
+# The file does not need any special permissions; this program will be run as
+# root.
+# All connections will be logged by logger at default priority in syslog,
+# as either "Accepted" or "Rejected", followed by the hostname that was used
+# to make the determination.  If you don't know the real hostname that a
+# message came from so that it can be blacklisted, check syslog or look at the
+# Received: lines in the message header (in some MUAs the Received: lines may
+# be suppressed by default, so you may need to specifically ask to see them).
+# Be aware that the administrator of the PTR records for a network can make
+# connections appear to come from any host.  Currently, this program uses
+# the hostname that smtpd gets by doing an PTR lookup on the IP address that
+# a connection comes from.  It does NOT use the "HELO" name; that part of
+# the SMTP transaction has not happened at the time that this program runs
+# (in fact, there has been no SMTP exchange at all at the time this program
+# runs).  If the PTR lookup fails for any reason, smtpd gives the IP address
+# to smtpsrvr, so you may find that you need to put some IP addresses in the
+# blacklist file as well.  When an IP address is looked up, both 
+# Enhancements to this program would be to allow general blacklisting by IP
+# address, and doing A lookups on the result of PTR lookups to confirm them.
+# The failure message returned to the remote SMTP daemon for rejected
+# connections is given on the 'echo' line above.  You may with to change it to
+# suit the purpose you use this program for because the rejection line will
+# typically be included in the return mail the remote SMTP daemon sends to the
+# return address of the rejected message.  Be sure to keep the "550" at the
+# beginning of each line; this code tells the remote SMTP daemon that a fatal
+# error has occured and it should not try to keep sending the message (note
+# that some SMTP daemons retry anyway).
+# 
+# Here are two examples of message headers:
+# 
+# From ns.pdev.armory.com!foo.armory.com!ftp.interline.net!mail.interline.net!bargain Wed Jul 24 22:20:27 1996
+# Received: from ns.pdev.armory.com by father.pdev.armory.com id aa03887;
+#           24 Jul 96 22:20 PDT
+# Received: from foo.armory.com by grandpa.pdev.armory.com id aa19416;
+#           24 Jul 96 22:21 PDT
+# Received: from ftp.interline.net by foo.armory.COM id aa27305; 24 Jul 96 22:13 PDT
+# Received: from ppp6.interline.net by primary.interline.net (NTMail 3.02.07)
+# Comments: Authenticated sender is <Bargain@mail.interline.net>
+# From: Bargain@mail.interline.net
+# 
+# The above example shows a message from a user claiming to have a mailbox on
+# mail.interline.net, with the first Received: line showing it came from 
+# ppp6.interline.net, being passed to a host that identifies itself as
+# primary.interline.net, and next being passed to foo.armory.COM.  However,
+# note that foo.armory.COM believes the message came from ftp.interline.net.
+# That name comes from the same source that smtpcull sees, namely the PTR
+# lookup done by smtpd.  Therefore, the name to put in the blacklist file on
+# foo.armory.COM would be "ftp.interline.net".
+# 
+# From moneyworld.com!chag Wed Jul 24 23:24:40 1996
+# Received: from [208.129.19.69] by deepthought.armory.com id aa02419;
+#           24 Jul 96 23:24 PDT
+# To: Bela Lubkin  <filbo@armory.com>
+# From: chag@moneyworld.com
+# 
+# In this example, the user claims to have a mailbox on moneyworld.com.  It
+# is passed immediately to deepthought.armory.com.  There is no PTR record
+# for the IP address that deepthought received it from, so smtpd on
+# deepthought.armory.com gives its IP address instead.  The name to put in
+# the blacklist file on deepthought.armory.com would be "208.129.19.69".

@@ -1,0 +1,63 @@
+#!/usr/local/bin/gawk -f
+# @(#) chk_active.gawk 1.0 94/09/30
+# 94/05/11 john h. dubois iii
+# 94/06/27 Added help.
+# use gawk because it pays attention to changes to ARGV[]
+
+BEGIN {
+    if (ARGC == 2 && ARGV[1] ~ /^[-+]h$/) {
+	print \
+"checkactive: check active file for errors.\n"\
+"Usage: checkactive [active-file]\n"\
+"If no active file is named, /usr/lib/news/active is used.\n"\
+"Each line is checked for the following errors:\n"\
+"Other than 4 fields.\n"\
+"Bad characters in any field.\n"\
+"Multiple instances of newsgroup name."
+	exit 0
+    }
+    if (ARGC < 2) {
+	ARGC = 2
+	ARGV[1] = "/usr/lib/news/active"
+    }
+}
+
+{
+    if (NF != 4)
+	FileErr("Wrong number of fields: s/b 4, found " NF)
+    if ($1 !~ /^[-+&0-9a-zA-Z._]+$/)
+	FileErr("Bad newsgroup name")
+    if ($2 !~ /[0-9][0-9][0-9][0-9][0-9]/ || length($2) > 10)
+	FileErr("Bad value for last article (field 2)")
+    if ($3 !~ /[0-9][0-9][0-9][0-9][0-9]/ || length($3) > 10)
+	FileErr("Bad value for first article (field 3)")
+    if ($4 !~ /^x?[xmyn]$|^=/)
+	FileErr("Bad status (field 4)")
+    if ($1 in Groups)
+	FileErr("Duplicate group (also on line " Groups[$1] "):")
+    else
+	Groups[$1] = FNR
+}
+
+function LineErr(S) {
+    ErrPrint("On line " FNR ": " S "\n>>> " $0)
+}
+
+function FileErr(S) {
+    ErrPrint("On line " FNR " of " FILENAME ": " S "\n>>> " $0)
+}
+
+function FileErrExit(S,ExitVal) {
+    FileErr(S)
+    Err = ExitVal
+    exit(ExitVal)
+}
+
+#function ErrPrint(S) {
+#    print S | "cat 1>&2"
+#}
+
+function ErrPrint(S) {
+    print S > "/dev/stderr"
+    close("/dev/stderr")	# flush output
+}

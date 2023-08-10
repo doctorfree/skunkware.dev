@@ -1,0 +1,845 @@
+Archive-Name: mail/mmdf-faq/part1
+Version: $Id: mmdf,v 1.2 1996/06/06 01:26:21 jsweet Rel $
+Posting-Frequency: monthly
+X-Comment: There is only one part to the MMDF FAQ at this time.
+
+==============================================
+The MMDF Frequently Asked Questions List (FAQ)
+==============================================
+
+Overview
+--------
+
+This is the Frequently Asked Questions document about MMDF, the
+Multi-channel Memo Distribution Facility, a popular mail transport
+agent (MTA).
+
+
+Table of Contents
+-----------------
+
+1)    Introduction
+1.1)  Conventions
+1.2)  Where can I get the MMDF FAQ?
+
+2)    What is MMDF?
+2.1)  How MMDF is used
+2.2)  Where to get MMDF
+2.3)  A brief history of MMDF
+2.4)  Glossary
+
+3)    User-Level Questions
+
+4)    Administrator-Level Questions
+
+5)    Miscellaneous Questions and Gotchas
+
+6)    An MMDF Bibliography
+
+7)    Other Resources
+7.1)  Free Software
+7.2)  Commercial Software
+
+8)    Authorship
+8.1)  Acknowledgements
+8.2)  Permissions
+
+--
+
+1) Introduction
+---------------
+
+1.1)  Conventions
+
+ - Direct quotations begin with an attribution in a standard format,
+   and are indented by four spaces.
+ 
+ 
+ - Pointers to resources available via the Internet, such as references
+   to FTPable goodies, appear in WWW URL format.  URLs beginning with
+   "ftp:" refer to FTP sites.  For example:
+ 
+   ftp://domain.name/path/to/package
+ 
+   Those with FTP access, but without WWW access, may treat such
+   references as follows:
+ 
+   1. Log into host domain.name using anonymous FTP
+   2. Look for /path/to/package
+ 
+   An FTP reference usually lists only the distribution site; please
+   try your nearest FTP archive first.  Archie may be of some help
+   here.
+ 
+   Here is a brief summary of URL prefixes:
+
+   http:        refers to a WWW server
+   gopher:      refers to a gopher server
+   ftp:         refers to an anonymous FTP server
+   mailto:      refers to an Internet e-mail address
+   news:        refers to a USENET news group
+ 
+   Internet browsing tools, such as Mosaic, know about URLs.
+ 
+ 
+ - You'll occasionally see text in braces, like this.
+ 
+   { Here is some example meta-text. }
+ 
+   Sometimes, this indicates a place where information is missing, or
+   where the information may be unreliable, or where major changes are
+   planned in the near future.  You can ignore these if you're just
+   looking for information.  But if you can help fill in the gaps, and
+   you want to achieve fame, fortune, and your name at the bottom of
+   this FAQ, please send e-mail to the maintainer.
+--
+
+1.2)  Where can I get the MMDF FAQ?
+
+
+ - It is posted approximately monthly to the MMDF2 mailing list
+   (mailto:mmdf2-request@a.cs.okstate.edu) and to the USENET
+   newsgroup comp.mail.misc.
+
+   Unfortunately, there is presently no FTP-able archive source
+   for old MMDF2 list messages.
+
+ 
+ - Many sites archive news.answers postings, including these:
+   
+   ftp://ftp.uu.net/usenet/news.answers/mail/mmdf-faq/
+   ftp://rtfm.mit.edu/pub/usenet-by-group/news.answers/mail/mmdf-faq/
+   
+   If possible, please try to find a closer site; for example, by
+   asking archie for "mmdf-faq".  Alternatively, use WWW search
+   engines to look for the MMDF FAQ.
+   
+ 
+ - If you are reading this FAQ via some fixed medium such as hardcopy
+   or CD-ROM, please try to obtain the latest edition from the net
+   instead.
+
+--
+
+2) What is MMDF?
+----------------
+
+MMDF is the Multi-channel Memo Distribution Facility, a popular mail
+transport agent (MTA) for UNIX.
+
+Strong points of MMDF include:
+
+  - Native user-level mail delivery control (".maildelivery").
+  - Ability to turn up and down logging/debugging levels on the fly.
+  - Authentication and permission checking.
+  - Mail blocking based on from whom it came, how it got there,
+        and to whom it is going.
+  - Modularity: it's relatively easy to add new transport and
+        translation channels for special e-mail gateways.
+  - High capacity: it's designed to process very large message flows
+        and can efficiently handle very large message queues.
+  
+MMDF may have special appeal to persons in the UK, in that MMDF knows
+how to handle mail addresses in the UK-endian order, 
+e.g. "edu.okstate.cs.a", as well as in the more widespread format,
+e.g. "a.cs.okstate.edu".
+
+MMDF is the standard mail system on at least one UNIX implementation,
+SCO UNIX.  However, MMDF does not enjoy deployment as widespread as
+some other MTAs, such as sendmail.  This is partly because, as
+Marshall Rose says in his book, _The Internet Message_, MMDF suffers
+from a tyranny of complexity: it requires configurations of many
+different files and daemons.  In contrast, sendmail uses one daemon
+and one central configuration file.
+
+Sendmail, on the other hand, has its own set of disadvantages, and in
+many (if not most) implementations sendmail is not nearly as correct,
+secure, modular, or robust a message transfer agent as is MMDF.
+Sendmail was once compared by one old Internet hand to "those killer
+bees that escaped from the laboratory--and now they're everywhere and
+you can't get rid of 'em".  Sendmail is still widely disparaged by
+experienced mail system administrators, although perhaps less
+deservedly so now than in the past.
+
+--
+
+2.1)  How MMDF is used
+
+MMDF works on the principle of passing messages between incoming and
+outgoing communications channels.
+
+In MMDF, a channel is typically implemented as a program for accepting
+messages from a Mail User Agent, say, via SMTP, or for delivering
+messages to a local mailbox file or to another host.  (In sendmail
+parlance, these are called "mailers".)
+
+MMDF is typically run by starting up a set of persistent daemons named
+"deliver", each daemon managing delivery to a different channel, or to
+a set of channels.  Other daemons are also involved, such as "smtpd",
+which monitors the SMTP port, and arranges for submissions and
+deliveries via SMTP.
+
+Here is a UNIX "ps" snapshot of MMDF processes running at a relatively
+simply-configured Internet site, including SMTP, POP, "delay",
+"local", and "list" channels, as well as one local relay channel named
+"laurel":
+
+ UID   PID  PPID  C    STIME TTY TIME COMMAND
+mmdf  8306     1  0  Jan 16  ?   0:07 lib/deliver -b -T120 -clocal
+mmdf   154     1  0  Dec  8  ?   0:11 lib/deliver -b -T120 -csmtp
+mmdf   155     1  0  Dec  8  ?   2:34 lib/deliver -b -T120 -cpop
+mmdf   156     1  0  Dec  8  ?   0:13 lib/deliver -b -T120 -clist
+mmdf   157     1  0  Dec  8  ?   0:10 lib/deliver -b -T120 -claurel
+mmdf  8338     1  0  Jan 16  ?   0:02 lib/deliver -b -T300 -cdelay
+root   152     1  0  Dec  8  ?   0:44 chans/smtpd -n 16 chans/smtpsrvr smtp,local
+
+Channels are managed by a set of configuration files, aka "tables",
+one or more per channel.  Address rewriting is done according to a set
+of compiled-in rules, configured by each channel's table.  The table
+formats themselves are relatively simple; understanding their effects
+may not be so simple.
+
+Because MMDF's documentation was written when the Internet DNS was
+brand-new, it is somewhat vague or diffuse on the subject of specific
+configurations for typical modern Internet e-mail sites.  The closest
+match to a typical Internet site's configuration in the MMDF 2.43
+source release is in the samples/bbn directory.
+
+The current MMDF source release is otherwise tragically short of
+working configuration examples for use in today's Internet, in which
+DNS lookups may time out or provide bad information, maildrops may
+exist on temporarily unavailable NFS-mounted directories, and other
+gotchas may provide general interference in the smooth operation of
+your mail system.  This FAQ is one place to find help.  Appeals
+to the MMDF2 list can also yield helpful information.
+
+Your best bet for understanding how to set up MMDF is to look at the
+sample configurations and an already-running configuration.  Reading
+all of the available documentation is also a must (see the doc/
+subdirectory in the MMDF source distribution).
+
+--
+
+2.2)  Where to get MMDF
+
+The most recent release of MMDF is available here:
+
+        ftp://a.cs.okstate.edu:/pub/mmdf-2.43.tar.Z
+
+This is the core version of MMDF, presently maintained by 
+Mark J. Vasoll, Senior Software Specialist, Oklahoma State
+University.
+
+The current offical version of MMDF is 2.43.
+
+
+A mailing list for MMDF discussion is here:
+
+        mailto:mmdf2-request@a.cs.okstate.edu
+
+
+Here are some other sources for MMDF:
+
+What:           the work-in-progress MMDF source
+Where:          ftp://a.cs.okstate.edu:/pub/mmdfdev.tar.Z
+Comments:
+
+    [ Mark Vasoll <vasoll@a.cs.okstate.edu> 22-Jan-1996 ]
+
+    What is currently there is update 43 with some critical patches
+    applied, such as the fix to MX handling.  However, the contents are
+    subject to change as this file is basically used by my friends on the
+    okstate campus who help me test various pieces of the "slowly
+    developing" update 44.
+
+
+What:           another source for MMDF
+Where:          ftp://ftp.arl.army.mil/mmdf.tar.Z
+Comments:       
+
+
+What:           Solaris 2.x port of MMDF
+Where:          ftp://ftp.arl.army.mil/mmdf.sol2.2.Z
+Comments:       
+
+
+{ Any other ports that are publicly available? }
+
+--
+
+2.3)  A brief history of MMDF
+
+{ Contributed by Dave Crocker <dcrocker@brandenburg.com> 21-Jan-1996;
+  cruelly simplified, edited, and dehydrated by the FAQ maintainer
+  from Dave's much juicier version, which may be reconstituted here
+  at some future date. }
+    
+1976: Early morning on the ARPANET.  Dave Farber and Dave Crocker
+      work at RAND (the think tank) on "MS", a PDP-11 UNIX e-mail
+      system project.   This inspires Bruce Borden to create MH,
+      the popular mail user agent.
+    
+1978: Dave Farber and Dave Crocker go to the University of Delaware
+      (UDel) as professor and grad student.  Grad student Ed
+      Szurkowski writes phonenet protocol for telephone-based
+      link-level transfer.  Crocker develops MMDF to provide ARPANET
+      e-mail connectivity over phonenet, using RAND as a relay.
+
+1979: Experimental deployment of MMDF/phonenet by Army Materiel
+      Command; there are claimed to be instances still running today.
+      IBM provides some additional funding for MMDF.
+    
+1980: NSF funds creation of CSNet.  MMDF I is used to link members,
+      using UDel and RAND as relays.  Others get involved: Doug
+      Kingston (Ballistic Research Labs) and Steve Kille (University
+      College London).
+    
+1981: Ira Winston (University of Pennsylvania) recodes MMDF I in
+      Pascal to create PMDF running under VAX/VMS.  
+
+1982: Crocker finishes alpha version of MMDF II, which adds TCP/IP
+      and DNS support, among other things.  Mark Laubach propagates
+      PMDF to Hewlett-Packard.  Ned Freed commercializes PMDF.
+
+1984: Kingston, Kille, Dan Long (BBN), and Craig Partridge (BBN)
+      complete MMDF II and release it.
+
+1985: Kille uses MMDF as a base for the PP X.400 system.
+
+{ More brief history entries? }
+
+Other names and institutions appearing in the code, in no particular order:
+
+- Phil Cockcroft
+- Howard Walter
+
+--
+
+2.4)   Glossary
+
+Every subculture needs its list of buzzwords.  Here's a collection for MMDF.
+  
+BIND            the UC Berkeley implementation of DNS (aka "named")
+body            the part of a message after the header (the "meat")
+channel         typically a program for delivering mail
+CTE             content transfer encoding (e.g. base64, quoted-printable, etc.)
+DNS             the Internet Domain Name System (see also BIND)
+ESMTP           Extended SMTP - RFC 1651
+header          the To, From, Subject, etc. at the start of a message
+mail transport  the "post office", e.g. sendmail, smail, MMDF, etc.
+MIME            Multipurpose Internet Mail Extensions - RFC 1521
+MTA             Mail Transport Agent, see "mail transport"
+MUA             Mail User Agent, see "user agent"
+PEM             Privacy Enhanced Mail
+PGP             Pretty Good Privacy
+RFC             request for comments; proposed or standard Internet protocols
+SMTP            Simple Mail Transfer Protocol - RFC 821
+URL             WWW uniform resource locator; access-method://host/path
+user agent      the end user's mail program, e.g. MH, ELM, /bin/mail, etc.
+WWW             the worldwide web
+
+----
+
+
+3) User-Level Questions
+-----------------------
+
+3.1) How can I achieve the same effect as the sendmail .forward file?
+
+Invoke the MMDF resend program in your $HOME/.maildelivery file.  
+See also the resend(1) man page.
+
+Here is an example .maildelivery file entry using resend:
+
+  default - | A "/usr/local/mmdf/bin/resend metoo@host.domain"
+
+Beware of resend's .signature file format expectations (see question
+3.5).
+
+If you're an MH user, you might want to invoke the rcvdist program in
+your $HOME/.maildelivery file instead.  See also the mhook(1) man
+page.
+
+Example:
+
+  default - | A "/usr/local/lib/mh/rcvdist metoo@host.domain"
+
+The rcvdist program is somewhat finicky about header formats, and
+may reject a message if improperly formed Date or recipient address
+fields are present.
+
+--
+
+3.2) Is there a more powerful .maildelivery-like mechanism with
+     Boolean operators and such?
+
+Yes, there are several such programs that you might invoke as a "*" or
+a "default" case in your .maildelivery file.
+
+Some examples (from the comp.mail.misc "UNIX Email Software Survey FAQ"):
+
+What:           mailagent
+Where:          ftp://ftp.univ-lyon1.fr/pub/unix/mail/tools/mailagent-3.0.tar.gz
+Comments:       A set of programs to perform various e-mail sorting functions.
+See also:       news:comp.mail.misc
+                "UNIX Email Software Survey FAQ [Part 3 of 3]"
+
+
+What:           majordomo
+Where:          ftp://ftp.greatcircle.com/pub/majordomo/
+Comments:       Majordomo is a perl-based program for automated
+                mailing list maintenance.
+
+    [ Andy Powell <ccsap@bath.ac.uk> - 23-Jan-1996 ]
+
+    I believe that there is also a patch required for the sendmail
+    replacement if you want to use majordomo with MMDF.  The patch
+    is only required if you want to use majordomo's 'resend'
+    script to process list messages.  We run majordomo and MMDF
+    here but use the normal MMDF list channel to process list
+    messages - in doing so we lose some of the functionality of
+    majordomo, for example moderated lists, but bypass the
+    sendmail problem and, arguably, get better performance with
+    large lists.
+
+    There may also be more information available from the archives of the
+    majordomo-users@greatcircle.com and majordomo-workers@greatcircle.com
+    lists.  In both cases send the word "help" (no quotes, put it in the
+    body rather than the subject) to majordomo@greatcircle.com to start
+    the process.
+
+    [ Gunther Anderson <gunther@world.std.com> 5-Aug-1994 ]
+
+    In getting Majordomo to work properly, I discovered a bug in [MMDF's]
+    sendmail, as found in uip/other/sendmail.c.  Basically, the real
+    sendmail handles the -f{sender} flag differently.  In standard
+    sendmail, the -f flag changes the "From " header (the envelope From,
+    and the Mail From: command in SMTP), and doesn't touch the "From:"
+    header, the message From:.  In RFC822 messages, these can indeed be
+    very different from each other, and Majordomo uses them to separate
+    ends.  MMDF's sendmail stub deliberately chooses to use the -f
+    parameter as both the envelope From and the message From:, rewriting
+    the message From: as it goes.  I removed the automatic From: rewriting
+    from my version, and things like Majordomo are much happier.
+
+    [ Gunther W Anderson <gunther@world.std.com> 24-Jan-1996 ]
+
+    I posted instructions and a couple of patches to majordomo-workers
+    year before last.  These were for Majordomo 1.92, and were
+    specifically designed to get Majordomo to work on SCO Unix.  As a side
+    effect, it also patched MMDF II 43b (the current version) to work
+    properly.  Check out the archives, and you'll find the data.
+
+
+See also:       news:comp.mail.misc
+                "Majordomo Frequently Asked Questions"
+
+
+What:           procmail
+Where:          ftp://ftp.informatik.rwth-aachen.de
+Comments:       A set of programs to perform various e-mail sorting functions.
+See also:       news:comp.mail.misc
+                "UNIX Email Software Survey FAQ [Part 3 of 3]"
+
+--
+
+3.3) How can I debug my .maildelivery file?
+
+    [ Craig Partridge <craig@aland.bbn.com> 24-Jan-1996 ]
+
+    I used to debug it by running the local channel by hand with
+    "deliver -w -clocal" and watched the output to see what
+    .maildelivery did.
+
+--
+
+3.4) Why doesn't my .maildelivery file work?
+
+MMDF is finicky about ownerships and permissions.  Make sure that
+your .maildelivery file is (a) in your home directory, (b) owned
+by you, and (c) not writeable by anyone except you (e.g. chmod 644).
+
+--
+
+3.5) Why does "resend" bounce with the error "No valid author
+     specification present"?
+
+This is caused by "resend" rejecting your .signature file.  If you use
+"resend", then your .signature file must conform to its expectations.
+
+Unfortunately, the MMDF "resend" program has a different idea about
+.signature files than USENET news and most other things.  Resend
+assumes that the .signature file contains exactly one text line, which
+is information to be placed in the outgoing message's From: field's
+full name area.
+
+----
+
+4) Administrator-Level Questions
+--------------------------------
+
+4.1) How can I arrange for a "hidden-host" effect, e.g. that outgoing
+     "From" addresses of the form user@<host>.<domain> are rewritten
+     simply as "user@<domain>"?
+
+    [ Mark Vasoll <vasoll@a.cs.okstate.edu> - 22-Jan-1996 ]
+
+    Answer #1: use the MLOCMACHINE feature (see section 5.4.1 of
+    "Installing and Operating MMDF II").
+    
+    Answer #2: use the POP channel to create a sort of "virtual host"
+    where pop users don't need to have accounts on the MMDF host.
+
+    We are doing both on the okstate campus, I'd be happy to send
+    along config examples.
+
+Depending on how the MTA itself modifies message headers, it may not
+be possible to hide the originating host without reconfiguration of
+the MTA.
+
+If you use MH, some experimentation with the mtstailor file may also
+be required, specifically, with the "servers:" entry in the mtstailor
+file, or MH may have to be compiled with the DUMB configuration option.
+
+--
+
+4.2) How can I deliver mail to a POP mailbox?
+
+You need to set up the POP channel and an alias for each user that
+directs the mail to an address of the form "<popuser>@POP".
+
+Users with local non-POP maildrops may also do this for themselves by
+re-sending to their own POP addresses from their .maildelivery files.
+
+{ Specific tailor, channel, and alias file examples might be
+  useful here. }
+
+--
+
+4.3) Is there a way to make MMDF look up local hosts if DNS name
+     service fails?
+
+    [ Mark Vasoll <vasoll@a.cs.okstate.edu> - 22-Jan-1996 ]
+
+    Create a channel running the 'smtp' channel program, but
+    using a file style table.  Then put IP addresses in it.
+
+--
+
+4.4) How can I avoid generating source-routed envelope addresses,
+     such as @foo,bar:zot.edu?
+
+This may occur when some SMTP implementations see a different host
+named in the HELO command than is actually submitting the e-mail.
+
+Fixing this may require a two-pronged approach: configuring your
+"local" channel table properly { ...any specific advice for a typical
+Internet site? }  and configuring your mail user agent to submit
+mail to a host listed in the "local" channel table.  For MH, the
+latter may require a "servers:" entry in the mtstailor file.
+
+{ This needs more specific, more accurate advice. }
+
+--
+
+4.5) Why do I get duplicate mail sent to a mailing list?
+  
+    [ Dave Barr <barr@math.psu.edu> ]
+    
+    MMDF 2.43's list channel verifies the validity of the whole mailing
+    list before returning from the Submit call.  The thing calling Submit
+    may time out and close, while leaving Submit itself running.
+    
+    The calling routine may believe that the message has failed in its
+    delivery, when in fact the still-running Submit process may eventually
+    succeed. The calling process tries again some time later, thus
+    creating a duplicate.
+    
+    The larger the list gets, the more addresses there are to verify
+    (verification just being a DNS search on the target machine name),
+    and the more likely, under load, that the message duplicates.
+    
+    One solution is to use a different channel for submission and
+    delivery, one which deliberately doesn't verify the addresses before
+    accepting a job.  Use the list-processor channel to check that the
+    listname-request name is set properly (because list-processor insists
+    on making listname-request the envelope "From " header name).
+    
+    Duplicate mail on Linux may be caused by the broken flock()
+    implementation under some (<1.3.x?) versions of Linux.  
+    Avoid flock().
+
+--
+
+4.6) How do I gate a list to and/or from a newsgroup?
+
+{ Any examples? I know that UCI has come up with a pretty good way
+  to do this. }
+
+----
+
+5) Miscellaneous Questions and Gotchas
+--------------------------------------
+
+5.1) What new features are planned for the next release of MMDF?
+
+    [ Mark Vasoll <vasoll@a.cs.okstate.edu> - 22-Jan-1996 ]
+
+    - Full RFC 1123 compliance  (existing deviations are very minor).
+        { RFC 1123: "Requirements for Internet hosts - application
+          and support".  ftp://ds.internic.net/rfc/rfc1123.txt }
+    - MIME encapsulation of error/warning messages and citations.
+    - Completely revamped #ifdef structure on a "per OS feature" basis
+        (no more BSD vs Sys5, since they don't really exist anymore).
+    - Completely new example configurations based on "current" systems
+        (I have Sequent Dynix/PTX, Sun SunOS, Sun Solaris, IBM RS6000 AIX,
+         Novell Unixware and Linux in house).
+    - GDBM support for tables
+    
+    The time table for any new release is not known.  This is an unfunded
+    spare time project for me.  What remains to be done is mailing the
+    #ifdef revisions in the user interfaces (the core code is complete)
+    and a revision of the "building" section of the documentation.
+
+
+5.2) MMDF sendmail-replacement gotchas
+
+    [ Andy Powell <ccsap@bath.ac.uk> - 23-Jan-1996 ]
+
+    The sendmail supplied with MMDF is slightly defective in that it
+    doesn't correctly hide Bcc: fields (if given a -t option).  This
+    can cause a problem for non-MMDF UAs (for example, Pine) if they
+    are configured to send mail out using sendmail.
+    
+    In the case of Pine I suspect that this can be worked round by
+    configuring it to talk directly to the MMDF smtpd running on
+    localhost (assuming that you are running one).
+
+----
+
+6) An MMDF Bibliography
+-----------------------
+
+{ Please suggest additional entries and URLs for these items. }
+
+Title:    Frequently Asked Questions About MMDF-II
+                (Note: another MMDF FAQ)
+Authors:  Mark Vasoll
+Where:    http://www.cs.okstate.edu/~vasoll/mmdf/faq.html
+
+
+Title:    Installing and Operating MMDF-II
+Authors:  Douglas P. Kingston III, Steve Kille, Julian Onions, Daniel B. Long
+Where:    http://www.cs.okstate.edu/~vasoll/mmdf/admin.html
+
+
+Title:    An Internetwork Memo Distribution Facility--MMDF
+Authors:  David H. Crocker, E.S. Szurkowski, David J. Farber
+Where:    Proceedings, Sixth Data Communications Symposium,
+                November 1979; pages 18-25.
+
+
+Title:    MMDF-II, the MTA for all jobs
+Authors:  Mark Vasoll
+Where:    http://www.cs.okstate.edu/~vasoll/mmdf/
+
+
+Title:    MMDF-II: A Technical review
+Authors:  Douglas P. Kingston, III
+Where:    Proceedings, Summer USENIX Conference and Exhibition,
+                Salt Lake City, Utah; June 1984; pages 32-41.
+Where:    http://www.cs.okstate.edu/~vasoll/mmdf/review.html
+                (Web version)
+Where:    http://www.cs.okstate.edu/~vasoll/mmdf/review.ps
+                (PostScript version)
+
+
+Title:    The PP Manual
+Authors:  Steve Kille, Julian Onions
+Where:    Part of the PP 6.0 source code distribution.
+                December 19, 1991.
+
+----
+
+7) Other Resources
+------------------
+
+7.1)  Free Software
+
+This section is for listings of free implementations of MMDF, packages
+based on MMDF, or packages that are known to interoperate with MMDF.
+
+Information for this section may be contributed by anyone, including
+the maintainers of the software.  The FAQ maintainers look with favor
+on brief entries that are provided in the existing entry format, but
+it's fair simply to offer corrections or updated information.
+Notifications of obsolete or non-working URLs are also appreciated.
+Send new or updated entries to "mmdf-faq@irvine.com"; posting to
+the MMDF2 list isn't necessarily sufficient.
+
+See also: news:comp.mail.misc - "UNIX Email Software Survey FAQ"
+
+{ Wanted: FTP-able sources for additional channel packages,
+          mail administration tools, and other goodies. }
+
+-------
+
+Name:     MH 6.8
+Product:  MUA
+Platform: Unix
+Where:    ftp://ftp.ics.uci.edu/pub/mh/mh-6.8.tar.Z
+Where:    ftp://louie.udel.edu/portal/mh-6.8.tar.Z
+Author:
+Comments:
+
+MH, originally from RAND and presently maintained at the University of
+California Irvine, is a popular message handling system.  MH runs on
+many different UNIX platforms, and can use either sendmail or MMDF.
+
+See also: news:comp.mail.mh
+          news:comp.mail.mime
+
+
+
+Name:     PP 6.0
+Product:  MTA
+Platform: UNIX
+Where:    ftp://ftp.uninett.no
+Author:   Steve Kille
+Contact:
+Comments:
+    
+PP is a large-scale X.400/SMTP mailer and gateway.  The last
+non-commercial version was PP 6.0 (ca. 1992), which is still available
+for downloading from some Internet sites; one is listed above.  PP has
+since been folded into a commercial software suite from the ISODE
+Consortium; see the entry for "ISODE Consortium MTA", below.
+
+----
+
+7.2)  Commercial Software
+
+This section is for listings of commercial software based on MMDF,
+or that provides enhancements to MMDF.
+
+Contributions to this section may be made by anyone, including the
+firms offering the packages.  The FAQ maintainers look with favor on
+_brief_ entries, preferably as non-hypeful as possible, that are
+provided in the existing entry format, but it's fair simply to offer
+corrections, updated information, or unbiased consumer-oriented
+comments.  Send new or updated entries to the address
+"mmdf-faq@irvine.com"; posting to the MMDF2 list isn't necessarily
+sufficient.
+
+----
+
+Name:     ISODE Consortium MTA
+Product:  MTA
+Platform: UNIX
+Contact:  ic-info@isode.com
+Where:    http://www.isode.com/
+
+    [ Steve Kille <S.Kille@isode.com> 26-Oct-1995 ]
+
+    { This entry has been brutally edited from the much longer version
+      originally contributed to the comp.mail.mime FAQ. }
+
+    The ISODE Consortium MTA is an X.400 and SMTP mailer, and a gateway
+    between these, so  you can communicate with "both worlds".  This
+    product is based on the older public domain PP MTA, but now includes
+    many enhancements and features.
+    
+    The ISODE Consortium product is a source release.  Binary Products
+    based on the technology are available from commercial vendors who are
+    members of the ISODE Consortium.
+
+
+Name:     PMDF
+Product:  MTA
+Platform: VMS
+Contact:  sales@innosoft.com, service@innosoft.com
+Author:   Innosoft International
+Comments:
+
+    [ Ned Freed <ned@innosoft.com> ]
+
+    Send technical inquiries to service@innosoft.com. Product
+    information, pricing, and literature can be obtained from
+    sales@innosoft.com. The phone number is (909) 624-7907; FAX is
+    (909) 621-5319. Street address is:
+
+        Innosoft International, Inc.
+        250 W. First St., Suite 240
+        Claremont, CA 91711
+
+
+See also: news:vmsnet.mail.pmdf
+
+
+--
+
+8) Authorship
+-------------
+
+The MMDF FAQ was boilerplated partially from the comp.mail.mime FAQ,
+originally by Ed Vielmetti.  The cast of contributors to that FAQ is
+credited therein.
+
+Some MMDF-specific text was cribbed from these sources:
+
+Where:          news:comp.mail.misc
+Source Subject: UNIX Email Software Survey FAQ [Part 3 of 3]
+From:           clewis@ferret.ocunix.on.ca (Chris Lewis)
+Section:        MMDF
+                from a review by I.Sparry@gdt.bath.ac.uk
+
+Where:          news:comp.mail.misc
+Source Subject: Majordomo Frequently Asked Questions
+From:           barr@math.psu.edu (Dave Barr)
+Section:        WHY DO I GET DUPLICATE MAIL SENT TO THE LIST?
+                by Gunther Anderson
+
+The MMDF FAQ's current maintainer is Jerry Sweet <mmdf-faq@irvine.com>.
+
+Please note:
+
+  Questions about MMDF and related issues, if not already answered in
+  the FAQ, should be posted to comp.mail.misc or to the mmdf2 mailing
+  list (see section 2.2 for its request address).
+
+  Correspondence sent to the MMDF FAQ maintainer primarily should
+  address information in the MMDF FAQ---corrections, additions, or
+  suggestions for improvement.
+
+
+8.1)  Acknowledgements
+
+Contributions specifically made to this FAQ have come from:
+
+{ Your name and, optionally, e-mail address or URL, could be here! }
+
+Gunther Anderson
+        mailto:gunther@world.std.com
+Dave Crocker 
+        mailto:dcrocker@brandenburg.com
+        http://www.brandenburg.com
+Craig Partridge
+        mailto:craig@aland.bbn.com
+Andy Powell
+        mailto:ccsap@bath.ac.uk
+        http://www.bath.ac.uk/~ccsap
+Jerry Sweet
+        mailto:mmdf-faq@irvine.com
+        http://www.ics.uci.edu/~jsweet
+Mark Vasoll
+        mailto:vasoll@a.cs.okstate.edu
+        http://www.cs.okstate.edu/~vasoll
+
+Resources for maintaining the MMDF FAQ are provided by Irvine Compiler
+Corporation - "We Make Ada Fly!"
+
+
+8.2)  Permissions
+
+Permission is granted for unlimited redistribution of the unedited
+MMDF FAQ.

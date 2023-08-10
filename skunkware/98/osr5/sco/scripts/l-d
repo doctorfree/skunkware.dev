@@ -1,0 +1,50 @@
+:
+# @(#) l-d.sh 1.1 93/04/13
+# 92/07/02 john h. dubois iii (john@armory.com)
+# 92/10/01 cleaned up
+# 93/04/13 added -c option
+
+name=l-d
+
+if [ "$1" = -h ]; then
+    echo \
+"l-d: list directories in long format.
+Usage: $name [-ch] [directory-name ...]
+For each directory-name given, any directories in it except
+'.' and '..' are listed in long format.  If no directory-names
+are given, directories in the current directory are listed.
+Options:
+-h: Print this help.
+-c: List directories in multicolumn format.  
+    The default is to do a long listing with one directory per line."
+    exit 0
+fi
+
+cmd=l
+
+if [ "$1" = -c -o "$1" = -C ]; then
+    cmd=lc
+    shift
+fi
+
+[ $# -eq 0 ] && set -- ""
+
+OPWD=$PWD
+for dir
+do
+    if [ -n "$dir" ]; then
+	[ ! -d "$dir" ] && continue
+	cd "$dir" || continue
+	case $dir in
+	*/) ;;
+	*) dir="$dir/";;
+	esac
+    fi
+    for i in .?* *; do
+	[ -d "$i" -a "$i" != .. ] && lfd="$lfd $dir$i"
+    done
+    cd $OPWD
+done
+if [ -n "$lfd" ]; then
+    $cmd -d $lfd
+fi

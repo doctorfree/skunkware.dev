@@ -1,0 +1,38 @@
+#!/bin/sh
+
+CMT="InterNetNews Administrative Account" 
+
+chknews() {
+    echo "ADD=1" > /tmp/chk$$
+    awk ' BEGIN { FS=":" } { print $1 } ' $1 | while read f
+    do
+        [ "$f" = "news" ] && echo "ADD=" > /tmp/chk$$
+    done
+}
+
+addgrpnews() {
+    groupadd news
+}
+
+addusrnews() {
+    useradd -g news -d /usr/local/news -s /bin/sh -c "$CMT" news
+    echo "Setting the password for the newly created 'news' user account."
+    passwd news
+}
+
+chknews /etc/group
+. /tmp/chk$$
+[ "$ADD" ] && addgrpnews
+chknews /etc/passwd
+. /tmp/chk$$
+[ "$ADD" ] && {
+    addusrnews
+    echo "The installation of INN (InterNet News) may require additional"
+    echo "system specific configuration.\n"
+    echo "Do not forget to update your cron entries."
+    echo "Also run makehistory if you have to."
+    echo "Create/obtain an active file and run makehistory -o if"
+    echo "this is a first time install."
+}
+rm -f /tmp/chk$$
+

@@ -1,0 +1,296 @@
+#!/bin/ksh
+# dial: find & dial a number in address/phone num database
+# @(#) dial.ksh 2.5 97/02/19
+# 1988, 1989 john h. dubois iii (john@armory.com)
+# 90/02/03 last DOS version
+# 90/10/01 ported to XENIX
+# 91/10/11 Use address to look up addresses.
+# 92/04/27 Changed address option specifier to +
+# 92/06/21 Give ATH0 as a separate modem command.
+# 92/06/28 Only print name of dialee if a name is given.
+# 92/07/19 Print entire address record;
+#          use +e & print a separator line if -e is given;
+#          remove qualifier & secondary numbers from phone number line;
+#          split input on every newline
+# 94/04/23 Use .dialrc
+# 94/05/12 Added speed parameter.
+# 96/06/11 Cleaned up help.  Changed some option meanings.  Added adpP options.
+# 96/06/20 Removed group separator characters.  Added c option.
+#          Avoid using ranges with tr.
+# 96/11/20 Added r option.
+# 97/02/19 Added vV options.  Improved test option.  Added REPEAT var.
+
+x=0	    # default uuchat debugging level
+
+# These aliases test an integer variable to determine 
+# if it is 0 (false) or nonzero (true).
+alias istrue="test 0 -ne"    # exit zero for true, nonzero for false
+alias isfalse="test 0 -eq"    # exit nonzero for true, zero for false
+
+name=${0##*/}
+usage=\
+"Usage: $name [-acehnNp] [-x<n>] [-f<addrfile>] [-l<TTY>] [-s<speed>]
+	    [-P<pagenum>] [name|number]"
+
+typeset -i isname=0 isnumber=0
+unset SPEED	# Don't want to get this from environment
+defSpeed=1200
+rcFile=.dialrc
+doPage=false
+CANON1=
+defDelay=3
+remChars=".()/-"
+debug=false
+typeset -i count=1 pcount=1
+repeat=false
+check=false
+pause=10
+vol=
+
+while getopts :achtnNex:f:l:s:pP:d:r:v:V: opt; do
+    case $opt in
+    h) print -r -- \
+"$name: look up a name in the address database and dial the given phone number,
+or translate and dial a literal phone number.  Lower case letters are are
+translated to digits according to telephone keypad conventions.  The following
+characters are considered grouping characters and are removed from the number
+before dialing: $remChars
+$usage
+$name uses a modem on a TTY port to dial.  The modem must understand AT
+commands.
+Options:
+Some of the following options can be set in a configuration file named
+\"$rcFile\", which may be in the invoking user's home directory or in the
+directory specified by the environment variable UHOME (if both exist,
+assignments in the former take precedence).  In this file, values are assigned
+to variables in shell style, e.g. \"VARNAME=value\".  To set an option that
+does not take a value, use \"VARNAME=1\".  Options given in the configuration
+files are overridden by those given on the command line.  Variable names are
+given in parentheses following option descriptions.
+-h: Print this help.
+-c: Convert numbers to canonical local or area-code-prefixed form.  After the
+    grouping characters are removed and letters are converted to digits, if the
+    length of the initial contiguous string of digits is 8 and the first digit
+    is a 1, the 1 is removed.  If the length is 10 and the first character is
+    not a 1 or 0, the number is prefixed with a 1.  (CANON1)
+-t: Look up address & phone number but don't dial it.
+-N: Force [name|number] to be interpreted as a literal number.
+-n: Force [name|number] to be interpreted as a name to look up.
+-e: Print the regular expression that the address file is searched using.
+-x<n>: Turn on general debugging output, and set the uuchat debugging level to
+    <n>.  <n> must be a non-negative integer.  The default is 0.
+-f: Search address file <addrfile> instead of the default address files.
+-l<TTY>: Dial using the modem on TTY line <TTY>.  <TTY> should be
+    a full device name, e.g. /dev/tty1a.  The variable (PHONE) for the
+    parameter is also searched for in the environment.  This parameter is not
+    optional; either -l must be given or PHONE must be set.
+-s<speed>: Set the TTY Baud rate to <speed> before dialing.  The default is
+    to set it to $defspeed Baud.  (SPEED)
+-v<volume>: Set the modem speaker volume.  <volume> is an integer from 0 to 8.
+    0 turns the speaker off completely.  1 sets the speaker to a very low
+    low volume (typically inaudible).  8 sets maximum volume.  Other values set
+    intermediate levels.  If -v is not given, the modem will use its preset
+    volume level.  (VOLUME)
+Paging options:
+-p: Dial a pager.  After the given number is dialed, there is a pause, and then
+    the value of the PAGENUM variable is dialed, followed by a '#'.  -p can
+    only be used if PAGENUM is set (typically, to the local phone number).  
+-P<pagenum>: Like -p, except that <pagenum> is dialed instead of the value of
+    the PAGER variable.
+-a: Automatically sets the -p option if a name ending in \":pager\" is given.
+    (AUTOPAGE)
+-d<page-delay>: The pause before sending the dialback number to a pager
+    service.  A number from 1 to 10 may be given.  Each increment of one
+    increases the pause by two seconds.  The default value is $defDelay.
+    (PAGEDELAY)
+-r<repeat>: Send the entire dialing sequence <repeat> times, pausing $pause
+    seconds after each dialing sequence is completed.  This is for sending
+    multiple identical pages via unreliable paging services.  (REPEAT)
+-V<volume>: Like -v, but only for pager calls.  Overrides -v and PAGER
+    variable.  (PAGERVOLUME)"
+       exit 0;;
+    a) AUTOPAGE=1;;
+    c) CANON1=1;;
+    d) PAGEDELAY=$OPTARG;;
+    f) files="$files $OPTARG";;    # add arg to list of address files
+    t) check=true;;	# search for address but don't dial
+    N) isnumber=1;;	# force name arg to be interpreted as number
+    n) isname=1;;	# force name arg to be interpreted as name
+    l) PHONE=$OPTARG;;	# tty port to use to dial
+    s) SPEED=$OPTARG;;	# speed to set tty to
+    x) debug=true; x=$OPTARG;;	# set uuchat debugging level
+    e) e=+e;;
+    p) doPage=true;;
+    P) pageNum=$OPTARG; doPage=true;;
+    r) pcount=$OPTARG;;
+    v) vol=$OPTARG;;
+    V) pvol=$OPTARG;;
+    +?) print -r -- "$name: options should not be preceded by a '+'."; exit 1;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) print -r -- "$name: bad option '$OPTARG'.  Use -h for help."; exit 1;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    print -r -- "$name: not enough arguments.  Use -h for help."
+    exit
+fi
+
+[ -n "$files" ] && files="-a $files"
+
+# Save these so they won't be overridden by .dialrc
+ttyPort=$PHONE
+ttySpeed=$SPEED
+
+# Source file in UHOME first, so that values in HOME will have precedence.
+rc=$UHOME/$rcFile
+[ -f $rc -a -r $rc ] && . $rc
+rc=$HOME/$rcFile
+[ -f $rc -a -r $rc ] && . $rc
+
+if $debug; then
+    print -r -- "CANON1=$CANON1"	# add others here as needed
+fi
+
+[ -z "$ttyPort" ] && ttyPort=$PHONE
+[ -z "$ttySpeed" ] && ttySpeed=$SPEED
+[ -z "$ttySpeed" ] && ttySpeed=$defSpeed
+[ -z "$pageNum" ] && pageNum=$PAGENUM
+[ -z "$PAGEDELAY" ] && PAGEDELAY=$defDelay
+[ -z "$pcount" ] && pcount=$REPEAT
+[ -z "$vol" ] && vol=$VOLUME
+[ -z "$pvol" ] && pvol=$PAGERVOLUME
+$doPage && [ -n "$pvol" ] && vol=$pvol
+if [ -n "$vol" ]; then
+    if [[ "$vol" != [0-8] ]]; then
+	print -u2 -- "$name: Bad volume level: $vol."
+	exit 1
+    fi
+    [ vol -eq 0 ] && vol=M0 || vol=M1L$((vol-1))
+fi
+
+[[ -n "$AUTOPAGE" && "$*" = *:pager ]] && doPage=true
+
+if $doPage; then
+    if [ -z "$pageNum" ]; then
+	print -u2 "$name: Cannot page without PAGENUM set."
+	exit 1
+    fi
+    [ -n "$pcount" ] && count=pcount
+fi
+
+if [ -z "$ttyPort" ]; then
+    print -u2 "$name: PHONE not set."
+    $check || exit 1
+fi
+
+if [ -n "$PAGEDELAY" -a "$PAGEDELAY" -lt 1 ]; then
+    print -u2 "Pager delay must an integer between 1 and 10."
+    exit 1
+fi
+
+# Look up name if it's not specified as a literal number and
+# either doesn't begin with a digit or is specified as a name
+if isfalse isnumber && [[ $1 != [0-9]* ]] || istrue isname; then
+    entry="$(address $e +d@ $files $*)" || exit 1
+    print -r -- "$entry" | {
+	read Name
+	read Address
+	read Number
+    }
+    [ -n "$e" ] && print ""
+    if [ -z "$entry" ]; then
+	print -u2 "No entry for $*."
+	exit
+    fi
+    if [ -z "$Number" ]; then
+	print -u2 "Entry for $* has no phone number."
+	exit
+    fi
+    if [[ "$entry" = *+* ]]; then
+	print -u2 "Name is ambiguous:"
+	print -u2 "$entry"
+	exit
+    fi
+    print -r -- "$entry
+"
+    Number=${Number%%  *}	# Remove other number fields, if any
+    Number=${Number##*:}	# Remove qualifier, if any
+    who="$Name at "
+else
+    Number=$1
+fi
+
+if $doPage; then
+    whatP=" and paging"
+    typeset -L$PAGEDELAY delay=,,,,,,,,,,
+    Number="$Number$delay$pageNum#"
+fi
+
+# Don't translate upper case letters; they may be modem commands
+if [[ $Number = *[a-z]* ]]; then
+    orignum=$Number
+    # Must give explicit char list to tr instead of [a-p][r-y] to avoid
+    # version-dependent behaviour of tr.
+    Number=$(print -r -- $Number | tr abcdefghijklmnoprstuvwxy \
+    222333444555666777888999)
+    translated=true
+else
+    translated=false
+fi
+
+Number=$(print -r -- "$Number" | tr -d "$remChars")
+
+$debug && print -r -- "Number before canonicalization: $Number"
+
+if [ -n "$CANON1" ]; then
+    typeset -i length
+    dig=${Number%%*([!0-9]*)}
+    length=${#dig}
+    if [[ length -eq 8 && "$Number" = 1* ]]; then
+	Number="${Number#1}"
+    elif [[ length -eq 10 && "$Number" != [01]* ]]; then
+	Number="1$Number"
+    fi
+    $debug && print -r -- "Number after canonicalization: $Number"
+fi
+
+$check && act="Would dial" || act="Dialing"
+if $translated; then
+    print -r -- "$act$whatP $who$orignum ($Number) on $ttyPort."
+else
+    print -r -- "$act$whatP $who$Number on $ttyPort."
+fi
+
+# A separate ATH0 works more reliably than H0 at the end of dial string.
+
+# E1: echo commands
+# Q0: quiet off (response codes on)
+# M0: speaker off
+# S11: set DTMF period
+# ;: return to command mode after dialing
+# H0: hang up
+typeset -i i=0
+set -- /usr/lib/uucp/uuchat \
+"-x$x" "$ttyPort" "$ttySpeed" "" "ATE1Q0${vol}S11=50DT${Number};" OK ATH0 OK
+while [ i -lt count ]; do
+    $check && print -r -- "Would issue command:
+$*" || "$@"
+    let i+=1
+    if $doPage; then
+	[ count -gt 1 ] && print -r -- "Sent page #$i." ||
+	print -r -- "Sent page."
+	if [ i -lt count ]; then
+	    print -r -- "Waiting for $pause seconds..."
+	    sleep $pause
+	fi
+    fi
+done

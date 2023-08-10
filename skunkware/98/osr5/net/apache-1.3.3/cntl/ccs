@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# Postinstallscript written by Ron Record (rr@sco.com) 
+# 
+
+scriptname="$0"
+step="$1"
+keywords="$2"
+pkglist="$3"
+
+# Source in the standard functions library, ccsSetup.sh
+. ccsSetup.sh
+
+ccs_return_value=0
+
+DOCLINK=/usr/local/lib/apache/share/htdocs/docs
+
+MakeDocLink()
+{
+    rm -f $DOCLINK
+    ln -s /usr/local/man/html $DOCLINK
+}
+
+DisableStop()
+{
+    /etc/apache disable > /dev/null 2>&1
+    /etc/apache stop > /dev/null 2>&1
+}
+
+CleanUpLinks()
+{
+    rm -f /etc/rc2.d/S91apache
+    rm -f $DOCLINK
+}
+
+case "$step" in
+        POST_EXPORT) MakeDocLink ;;
+        PRE_UNEXPORT) DisableStop ;;
+        POST_UNEXPORT) CleanUpLinks ;;
+esac
+
+exit $ccs_return_value
+

@@ -1,0 +1,121 @@
+#!/bin/ksh
+# @(#) addrem.ksh 2.0 96/11/13
+# addrem: write to reminder file or mail reminder
+# 91/05/21 john h. dubois iii (john@armory.com)
+# 91/05/28 changed to use hostname instead of hard-coded host name.
+# 91/07/22 changed to use $REMIND if first arg is not "me" and
+#          does not have a ! or @ in it.
+# 92/11/08 Read from input if no reminder text given.
+# 93/07/23 Changed name from remind to addrem to avoid conflict;
+#          changed 'me' special name to '.'
+# 94/01/21 Prepend date.
+# 94/04/23 Use .addrem
+# 96/01/20 Use $UHOME if set.
+# 96/11/13 Use option flags instead of basing local/remote on 1st argument.
+
+remsubj=%%remind%%
+name=${0##*/}
+Usage="Syntax: $name [-hl] [-m<mail-address>] reminder-line"
+local=false
+oREMIND=$REMIND
+rFile=$HOME/.addrem
+verbose=true
+if [ -f "$rFile" -a -r "$rFile" ]; then
+    . "$rFile"
+fi
+[ -n "$oREMIND" ] && REMIND=$OREMIND
+[ "$QUIET" = 1 ] && verbose=false
+
+while getopts hlm:q opt; do
+    case $opt in
+    h)
+	print -r -- \
+"$name: write to reminder file or mail reminder.
+$Usage
+If -l is given, reminder-line is is appended to the file .reminder in the
+invoking user's home directory.  If not, it is sent via email to the recipient
+specified by the REMIND environment variable.  REMIND can also be set in a file
+named .addrem, which should be in the invoking user's home directory or in the
+directory specified by the environment variable UHOME.  In the .addrem file,
+place a line that has the form:
+REMIND=user
+The subject of the mail will be \"$remsubj\".  The current date will
+be prepended to the reminder line in the body of the mail.  The reminder line
+does not need to be quoted unless it contains characters special to the shell.
+To make reminders in this format that are mailed to you automatically be put
+into your .reminder file instead of showing up in your mailbox, add the
+following line to your .maildelivery file:
+Subject	%%remind%% pipe	A /usr/local/bin/procrem
+$Usage
+Options:
+-h: Print this help.
+-l: Write to local .reminders file.
+-q: Operate quietly.  Set QUIET=1 in .addrem to make this the default.
+-v: Operate verbosely (default).
+-m<mail-address>: Mail reminder to <mail-address> instead of using the REMIND
+    variable."
+	exit 0
+	;;
+    q)
+	verbose=false
+	;;
+    v)
+	verbose=true
+	;;
+    l)
+	local=true
+	;;
+    m)
+	REMIND=$OPTARG
+	;;
+    ?)
+	print -r -u2 "Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ "$1" = . ]; then
+    print -ru2 -- "$name: Obsolete invokation; use -l instead of '.'.
+Use -h for help.  Exiting."
+    exit 1
+fi
+
+if [ $local = false -a -z "$REMIND" ]; then
+    print -ru2 -- "$name: No destination (REMIND not set and -l not given).
+Use -h for help.  Exiting."
+    exit 1
+fi
+
+# dirmail: invoke execmail directly.
+# usage: dirmail <subject> <destination> <text>
+dirmail() {
+    echo \
+"From: $USER@`hostname` ($NAME)
+To: $2
+Subject: $1
+Date: `date`
+
+$3" | /usr/lib/mail/execmail "$2"
+}
+
+if [ $# -lt 1 ]; then
+    [ -t 0 ] && echo "Enter reminder text; end with ^D."
+    text="`cat`"
+else
+    text=$*
+fi
+
+text="`date +%y/%m/%d` $text"
+
+if $local; then 
+    print -r -- "$text" >> $HOME/.reminder 
+    $verbose && print -r -- "$name: Reminder added to .reminder file."
+else
+    dirmail "$remsubj" "$REMIND" "$text"
+    $verbose && print -r -- "$name: Sent reminder to $REMIND."
+fi

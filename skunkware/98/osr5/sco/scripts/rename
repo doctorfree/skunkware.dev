@@ -1,0 +1,155 @@
+#!/bin/ksh
+# @(#) rename.ksh 1.3 95/01/23
+# 90/06/01 John DuBois (spcecdt@armory.com)
+# 91/02/25 Improved help info
+# 92/06/07 remove quotes from around shell pattern as required by new ksh
+# 94/05/10 Exit if no globbing chars given.
+# 95/01/23 Allow file set to be given on command line.
+
+lname=${0##*/}
+Usage="Usage: $lname [-htv] oldpattern newpattern [filename ...]"
+tell=false
+verbose=false
+
+while getopts :htv opt; do
+    case $opt in
+    h)
+	echo \
+"$lname: rename files by changing parts of filenames that match a pattern.
+$Usage
+oldpattern and newpattern are subsets of sh filename patterns (the only
+globbing characters (wildcards) allowed are ? and *).  All files that match
+oldpattern will be renamed with the filename characters that match the constant
+(non-globbing) characters of oldpattern changed to the corresponding constant
+characters of newpattern.  The characters of the filename that match the
+globbing characters of oldpattern will be preserved.  Globbing characters in
+oldpattern must occur in the same order in newpattern; for every globbing
+character in newpattern there must be an identical globbing character in
+oldpattern in the same sequence.  Both arguments should be quoted since
+globbing characters are special to the shell.  If filenames are given, only the
+named files are acted on; if not, all files that match oldpattern are acted on.
+Examples:
+rename \"/tmp/foo*.ba.?\" \"/tmp/new*x?\"
+All files in /tmp that match foo*.ba.? will have the \"foo\" part replaced by
+\"new\" and the \".ba.\" part replaced by \"x\".  For example,
+/tmp/fooblah.ba.baz would be renamed to /tmp/newblahxbaz
+rename \* \*- foo bar baz
+foo, bar, and baz will be renamed to foo-, bar-, and baz-.
+Options:
+-h: Print this help.
+-v: Show the file move commands being executed.
+-t: Show what file moves would be done, but do not execute them."
+	exit 0
+	;;
+    t)
+	tell=true
+	;;
+    v)
+	verbose=true
+	;;
+    +?)
+	print -u2 "$lname: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$lname: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$lname: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+oldpat=$1
+newpat=$2
+
+case $# in
+[01])
+    print -u2 "$Usage\nUse -h for help."
+    exit 1
+    ;;
+2)
+    set -- $1
+    if [[ ! -a $1 ]]; then
+	echo "No files match $oldpat."
+	exit
+    fi
+    ;;
+*)
+    shift 2
+    ;;
+esac
+
+typeset -i i=1 j
+
+# For old ksh
+# while [[ "$oldpat" = *'[\*\?]'* ]]; do
+
+# Example oldpat: foo*.a
+# Example newpat: bar*.b
+
+# Examples given for first iteration (in the example, the only interation)
+while [[ "$oldpat" = *[\*\?]* ]]; do
+    # Get leftmost globbing pattern in oldpat
+    pat=${oldpat#*[\*\?]}	# pat=.a
+    pat=${oldpat%%"$pat"}	# pat=foo*
+    pat=${pat##*[!\?\*]}	# pat=*
+    # Find parts before & after pattern
+    oldpre[i]=${oldpat%%"$pat"*}	# oldpre[1]=foo
+    oldsuf[i]=${oldpat#*"$pat"}		# oldsuf[1]=.a
+    newpre[i]=${newpat%%"$pat"*}	# newpre[1]=bar
+    # Get rid of processed part of patterns
+    oldpat=${oldpat#${oldpre[i]}"$pat"}	# oldpat=.a
+    newpat=${newpat#${newpre[i]}"$pat"}	# newpat=.b
+    let i=i+1
+done
+
+if [ i -eq 1 ]; then
+    print -u2 "No globbing chars in pattern."
+    exit 1
+fi
+
+oldpre[i]=${oldpat%%"$pat"*}	# oldpre[2]=.a
+oldsuf[i]=${oldpat#*"$pat"}	# oldsuf[2]=.a
+newpre[i]=${newpat%%"$pat"*}	# newpre[2]=.b
+
+if $verbose; then
+    j=1
+    while [[ j -le i ]]; do
+	echo \
+"Old prefix: ${oldpre[j]}   Old suffix: ${oldsuf[j]}   New prefix: ${newpre[j]}"
+	let j=j+1
+    done
+fi
+
+# Example file: foox.a
+
+for file; do
+    j=1
+    origname=$file	# origname=foox.a
+    newfile=
+    while [[ j -le i ]]; do
+	# Peel off a prefix	interation	1		2
+	file=${file#${oldpre[j]}}		# file=x.a	file=
+	# Save the part of this prefix that is to be retained
+	const=${file%${oldsuf[j]}}		# const=x	const=
+	newfile=$newfile${newpre[j]}$const	# newfile=barx	newfile=barx.b
+	file=${file#$const}			# file=.a	file=.a
+	let j=j+1
+    done
+    if $tell; then
+	echo "Would move: $origname -> $newfile"
+    else
+	if $verbose; then
+	    echo "Moving: $origname -> $newfile"
+	fi
+	mv $origname $newfile
+    fi
+done

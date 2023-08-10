@@ -1,0 +1,50 @@
+# @(#) bang.ksh 1.0 92/12/23
+# 92/12/23 john h. dubois iii (john@armory.com)
+# Syntax:
+# bang <hist-sel>    Prints the command that matches the history selector.
+# bang :<arg-sel>    Prints the selected args from the last command.
+# bang <hist-sel:<arg-sel>    Prints the selected args from the command
+#		 that matches the history selector.
+# An optional : may follow the first form.
+# <hist-sel> format:
+# n    Selects command number n from the history list.
+# -n    Selects the n'th-to-last command from the history list.
+# s    Selects the last command that has string s in it.
+# <arg-sel> format:
+# The arguments are numbered starting with 0, where argument 0 is the
+# command, argument 1 is the first argument to the command, etc.
+# n    Selects argument number n
+# n-
+# n-$    Both forms select arguments n through the last argument.
+# $    Selects the last argument.
+# -m    Selects arguments 1 through m.
+# *    Selects arguments 1 through the last argument.
+# Typical usage:
+# alias !=bang
+# foo `! $`    Runs foo with the last argument from the last command.
+function bang {
+    if [ $# != 1 ]; then
+	print -u2 "Wrong number of arguments."
+	return 1
+    fi
+    typeset sel args min max
+    sel=${1%%:*}
+    [[ $1 = $sel?(:) ]] && args=0-1024 || args=${1#*:}
+    [ -z "$sel" ] && sel=-1
+    min=${args%-*} max=${args#*-}
+    set -- `fc -nl $sel $sel`
+    [ "$max" = \$ -o -z "$max" -o "$max" = \* ] && let max=$#-1
+    [ -z "$min" -o "$min" = \* ] && min=1
+    [ "$min" = \$ ] && let min=$#-1
+    [ min -gt $# ] && min=$#
+    shift $min
+    let max=max-min+1
+    [ max -gt $# ] && max=$#
+    while [ max -gt 0 ]; do
+	print -n -- "$1 "
+	let max=max-1
+	[ $# -gt 0 ] && shift
+    done
+    print ""
+}
+

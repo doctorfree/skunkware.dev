@@ -1,0 +1,1244 @@
+#!/bin/ksh
+# adduser: script to add a user to the system.
+# @(#) adduser.ksh 3.0 97/06/27
+# 91/01/25 john h. dubois iii (john@armory.com)
+# 91/02/02 added interactive capability
+# 91/09/27 put phone num in GCOS field if given, cleaned up
+# 91/10/27 Changed format of address record written.
+#          Also, now writes address record to first word of $ADDRESS
+# 92/03/07 changed mkuser.init invokation from execution to sh sourcing
+#          since the files are not executable under UNIX.
+#          Changed to use vars from /etc/default/authsh if no
+#          /etc/default/mkuser
+# 92/03/20 Added code to use /etc/shadow if it exists
+#          Run authck -p if available
+# 92/04/03 Use MIN_SUGGEST_UID, MIN_SUGGEST_GID, and LOGIN_GROUP throughout
+#          script so that they can be changed in mkuser.defs file
+# 92/05/03 Move automatic uid generation after reading of mkuser.defs
+# 93/05/18 Let $ADDRESS be separated by colons in addition to whitespace
+# 93/07/09 Print correct warning if username is a mail alias.
+# 93/11/14 Print warning if password is truncated by makepass.
+# 93/12/16 Modified to use /tcb/bin/ap instead of doing everything dangerously
+# 93/12/31 Moved all vars specific to an account into associative arrays.
+#          Added ability to process multiple account requests.
+# 94/01/02 Check whether multiple values are given for an account parameter.
+# 94/01/06 Print warnings at end for failed account creations & truncated
+#          passwords.
+# 94/01/09 Moved group adding into ap processing.  Moved ap and mkuser.init
+#          invokation to end of script.  This allows all accounts to be
+#          created by a single instance of ap.
+# 94/04/16 Exit if ap fails.
+# 94/05/22 Use default address file if $ADDRESS not set.
+# 94/09/12 Added -n option
+# 94/12/10 Deal with phone numbers much better.  
+#          Discard + chars before writing record to address database.
+#          Capitalize 1st char of names if they were entered all lower case.
+#          Require that ap_tmp file have nonzero size before running ap etc.
+# 94/12/16 Phone num canonicalization bugfix
+# 95/07/08 Fix to tr bug in above fix
+# 95/07/28 Tell where ap file left if it fails.
+# 95/08/24 Get rid of extra spaces in names
+# 95/10/20 Use namespaces instead of associative arrays to speed things up
+# 95/12/23 Use egrep, not /bin/egrep; new OS doesn't have a /bin/egrep
+# 96/01/20 Make tempfile start with #; create it more safely
+# 96/03/02 Set BadAccounts correctly.
+# 96/03/17 Added x option.
+# 96/03/20 Use sed instead of tr when ranges are needed because they have
+#          to be specified differently in different releases.
+# 96/04/27 Remove tmpfile on error exit
+# 96/05/10 Deal with all-lower-case names too.
+# 97/06/27 Make filename given on command line work again.
+#
+# This script adds a user to a XENIX or UNIX system (with "traditional" or
+# lower security) through the 'ap' utility.
+# This script runs /usr/lib/mkuser/<shell>/mkuser.init to do the following:
+#  create user's home directory
+#  copy login files to user's home directory
+#  send the user welcome mail
+
+# Bugs:
+# Password is echoed when used interactively.
+# If ap is not used, no attempt is made to lock passwd or group file
+# (should use ale(ADM) to lock them)
+# UIDs are reused, which is a security risk unless all old files, IPC objects,
+# processes, etc. on the system that are owned by the uid are removed.
+# uucp/mkuser.defs has MIN_SUGGEST_UID=100 in it, but it is ignored.
+
+# @(#) mktempfile 1.0 96/05/22
+# 96/01/20 jhdiii
+
+# Usage: mkfiles name ...
+# Creates the named files with some attempt at security.
+# This will be more reliable if user do not have chown authority.
+# Any file that contains no / characters is created in the user's tempdir.
+# If TMP was not set, it is set by this function.
+# Returns 0 on success; prints a diagnostic message & returns 1 on failure.
+function mkfiles {
+    typeset file files
+    typeset -i i=0
+
+    : ${TMP:=$TMPDIR}
+    : ${TMP:=/tmp}
+    for file; do
+	[[ "$file" != */* ]] && file="$TMP/$file"
+	files[i]=$file
+	let i+=1
+    done
+    set -- "${files[@]}"
+
+    rm -f "$@" || {
+	# hopefully rm will have printed a more specific message.
+	print -u2 "Could not remove pre-existing files."
+	return 1
+    }
+    for file; do
+	# Use >> to avoid 0'ing the file in case a symlink was just made from
+	# the filename to something we don't want to truncate
+	>> "$file" || {
+	    print -u2 "Could not create temp file $file"
+	    return 1
+	}
+	# These are very suspicious
+	[ -s "$file" ] && {
+	    print -u2 "New tempfile is not empty!!!"
+	    return 1
+	}
+	[ -O "$file" ] || {
+	    print -u2 "Do not own $file!!!"
+	    return 1
+	}
+    done
+    # Could do some more stuff here, but anyone concerned with security should
+    # have chown authorization off for most users.
+    return 0
+}
+
+# Usage: mktempfile name
+# Creates a tempfile name tempdir/#name$$, and sets the global mktempfile_ret
+# to that name.  tempdir is a temp directory in $TMP, $TMPDIR, or /tmp, and $$
+# is the PID of the current process.
+# name should be 8 characters or less, so that the resulting filename will
+# not be more than 14 characters long (a limit on some machines).
+# Returns 0 on success, prints a diagnostic message & returns 1 on failure.
+function mktempfile {
+    typeset file="#$1$$"
+    mkfiles "$file"
+    mktempfile_ret="$TMP/#$1$$"
+}
+
+## Start of nvar lib
+
+# separate-namespace routines
+# 95/10/20 john h. dubois iii (john@armory.com)
+# These routines store values in variables whose namespace is separated
+# from other variables by preceding them with a prefix.
+# prefixes must have names that are valid shell variable names.
+
+# Usage: nStore <prefix> <varname> <value> <append>
+# Stores value <value> in the <varname> that is part of namespace <prefix>
+# A null <value> may be given.
+# If a 4th argument is given, the value is appended to the current value
+# stored for the variable (if any).
+# Return value is 0 for success,
+# 2 for failure due to bad varname, 3 for bad syntax
+function nStore {
+    typeset var="$1_$2" Val=$3
+
+    [ "$var" = _ ] && return 2
+    case $# in
+    3) eval $var=\$Val;;
+    4) eval $var=\"\$$var\$Val\";;
+    *) return 3;;
+    esac
+    return 0
+}
+
+# Usage: nGet [-n] <prefix> <var> <result>
+# Gets the value of var <var> in namespace <prefix> and stores it in shell
+# variable <result>.  Returns failure status if the value was null.
+# If -n is given, <result> is not touched in the value is null.
+# result may have the form array[n].
+# If <result> is not given, nothing is assigned; only the return status is set.
+function nGet {
+    typeset noTouch=false var result
+    if [ "$1" = -n ]; then
+	noTouch=true
+	shift
+    fi
+    var="$1_$2"
+    result=$3 
+
+    eval r=\$$var
+    [[ $# -eq 3 && ( $noTouch = false || -n "$r" ) ]] && eval $result=\$r
+    [ -n "$r" ]
+}
+
+# Usage: nUnset <prefix> <var> ...
+# Each variable <var> in namespace <prefix> is unset.
+function nUnset {
+    typeset prefix=${1}_ var
+
+    shift
+    for var; do
+	eval unset $prefix$var
+    done
+}
+
+# Usage: nGetMany <array> <prefix> <varname> ...
+# Each of the named variables in namespace <prefix> is stored in shell array
+# <arry> with indices starting with 0.
+# The number of variables that had non-null values is returned (it will
+# wrap around if more than 255 values are stored).
+function AGetMany {
+    typeset -i NumNonNull=0 ind=0
+    typeset Arr=$1 prefix=$2 var
+
+    shift 2
+    for var; do
+	nGet $prefix "$var" "$Arr[$ind]" && let NumNonNull+=1
+	let ind+=1
+    done
+    return $NumNonNull
+}
+
+# set_vars: store variable assignments in a namespace.
+# 93/12/28 John H. DuBois III (john@armory.com)
+# Usage: set_vars prefix [filename ...]
+# where the lines in filename (or the input) are of the form
+# var=value
+# value may contain whitespace, backslashes, quote characters, etc.;
+# they will become part of the value assigned.
+# Lines that begin with a # (optionally preceded by whitespace),
+# lines that do not contain a '=', and lines that contain illegal characters
+# in the var part are ignored.
+# The only legal characters are [a-zA-Z0-9_]
+# Values are stored in variables of the name given before the =, preceded by
+# prefix.  prefix may be given as a null string.
+# Example: 'set_vars foo_ bar' will read the file bar.  If bar contains the line
+# blit=xyz
+# then this shell variable assignment will be made:
+# foo_blit=xys
+
+function set_vars {
+    typeset prefix digits
+
+    prefix=$1
+    # If prefix is non-null, first char of name may be a digit
+    [ -n "$prefix" ] && digits=0-9
+    shift
+    for file; do
+	if [ ! -f "$file" ]; then
+	    print -u2 -- "$file: No such file."
+	    return 1
+	fi
+	if [ ! -r "$file" ]; then
+	    print -u2 -- "$file: Could not open for reading."
+	    return 1
+	fi
+    done
+    # return exit status of eval
+    # Delete lines that start with # or which do not contain an =
+    # or which try to assign to bad var names
+    # Quote '
+    # Put new ' around value
+    eval "$(sed "
+/^[ 	]*#/d
+/^[a-zA-Z_$digits][a-zA-Z0-9_]*=/!d
+s/'/'\\\\''/g
+s/=/='/
+s/$/'/
+s/^/$prefix/" "$@")"
+}
+
+# Usage: nset_vars <prefix> [filename ...]
+# Any legal vars assigned to in the given files are stored in namespace <prefix>
+function nset_vars {
+    typeset prefix=${1}_
+
+    shift
+    set_vars $prefix "$@"
+}
+
+# Usage: nChkStore <prefix> <varname> <value>
+# Exit if <varname> is already set in namespace <prefix>, else set it to <value>
+function ChkStore {
+    typeset prefix=$1 var=$2 value=$3
+
+    if nGet $prefix $var; then
+	print -u2 "Error: $index already set.  Exiting."
+	exit 1
+    else
+	nStore $prefix $var "$value"
+    fi
+}
+
+## End of nvar lib
+
+# Print help message.
+# Globals used: Name, Usage, PAGER, MIN_SUGGEST_UID, LOGIN_GROUP
+# Globals changed: none.
+function help {
+echo \
+"$Name: add a user to the system.
+$Usage
+If a filename is given, it is read for the neccessary information. Otherwise,
+if the input is a tty, the neccessary information is prompted for
+interactively.  If the input is not a tty, the input is read for the
+information.  In all cases except for interactive operation, the input read is
+expected to consist of lines of the form
+var=value
+where value gives an appropriate value for var.
+Each var should be one of the following (unrecognized vars are ignored):
+
+acctname:  Name of the account
+password:  Initial password
+uid:       Numeric user id
+group:     Login group (numeric or name)
+name:      Name/comment for the GCOS (comment) field of /etc/passwd
+shell:     Login shell
+address:   Address for (optional) address database
+phone_num: Phone number for the GCOS field and (optionally) address database
+
+acctname, name, and shell are required.
+If multiple groups of lines that contain '=' characters are read,
+separated by lines that do not contain '=' characters,
+each group is processed as a separate account request.
+A directory with the name of shell with the files required by mkuser
+must exist in /usr/lib/mkuser.
+If password is not given, the account is created without a password.
+If a password of '*' is given, a literal '*' will be put in the user's
+password field, so that no password will give access to the account.
+If a normal password is given, it is encrypted with the \"makepass\" utility.
+If \"makepass\" is not available, a null or '*' password should be given,
+and the user's password set with \"passwd\".
+
+The default for uid is the first unused uid that is MIN_SUGGEST_UID
+(currently configured at $MIN_SUGGEST_UID) or higher.
+The default for group is \"$LOGIN_GROUP\".
+If $Name is being used non-interactively,
+the default or given group must already exist in /etc/group.
+
+The defaults for address and phone_num are null.
+If an address was given for the user, then after the user has been created
+an address record is written.  The record is in the format
+Name
+Address
+Phone number
+Email address
++
+If the environment variable ADDRESS is set, the address record is written to
+the file given by the first word of its value.  Otherwise, it is written to
+the file $addrdef, if it exists.  If not, it is written to the
+standard output.
+
+Normally, both informational and error messages are printed to the error output.
+If stderr is not a tty, only error messages are printed.
+'ap' is run to add a user to the tcb database.
+Note: very little sanity checking of parameters is done.
+Options:
+-a: Do not write an address record.
+-t: Test: the normal messages are printed, but the user is not actually added
+    to the system.  Informational messages are printed even if stderr is not
+    a tty.
+-x: Turn on debugging.  Informational messages are printed even if stderr is
+    not a tty, and extra information is printed.
+-r<num>:  The number of login retries before the account is locked is set to
+    <num> for each account created.
+-h: Print this help.
+-n: Set non-interactive mode (expecting input of the form var=value) even if
+    input is a tty." | ${PAGER:-more}
+}
+
+# Test whether an integer variable is nonzero or zero
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+# DoFlags: interpret command line args
+# Usage: DoFlags "$@"
+# Globals used: $*, Usage
+# Globals set: test, debug, Interactive, Retries
+# returns number of args that were options
+function DoFlags {
+    typeset opt
+    typeset -i i
+
+    while getopts :ahntr:x opt; do
+	case $opt in
+	a)
+	    DoAddr=0;;
+	t)
+	    test=1
+	    debug=1
+	    ;;
+	x)
+	    set -x
+	    debug=1
+	    ;;
+	n)
+	    Interactive=0;;
+	h)
+	    help
+	    exit 0;;
+	r)
+	    if i=$OPTARG && [ i -gt 0 ]; then
+		Retries="u_maxtries#$i:"
+	    else
+		print -u2 "$Name: Bad value given for max retries."
+		exit 1
+	    fi;;
+	+?)
+	    print -u2 "$Name: options should not be preceded by a '+'."
+	    exit 1
+	    ;;
+	:)
+	    print -r -u2 -- \
+	    "$Name: Option '$OPTARG' requires a value.  Use -h for help."
+	    exit 1
+	    ;;
+	?) 
+	    print -u2 "$Name: $OPTARG: bad option.  Use -h for help."
+	    exit 1
+	    ;;
+	esac
+    done
+ 
+    # remove args that were options
+    let OPTIND=OPTIND-1
+    return $OPTIND
+}
+
+# GetShells: sets Shells to be a list of available shells
+# Globals set: Shells
+function GetShells {
+    typeset s
+
+    cd /usr/lib/mkuser || {
+	print -u2 "Could not change dir to /usr/lib/mkuser.  Exiting."
+	exit 1
+    }
+    for s in */mkuser.init; do
+	Shells="$Shells   ${s%/mkuser.init}"
+    done
+}
+
+# GetGroups: set Groups to be a list of groups
+# Globals set: Groups
+function GetGroups {
+    set -- $(wc -l /etc/group)
+    if [ $1 -gt 22 ]; then
+	# If more than 22 groups, print only group name & remove newlines
+	set -- $(sed 's/:.*//' /etc/group)
+	Groups=$*
+    else
+	Groups=$(sed 's/:[^:]*:/	/;s/:/	/;s/,/ /g' /etc/group)
+    fi
+}
+
+# Globals set:
+# vars in namespace Account
+function GetAccountInfo {
+    typeset passwdquery vars var invar
+
+    GetShells	# set Shells to list of available shells
+    GetGroups	# set Groups to be a list of available groups
+
+    if whence makepass > /dev/null; then
+	passwdquery="Enter the new user's password (note: passwd will echo)"
+    else
+	passwdquery=\
+"Press return for a null password, or enter '*' to prevent logins"
+    fi
+
+    vars="acctname name shell password uid group address phone_num"
+    set -- \
+"Enter the new user's login name" \
+"Enter the new user's name (the comment to put in /etc/passwd)" \
+"Enter the new user's login shell.  The available shells are:
+$Shells" \
+"$passwdquery" \
+"Enter the new user's uid (or press return to use the next available uid)" \
+"Enter the new user's login group, or press return to use the default group
+($LOGIN_GROUP).  The currently existing groups are:
+$Groups" \
+"Enter the new user's address" \
+"Enter the new user's phone number"
+
+    for var in $vars; do
+        print -n -u2 "$1\n$var="
+        read invar
+        nStore Account $var "$invar"
+	until Test_$var; do
+	    print -n -u2 "$1\n$var="
+	    read invar
+	    nStore Account $var "$invar"
+	done
+        shift
+    done
+}
+
+# Prints next unused uid
+# Usage: SetUID min-uid [skip-uids]
+function SetUID {
+    typeset UIDFound minuid=$1
+
+    shift
+    awk -F: -v uid=$minuid -v UIDsUsed="$*" '
+{ 
+    uids[$3]
+}
+END {
+    split(UIDsUsed,Elem," +")
+    for (i in Elem)
+	uids[Elem[i]]
+    while (uid in uids)
+	uid++
+    print uid
+}' /etc/passwd | read UIDFound
+    print $UIDFound
+}
+
+# Check account parameters
+# In Account[], sets groupname and gid; may unset name; may rewrite phone_num,
+# may remove path component from shell; sets encpass to encoded password
+# Error message is printed & 1 is returned if certain tests fail.
+# For non-interactive account creation.
+function CheckParams {
+    istrue debug && set -x
+    Test_acctname || return 1
+    Test_password || return 1
+    nStore Account encpass "$encpass"
+    Test_uid || return 1
+    Test_group || return 1
+    Test_name || return 1
+    Test_shell || return 1
+    Test_phone_num || print -u2 "Phone number not set."
+    return 0
+}
+
+# Checks whether account already exists in /etc/passwd or is a mail alias
+# Returns 1 of so; otherwise 0
+# Prints err messages if name exists
+function Test_acctname {
+    istrue debug && set -x
+    typeset accountname
+
+    nGet Account acctname accountname
+
+    if egrep "^$accountname:" /etc/passwd >| /dev/null; then
+	print -u2 -r "Account $accountname already exists."
+	return 1
+    fi
+    (/usr/mmdf/bin/malias $accountname | egrep 'no aliases') \
+    > /dev/null 2>&1 || 
+    print -u2 "Warning: $accountname is a mail alias.  Creating account anyway."
+    return 0
+}
+
+# Checks whether password is a valid password
+# Returns 0 if so; otherwise nonzero
+# Side effects: sets "encpass" to encoded password
+# (or * or nothing, if that's what password is)
+# Prints err message if bad password
+# Global vars: Account*, encpass
+function Test_password {
+    typeset password
+    typeset accountname
+
+    nGet Account acctname accountname
+    nGet Account password password
+
+    MakePass "$password" "$accountname"
+}
+
+# Checks whether $uid already exists in /etc/passwd
+# Returns 0 if it doesn't or is null, 1 if it does
+# Prints err message if uid is already used
+# Global vars: Account*
+function Test_uid {
+    typeset uid
+
+    nGet Account uid uid
+
+    [ -z "$uid" ] && return 0
+    if [[ "$uid" != [0-9]* ]]; then
+	print -u2 -r "Bad uid $uid."
+	return 1
+    fi
+
+    if egrep "^[^:]*:[^:]*:$uid:" /etc/passwd >| /dev/null; then
+	print -u2 -r "uid $uid already assigned."
+	return 1
+    fi
+    return 0
+}
+
+# Usage: Test_group
+# Checks whether groupname/gid <group> exists in /etc/group
+# If non-interactive, returns 1 if it doesn't, 0 if it does
+# If interactive and group does not exist, gives user the option
+# of creating the group.  If the option is rejected or group
+# creation fails, returns 1; otherwise returns 0.
+# Side effects:
+# If found, sets group to group name and gid to group id.
+# If interactive, may create a group by adding a line to /etc/group
+# If non-interactive, prints an error message if group does not exist
+# Global vars: $LOGIN_GROUP (default group id/name), Account*
+function Test_group {
+    typeset group groupname gid
+
+    nGet Account group group
+
+    if [ -z "$group" ]; then
+	if [ -z "$LOGIN_GROUP" ]; then
+	    print -u2 "\007\007\007ERROR in Test_group: LOGIN_GROUP not set."
+	    exit 1
+	fi
+	group=$LOGIN_GROUP
+    fi
+    GoodGroup "$group" | read groupname gid
+    [ -z "$groupname" ] && return 1
+    nStore Account groupname "$groupname"
+    nStore Account gid "$gid"
+    return 0
+}
+
+# Usage: GoodGroup <group>
+# Checks whether groupname/gid <group> exists in /etc/group
+# If non-interactive, returns 1 if it doesn't, 0 if it does
+# If interactive and group does not exist, gives user the option
+# of creating the group.  If the option is rejected or group
+# creation fails, returns 1; otherwise returns 0.
+# Side effects:
+# If found, prints groupname & gid
+# If interactive, may create a group by adding a line to /etc/group
+# If non-interactive, prints an error message if group does not exist
+function GoodGroup {
+    typeset group=$1
+
+    [ -z "$group" ] && return 1
+    if FindGroup "$group"; then :; else
+	print -u2 "Group $group does not exist."
+	if ((Interactive)); then
+	    MakeGroup $group || return 1
+	else
+	    return 1
+	fi
+    fi
+    print "$groupname" "$gid"
+    return 0
+}
+
+# Tests whether $name is a valid name that can be put in the GCOS field
+# Returns 0 if it is, 1 if not
+# Global vars: none
+function Test_name {
+    typeset name newName=
+    typeset -u -L1 u	# 1 char, upper case
+    typeset -l Comp	# lower case
+
+    set -o noglob	# make sure globbing is off; local to this func
+    nGet Account name name
+
+    if [[ "$name" = *:* ]]; then
+	print -u2 -r "Name/comment \"$name\" contains a ':'."
+	nStore Account name ""
+	return 1
+    fi
+    # Get rid of extra spaces
+    set -- $name
+    name="$*"
+    # If name was entered all in lower or upper case, convert the first char of
+    # each component to upper case & the rest to lower case
+    if [[ "$name" != *[A-Z]* ]]; then
+	for Comp in $name; do
+	    u=$Comp
+	    newName="$newName $u${Comp#?}"
+	done
+	nStore Account name "${newName#?}"
+    fi
+    return 0
+}
+
+# Tests whether phone_num is a valid phone number that can be put in
+# the GCOS field
+# Returns 0 if it is, 1 if it isn't
+# Side effects: 
+# Rewrites NA phone numbers in format suitable for GCOS field: 
+# aaa/pppnnnn or ppp-nnnn
+# No - between prefix and number if area code is given, because SCO finger
+# daemon limits "office" field (where the phone # is put) to 11 chars.
+# Rewrites non-NA phone numbers to exclude invalid chars.
+# If phone_num isn't valid, sets it to null string and prints an error message
+# Global vars: Account*
+# 94/12/10 jhdiii  Rewrote.
+function Test_phone_num {
+    typeset phone_num Digits
+    typeset -i NumDig
+
+    nGet Account phone_num phone_num
+
+    [ -z "$phone_num" ] && return 0
+
+    # Use sed instead of tr because tr behaviour re needing
+    # [] around ranges is incompatible between releases.
+    Digits=$(print -r -- "$phone_num" | sed 's/[^0-9]//g')
+    NumDig=${#Digits}
+
+    # This test for whether a phone number is a NA number is based on 600
+    # phone numbers entered with account requests.  It will fail for numbers
+    # given with phone extensions, descriptions, numbers given with some digits
+    # as alpha characters, more than one phone number given, etc.
+    # optional-whitespace
+    # optional area code
+    #     optional leading 1
+    #         optional hyphen after 1
+    #     optional open-paren
+    #     3 digits
+    #     optional close-paren
+    #     any number of nondigits
+    # 3 digit prefix
+    # any number of nondigits
+    # 4 digit number
+    # optional whitespace
+    if print -r -- "$phone_num" | egrep '^ *((1-?)?\(?[0-9][0-9][0-9]\)?[^0-9]*)?[0-9][0-9][0-9][^0-9]*[0-9][0-9][0-9][0-9] *$' > /dev/null; then
+	# NA number
+	case $NumDig in
+	7) NewNum="${Digits%????}-${Digits#???}";;
+	10) NewNum="${Digits%???????}/${Digits#???}";;
+	11) NewNum="${Digits%???????}/${Digits#???}"
+	    NewNum=${NewNum#1}
+	    ;;
+	*)
+	    print -u2 "Phone number test failed?!"
+	    ;;
+	esac
+    elif [ NumDig -lt 10 ]; then
+	print -u2 "Invalid phone number: $phone_number"
+	NewNum=
+    else
+	# Get rid of any chars that should not exist anywhere in a phone #
+	NewNum=$(print -r -- "$phone_num" | sed 's/[^0-9/(),+. -]//g')
+	NewNum=${NewNum##*([!(+0-9])}
+	NewNum=${NewNum%%*([!0-9])}
+	[ ${#NewNum} -ne ${#phone_num} ] && print -u2 \
+"Discarded invalid chars in phone number '$phone_num';
+new number is: $NewNum"
+    fi
+
+    nStore Account phone_num "$NewNum"
+    [ -z "$NewNum" ]
+}
+
+# Tests whether shell is a valid shell
+# Returns 0 if it is, 1 if it isn't
+# Side effects: Removes any path component in shell
+# If shell is not valid, prints error message
+function Test_shell {
+    typeset shell
+
+    nGet Account shell shell
+
+    # ignore any attempt at full path name in shell
+    shell=${shell##*/}
+    nStore Account shell "$shell"
+    if [ ! -f /usr/lib/mkuser/$shell/mkuser.init ]; then
+	print -u2 -r "Don't know how to create a user with shell \"$shell\"."
+	return 1
+    fi
+}
+
+# Stub
+function Test_address {
+    return 0
+}
+
+# FindGroup [gid|groupname] 
+# searches /etc/group for a group with either the name or gid given
+# in the argument.
+# If found, sets groupname to group name and gid to group id and returns
+# status 0.
+# If fails, returns nonzero.
+# Globals used/modified: none.
+function FindGroup {
+    typeset gname gpass rgid gusers
+    typeset IFS=:
+    unset gname
+
+    sed -n "/^$1:/p;/^[^:]*:[^:]*:$1:/p" /etc/group | 
+    read gname gpass rgid gusers
+    if [ -n "$gname" ]; then
+	groupname=$gname
+	gid=$rgid
+	return 0
+    else
+	return 1
+    fi
+}
+
+# Makes a group.  Returns nonzero on failure.
+# Usage: MakeGroup gid|groupname
+# Global vars:
+# Sets gid and groupname.
+# May create a new group in /etc/group.
+# This function requires that the standard input & standard error streams
+# be connected to an interactive session.
+function MakeGroup {
+    typeset g=$1 badreply=true groupmade
+
+    while [ $badreply ]; do
+	print -n -u2 "Create it, Select another group name or Abort? [c/s/a] "
+	read reply || return 1
+	case $reply in
+	a*) return 1;;
+	s*) print -u2 -n "Enter a group name or number: "
+	    read g || return 1;;
+	c*) ;;
+	*) continue;
+	esac
+	unset badreply
+    done
+    groupmade=
+    while [ -z "$groupmade" ]; do
+	if [[ "$g" = *([0-9]) ]]; then
+	    gid=$g
+	    print -u2 -n "Enter a group name: "
+	    read groupname || return 1
+	    if egrep "^$groupname:" /etc/group >| /dev/null; then
+		print -u2 "Group name $groupname is already in use."
+	    else
+		group=$groupname
+		if [ -n "$gid" ]; then
+		    groupmade=true
+		else
+		    g=$groupname
+		fi
+	    fi
+	else
+	    groupname=$g
+	    print -u2 -n \
+"Enter a group id #, or press <return> to select the next available gid: "
+	    read gid || return 1
+	    if [ -n "$gid" ]; then
+		if egrep "^[^:]*:[^:]*:$gid:" /etc/group >| /dev/null; then
+		    print -u2 "gid $gid is already in use."
+		else
+		    groupmade=true
+		fi
+	    else
+		# set gid to next unused gid
+		gid=`awk -F: '
+		{ 
+		    gids[$3]
+		}'"
+		END { 
+		    for (gid = $MIN_SUGGEST_GID; gid in gids; gid++)
+		    print gid
+		}
+		" /etc/group`
+		print -u2 "Group assigned gid $gid."
+		groupmade=true
+	    fi
+	fi
+    done
+    print -u2 "Adding the following line to /etc/group:\n$groupname::$gid:"
+    isfalse test && echo "$groupname::$gid:" >> /etc/group
+    return 0
+}
+
+# MakePass: set encpass to encoded version of $1
+# If password is '*' or null, make it the password without encrypting
+# Globals changed: encpass, Truncated
+# Usage: MakePass encoded-password accountname
+function MakePass {
+    if [[ "$1" = @(\\*|) ]]; then
+	encpass="$1"
+    else
+	encpass=`print -r "$1" | makepass` ||
+	{ print -u2 "Bad password."; return 1; }
+	# If password is more than 8 chars, encoded password should be
+	# more than 13 chars.
+	if [[ "$1" = ?????????* && "$encpass" != ??????????????* ]]; then
+	    print -u2 \
+	    "\007\007\007***    Warning! Password truncated to 8 characters."
+	    Truncated="$Truncated $2"
+	fi
+    fi
+    return 0
+}
+
+# SetMkuserDef: set vars from an account defaults file
+# Usage: SetMkuserDef prefix filename ...
+# prefix_vars set:
+# HOME HOMEMODE PROFMODE MAILMODE LOGIN_GROUP
+# MIN_SUGGEST_UID MIN_SUGGEST_GID OTHER_GROUPS
+# If -d is given, set defaults for values not given
+# Returns 0 if file cannot be read
+function SetMkuserDef {
+    typeset file prefix var
+    typeset -i DefOK=0 SetDef=0
+    typeset VarList="HOME HOMEMODE PROFMODE MAILMODE LOGIN_GROUP
+    MIN_SUGGEST_UID MIN_SUGGEST_GID OTHER_GROUPS SHELL HOME_MODE HOME_DIR"
+    typeset $VarList
+
+    if [ "$1" = -d ]; then
+	SetDef=1
+	shift
+    fi
+    prefix=$1
+
+    for file; do
+	if [ -r $file ]; then
+	    nset_vars $prefix "$file"
+	    DefOK=1
+	    break
+	fi
+    done
+    if isfalse DefOK; then
+	print -u2 "Could not read: $*"
+	return 1
+    fi
+
+    # Set default & alternate values
+    for var in HOME_DIR HOME_MODE LOGIN_GROUP; do
+	nGet -n $prefix $var $var
+    done
+    # Set pairs of <var-name>,<alternate-value>
+    set -- HOME "$HOME_DIR" HOMEMODE "$HOME_MODE" OTHER_GROUPS "$LOGIN_GROUP"
+    istrue SetDef && set -- "$@" PROFMODE 600 MAILMODE 600 LOGIN_GROUP group \
+    MIN_SUGGEST_UID 200 MIN_SUGGEST_GID 50
+    while [ $# -gt 0 ]; do
+	# For each var, if it is not set and the alternate var is, set the
+	# var to the value of the alternate var.
+	nGet $prefix $1 || {
+	    [ -n "$2" ] && nStore $prefix $1 "$2"
+	}
+	shift 2
+    done
+    return 0
+}
+
+# AddTCBap: Add an account profile record to a file to be processed by ap
+# File passed to ap looks like this:
+# blort:x:450:50:Todd:/u/blort:/bin/ksh
+# blort:u_name=blort:u_id#450:\
+# 	:u_pwd=x.5wL0kjhWqk.:\
+# 	:u_type=general:u_lock@:chkent:
+# Usage: AddTCBap acctname encpass uid gid GCOS home shell [group ...]
+# Global data used:
+# debug		nonzero if debugging info should be printed
+# ap_tmp	file to write record to
+# Retries: Max login retries field, if any.  Should be in the form:
+# u_maxtries#n:
+function AddTCBap {
+    typeset aprec group groups= xgroupname xgid
+    typeset acctname=$1 encpass=$2 uid=$3 gid=$4 GCOS=$5 UserHome=$6
+    typeset FullShell=$7
+
+    if [ $# -lt 7 ]; then
+	print -u2 "\007\007\007ERROR in AddTCBap: only $# args passed:"
+	print -u2 "acctname=$1:encpass=$2:uid=$3:gid=$4:GCOS=$5:UserHome=$6"
+	return 2
+    fi
+    shift 7
+    if [ $# -gt 0 ]; then
+	for group; do
+	    GoodGroup "$group" | read xgroupname xgid
+	    if [ -z "$xgroupname" ]; then
+		print -u2 "Aborting account creation due to bad group."
+		return 1
+	    fi
+	    groups="$groups
+$xgroupname::$xgid:"
+	done
+	groups="$groups
+ENDOFGROUPS::0:"
+    fi
+    aprec="$acctname:x:$uid:$gid:$GCOS:$UserHome:$FullShell
+$acctname:u_name=$acctname:u_id#$uid:u_pwd=$encpass:u_type=general:${Retries}u_lock@:chkent:$groups"
+    print -r "Record to be processed by /tcb/bin/ap:
+$aprec"
+    if isfalse test; then
+	print -r "$aprec" >> $ap_tmp
+    fi
+    return 0
+}
+
+# AddTCB: Add user to password and possibly shadow files
+# Run authck -p -s -y if neccessary
+# Global data used:
+# acctname	user account name
+# encpass	encoded password
+# uid		numeric uid
+# gid		numeric login group id
+# GCOS		comment for GCOS field
+# HOME		home directory
+# SHELL		login shell
+# test		nonzero if no actual actions should be taken
+# notcb		nonzero if authck shouldn't be run.
+#function AddTCB {
+#    typeset shadowline passwdline
+#
+#    unset shadowline
+#    if [ -f /etc/shadow ]; then
+#	shadowline="$acctname:$encpass:::"
+#	encpass=x
+#    fi
+#
+#    passwdline="$acctname:$encpass:$uid:$gid:$GCOS:$HOME:$SHELL"
+#
+#    # Add user to /etc/passwd
+#    print "Adding user \"$acctname\" to /etc/passwd with the following line:"
+#    print -r "$passwdline"
+#    isfalse test && print -r "$passwdline" >> /etc/passwd
+#
+#    # Add user to /etc/shadow
+#    if [ -n "$shadowline" ]; then
+#	print \
+#	"Adding user \"$acctname\" to /etc/shadow with the following line:"
+#	print -r "$shadowline"
+#	isfalse test && print -r "$shadowline" >> /etc/shadow
+#    fi
+#    isfalse test && isfalse notcb && 
+#    [ -x /tcb/bin/authck ] && /tcb/bin/authck -p -s -y
+#}
+
+# Usage: AddToGroups group ...
+# Globals used: test
+#function AddToGroups {
+#    typeset group IFS=,
+#
+#    for group; do
+#	# Add user to /etc/group
+#	print "Adding user \"$acctname\" to group \"$group\" in /etc/group..."
+#	isfalse test && {
+#	Test_group
+#	cp /etc/group /etc/group-
+#	sed "/^$group:/s/\(.*\)/\1,$acctname/" /etc/group- > /etc/group
+#	}
+#    done
+#}
+
+# Add user to system
+# Globals used: Account Mkuser* ADDRESS test uid AccountVars
+# Globals changed: BadAccounts MILind MkuserInitLines UIDsUsed
+# Script is aborted if mkuser files for selected shell cannot be read.
+# 1 is returned if invalid values are given for account params.
+function MakeUser {
+    istrue debug && set -x
+    typeset GCOS Entry OIFS UserHome var
+    typeset $AccountVars
+    typeset MkuserVars="HOME OTHER_GROUPS HOMEMODE MAILMODE PROFMODE SHELL"
+    typeset $MkuserVars ret
+    typeset -i i
+    unset uid
+
+    # Check/modify values in Account
+    if CheckParams; then :; else
+	nGet -n Account acctname acctname
+	BadAccounts="$BadAccounts $acctname"
+	return 1
+    fi
+    for var in $AccountVars; do
+	nGet -n Account $var $var
+	ret=$?
+	if [[ $var != @(phone_num|uid|address) ]] && eval [ -z \"\$$var\" ]
+	then
+	    print -u2 "\007\007\007ERROR in MakeUser: null value for" \
+	    "required parm $var; nGet returned $ret"
+	    return 2
+	fi
+    done
+
+    for var in $MkuserVars; do
+	nGet -n Mkuser $var $var
+    done
+
+    # Set SHELL for given shell.
+    # If HOME is also given, it overrides home set for general accounts.
+    # Other variables may also be set here and override those
+    # set in /etc/default/mkuser etc.
+    # (MIN_SUGGEST_UID, LOGIN_GROUP, HOMEMODE, etc.)
+    # This must come after GetAccountInfo or nset_vars Account "@"
+    # so that $shell will be set.
+    nUnset ShellVars $MkuserVars
+    SetMkuserDef ShellVars /usr/lib/mkuser/$shell/mkuser.defs || return 2
+    for var in $MkuserVars; do
+	nGet -n ShellVars $var $var
+    done
+
+    # Must do this after mkuser.defs is read, since the shell may have
+    # a special min uid, etc.
+    if [ -z "$uid" ]; then
+	uid=$(SetUID $MIN_SUGGEST_UID $UIDsUsed)
+	UIDsUsed="$UIDsUsed $uid"
+	print -u2 "User assigned uid $uid."
+    fi
+    UserHome=$HOME/$acctname
+    [ -n "$phone_num" ] && GCOS="$name,$phone_num" || GCOS=$name
+
+    AddTCBap $acctname "$encpass" $uid $gid "$GCOS" $UserHome $SHELL \
+    $OTHER_GROUPS || return $?
+
+    # Make home directory for user & put shell files in it
+    # mkuser.init usage:
+    # sh mkuser.init user group home homemode mailmode profmode
+    # homemode, mailmode and profmode are the modes to chmod 
+    # user's home dir, mail spool file, and login files to.
+    MkuserInitLines[MILind]=\
+"$shell $acctname $groupname $UserHome $HOMEMODE $MAILMODE $PROFMODE"
+    let MILind+=1
+
+    # print address for address file
+    if [ -n "$address" ]; then 
+	# Address database uses '+' for record separation, and unfortunately
+	# recognizes them anywhere.  So, get rid of all + chars in record.
+	Entry=\
+"$(print -r -- "$name\n$address\n$phone_num\n$acctname@`hostname`\n" |
+	tr -d +)+"
+	OIFS=$IFS
+	IFS="$IFS:"
+	set -- $ADDRESS
+	IFS=$OIFS
+	if istrue DoAddr && isfalse test; then
+	    if [ -n "$1" ]; then
+		print "$Entry" >> $1
+	    elif [ -f $addrdef ]; then
+		print "$Entry" >> $addrdef
+	    else
+		print -u3 "
+Address file entry:
+
+$Entry
+"
+	    fi
+	fi
+    fi
+    return 0
+}
+
+function ProcReq {
+    istrue debug && set -x
+    typeset -i LNum=1
+
+    # Start from scratch for each user
+    nUnset Account $allAccountVars
+    while [ LNum -le NLines ]; do
+	print -r "${Lines[LNum]}"
+	let LNum+=1
+    done | nset_vars Account
+    # Use values in Account to build user
+    # Return MakeUser's return status
+    MakeUser
+}
+
+# Start of main program
+
+# Namespace Account stores account parameters.
+# Normal vars are: acctname, name, shell, password, uid, group, address,
+# phone_num, gid, groupname, encpass
+
+unset ENV
+
+PATH=$PATH:/usr/bin:/bin:/usr/local/admin
+addrdef=/usr/local/public/address
+Name=${0##*/}
+Usage="Usage: $Name [-anht] [-r<retries>] [request-file]"
+
+typeset -i test=0 debug=0 numflags=0 Interactive MILind=0 DoAddr=1
+AccountVars="uid acctname phone_num name gid groupname address shell encpass"
+allAccountVars="$AccountVars group password"
+
+# Read /etc/default/(mkuser or authsh) for default values:
+# HOME HOMEMODE PROFMODE MAILMODE LOGIN_GROUP 
+# MIN_SUGGEST_GID MIN_SUGGEST_UID OTHER_GROUPS
+# Do this before DoFlags so that if help is asked for,
+# the default values of certain params can be included in it.
+SetMkuserDef -d Mkuser /etc/default/mkuser /etc/default/authsh || exit 1
+
+# Used by Help
+nGet Mkuser MIN_SUGGEST_UID MIN_SUGGEST_UID
+# Used by Help and Test_group
+nGet Mkuser LOGIN_GROUP LOGIN_GROUP
+
+# Set this before running DoFlags so that -n can override it.
+[ ! -t 0 ]
+Interactive=$?
+
+DoFlags	"$@"	# interpret command line args
+shift $?
+istrue debug && set -x
+if [ $# -gt 0 ]; then	# filename given on command line?
+    Interactive=0
+    exec < "$1" || exit 1
+fi
+
+# Informational messages are printed to fd 1 (stdout).
+# If error output is a tty or -t is given, 
+# make them go to fd 2 (stderr).
+# Otherwise make them go to /dev/null.
+# fd 3 is set to stdout so that address line can be written to it.
+# fd 2 is not changed; error and interactive message go to it.
+[ -t 2 -o debug -ne 0 ] && exec 3>&1 1>&2 || exec 3>&1 1>/dev/null
+
+mktempfile adduser. || {
+    print -u2 "$Name: could not make temp file.  Exiting."
+    exit 1
+}
+ap_tmp=$mktempfile_ret
+trap 'rm -f $ap_tmp' EXIT
+
+# Store values in Account*
+if ((Interactive)); then
+    # Prompt for vars & sets them.
+    GetAccountInfo
+    # Use values in Account* to build user
+    MakeUser
+    [ $? = 2 ] && exit 1
+else
+    # Non-interactive; set account vars by std input or given filename.
+    typeset -i NLines=0
+
+    # Even raw read removes leading & trailing spaces.
+    # Leading is ok, but not trailing (might be part of a password).
+    # So, add a : to the end of each line, then get rid of it.
+    # After each group of lines that contain an '=', pass record to ProcRec.
+    sed 's/$/:/' "$@" | while read -r line; do
+	if [[ "$line" = *=* ]]; then
+	    let NLines+=1
+	    Lines[NLines]=${line%:}
+	else
+	    if [ NLines -gt 0 ]; then
+		ProcReq
+		[ $? = 2 ] && exit 1
+		NLines=0
+	    fi
+	fi
+    done
+    if [ NLines -gt 0 ]; then
+	ProcReq
+    fi
+fi
+
+if isfalse test && [ -s "$ap_tmp" ]; then
+    /tcb/bin/ap -v -r -f $ap_tmp || {
+      print -u2 "\007\007\007ERROR: ap failed!  Aborting."
+      print -u2 "ap file left in $ap_tmp"
+      trap - EXIT
+      exit 1
+    }
+
+
+    print -u2 "Creating home dirs & sending newuser mail..."
+    # Input is made /dev/null because some mkuser scripts ask questions
+    for line in "${MkuserInitLines[@]}"; do
+	set -- $line
+	shell=$1
+	shift
+	/bin/sh /usr/lib/mkuser/$shell/mkuser.init "$@"
+    done < /dev/null
+fi
+
+[ -n "$BadAccounts" ] && print -u2 "Account creation failed for:$BadAccounts"
+[ -n "$Truncated" ] && print -u2 "Passwords were truncated for:$Truncated"
+
+# The EXIT trap will remove the tmpfile

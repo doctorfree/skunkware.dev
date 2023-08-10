@@ -1,0 +1,308 @@
+#!/bin/ksh
+#
+# INSTALL - Run this to install the Skunkware components on this CD.
+#
+# Written by Ronald Joe Record (rr@sco.com), some snippets contributed by
+# Michael Hopkirk (hops@sco.com)
+#
+# Edit the following setting of MOUNTPT to be wherever you have
+# mounted the SCO Skunkware 98 CD-ROM. By default, i have set it
+# to /mnt. If you mounted the SCO Skunkware 98 CD-ROM on /usr/skunk98,
+# then you would set MOUNTPT=/usr/skunk98
+#
+
+MOUNTPT=/mnt
+
+#
+# ------------------------------------------------------------------
+#
+# In order to easily access many of the installed SCO Skunkware 98
+# components, you may wish to add /usr/local/bin to your PATH and
+# /usr/local/man to your MANPATH. For instance, a Bourne shell user
+# could add the following to their $HOME/.profile :
+# 
+#         PATH=$PATH:/usr/local/bin
+#         MANPATH=$MANPATH:/usr/local/man
+#         export PATH MANPATH
+# 
+# The system administrator can set these on a system-wide basis by
+# modifying the files /etc/default/login and /etc/default/man.
+#
+# ------------------------------------------------------------------
+
+getyn() {
+        ans=
+        while [ "$ans" = "" ]
+        do
+                read ans
+                [ "$ans" = "Y" ] || [ "$ans" = "y" ] && {
+                        ans=Y
+                        break
+                }
+                [ "$ans" = "n" ] || [ "$ans" = "N" ] && {
+                        ans=N
+                        break
+                }
+                ans=
+                echo "\nPlease answer with a Y or N \c"
+        done
+}
+
+AddCompList()
+{
+    PACKAGES="$PACKAGES `grep '.cmpnt$' $MOUNTPT/osr5/CONTENTS | grep $1 | \
+             sed -e 's/.cmpnt$//' -e 's/.*\///' | sort`"
+}
+
+CheckCompName()
+{
+    pkg=$1
+    p=`grep -i $pkg $COMPFILE | head -1`
+    if [ "$pkg" != "$p" ]; then
+        echo -n "No match for '$pkg' - did you mean '$p' ? (y/n) "
+        getyn
+        case $ans in
+        [yY]*) pkg=$p 
+            ;;
+        [nN]*)
+            echo "\nSelect one of the following"
+            PS3='Please enter a number '
+            select i in `grep -i $pkg $COMPFILE`
+            do
+                pkg=$i
+                break
+            done
+            ;;
+        *)  echo "Skipping $pkg ..."
+            ;;
+        esac
+    fi
+    COMPCK="$COMPCK $pkg"
+}
+
+GetPackageList()
+{
+    echo "\nEnter the list of Skunkware 98 components you would like to install"
+    echo "at this time. Enter one or more components per line and terminate"
+    echo "the list by entering an empty component name (press <Enter>)."
+    echo "\nA list of Skunkware 98 component names is available via either"
+    echo "\tnetscape file:$MOUNTPT/osr5/COMPONENTS.html"
+    echo "or"
+    echo "\tpg $MOUNTPT/osr5/COMPONENTS"
+    while echo "\nEnter component name(s) (<Enter> to quit): \c"
+    do
+        read compname
+        [ "$compname" ] || break
+        COMPCK=
+        for j in $compname
+        do
+            CheckCompName $j
+        done
+        PACKAGES="$PACKAGES $COMPCK"
+    done
+}
+
+OpenServer() {
+while [ ! -d $MOUNTPT/opt/K/SKUNK98 ]
+do
+    echo "\nIt appears you have the SCO Skunkware 98 CD-ROM mounted"
+    echo "somewhere other than $MOUNTPT .\n"
+    echo "Please enter the full absolute pathname of the CD-ROM"
+    echo "mount point (e.g. /cdrom, /usr/skunk, ...) : \c"
+    read MOUNTPT
+done
+#
+
+ALL=
+PACKAGES=
+COMPFILE=$MOUNTPT/osr5/COMPONENTS 
+SETS="Install_All_Components Audio/Video_Components Database_Management_Components Development_Tools Editors Emulators File_and_Shell_Utilities Interpreters Java_Classes_and_Applications Mail_and_News_Components Networking_and_Internet_Components Shells System_Administration_Components Text_Processing_Components X11_Graphical_Components Enter_Individual_Components_Manually End_Selection"
+
+echo "\nSelect one or more of the following Skunkware 98 software sets:"
+PS3='Please enter a number (q or Q to exit selection dialogue) '
+select i in $SETS
+do
+    case $REPLY in
+        1) ALL=1
+           break
+           ;;
+        2) AddCompList audio
+	   AddCompList video
+           ;;
+        3) AddCompList db
+           ;;
+        4) AddCompList devtools
+	   AddCompList libraries
+           ;;
+        5) AddCompList editors
+           ;;
+        6) AddCompList emulators
+           ;;
+        7) AddCompList fileutil
+	   AddCompList shellutil
+           ;;
+        8) AddCompList interp
+           ;;
+        9) AddCompList java
+           ;;
+        10) AddCompList mail
+	   AddCompList news
+           ;;
+        11) AddCompList net
+           ;;
+        12) AddCompList shells
+           ;;
+        13) AddCompList sysadmin
+           ;;
+        14) AddCompList textproc
+           ;;
+        15) AddCompList x11
+           ;;
+        16) GetPackageList
+           ;;
+        [qQ]*|17) break
+           ;;
+        *) 
+           ;;
+    esac
+    REPLY=
+done
+# 
+if [ "$ALL" ]
+then
+  custom -p SKUNK98:default -i -m /dev/rcd0
+else
+  if [ "$PACKAGES" ]
+  then
+    for pkg in $PACKAGES
+    do
+        custom -p SKUNK98:default:$pkg -i -n -m /dev/rcd0
+    done
+  else
+    echo "\nWould you like to install all of the SCO Skunkware 98 custom"
+    echo "installable software to your hard disk at this time ? <Y/N> \c"
+
+    getyn
+
+    if [ "$ans" = "Y" ] 
+    then
+        custom -p SKUNK98:default -i -m /dev/rcd0
+    else
+        GetPackageList
+        for pkg in $PACKAGES
+        do
+            custom -p SKUNK98:default:$pkg -i -n -m /dev/rcd0
+        done
+    fi
+  fi
+fi
+}
+
+UnixWare() {
+echo "\nWould you like to install all of the SCO Skunkware 98 pkgadd"
+echo "installable software to your hard disk at this time ? <Y/N> \c"
+
+getyn
+
+while [ ! -d $MOUNTPT/uw2/pkg ]
+do
+        echo "\nIt appears you have the SCO Skunkware 98 CD-ROM mounted"
+        echo "somewhere other than $MOUNTPT .\n"
+        echo "Please enter the full absolute pathname of the CD-ROM"
+        echo "mount point (e.g. /cdrom, /usr/skunk, ...) : \c"
+        read MOUNTPT
+done
+
+if [ "$ans" = "Y" ] 
+then
+	ALL=1
+        for p in $MOUNTPT/uw2/pkg/*.pkg
+        do
+                [ "$p" = "$MOUNTPT/uw2/pkg/Tcl8.pkg" ] && continue
+                [ "$p" = "$MOUNTPT/uw2/pkg/Tk8.pkg" ] && continue
+		[ "$GEM" ] && {
+		    b=`basename $p`
+		    [ -f $MOUNTPT/uw7/pkg/$b ] && continue
+		}
+                /usr/sbin/pkgadd -n -d $p all
+        done
+	[ "$GEM" ] || {
+            echo "Installation of SCO Skunkware 98 packages complete."
+            echo "In addition to these packages, Tcl 8.0b2 and Tk 8.0b2"
+            echo "are also contained on the CD-ROM. To install these, run"
+            echo "the commands :"
+            echo "\t/usr/sbin/pkgadd -d $MOUNTPT/uw2/pkg/Tcl8.pkg"
+            echo "\t/usr/sbin/pkgadd -d $MOUNTPT/uw2/pkg/Tk8.pkg"
+            echo "\nThe installation of these beta versions of Tcl/Tk"
+            echo "will overwrite some of the Tcl 7.6p2 and Tk 4.2p2"
+            echo "header files."
+	}
+else
+        for p in $MOUNTPT/uw2/pkg/*.pkg
+        do
+		[ "$GEM" ] && {
+		    b=`basename $p`
+		    [ -f $MOUNTPT/uw7/pkg/$b ] && continue
+		}
+                echo "Would you like to install $p ? <Y/N> \c"
+                getyn
+                [ "$ans" = "Y" ] && /usr/sbin/pkgadd -n -d $p all
+        done
+fi
+}
+
+Gemini() {
+GEM=1
+#UnixWare
+while [ ! -d $MOUNTPT/uw7/pkg ]
+do
+        echo "\nIt appears you have the SCO Skunkware 98 CD-ROM mounted"
+        echo "somewhere other than $MOUNTPT .\n"
+        echo "Please enter the full absolute pathname of the CD-ROM"
+        echo "mount point (e.g. /cdrom, /usr/skunk, ...) : \c"
+        read MOUNTPT
+done
+
+if [ "$ALL" ] 
+then
+        for p in $MOUNTPT/uw7/pkg/*.pkg
+        do
+                /usr/sbin/pkgadd -n -d $p all
+        done
+        echo "Installation of SCO Skunkware 98 packages complete."
+else
+        for p in $MOUNTPT/uw7/pkg/*.pkg
+        do
+                echo "Would you like to install $p ? <Y/N> \c"
+                getyn
+                [ "$ans" = "Y" ] && /usr/sbin/pkgadd -n -d $p all
+        done
+fi
+}
+
+QueryOS() {
+        if [ -d /usr/sbin ]
+        then
+                GUESS=UnixWare
+                OTHER=OpenServer
+        else
+                GUESS=OpenServer
+                OTHER=UnixWare
+        fi
+        echo "I am uncertain of your operating system type."
+        echo "I think it's SCO $GUESS, is this correct ? <Y/N> \c"
+        getyn
+        if [ "$ans" = "Y" ]
+        then
+                $GUESS
+        else
+                $OTHER
+        fi
+}
+
+case `uname` in
+SCO_SV) OpenServer ;;
+UNIX_SV) UnixWare ;;
+UnixWare) Gemini ;;
+*) QueryOS ;;
+esac

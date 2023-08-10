@@ -1,0 +1,150 @@
+#!/bin/ksh
+# @(#) comptree.ksh 1.2 96/03/01
+# 90/12/13 john h. dubois iii (john@armory.com)
+# 91/06/07 added help message.
+# 91/10/14 renamed from compare_files
+# 92/02/07 added check for whether root dirs are really dirs
+# 93/06/13 added pipes to valid file types
+# 93/06/17 Added -a test before executing l on a file.  Remove diff files.
+# 96/03/01 Cleaned up a bit.
+
+name=${0##*/}
+Usage="Usage: $name [-hv] root1 root2 base < filelist"
+verbose=false
+
+while getopts :hv opt; do
+    case $opt in
+    h)
+	print \
+"$name: compare files from two directory trees.
+$Usage
+$name assumes that files that exist in the two trees are at least of the
+same type.
+root1 is the root of the first directory tree;
+root2 is the root of the second directory tree;
+base is the basename of the output files.
+Each filename read from the standard input is concatenated to the
+two root names and the permissions, owner, group, and contents or
+major/minor number of the resulting files is compared.
+The filename is written to one or more files created by adding a
+suffix to base as follows:
+base.s: Same: ordinary files, directories, and devices that have identical
+        permissions, owner, and group, and identical contents or major/minor
+        number.
+base.d: Different: ordinary files that have different contents.
+base.i: Inode difference: files, directories, or devices that have different
+        permissions, owner, or group, or different major/minor number.
+base.a: Access denied: ordinary files whose contents could not be accessed
+        in one or both of the directory trees.
+base.1: 1st tree only: files that exist only in the first directory tree.
+base.2: 2nd tree only: files that exist only in the second directory tree.
+Options:
+-h: Print this help.
+-v: Print more detailed information to the .i file."
+	exit 0
+	;;
+    v) verbose=true
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?)
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 3 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit 1
+fi
+
+root1="$1"
+root2="$2"
+
+same="$3.s"
+diff="$3.d"
+diffi="$3.i"
+nofile1="$3.2"
+nofile2="$3.1"
+noaccess="$3.a"
+
+rm -f "$same" "$diff" "$diffi" "$nofile1" "$nofile2" "$noaccess"
+
+if [ ! -d "$root1" ]; then
+    print -r -u2 -- "$root1 is not a directory."
+    exit 1
+fi
+
+if [ ! -d "$root2" ]; then
+    print -r -u2 -- "$root2 is not a directory."
+    exit 1
+fi
+
+unset ENV
+
+function ChkFile {
+    if [ -a "$1" ] && set -- $(/bin/l -d -- "$1" 2> /dev/null); then
+	print -r -- "$1" "$3" "$4" "$5" "$5$6"
+	return 0
+    else
+	return 1
+    fi
+}
+
+while read f; do
+    idiff=false
+    file1="$root1/$f"
+    file2="$root2/$f"
+    if ! ChkFile "$file1" | read perms1 owner1 group1 size1 dev1; then
+	print -r -- "$f" >> "$nofile1"
+	continue
+    fi
+    if ! ChkFile "$file2" | read perms2 owner2 group2 size2 dev2; then
+	print -r -- "$f" >> "$nofile2"
+	continue
+    fi
+
+    if [ "$perms1" != "$perms2" -o "$owner1" != "$owner2" -o \
+    "$group1" != "$group2" ]; then
+	$verbose && print -r -n -- \
+	"$perms1 $perms2 $owner1\t$owner2\t$group1\t$group2\t" >> "$diffi"
+	print -r -- "$f" >> "$diffi"
+	idiff=true
+    fi
+
+    if [ -c "$file1" -o -b "$file1" ]; then
+	if ! $idiff; then
+	    if [ "$dev1" != "$dev2" ]; then
+		$verbose && print -r -n -- "$dev1\t$dev2\t" >> "$diffi"
+		print -r -- "$f" >> "$diffi"
+	    else
+		print -r -- "$f" >> "$same"
+	    fi
+	fi
+    elif [ -f "$file1" ]; then
+	cmp -s -- "$file1" "$file2"
+	case $? in
+	    0) $idiff || print -r -- "$f" >> "$same";;
+	    1) print -r -- "$f" >> "$diff";;
+	    2) print -r -- "$f" >> "$noaccess";;
+	    *) print -r "Invalid return code for from cmp: $? (comparing $f)."
+		;;
+	esac
+    elif [ -d "$file1" -o -p "$file1" ]; then
+	$idiff || print -r -- "$f" >> "$same"
+    else
+	print -r "Invalid file type for $file1."
+    fi
+done

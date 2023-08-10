@@ -1,0 +1,169 @@
+#!/bin/ksh
+# @(#) mkdirlist.ksh 2.0 96/01/19
+# 94/10/27 John H. DuBois III (john@armory.com)
+# 94/11/15 Added all options.
+# 94/11/21 Fixed mount option.  Added -u to sort options.
+# 95/09/17 Added a option.
+# 96/01/19 Changed default tmpdir to home dir for safety.
+# 96/04/09 Added x option.
+
+# Output format: 
+# directory-name full-directory-path
+
+lng_name=${0##*/}
+Usage="Usage: $lng_name [-adhm] [-o<output-file>] [directory|filename  ...]"
+Output=$HOME/.dirs
+Mount=-mount
+DoFind=true
+Append=false
+Debug=false
+
+while getopts :ahmdo:x opt; do
+    case $opt in
+    h)
+	echo \
+"$lng_name: make a file of directory names suitable for searching with 'look'.
+The output file contains one line for each directory, with two words on it. 
+The first word is the last directory component; the second is the full path to
+the directory (including the last component).  The output file is sorted. 
+Because the last component is at the start of the line and the lines are
+sorted, the look command can quickly find any directory that begins with a
+given prefix.  A file in this format is used by the 'ucd' change-directory
+Korn shell function.
+$Usage
+If a list of directories is given, 'find' is run on them to find all
+directories below them.  The -mount flag is included (filesystems mounted
+below the named directories will not be searched).  The resulting directory
+list is processed as described above and the output is stored in the output
+file (\"\$HOME/.dirs\" by default; this is where 'ucd' expects to find it).
+If the -d flag is given, the arguments are taken to be files of directory
+lists, one directory name per line (as produced by e.g. 'find / -type d').  If
+-d is given without any command-line arguments, a list of directories is read
+from the standard input.  In either case, the directory lists are processed as
+described above and stored in the output file.  If one of the input files is
+the same as the output file, it will be read correctly before being
+overwritten.
+Other options:
+-a: Append to the output to the output file, if it already exists.
+-h: Print this help.
+-m: Do not give the -mount flag to find.
+-o<output-file>: Store the output in output-file."
+       exit 0
+       ;;
+    a)
+	Append=true
+	;;
+    o)
+	Output=$OPTARG
+	;;
+    m)
+	unset Mount
+	;;
+    d)
+	DoFind=false
+	;;
+    x)
+	Debug=true
+	print -u2 "Debugging is on."
+	;;
+    +?)
+	print -u2 "$lng_name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$lng_name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# In early ksh, false is an alias and so is not run when a shell var is
+# expanded to it; in these versions unalias false returns 0 so can use this as
+# a test to make it a function instead, which *is* run when expanded from var.
+unalias false && function false { return 1; }
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ] && $DoFind; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+NZSize=false
+
+: ${TMP:=$TMPDIR}
+: ${TMP:=$HOME}
+: ${TMP:=/tmp}
+if $DoFind; then
+    # Catch this because find doesn't care.
+    for dir; do
+	if [ ! -d "$dir" ]; then
+	    print -u2 "$lng_name: $dir is not a directory.  Aborting."
+	    exit 1
+	fi
+    done
+    tmpfile=$TMP/#mkdls.$$
+    $Debug && set -x
+    find "$@" -type d $Mount -print > $tmpfile
+    $Debug && set +x
+    set -- $tmpfile
+    [ -s "$tmpfile" ] && NZSize=true
+else
+    for file; do
+	$Debug && print -u2 "Checking $file"
+	if [ ! -a "$file" ]; then
+	    print -u2 "$lng_name: cannot access $file.  Aborting."
+	    exit 1
+	fi
+	# Do this test separately from read because read will fail for
+	# empty file.
+	if [ ! -r "$file" ]; then
+	    print -u2 "$lng_name: cannot read $file.  Aborting."
+	    exit 1
+	fi
+	# This is mainly to make sure that we don't try to reprocess a dir list
+	# that is already in the output format.
+	read a1 a2 < "$file"
+	if [ -n "$a2" ]; then
+	    print -u2 \
+	    "$lng_name: $file is not a plain directory list.  Aborting."
+	    exit 1
+	fi
+	[ -s "$file" ] && NZSize=true
+    done
+fi
+
+# Don't overwrite old output file (if any) if we won't put anything in it.
+$NZSize || {
+    print -u2 "$lng_name: no directory names to process.  Aborting."
+    exit 1
+}
+
+PATH=$PATH:/usr/local/bin	# make sure we can find gawk
+
+$Append && OtherFiles=$Output || OtherFiles=
+
+# Usage gawk because its %c works the way we want
+gawk -F/ '
+BEGIN {
+    for (i = 1; i <= 32; i++)
+	BadPat = BadPat sprintf("%c",i)
+    BadPat = "[" BadPat sprintf("%c",127) "]"
+}
+
+# Ignore any dirs that have control chars or spaces in them.
+# Control chars are liable to muck up prompt if it includes $PWD,
+# spaces will confuse routines that search/use this file.
+$0 !~ BadPat {
+    printf "%s %s\n",$NF,$0
+}
+' "$@" | sort -u -o $Output - $OtherFiles
+
+$DoFind && rm $tmpfile

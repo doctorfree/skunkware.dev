@@ -1,0 +1,199 @@
+#!/bin/ksh
+# @(#) allmail.ksh 2.1 96/11/29
+# 1990 john h. dubois iii (john@armory.com)
+# 93/04/03 read from smallest to largest.
+# 93/07/01 Use ksh sorting to avoid need to invoke sort.
+#          Use command line args & rcfile.
+# 93/11/07 Print names of mailboxes remaining before each mail invokation
+# 93/11/22 Print remaining mailboxes without $MAILDIR
+# 95/08/07 Added t option.
+# 96/02/07 Adding setting of LESS prompt.
+# 96/11/29 Let folders begin with 'From ' in addition to ^A^A^A^A
+#          Added .mushfilter capability
+
+name=${0##*/}
+rcname=.allmail
+rcfile=$HOME/$rcname
+SetPrompt=true
+if [ -f $rcfile ]; then
+    . $rcfile || exit 1
+fi
+[ -z "$MAILDIR" ] && MAILDIR=$HOME/mail
+[ -z "$MAILPROG" ] && MAILPROG="mail -f"
+
+typeset -i notfolders=0 boxnum=0
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+List=false
+
+Usage="Usage: $name [-hnt] [-d<maildir>] [-p<mailprog>] [folder|file ...]"
+
+while getopts d:hnp:t opt; do
+    case $opt in
+    h)
+	echo \
+"$name: read all mail folders.
+$Usage
+$name is used to read a set of mail folders.  It reads initialization
+information from the environment and its rcfile, \$HOME/$rcname.  Folders are
+read in order of their size, smallest first.  Folders that are empty or are
+not mail folders are skipped.  A file is considered a mail folder if the first
+line is either ^A^A^A^A (four control-A characters, as used by mailx) or starts
+with the word 'From'.
+If the mail program being used is \"mush\" and the file \".mushfilter\" exists
+in the invoking user's home directory, mush is told to source that file after
+reading a folder.  This allows filtering commands to be executed on the folder.
+The following variables can be set in the environment or in the rcfile.
+Values in the environment override those in the rcfile.  Options given on
+the command line override the variables.
+MAILPROG: A program to use to read mail instead of the default, \"mail -f\".
+MAILDIR: Where to find mail folders given with relative paths, \$HOME/mail
+by default.
+FOLDERS: The list of folders to read, if none are given on the command line.
+NOTFOLDERS: The folder list is set to be all of the files in MAILDIR that
+are mail folders and are not given in NOTFOLDERS.
+If no folders are given on the command line and neither FOLDERS nor NOTFOLDERS
+is set, the behaviour is as for NOTFOLDERS except that no folders are skipped.
+Options:
+-d<maildir>: <maildir> overrides the value of MAILDIR.
+-h: Print this help.
+-n: The files named on the command line are files that should be skipped,
+    as with NOTFOLDERS.
+-p<mailprog>: <mailprog> overrides the value of MAILPROG.
+-t: Show the files that would be read, but do not read them."
+       exit 0
+       ;;
+    d)
+	MAILDIR=$OPTARG
+	;;
+    n)  notfolders=1
+	;;
+    t)  List=true
+	;;
+    p)
+	MAILPROG=$OPTARG
+	;;
+    +?)
+	echo "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    ?) 
+	echo "Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+[ -z "$MAILDIR" ] && MAILDIR=$HOME/mail
+if cd "$MAILDIR"; then :; else
+    echo "$name: $MAILDIR: no such directory."
+    exit 1
+fi
+
+if isfalse notfolders; then
+    [ $# -eq 0 ] && set -- $FOLDERS
+    if [ $# -eq 0 -a -n "$NOTFOLDERS" ]; then
+	set -- $NOTFOLDERS
+	notfolders=1
+    fi
+fi
+
+if istrue notfolders || [ $# -eq 0 ]; then
+    if istrue notfolders; then
+	OIFS=$IFS
+	IFS=\|
+	set -- "$@"
+	NotPat="@($*)"
+	IFS=$OIFS
+    fi
+    [ -z "$NotPat" ] && NotPat=.
+    FOLDERS=
+    for file in *; do
+	if eval \
+	[[ -f '"$file" && -r "$file" && -s "$file" && "$file"' != "$NotPat" ]];
+	then
+	    read -r < "$file"
+	    if [[ "$REPLY" =  || "$REPLY" = "From "* ]]; then
+		FOLDERS="$FOLDERS $file"
+	    fi
+	fi
+    done
+    set -- $FOLDERS
+fi
+
+
+if [ $# -eq 0 ]; then
+    print "No mail folders found."
+    exit 0
+fi
+
+typeset -Z9 size
+l -d "$@" 2>/dev/null |
+while read line; do
+    set -- $line
+    [ $# -eq 0 ] && continue
+    size=$5
+    shift $(($#-1))
+    file=$1
+    # Make filenames absolute so they'll be found when we cd back to orig dir
+    [[ "$file" != /* ]] && file="$MAILDIR/$file"
+    # Make sort be a list of space-separated size,mailboxname pairs,
+    # with elements of the list separated by newlines
+    sort="$sort
+$size $file"
+done
+
+cd -
+
+# Set IFS to newline-only so pairs will be sorted together
+IFS="
+"
+set -- $sort
+set -s
+
+# Set IFS to space so size & mailboxname can be separated
+IFS=" "
+set -- $*
+
+# Pick out the mailbox names
+while [ $# -gt 0 ]; do
+    Mailboxes[boxnum]=$2
+    let boxnum+=1
+    shift 2
+done
+
+set -- "${Mailboxes[@]}"
+
+if $List; then
+    l -- "$@"
+    exit 0
+fi
+
+# If LESS is not set or does not include prompt, add it.
+if $SetPrompt; then
+    case "$LESS" in
+    "") export LESS='-P(%pB\%)';;
+    *P*) ;;
+    *) export LESS="${LESS}P(%pB\%)";;
+    esac
+fi
+
+[[ "$MAILPROG" = mush* && -f "$HOME/.mushfilter" ]] &&
+filt="-F $HOME/.mushfilter" || filt=
+
+lessP=$LESS
+while [ $# -gt 0 ]; do
+    echo -n "Remaining: "
+    for mailfile; do
+	print -n -- "${mailfile##$MAILDIR/} "
+    done
+    echo ""
+    $SetPrompt && lessP="$LESS [${1##*/}]"
+    LESS=$lessP $MAILPROG "$1" $filt
+    shift
+done

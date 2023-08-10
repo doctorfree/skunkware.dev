@@ -1,0 +1,83 @@
+#!/bin/ksh
+# @(#) newinfo.ksh 1.0 93/04/06
+# 93/04/06 john h. dubois iii (john@armory.com)
+# newinfo: create a new terminfo description and run a program using it
+
+name=${0##*/}
+usage="Usage: $name [-h] [-t<term>] capdef[,capdef...] [program [arg ...]]"
+help="$usage
+capdef is a string of one or more terminfo capability definitions, given
+as they would appear in a terminfo source file, e.g.:  'lines#24,kf0=\E[V,am'
+(the single quotes protect the backslash from stripping by the shell).
+If program is not given, the new terminfo source is left in
+\$HOME/.newinfo/source and the compiled source can be used by setting the
+TERMINFO environment variable to \$HOME/.newinfo.  If program is given,
+it is run using the new description; after the program exits, the terminfo
+data is removed.
+Options:
+-h: Print this help.
+-t<term>: Start with and modify the terminfo description of <term>.
+    The default is to start with and modify the value of the terminfo
+    descrption for \$TERM."
+
+while getopts :ht: opt; do
+    case $opt in
+    h)  echo "$help"
+	exit 0;;
+    t) TERM=$OPTARG;;
+    +?) echo "$name: options should not be preceded by a '+'."; exit 1;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) echo "$name: $OPTARG: bad option.  Use -h for help."; exit 1;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    echo "$usage"
+    exit
+fi
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+typeset -L1 termletter=$TERM
+TERMINFO=${TERMINFO:-/usr/lib/terminfo}
+tmpdir=$HOME/.newinfo
+
+typeset -i dexisted=0 texisted=0
+
+tmpfile=$tmpdir/source
+if [ -d $tmpdir ]; then
+    dexisted=1
+else
+    mkdir $tmpdir
+    [ ! -d $tmpdir/$termletter ] && mkdir $tmpdir/$termletter
+fi
+sourceterm=$tmpdir/$termletter/${TERM}_orig
+if [ -f $sourceterm ]; then
+    texisted=1
+else
+    cp $TERMINFO/$termletter/$TERM $sourceterm
+fi
+
+echo -n "$TERM, $1, use=${TERM}_orig," > $tmpfile
+shift
+
+export TERMINFO=$tmpdir
+tic $tmpfile
+
+if [ $# -gt 0 ]; then
+    "$@"
+    if isfalse dexisted; then
+	rm -rf $tmpdir
+    else
+	isfalse texisted && rm $sourceterm
+    fi
+fi

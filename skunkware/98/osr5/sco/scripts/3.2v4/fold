@@ -1,0 +1,283 @@
+#!/usr/local/bin/gawk -f
+# fold: wrap lines
+# @(#) fold.gawk 1.0 94/03/08
+# 91/05/24 john h. dubois iii (john@armory.com)
+# 92/02/16 added help
+# 94/03/08 Converted to gawk script
+
+# SCO UNIX 3.2v4.2 awk says its record limit is 3000 chars.
+# gawk 2.15 says it has no limits.
+
+BEGIN {
+    Name = "fold"
+    Usage = "Usage: " Name " [-hw] [-<width>] [file ...]"
+    ARGC = Opts(Name,Usage,"hw&>",0)
+    MaxLine = 80 + 0
+    if ("h" in Options) {
+	printf \
+Name ": fold long lines.\n"\
+Usage "\n"\
+Name \
+" inserts newlines as neccessary to make long lines into multiple lines.\n"\
+"Options:\n"\
+"-h: Print this help.\n"\
+"-w: Try to fold at the last word-end before the length limit.\n"\
+"-<width>: Set the folding point to <width> characters.  The default is %s.\n",
+	MaxLine
+	exit(0)
+    }
+    if ("&" in Options)
+	MaxLine = Options["&"] + 0
+    Word = "w" in Options
+}
+
+{
+    if ((len = length($0)) <= MaxLine)
+	print $0
+    else {
+	if (Word) {
+	    NumLines = SplitLine($0,Lines,MaxLine)
+	    for (i = 1; i <= NumLines; i++)
+		print Lines[i]
+	}
+	else
+	    for (Pos = 1; Pos <= len; Pos += MaxLine)
+		print substr($0,Pos,MaxLine)
+    }
+}
+
+# Splits Line into lines with maximum length of MaxLen.
+# If WordChars is non-empty, words are split on characters other than
+# those in the set it describes, if possible.
+# The default for WordChars is:  a-zA-Z0-9_
+# Lines are split on a non-alphanum character if possible.
+# The lines are put into Lines with indices starting with 1.
+# The number of lines put in Lines is returned.
+function SplitLine(Line,Lines,MaxLen,WordChars,
+Len,WordChars,LineNum,MaxLine) {
+    if (WordChars == "")
+	WordChars = "a-zA-Z0-9_"
+    WordChars = "[" WordChars "]"
+    LineNum = 0
+    while (Len = length(Line)) {
+	Lines[++LineNum] = substr(Line,1,MaxLen)
+	if (substr(Line,MaxLen,2) ~ "^" WordChars WordChars) {
+	    MaxLine = Lines[LineNum]
+	    sub(WordChars "*$","",MaxLine)
+	    if (MaxLine != "")
+		Lines[LineNum] = MaxLine
+	}
+	Line = substr(Line,length(Lines[LineNum]) + 1)
+	sub("^ *","",Lines[LineNum])
+    }
+    return LineNum
+}
+
+# WrapLine: insert newlines into string S to convert it into multiple
+# lines of length Len.  A newline is not included at the end.
+# String Indent, which may be null, is prefixed to all lines.
+# It is not included in the calculation of Len; the returned strings
+# will have a maximum length of Len + length(Indent).
+function WrapLine(S,Len,Indent,   NumLines,Lines,LineNum,Fmtd) {
+    NumLines = SplitLine(S,Lines,Len)
+    for (LineNum = 1; LineNum < NumLines; LineNum++)
+	Fmtd = Fmtd Indent Lines[LineNum] "\n"
+    Fmtd = Fmtd Indent Lines[LineNum]
+    return Fmtd
+}
+
+# @(#) ProcArgs 1.2 94/03/08
+# 92/02/29 john h. dubois iii
+# 93/07/18 Added "#" arg type
+# 93/09/26 Don't count -h against MinArgs
+# 94/01/01 Stop scanning at first non-option arg.  Added '>' option type.
+#          Removed meaning of '+' or '-' by itself.
+# 94/03/08 Added & option and *()< option types.
+
+# optlist is a string which contains all of the possible command line options.
+# A character followed by certain characters indicates that the option takes
+# an argument, with type as follows:
+# :	String argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# The only difference the type of argument makes is in the runtime argument
+# error checking that is done.
+
+# The & option is a special case used to get numeric options without the
+# user having to give an option character.  It is shorthand for [-+.0-9].
+# If & is included in optlist and an option string that begins with one of
+# these characters is seen, the value given to "&" will include the first
+# char of the option.  & must be followed by a type character other than ':'.
+# Note that if e.g. &> is given, an option of -.5 will produce an error.
+
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-"
+# or "+" is taken to be a non-option string; like other non-option strings,
+# it stops the scanning of argv and is left in argv[].
+# If an option takes an argument, the argument may either immedately
+# follow it or be given separately.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in options and its value is set to "1".
+# If an option that does take an argument is given,
+# an index with its name is created in options and its value
+# is set to the value of the argument given for it.
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps  left in the indices of argv[].
+# If compress is nonzero, argv[] is packed by moving its elements so that
+# they have contiguous integer indices starting with 0.
+# argv[0] is not examined.
+# An argument of "--" or "++" stops the scanning of argv[].
+# The number of arguments left in argc is returned.
+# If an error occurs, the string OptErr is set to an error message and -1 is
+# returned.
+function ProcArgs(argc,argv,optlist,options,compress,
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos,Err,NumOpt) {
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in optlist of the option being processed.
+# NumOpt is true if a numeric option may be given.
+    ArgsLeft = argc
+    NumOpt = index(optlist,"&")
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	if ((Arg = argv[ArgNum]) !~ /^[-+]./)	# Not an option; quit
+	    break
+	delete argv[ArgNum]
+	ArgsLeft--
+	if ((Arg == "--") || (Arg == "++"))
+	    break
+	ArgLen = length(Arg)
+	for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+	    Option = substr(Arg,ArgInd,1)
+	    if (NumOpt && Option ~ /[-+.0-9]/) {
+		Option = "&"
+		Arg = "&" Arg
+		ArgLen++
+		Pos = NumOpt
+	    }
+	    else if (!(Pos = index(optlist,Option)) || Option == "&") {
+		OptErr = "Invalid option: -" Option
+		return -1
+	    }
+	    # If option takes a value...
+	    if ((ArgType = substr(optlist,Pos + 1,1)) ~ "[:*()#<>]") {
+		if (ArgInd < ArgLen)	# Value is included with option
+		    options[Option] = substr(Arg,ArgInd + 1)
+		else {	# Value is the next arg after option
+		    if (ArgNum < (argc - 1)) {
+			options[Option] = argv[++ArgNum]
+			delete argv[ArgNum]
+			ArgsLeft--
+		    }
+		    else {
+			OptErr = "option requires an argument -- " Option
+			return -1
+		    }
+		}
+		if ((Err = CheckType(ArgType,options[Option],Option)) != "") {
+		    OptErr = Err
+		    return -1
+		}
+		break	# Used up this option
+	    }
+	    else
+		options[Option] = 1
+	}
+    }
+    if (compress != 0)
+	PackArr(argv,ArgsLeft)
+    return ArgsLeft
+}
+
+# :	String argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+function CheckType(ArgType,Value,Option,  Err) {
+    if (ArgType == ":")
+	return ""
+    # A number begins with option + or -, and is followed by a string of
+    # digits or a decimal with digits before it, after it, or both
+    if (Value !~ /^[-+]?([0-9]+|[0-9]+?\.[0-9]+|[0-9]+\.)$/)
+	Err = "must be a number"
+    else if (ArgType ~ "[#<>]" && Value ~ /\./)
+	Err = "may not include a fraction"
+    else if (ArgType ~ "[()<>]" && Value < 0)
+	Err = "may not be negative"
+    else if (ArgType ~ "[)>]" && Value == 0)
+	Err = "must be a positive number"
+    if (Err != "") {
+	if (Option == "&")
+	    Option = Value
+	return "Option -" Option " " Err
+    }
+    else
+	return ""
+}
+
+# Packs Arr to indices starting with 0
+# Num should be the number of elements in Arr
+function PackArr(Arr,Num,  NewInd,OldInd) {
+    NewInd = OldInd = 0
+    for (; Num; Num--) {
+	while (!(OldInd in Arr))
+	    OldInd++
+	if (NewInd != OldInd) {
+	    Arr[NewInd] = Arr[OldInd]
+	    delete Arr[OldInd]
+	}
+	OldInd++
+	NewInd++
+    }
+}
+
+# Opts: Process command line arguments.
+# Opts processes command line arguments using ProcArgs()
+# and checks for errors.  If an error occurs, a message is printed
+# and the program is exited.
+#
+# Input variables:
+# Name is the name of the program, for error messages.
+# Usage is a usage message, for error messages.
+# OptList the option description string, as used by ProcArgs().
+# MinArgs is the minimum number of non-option arguments that this
+# program should have, non including ARGV[0] and +h.
+# If the program does not require any non-option arguments,
+# MinArgs should be omitted or given as 0.
+
+# Global variables:
+# The command line arguments are taken from ARGV[].
+# The arguments that are option specifiers and values are removed from
+# ARGV[], leaving only ARGV[0] and the non-option arguments.
+# The number of elements in ARGV[] should be in ARGC.
+# After processing, ARGC is set to the number of elements left in ARGV[].
+# The option values are put in Options[].
+# On error, Err is set to 1 so it can be checked for in an END block.
+
+# Return value: The number of elements left in ARGV is returned.
+
+function Opts(Name,Usage,OptList,MinArgs,  ArgsLeft) {
+    if (MinArgs == "")
+	MinArgs = 0
+    ArgsLeft = ProcArgs(ARGC,ARGV,OptList,Options,1)
+    if ((ArgsLeft + ("h" in Options)) < (MinArgs+1)) {
+	if (ArgsLeft != -1)
+	    OptErr = "Not enough arguments"
+	print Name ": " OptErr ".  Use -h for help."
+	print Usage
+	Err = 1
+	exit 1
+    }
+    return ArgsLeft
+}

@@ -1,0 +1,381 @@
+#!/bin/ksh
+# @(#) msgs.ksh 1.1 97/06/09
+# 91/09/23 john h. dubois iii (john@armory.com)
+# 91/10/12 added interactive option to go to a particular message
+# 91/11/03 added -n option
+# 92/01/30 added header commands, keep track of firstmsg,
+#	   assorted other improvements
+# 92/01/31 fixed IFS prob by making it local to pager()
+#          added $ to header range options
+# 92/03/02 added test for readability of range file.
+# 92/03/10 added save-message feature
+# 92/07/08 added / to message options
+# 92/09/20 Skip up to From: line
+# 92/09/26 Added -e to egrep line
+# 93/02/02 Check what messages actually exist when -q is given
+# 93/02/04 Allow ranges for most commands
+# 93/02/22 Fixed n to actually skip messages
+# 93/04/01 Added $ command line option
+# 93/04/08 Make / search files in numerical order
+# 93/09/16 Added -s
+# 93/09/21 Added -w & -n
+# 93/12/28 Added -i to egrep args.  
+#          Eliminated trailing space added to search args.
+# 94/05/13 Be annoying if there are old unread messages.
+# 97/06/09 Deal with bad .msgsrc file gracefully.
+
+# This utility operates on a collection of message files in a publicly
+# accessible directory named /usr/spool/msgs.  The message files should be
+# in RFC822 format, with at least a From: and Subject: line in the header.
+# The filenames should be positive integer numbers.
+# In the /usr/spool/msgs directory, there should also be a file named "range".
+# The range file should contain two numbers separated by whitespace, with the
+# numbers being the first and last message numbers.
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+typeset -i firstmsg lastmsg unread=0 highestread neverread lines lastmsgread=0
+typeset -i debug=0
+
+rcfile=$HOME/.msgsrc
+msgdir=/usr/spool/msgs
+name=${0##*/}
+
+function waitexit {
+    if istrue wait; then
+	print -n "Press <return> to exit msgs..."
+	read
+    fi
+    exit 0
+}
+
+# Usage: pager [filename]
+# If no filename is given, pager pages stdin.
+# If a filename is given, it is taken to be a message and the header lines
+# up to, but not including, the From: line are skipped, if possible.
+# If the input is <= $lines lines long, it will paged by $PAGER.
+# Otherwise, it will be printed directly.
+function pager {
+    typeset input msg 
+    typeset -i count=0 infile=$1 FromLine=0
+    typeset IFS=	# Avoid losing leading & trailing space on read
+    if [ $# -eq 0 ]; then
+	while [ count -le lines ] && read input; do
+	    msg="$msg
+$input"
+	    let count+=1
+	done
+	if [ count -gt lines ]; then
+	    (
+	    print -r "$msg"
+	    while read input; do
+		print -r "$input"
+	    done ) | $PAGER
+	else
+	    print -r "$msg"
+	fi
+    else
+	while [ count -le lines ] && read input; do
+	    if isfalse count; then
+		let FromLine+=1
+		if [[ "$input" = From:* ]]; then
+		    msg="$msg
+$input"
+		    count=1
+		fi
+	    else
+		let count+=1
+		msg="$msg
+$input"
+	    fi
+	done < "$infile"
+	if [ count -gt lines ]; then
+	    if [[ $PAGER = *?(more|less|pg) ]]; then
+		$PAGER +$FromLine "$infile"
+	    else
+		$PAGER "$infile"
+	    fi
+	else
+	    print -r "$msg"
+	fi
+    fi
+}
+
+# Usage: headers first-last
+# Prints the headers for messages
+function headers {
+    typeset -i range1 range2
+    typeset msglist range=$1
+
+    cd $msgdir
+    range1=${range%-*}
+    range2=${range#*-}
+    while [ range1 -le range2 ]; do
+	[ -f $range1 ] && msglist="$msglist $range1"
+	let range1+=1
+    done
+    if [ -z "$msglist" ]; then
+	echo "$name: No messages."
+    else
+	# Include /dev/null so that there will always be at least
+	# two files (if there are any at all) so that filenames
+	# (message numbers) will be prepended to Subject lines
+	egrep '^Subject: ' /dev/null $msglist | sed s/:Subject:// | pager
+    fi
+}
+
+function chknums {
+    if [ $# -eq 0 -o $# -eq 1 -a "$1" -gt lastmsg ]; then
+	print -u2 "$name: No message numbers given."
+	return 1
+    else
+	return 0
+    fi
+}
+
+# Usage: action cmd args ranges
+function action {
+    typeset cmd=$1 args=$2 message msglist
+    ret=0
+    shift 2
+
+    case $cmd in
+    d)	chknums "$@" && rm $* && echo "Removed $*.";;
+    n)	;;
+    s)	msglist=$*
+	chknums "$@" || return 1
+	set -- $args
+	case $# in
+	0) echo "$name: No filename given."
+	    return 1;;
+	1)
+	    cd $OPWD
+	    [ -f "$1" ] && act=appended || act=written
+	    (cd $msgdir; cat $msglist) >> $1 &&
+	    echo "Message(s) $msglist $act to file \"$1\"" ||
+	    ret=1
+	    cd $msgdir
+	    return $ret;;
+	*) echo "$name: Too many arguments."
+	    return 1;
+	esac;;
+    x)	exit;;
+    y)	chknums "$@" &&
+	for message; do
+	    pager $message
+	done;;
+    \?) echo \
+"y or <cr>: yes, read the message
+n: no, skip the message
+q: quit
+s <filename>: save the message to file <filename>
+x: exit without updating .msgsrc file
+h: print headers
+/<pattern>: find lines in messages that match <pattern>
+?: print this help
+nnn: read message number nnn"
+        ;;
+    h)  chknums "$@" &&
+	egrep '^Subject: ' /dev/null $* | sed s/:Subject:// | pager
+	;;
+    /*) if [ "$cmd" != / ]; then
+	    [ -n "$args" ] && args="${cmd#/} $args" || args="${cmd#/}"
+	fi
+	shift
+	chknums "$@" || return 1
+	if [ $# -eq 0 ]; then
+	    typeset -i pos=1
+	    typeset pat=
+	    set -A Files
+	    while [ pos -le 5 ]; do
+		pat="$pat[0-9]"
+		set -- $pat
+		[ -r "$1" ] && set -A Files ${Files[*]} $*
+		let pos+=1
+	    done
+	    set -- ${Files[*]}
+	fi
+	egrep -i "$args" /dev/null $* | pager
+	;;
+    *)  echo "$name: Invalid command.";
+        return 1;;
+    esac
+}
+
+[ -f $rcfile -a ! -r $rcfile ] && exit
+if [ ! -r $msgdir/range ]; then
+    print -u2 "$name: Cannot open range file."
+    exit
+fi
+
+read firstmsg lastmsg < $msgdir/range
+
+if [ -f $rcfile ]; then
+    read lastmsgread < $rcfile || {
+	print "Bad last-message-read in your $rcfile file; removing it..."
+	rm -f -- $rcfile
+	neverread=1
+    }
+else
+    neverread=1
+fi 2>/dev/null
+
+[ firstmsg -gt lastmsgread ] && lastmsgread=firstmsg-1
+
+highestread=lastmsgread
+typeset -i wait=0 noquit=0 MsgAge
+
+OPWD=$PWD
+cd $msgdir
+
+for arg; do
+    case "$arg" in
+    -q) 
+	typeset -i curmsg=$lastmsgread+1
+	# Count unread messages
+	let lastmsgread+=1
+	while [ lastmsgread -le lastmsg ]; do
+	    [ -f $msgdir/$lastmsgread ] && let unread+=1
+	    let lastmsgread+=1
+	done
+	case $unread in
+	0) ;;
+	1) echo "There is one new system message.";;
+	*) echo "There are $unread new system messages.";;
+	esac
+	if istrue neverread || [ unread -gt 2 ]; then
+	    # Be annoying if there are old unread messages.
+	    if type stat unixtime > /dev/null; then
+		# Find oldest unread message
+		istrue debug && set -x
+		istrue debug && print $curmsg $lastmsg
+		while [ curmsg -le lastmsg -a ! -r $curmsg ]; do
+		    curmsg=curmsg+1
+		done
+		if [ curmsg -le lastmsg ]; then
+		    MsgAge="($(unixtime)-$(stat -nfm $curmsg))/86400"
+		    [ $MsgAge -gt 60 ] &&
+		    print "\007\007\007It is important to read them."
+		fi
+	    fi
+	    echo 'Type "msgs" to read the system messages.'
+	fi
+	exit $unread;;
+    +([0-9]))
+	lastmsgread=$1-1;;
+    -+([0-9]))
+	lastmsgread=lastmsg$1;;
+    $)
+	lastmsgread=lastmsg-1;;
+    -s)
+	[ lastmsgread -lt lastmsg ] && headers $((lastmsgread+1))-$lastmsg
+	waitexit;;
+    -h)
+	echo \
+"$name: read system messages.
+Usage: $name [-wqnhs] [[-]<num>]
+If a number is given as an argument, msgs will take it to be the first
+message to read.  If the number has a '-' in front of it, msgs will make the
+first message to read be the last system message minus the number given.
+Options:
+-q: Print a message if there are unread system messages.
+    Otherwise exit without printing anything.
+    The exit value is equal to the number of unread system messages.
+-s: Print the subjects of the messages that would be read.
+-h: Print this help.
+-n: Do not quit after printing the last message.
+    This can be used to read messages even if all messages have been read.
+-w: Wait after printing the last message until return is pressed,
+    for use with a windowing environment."
+	waitexit;;
+    -w)
+	wait=1;;
+    -x)
+	debug=1;;
+    -n)
+	noquit=1;;
+    *)
+	echo "$name: $arg: Invalid argument.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+[ -z "$PAGER" ] && PAGER=less
+
+if [ lastmsgread -ge lastmsg ]; then
+    echo "No new messages."
+    isfalse noquit && waitexit
+fi
+
+lines=$(tput lines)-4
+
+typeset -i curmsg=$lastmsgread+1 range1 range2
+
+function isrange {
+[[ "$1" = @(+([0-9])|-+([0-9])|+([0-9])-+([0-9])|+([0-9])-|+([0-9])-\$|\$) ]]
+}
+
+while [ curmsg -le lastmsg ] || istrue noquit; do
+    if [ ! -r $curmsg -a curmsg -le lastmsg ]; then
+	curmsg=curmsg+1
+	continue
+    fi
+    if [ curmsg -le lastmsg ]; then
+	subject=$(egrep '^Subject: ' $curmsg)
+	echo -n "\nMessage #$curmsg\n$subject\nRead [ynqsxh/?]? "
+    else
+	echo -n "\n[qsxh/?]? "
+    fi
+    read line
+    # response format: [cmd] [range ...] [filename]
+    [ -z "$line" ] && line=y
+    set -- $line
+    if isrange $1; then
+	cmd=y
+    else
+	cmd=$1
+	shift
+    fi
+    [ "$cmd" = q ] && break
+    if [ "$cmd" = h -a $# = 0 ]; then
+	[ curmsg -gt lastmsg ] && set -- 1- || set -- $curmsg-
+    fi
+    msglist= range=
+    while isrange $1; do
+	range=$1
+	case $range in
+	+([0-9])) range1=$range range2=$range;;
+	+([0-9])-+([0-9])) range1=${range%-*} range2=${range#*-};;
+	-+([0-9])) range1=curmsg$range range2=lastmsg;;
+	+([0-9])-) range1=${range%-} range2=lastmsg;;
+	+([0-9])-\$) range1=${range%-*} range2=lastmsg;;
+	\$) range1=lastmsg range2=lastmsg;;
+	*) echo "Invalid range: $range."; continue;;
+	esac
+	rangemsgs=
+	while [ range1 -le range2 ]; do
+	    [ -r $range1 ] && rangemsgs="$rangemsgs $range1"
+	    let range1+=1
+	done
+	if [ -z "$rangemsgs" ]; then
+	    echo "No messages in range '$1'."
+	else
+	    msglist="$msglist $rangemsgs"
+	fi
+	shift
+    done
+    [ -z "$range" ] && msglist=$curmsg
+    [ -z "$msglist" ] && continue
+    action "$cmd" "$*" $msglist
+    [[ curmsg -gt highestread ]] && highestread=curmsg
+    if [[ $cmd = [ny] ]]; then
+	set -- $msglist
+	shift $(($#-1))
+	curmsg=$1+1
+    fi
+done
+[ $highestread -gt lastmsg ] && highestread=$lastmsg
+echo $highestread > $rcfile
+waitexit

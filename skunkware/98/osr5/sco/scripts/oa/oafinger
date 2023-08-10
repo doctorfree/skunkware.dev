@@ -1,0 +1,136 @@
+#!/usr/lib/scosh/utilbin/oash
+# (was /usr/lib/oa/utilbin/oash)
+# @(#) oafinger.oash 1.0.1 97/07/17
+# 92/09/09 John H. DuBois III (john@armory.com)
+# 92/09/16 Allow selection of multiple users.
+# 96/01/19 Use home dir as default tmp dir for safety
+# 97/07/17 1.0.1 Search for project files too.  Sort by account name.
+
+OALIB=${OALIB-"/usr/lib/oa"}
+PATH=$OALIB/utilbin:$PATH
+
+# run ourself thru oash 
+oainit 2>/dev/null || exec oash $0
+#. `findfile shell_strs`
+
+: ${TMP:=$TMPDIR}
+: ${TMP:=$HOME}
+: ${TMP:=/tmp}
+FOut=$TMP/#oafing$$o
+FList=$TMP/#oafing$$l
+
+# $* will be:
+# (uuuuuuuu  name )+
+# where:
+# uuuuuuuu is 8 characters: 0 or more spaces followed by 1 or more nonspaces.
+# name is 1-22 characters: no leading or trailing spaces; no runs of more
+# than 1 space.  This allows the username,realname pairs to be recognized:
+# the usernames are the words followed by two spaces, and everything between
+# them are the realnames.
+FingerUsers() {
+    IFS="
+"
+    set -- `awk '
+    BEGIN {
+	# Make sure list starts with space, to make processing easier
+	Items = " " ARGV[1]
+	Len = length(Items)
+	sub(" +$","",Items)	# Get rid of trailing spaces
+	N = U = 1
+	# Iteratively peel real names off of the end of the list
+	# (everthing from the last two-space string in the list to the end of
+	# the list) and then usernames from the end of the list (the username
+	# being the word that precedes the realname).
+
+	# match two spaces followed by any number of word+single-space strings
+	# followed by a word followed by the end of the string.  This will be
+	# the trailing real-name.
+	while (match(substr(Items,1,Len),"  ([^ ]+ )+[^ ]+$")) {
+	    Name = substr(Items,RSTART + 2,RLENGTH - 2)
+	    sub(" +$","",Name)
+	    Names[N++] = Name
+	    Len = RSTART - 1
+	    # Get the username.
+	    match(substr(Items,1,Len)," +[^ ]+$")
+	    User = substr(Items,RSTART,RLENGTH)
+	    sub(" +$","",User)
+	    sub("^ +","",User)
+	    Users[U++] = User
+	    Len = RSTART - 1
+	}
+	while (--N)
+	    print Users[N] "\n" Names[N]
+    }
+    ' "$*"`
+
+    if [ $# -gt 1 ]; then
+	wmopen 2 $WinSz 79 0 0  
+	wmmessage -r "Use arrow keys; <esc> to finish reading"
+    fi
+
+    while [ $# -gt 1 ]; do
+	UserName=$1
+	# Use sed to extract only the first copy of finger file if finger
+	# prints more than one due to user being logged in multiple times
+	finger $UserName |sed -n '1p;1n;/^Login name: /q;p' > $FOut 2>&1
+
+	if test ! -s $FOut; then
+	   echo "No information on user." >> $FOut
+	fi
+	echo c
+
+	wmtitle "$2's Self Description"
+	scan -eEND $FOut
+	shift 2
+    done
+}
+
+[ -z "$LINES" ] && LINES=`tput lines`
+WinSz=$LINES
+#WinSz=`expr $LINES - 1`
+
+echo -n "Searching for finger files..."
+wrefresh
+
+awk -F: '
+!($6 in HomeDirs) {
+    HomeDirs[$6]
+    Plan = $6 "/.plan"
+    Project = $6 "/.project"
+    if ((getline planline < Plan) == 1 || (getline projline < Project) == 1) {
+	sub(",.*","",$5)
+	# Make sure there are no multiple spaces in name since two
+	# spaces are used to distinguish items in PP_ITEM (ewww)
+	gsub("  +"," ",$5)
+	sub("^ +","",$5)
+	sub(" +$","",$5)
+	if ($5 == "")
+	    $5 = $1
+	printf "%8s  %s\n",$1,substr($5,1,22)
+    }
+    close(Plan)
+    close(Project)
+}' /etc/passwd | sort -b +0 -1 > $FList
+
+if [ ! -s $FList ]; then
+    oadeinit
+    echo "No users have plans."
+    rm -f $FList 
+    exit
+fi
+
+wmopen 1 $WinSz 79 0 0
+wmtitle "Select up to 15 Users"
+wmmessage -r \
+"Use arrow keys; <space> selects; <Return> when done selecting; <esc> to quit"
+
+pp -m -f $FList
+while [ -n "$PP_ITEM" ]; do
+    FingerUsers "$PP_ITEM"
+    wmove 1
+    wrefresh 1
+    pp -m -f $FList
+done
+
+rm -f $FList $FOut
+oadeinit

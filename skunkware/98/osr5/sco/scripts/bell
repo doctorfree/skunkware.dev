@@ -1,0 +1,314 @@
+#!/bin/ksh
+# @(#) bell.ksh 1.1 96/02/02
+# 93/03/07 john h. dubois iii (john@armory.com)
+# 93/03/13 Warn if visual is attempted on a non-console tty.
+# 93/04/02 When given visual, make screens switch to other screens on the
+#          same adapter.  When given "visual console", map only screens
+#          that can be opened and are not running line discipline 2 (ev).
+# 93/04/03 Work around need for /dev/stdin
+# 94/10/24 If given list of ttys, only try to map those that are readable.
+# 94/11/06 Added h option.
+# 94/11/17 Added read from /dev/string/cfg
+
+# Sets global Adapters[1..n] to the types of adapters present,
+# from the set (mono cga ega vga).
+# Returns number of adapters found.
+function FindAdapters {
+    typeset Name dev=/dev/string/cfg
+    typeset -i j=0
+    
+    if [ -c $dev -a -r $dev ]; then
+	# This will work under 3.2v4
+	awk '
+BEGIN {
+    A["mono"] A["cga"] A["ega"] A["vga"]
+}
+$1 == "%console" {
+    sub("^unit=","",$5)
+    if ($5 in A)
+	print $5
+}' /dev/string/cfg | while read Name; do
+	    Adapters[j]=$Name
+	    let j+=1
+	done
+    else	
+	# This test will fail if proc has no controlling tty,
+	# due to a silly test in the /dev/adapter driver.
+	for Name in in vga ega cga mono; do
+	    if ( < /dev/$Name ) > /dev/null 2>&1; then
+		Adapters[j]=$Name
+		let j+=1
+	    fi
+	done
+    fi
+    [ j -gt 2 ] &&
+    print -u2 "$name: found $j video adapters; should not be more than two."
+    return $j
+}
+
+# Usage: FindConsTTYTypes ttyname ...
+# MonoTTYs[1..m] and ColorTTYs[1..c] are set to the tty numbers
+# of the mono and color ttys.  
+# ttyType[ttynum] is set to $Mono or $Color for each tty number.
+# The test used is based on only color adapters having the 8x8 font.
+typeset -i ttyType MonoTTYs ColorTTYs
+function FindConsTTYTypes {
+    typeset -i mi=1 ci=1 l w c=0 ttynum
+
+    for tty; do
+	tty=${tty#/dev/}		# Get rid of leading /dev
+	ttynum=${tty##*([!0-9])}	# Get rid of non-numeric part
+	# tr is defined to always delete null chars from the input
+	vidi -d font8x8 < "/dev/$tty" 2>/dev/null | tr | wc -c | read c
+	# c (number of non-null chars emitted by vidi) will be
+	# 0 if the input was a mono adapter
+	if [ c -eq 0 ]; then
+	    MonoTTYs[mi]=ttynum
+	    ttyType[ttynum]=Mono
+	    let mi+=1
+	else
+	    ColorTTYs[ci]=ttynum
+	    ttyType[ttynum]=Color
+	    let ci+=1
+	fi
+	let ttynum+=1
+    done
+}
+
+# Usage:
+# ReplaceBell ttyname sequence [test]
+# ttyname is the console tty to change the bell sequence on.
+# sequence is the sequence to replace the bell with.
+# If sequence is not given, bell mapping is turned off.
+# If a third arg is given, no mapping is done.
+function ReplaceBell {
+
+    typeset tty=/dev/${1#/dev/} tmpfile
+    typeset -i test
+
+    if [ ! -r $tty ]; then
+	echo "Cannot read $tty to get current mapping."
+	return
+    fi
+
+    # Generate tmpfile name if we need one.
+    # If the system has /dev/stdin, we don't.
+    if [ ! -r /dev/stdin -o LeaveFiles -eq 1 ]; then
+	tmpfile=/tmp/bell.$$.${tty#/dev/tty}
+	[ verbose -eq 1 ] && echo "mapchan file name: $tmpfile"
+    else
+	tmpfile=
+    fi
+
+    [ $# -ne 3 ]
+    test=$?
+
+    mapchan $tty | awk '
+    $0 == "output" { 
+	InOutput = 1
+    }
+
+    # If replacement has not been done yet and we are in the output section
+    # and (the old bell mapping or the end of the section) has been found...
+    !Done && InOutput && ($1 ~ "^(0x7|dead|compose|control)$") {
+	if (replacement != "")
+	    map = map "7 " replacement "\n"
+	Done = 1
+	if ($1 == "0x7")  # Replacing bell sequence, so do not print old one
+	    next
+    }
+
+    # Channel previously had no mapping
+    $0 == "null" {
+	if (replacement != "")
+	    map = map "input\noutput\n7 " replacement "\n"
+	Done = 1
+	exit 0
+    }
+
+    {
+	map = map $0 "\n"
+    }
+
+    END {
+	if (!Done) {
+	    # Old map had only input & output sections & no old map for bell
+	    if (InOutput) {
+		if (replacement != "")
+		    map = map "7 " replacement "\n"
+	    }
+	    else {
+		print "Error interpreting map." | "cat 1>&2"
+		exit 1
+	    }
+	}
+#	if (verbose)
+#	    print "mapchan input:\n" map
+	if (!test) {
+	    if (tmpfile == "") {
+		procname = "exec mapchan -f /dev/stdin " tty
+		print map | procname
+	    }
+	    else {
+		print map > tmpfile
+		Cmd =  "mapchan -f " tmpfile " " tty
+		if (LeaveFiles == 0)
+		    Cmd = Cmd "; exec rm " tmpfile
+		system(Cmd)
+	    }
+	}
+    }
+    ' replacement="$2" tty="$tty" test=$test tmpfile=$tmpfile \
+    verbose=$verbose LeaveFiles=$LeaveFiles
+}
+
+# Start of main program
+
+name=${0##*/}
+
+Usage="Usage: $name [-fhvt] [on|off|visual] [console|ttyname ...]"
+typeset -i verbose=0 Color=0 Mono=1 LeaveFiles=0
+
+while getopts fhvt opt; do
+    case $opt in
+    h)
+	echo \
+"$name: Change the effect of receiving a bell character.
+$Usage
+$name modifies the bell mapping on the named tty, or on the current tty if
+no ttyname is given.  tty names may be given with or without a leading
+/dev/.  If console is given, mapping is attempted on all console ttys
+(tty01..tty12).  Use /dev/console to specifically map it.  Mapping cannot
+be done on a tty that is using the event driver.  Any non-bell mapping
+currently in effect on the tty is not changed.
+Options:
+off	turns off the bell by mapping the bell character (^G) to ^A,
+	which does not display anything on most terminals.
+on	turns the bell back on by removing any mapping.
+visual	replaces the console bell with a visual indication by mapping
+	the bell character to a sequence which switches to another
+	tty on the same adapter and back.  If -v is given, the switching
+	actions that are set up are reported.  visual should only be used
+	on console ttys.  
+Note: if \"$name visual console\" is going to be done (mapping bell on all
+console ttys to visual bell) and all 12 console multiscreens exist (NSCRN =
+12), the kernel parameter NEMAP should be increased, since this will result in
+12 distinct maps and the default for NEMAP is 10.
+Options:
+-h: Print this help.
+-t: Test.  Do not perform any mapping.
+-f: Leave mapchan files in place in /tmp/bell.pid.tty
+-v: Set verbose mode.  Show what is being done."
+	exit 0
+	;;
+    f)
+	LeaveFiles=1
+	;;
+    t)
+	test=1
+	;;
+    v)
+	verbose=1
+	;;
+    x)
+	debug=true
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    ?) 
+	print -u2 "Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+cmd=$1
+
+case "$2" in
+console)
+    # Map all console ttys that are readable & are not using the event driver.
+    for tty in /dev/tty[01][0-9]; do
+	( < $tty ) 2>/dev/null && [[ "`stty < $tty`" != *"line = 2"* ]] &&
+	ttys="$ttys $tty"
+    done
+    ;;
+"")	# Map current tty.
+    ttys=$(tty)
+    ;;
+*)	# Map named ttys that are readable
+    shift
+    for tty; do
+	[[ "$tty" != /* ]] && tty="/dev/$tty"
+	( < $tty ) 2>/dev/null && ttys="$ttys $tty"
+    done
+    ;;
+esac
+
+case "$cmd" in
+on)
+    for tty in $ttys; do
+	ReplaceBell $tty
+    done
+    ;;
+off)
+    for tty in $ttys; do
+	ReplaceBell $tty 1
+    done
+    ;;
+visual)
+    # Make the always 2 digits to simplify generation of escape sequences.
+    typeset -Z2 ToName From
+    typeset -i First Last ToNum
+
+    # Only the return value of FindAdapters is currently used.
+    FindAdapters	# Find which types of adapters are present
+    case $? in
+    0)  print -u2 "$name: Warning: no adapters found."
+	exit 1
+	;;
+    1) ;;
+    *) 
+	# If more than one type of adapter present,
+	# need to know which adapter each console tty is on.
+	FindConsTTYTypes $ttys
+	;;
+    esac
+    # Set Last[] and First[] to the last & first ttys of each type, so that
+    # all but the last can switch to the last tty, and the last can switch to
+    # the first.
+    Last[Color]=ColorTTYs[${#ColorTTYs[*]}]
+    Last[Mono]=MonoTTYs[${#MonoTTYs[*]}]
+    First[Color]=ColorTTYs[1]
+    First[Mono]=MonoTTYs[1]
+    for tty in $ttys; do
+	tty=${tty#/dev/}
+	ttynum=${tty##*([!0-9])}
+	if [[ "$ttynum" != [01][0-9] ]]; then
+	    echo "$tty: Not a console tty."
+	    continue
+	fi
+	if [ ttynum -eq Last[ttyType[ttynum]] ]; then
+	    ToNum=First[ttyType[ttynum]]
+	else
+	    ToNum=Last[ttyType[ttynum]]
+	fi
+	ToName=$ToNum
+	[ verbose -eq 1 ] && echo "$tty switches to tty$ToName and back."
+	From=$((ttynum-1))
+	ToName=$((ToName-1))
+	Sequence=\
+"033 '[' '${ToName%?}' '${ToName#?}' 'z' 033 '[' '${From%?}' '${From#?}' 'z'"
+	[ verbose -eq 1 ] && echo "Bell map: $Sequence"
+	ReplaceBell $tty "$Sequence" $test
+    done
+    ;;
+*)
+    print -u2 "$Usage\nUse -h for help."
+    ;;
+esac

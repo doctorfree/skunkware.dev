@@ -1,0 +1,143 @@
+#!/bin/ksh
+# @(#) filt.ksh 2.0 96/11/09
+# 92/10/08 john h. dubois iii (john@armory.com)
+# 96/11/09 Added all options.
+
+# Use ksh because sh "type" doesn't exit nonzero if it fails
+# & ksh has continue <n>
+
+name=${0##*/}
+Usage="Usage: $name [-efhcnv] [-f<file>] <filter> [<file> ...]"
+overwrite=false
+backup=true
+check=true
+eval=
+filesGiven=false
+verbose=false
+
+while getopts eohcnf:v opt; do
+    case $opt in
+    h)
+	print -r -- \
+"$name: filter files.
+Each <file> is passed to <filter> as its standard input.
+Output is written to <file>+.  If the exit value of <filter> is zero,
+the original file is moved <file>- and the output is moved to <file>.
+$Usage
+Options:
+-h: Print this help.
+-v: Be verbose.
+-e: \"eval\" the filter command.  This is neccessary if it contains
+    characters that must be interpreted by the shell, like quoting characters.
+    Example: $name -e \"grep 'foo bar'\" file
+-f<file>: Specify a file to be filtered.  If a filename is given with -f, the
+    remaining (non-option) arguments are all taken to be part of the filter
+    command.  This is an alternative to the -e option for specifying complex
+    filter commands.  Multiple -f arguments may be given.
+-o: Normally $name will skip a file if <file>+ or (if -n is not given) <file>-
+    already exists.  If -f is given, they will be overwritten.
+-c: After a successful filter, instead of moving files, copy them: <file>
+    is copied to <file>-, <file> is overwritten with the contents of <file>+,
+    and then <file>+ is removed.  This preserves the original inode of <file>.
+-n: Do not keep a backup copy of <file> in <file>-."
+	exit 0
+	;;
+    f)
+	set -A files -- "${files[@]}" "$OPTARG"
+	filesGiven=true
+	;;
+    e)
+	eval=eval
+	;;
+    c)
+	overwrite=true
+	;;
+    o)
+	check=false
+	;;
+    n)
+	backup=false
+	;;
+    v)
+	verbose=true
+	;;
+    ?)
+	print -r -u2 "Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 2 ]; then
+    print -r -u2 -- "$Usage
+Use -h for help."
+    exit 1
+fi
+
+if $filesGiven; then
+    set -A filter -- "$@"
+else
+    tm=$1
+    shift
+    set -A files -- "$@"	# some ksh lose positional param when -A used
+    set -A filter -- $tm
+fi
+
+type "${filter[0]}" >/dev/null 2>&1 || {
+    print -ru2 -- "Cannot execute filter command: ${filter[0]}"
+    exit 1
+}
+
+for file in "${files[@]}"; do
+    if $check; then
+	if [ -f "$filt+" ]; then
+	    print -ru2 -- "$filt+ already exists.  $file not processed."
+	    continue
+	fi
+	if $backup && [ -f "$file-" ]; then
+	    print -ru2 -- "$file- already exists.  $file not processed."
+	    continue
+	fi
+    fi
+    if [ ! -r "$file" ]; then
+	print -ru2 -- "$file: cannot read."
+	continue
+    fi
+    $verbose && print -r -- "Filtering $file..."
+    if $eval "${filter[@]}" < "$file" > "$file+"; then
+	if $backup; then
+	    $verbose && print -r -- "Backing up $file..."
+	    $overwrite && cp -- "$file" "$file-" || mv -- "$file" "$file-"
+	    if [ $? -ne 0 ]; then
+		print -ru2 -- \
+	    "Backup of $file to $file- failed; filtered contents left in $file+"
+		exit 1
+	    fi
+	fi
+	if $verbose; then
+	    print -r -- "Old file:"
+	    l -- "$file"
+	    print -r -- "After filtering:"
+	    l -- "$file+"
+	    print -r -- "Replacing contents of $file with filtered contents..."
+	fi
+	$overwrite && cat -- "$file+" > "$file" || mv -- "$file+" "$file"
+	if [ $? -ne 0 ]; then
+	    print -ru2 -- \
+"Move of filtered contents to $file back to $file failed;
+contents of $file may be inconsistent!!"
+	    exit 1
+	fi
+	if $overwrite; then
+	    $verbose && print -r -- "Removing $file+..."
+	    rm -- "$file+"
+	fi
+	print -r -- "$file succesfully filtered."
+    else
+	print -r -- "filter exited nonzero on file $file; $file not touched."
+    fi
+done

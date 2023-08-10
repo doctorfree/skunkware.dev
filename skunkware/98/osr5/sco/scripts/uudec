@@ -1,0 +1,141 @@
+#!/bin/ksh
+# @(#) uudec.ksh 1.2 94/09/20
+# 92/08/04 john@armory.com (John H. DuBois III)
+# 93/11/22 Added help.
+# 94/08/24 added d and p options.
+# 94/09/20 Added stats and n & q options.
+
+name=${0##*/}
+Usage="Usage: $name [-hpn] [-d<dirname>] [file ...]"
+NoPath=false
+Debug=false
+Stats=true
+Quiet=false
+OrigDir=$PWD
+
+while getopts :hpd:xqn opt; do
+    case $opt in
+    h)
+	echo \
+"$name: process uuencoded files.
+$Usage
+If no filenames are given, the input is read for names.  More than one name
+may be given on a line.  Each file is uudecoded individually.
+Options:
+-h: Print this help.
+-p: Do not skip files that have a directory component.
+-d<dirname>: extract files into directory <dirname>.
+-n: Do not print uudecoding success statistics, as is normally done if more
+    than one file is processed.
+-q: Print single-character abbreviations for per-file error messages."
+	exit 0
+	;;
+    p)	NoPath=false;;
+    n)	Stats=false;;
+    q)	Quiet=true;;
+    d)	cd "$OPTARG";;
+    x)	Debug=true;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+DecodeFiles() {
+    for f in "$@"; do
+	$Quiet || print -u2 -n "$f: "
+	[[ "$f" != /* ]] && InFile="$OrigDir/$f" || InFile=$f
+	FoundBegin=false
+	egrep '^(begin |end)' "$InFile" |
+	while read b mode filename; do
+	    if $FoundBegin; then
+		[ "$b" = end ] && break
+	    elif [ "$b" = begin ]; then
+		FoundBegin=true
+		if $NoPath && [[ "$filename" = */* ]]; then
+		    $Quiet && print -nu2 / || print -u2 \
+		    "Output filename '$filename' contains '/'; not written."
+		    ((BadNameCt+=1))
+		    continue 2
+		elif [ -f "$filename" ]; then
+		    $Quiet && print -nu2 x || 
+		    print -u2 "Output file '$filename' exists; not written."
+		    ((FileExistsCt+=1))
+		    continue 2
+		else 
+		    $Debug && print -u2 "Output filename: $filename"
+		fi
+		File=$filename
+	    fi
+	done
+	if $FoundBegin && [ "$b" = end ]; then
+	    if uudecode "$InFile"; then
+		$Quiet && print -nu2 + || print -u2 "Done."
+		((DecodeCt+=1))
+	    else
+		$Quiet && print -nu2 ! || print -u2 "uudecode failed."
+		((FailCt+=1))
+	    fi
+	else
+	    if $FoundBegin; then
+		$Quiet && print -nu2 e || print -u2 "No end line."
+		((NoEndCt+=1))
+	    else
+		$Quiet && print -nu2 b || print -u2 "No begin line."
+		((NoBeginCt+=1))
+	    fi
+	fi
+    done
+}
+
+function Finish {
+    $FinishDone && return
+
+    typeset -i Tot=0
+
+    $Quiet && print -u2 ""
+
+    if $Stats; then
+	set -- "No begin line" "No end line" "File exists" "Bad filename" \
+	Successful "Decode failed"
+	for StatName in $StatNames; do
+	    eval "[ $StatName -gt 0 ] && print \"$1:\t\$$StatName\";
+	    let Tot+=$StatName"
+	    shift
+	done
+	print "Total:\t\t$Tot"
+    fi
+    FinishDone=true
+}
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+StatNames="NoBeginCt NoEndCt FileExistsCt BadNameCt DecodeCt FailCt"
+for StatName in $StatNames; do
+    eval typeset -i $StatName
+done
+
+FinishDone=false
+trap Finish INT
+
+if [ $# -gt 0 ]; then
+    DecodeFiles "$@"
+else
+    while read line; do
+	DecodeFiles $line
+    done
+fi
+
+Finish

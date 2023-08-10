@@ -1,0 +1,69 @@
+#!/bin/ksh
+# @(#) uuenc.ksh 1.0 93/09/18
+# 93/09/18 john h. dubois iii (john@armory.com)
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+name=${0##*/}
+Usage="Usage: $name [-hf] <filename> ..."
+typeset -i force=0
+
+while getopts :hf opt; do
+    case $opt in
+    h)
+	echo \
+"$name: uuencode files.
+$Usage
+For each filename given, $name uuencodes the file, using the final
+component of the file's path as the stored filename in the uuencoded
+archive and, with a .u appended, as the name to store the archive in.
+Example: 
+$name /tmp/foo
+The file /tmp/foo is uuencoded, with \"foo\" stored as the name to uudecode
+the file into, and the output is stored in a file in the current directory
+with the name \"foo.u\".
+Options:
+-f: Normally, if the file the output would be stored in already exists,
+    it is not overwritten and an error message is printed.  If -f (force)
+    is given, it is silently overwritten.
+-h: Print this help."
+	exit 0
+	;;
+    f)
+	force=1
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+for file; do
+    tail=${file##*/}
+    out="$tail.u"
+    if isfalse force && [ -a "$out" ]; then
+	print -u2 "$name: $out: file exists.  Use -f to overwrite."
+    else
+	uuencode $file $tail > $out
+    fi
+done

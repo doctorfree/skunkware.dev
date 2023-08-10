@@ -1,0 +1,219 @@
+#!/bin/ksh
+# @(#) httpmon.ksh 1.1.1 97/07/18
+# 95/04/08 john h. dubois iii (john@armory.com)
+# 95/07/17 Do stty sane in case tty is not already set up.
+# 95/07/30 Added all options, use of default file.
+# 96/02/06 Understand new logfile format.
+# 96/03/06 Use gawk instead of awk.  Some bad requests result in enough fields
+#          in a record to make awk die.
+# 96/03/11 exec monitor procs.
+# 96/03/16 Do not print control characters.
+# 97/07/18 1.1.1 Changed default file & output to standard input & output;
+#          removed default logfile owner.
+
+function mon {
+    # Must open tty separately for reading & writing
+    if [ -n "$MONTTY" ]; then
+	exec < "$MONTTY" > "$MONTTY"
+	stty sane
+	$Debug && print "$name: Testing output to monitor tty $MONTTY"
+    fi
+    if $Debug && [ $# -eq 1 ]; then
+	l -- "$1" >&2
+	print -u2 "Monitoring $1"
+    fi
+    exec tail -f "$@" | exec gawk -v Pat="$SO_PATTERN" -v Debug=$Debug '
+    BEGIN {
+	# Adding " to FS is cheaper than parsing correctly, and this
+	# does not have to be perfect.
+	FS = "[ \t\"]+"
+	Debug = Debug == "true"
+	if (Pat != "") {
+	    cmd = "tput rev"
+	    cmd | getline rev
+	    close(cmd)
+	    cmd = "tput rmso"
+	    cmd | getline unrev
+	    close(cmd)
+	}
+    }
+    NR == 1 {
+	if ($2 ~ /^\[/) {
+	    actF = 7
+	    objF = 8
+	}
+	else {
+	    actF = 6
+	    objF = 7
+	}
+    }
+    {
+	if (Debug)
+	    print "Read: " $0 > "/dev/stderr"
+	if (Pat != "" && $objF ~ Pat) {
+	    printf "%s",rev
+	    DoUnrev = 1
+	}
+	# Print source host, action, and object
+	# Do not print a newline until after unrev
+	printf "%-30s %s %s",NoCtl($1),NoCtl($actF),NoCtl($objF)
+	if (DoUnrev) {
+	    printf "%s\n",unrev
+	    DoUnrev = 0
+	}
+	else
+	    print ""
+    }
+    function NoCtl(S) {
+	gsub(/[^ -~]/,"?",S)
+	return S
+    }
+    '
+}
+
+name=${0##*/}
+Usage=\
+"Usage: $name [-hx] [-t<tty>] [-o<logfile-owner>] [-s<standout-pat>] [logfile]"
+MONTTY=
+LOGFILE=
+LOGOWNER=
+SO_PATTERN=
+defaultFile=/etc/default/httpmon
+Debug=false
+PATH=$PATH:/usr/local/bin	# for gawk
+oTERM=$TERM
+export TERM=
+
+# Build help message here so it will get default var values.
+help="$name: monitor HTTP requests.
+$name monitors an HTTP request logfile.  As records are added to the logfile
+by the HTTP daemon, the remote hostname and HTTP request are printed.
+$Usage
+If [logfile] is not given, the standard input is read.
+Options:
+-h: Print this help.
+-x: Turn on debugging.
+-t<tty>: Send output to <tty> instead of the standard output.
+-y<termtype>: Set the monitor tty terminal type to be <termtype> instead of
+    getting it from the TERM environment variable or, if -t is used, the
+    /etc/ttytype terminal type database.  A terminal type is only needed if a
+    standout pattern is used.
+-o<logfile-owner>: If the logfile does not exist, create it with ownership
+    of <logfile-owner>.  If the logfile-owner is not set, $name will abort
+    if the logfile does not exist.
+-s<standout-pattern>: URLs that match the given pattern will be displayed in
+    standout, if the display is capable of it.  By default, nothing is
+    displayed in standout.
+The logfile, monitor tty, logfile owner, standout pattern, and monitor tty
+terminal type can be set by assigning values to LOGFILE, MONTTY, and LOGOWNER,
+SO_PATTERN, and TERM in the file $defaultFile, in the form e.g.:
+
+SO_PATTERN='^/~(john|spcecdt|pax|zenomt)/'
+MONTTY=/dev/tty10
+LOGFILE=/usr/local/lib/httpd/logs/access_log
+LOGOWNER=spinner
+
+Arguments given on the command line will override values assigned in the
+default file."
+
+[ -f "$defaultFile" ] && . "$defaultFile"
+
+while getopts :hxt:o:s:y: opt; do
+    case $opt in
+    h)
+	echo "$help"
+	exit 0
+	;;
+    x)
+	Debug=true
+	;;
+    o)
+	LOGOWNER=$OPTARG
+	;;
+    t)
+	MONTTY=$OPTARG
+	;;
+    y)
+	TERM=$OPTARG
+	;;
+    s)
+	SO_PATTERN=$OPTARG
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$name: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?)
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+case $# in
+0) 
+    ;;
+1) LOGFILE=$1
+    ;;
+*)
+    print -u2 "$Usage\nUse -h for help."
+    exit 1
+    ;;
+esac
+
+if [ -n "$MONTTY" ]; then
+    MONTTY=${MONTTY##/dev/}
+    if [ -n "$SO_PATTERN" -a -z "$TERM" ]; then
+	set -- $(egrep "[ 	]+$MONTTY[ 	]*\$" /etc/ttytype)
+	TERM=$1
+	if [ -z "$TERM" ]; then
+	    print -u2 \
+"$name: Warning: No termtype for tty $MONTTY found in /etc/ttytype;
+no standout will be used."
+	    unset SO_PATTERN
+	fi
+    fi
+    [[ "$MONTTY" != */* ]] && MONTTY=/dev/$MONTTY
+elif [ -n "$SO_PATTERN" -a -z "$TERM" ]; then
+    if [ -n "$oTERM" ]; then
+	TERM=$oTERM
+    else
+	print -u2 \
+    "$name: Warning: TERM not set and -t not given; no standout will be used."
+	unset SO_PATTERN
+    fi
+fi
+export TERM
+
+$Debug && print -u2 \
+"LOGFILE=$LOGFILE
+LOGOWNER=$LOGOWNER
+MONTTY=$MONTTY
+SO_PATTERN=$SO_PATTERN
+TERM=$TERM"
+
+if [ -n "$LOGFILE" -a ! -a "$LOGFILE" ]; then	# Recreate it if neccessary
+    if [ -n "$LOGOWNER" ]; then
+	$Debug && print -u2 "logfile did not exist; creating it..."
+	touch "$LOGFILE" &&
+	chown "$LOGOWNER" "$LOGFILE" &&
+	chmod a+r "$LOGFILE" || {
+	    print -ru2 -- \
+"$name: Could not create/chown/chmod logfile $LOGFILE; aborting."
+	    exit 1
+	}
+    else
+	print -ru2 -- "$name: logfile $LOGFILE does not exist; aborting."
+	exit 1
+    fi
+fi
+[ -n "$LOGFILE" ] && mon "$LOGFILE" || mon

@@ -1,0 +1,236 @@
+#!/bin/ksh
+# @(#) chfssize.ksh 1.3 95/10/14
+# Note: this program requires the extra utilities 'asc' and 'chr';
+# asc requires gawk 2.15.5 or later.  They should be available here:
+# ftp://ftp.armory.com/pub/scripts/asc
+# ftp://ftp.armory.com/pub/scripts/chr
+# ftp://ftp.armory.com/pub/scobins/gawk (SCO binary)
+# 94/10/15 john h. dubois iii (john@armory.com)
+# 95/08/02 Added 0 option for oldsize, and p option.
+# 95/08/30 Added reporting of division size, and 0 option for newsize
+# 95/10/14 Run fsck -y -ofull for HTFS filesystems.
+
+lngname=${0##*/}
+Usage="Usage: $lngname [-hrpf] <device-name> [<oldsize> <newsize>]"
+NoReduce=true
+Run_fsck=false
+debug=false
+PrintCommand=false
+
+while getopts :hrpfx opt; do
+    case $opt in
+    h)
+	echo \
+"$lngname: change AFS or EAFS filesystem size.
+$lngname increases the size of a filesystem by increasing the value of the
+fsize field in the filesystem superblock.  This should only be done after
+modifying the divvy table to allocate extra space to a filesystem by increasing
+the value of the 'Last Block'.  This is only possible if there is space
+available on the partition after the filesystem.  The size of a filesystem
+should only be increased, not decreased, because there is no facility for
+ensuring that no blocks are used at the end of the filesystem.
+$Usage
+<device-name> is the device the filesystem resides on.  The name of the block
+device should be given, e.g. /dev/u.  If only <device-name> is given, the
+current filesystem size is printed.  <oldsize> and <newsize> are the current
+and desired sizes of the filesystem, in 1K blocks.  <oldsize> must be given as
+a check that the right device and units are being used.  If 0 is given for
+<oldsize>, no check is done.  This avoids the need for the \"asc\" utility, but
+is more dangerous.  If 0 is given for <newsize>, the current division size is
+used.
+This utility only patches the fsize field.  It does not do anything to add
+the newly included blocks to the filesystem.  To do that, you must run
+fsck -s <block-device-name>
+after this program completes succesfully.  NOTE that patching the superblock is
+intrinsically dangerous and should only be done after a level-0 backup of a
+filesystem.  This utility has been tested on EAFS filesystems, and minimally
+tested on HTFS filesystems.  It should also work on AFS filesystems.  It should
+never be used on a mounted filesystem.  To change the size of the root
+filesystem, boot from a boot/root set or another division, or boot with the
+root filesystem mounted read-only (use the ronly boot parameter).  The -p
+option can be used to generate a command to issue when booting from a
+boot/root set.
+Example:
+$lngname /dev/u 1000000 1116000
+Options:
+-h: Print this help.
+-p: Instead of changing the filesystem size, show a simple echo-to-dd command
+    that would change the filesystem size.  This can be used to generate a
+    command that can be used on another system or e.g. when booting in a manner
+    that does not allow this utility to be used directly.  Use of this option
+    changes all error checks to warnings.
+-f: Run 'fsck -s' (for EAFS) or 'fsck -y -ofull' (for HTFS) on the device after
+    changing its size.
+-r: Reduce the size of a filesystem.  Without this option, $lngname will refuse
+    to let the size be made smaller than it currently is.  This option might
+    be used if a filesystem was expanded and then needed to be restored to its
+    original size without it ever having been mounted.  It should NOT be used
+    on an HTFS filesystem except specifically to restore the size of a
+    filesystem that was increased in size with this utility."
+	exit 0
+	;;
+    x)
+	debug=true
+	;;
+    f)
+	Run_fsck=true
+	;;
+    r)
+	NoReduce=false
+	;;
+    p)
+	PrintCommand=true
+	;;
+    +?)
+	print -u2 "$lngname: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$lngname: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?)
+	print -u2 "$lngname: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+$debug && set -x
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -eq 0 -o $# -eq 2 -o $# -gt 3 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+# Usage: GetMajMin device-name ...
+# Prints the major #, minor #, and name of each device, one set per line.
+# or nothing if the path is not a device.  Output lines are not neccessarily in
+# the same order as the parameters.
+# Returns 1 if no names were devices, else 0.
+function GetMajMin {
+# l -gon output looks like this:
+#     1        2   3   4  5
+# br--r-----   1   1, 40 Aug 10 18:26 /dev/root
+    typeset IFS=" ," maj min
+    typeset -i exitVal=1
+
+    l -gon -- "$@" | while read line; do
+	set -- $line
+	[[ $# -lt 8 || "$3" != +([0-9]) || "$4" != +([0-9]) ]] && continue
+	maj=$3
+	min=$4
+	shift 7
+	print -r "$maj $min $*"
+	exitVal=0
+    done
+    return $exitVal
+}
+
+# Usage: DivInfo device-name
+# Prints starting block, ending block, size, major #, minor #, div #, name
+# Returns 0 on success, 1 if the given file was not a device, 2 if it is not
+# on a UNIX partition, 3 if it is the whole partition (not a division),
+# 4 if it is not a divvied device.
+function DivInfo {
+    typeset -i Division maj min divnum start end Part
+    typeset name Device=$1
+
+    GetMajMin "$Device" | read maj min name || return 1
+    Division=min%8
+    Part=min/8%8
+    [ Part -lt 1 -o Part -gt 5 ] && return 2
+    [ Division -eq 7 ] && return 3
+
+    # This assumes we can run divvy on a division and have it operate on the
+    # partition that the division is in.
+    /etc/divvy -P $Division | read divnum start end || return 4
+    print -r "$start $end $((end-start+1)) $maj $min $Division $Device"
+    return 0
+}
+
+function Error {
+    if $PrintCommand; then
+	print -u2 "$lngname: WARNING: $*"
+    else
+	print -u2 "$lngname: FATAL ERROR: $*"
+	exit 1
+    fi
+}
+
+Device=$1
+
+[ ! -b "$Device" ] && Error "$Device: not a block device."
+DivInfo "$Device" | read st en DivSize other ||
+Error "Could not get size of division $Device"
+
+$PrintCommand || set -e		# for extra safety
+
+# Do this if EITHER we must have the information, or the command exists.
+# If we must have the info and the command isn't found, we will exit due to
+# -e being set.
+if [ "$2" != 0 ] || type asc > /dev/null 2>&1; then
+    dd bs=4 iseek=129 count=1 if="$Device" 2>/dev/null | asc -l | read blocks
+fi
+
+if [ $# -ne 3 ]; then
+    print "$lngname: Current size of filesystem on $Device: $blocks blocks."
+    print "$lngname: Current size of division $Device: $DivSize blocks."
+    exit 0
+fi
+
+[ -n "$blocks" ] && print "Old filesystem size: $blocks blocks."
+
+[ 0 != "$2" -a "$blocks" -ne "$2" ] && Error \
+"fs size ($blocks blocks) doesn't match given value ($2 blocks)"
+
+typeset -i NewSize
+if [ 0 = "$3" ]; then
+    NewSize=DivSize
+    print "New filesystem size (division size): $NewSize blocks."
+else
+    NewSize=$3
+    [ -n "$DivSize" -a "$DivSize" -ne NewSize ] &&
+    print \
+    "Note: new filesystem size is not the same as the current division size."
+fi
+
+if [ NewSize -lt "$2" ] && $NoReduce; then
+    Error \
+"New fs size ($NewSize blocks) is smaller than old size ($2 blocks).
+Use the -r option if you really want to reduce the fs size (dangerous)."
+fi
+
+if $PrintCommand; then
+    # Use -r because chr will emit escape codes
+    print -r \
+"Issue the following command to change the size of $Device.
+WARNING: No sanity checks will be done at the time you issue this command!!!
+echo \"$(chr -e -l4 "$NewSize")\" | dd bs=4 count=1 oseek=129 of=$Device"
+
+else
+    chr -l4 "$NewSize" | dd bs=4 count=1 oseek=129 of="$Device" 2>/dev/null
+    if $Run_fsck; then
+	fstype=$(/etc/fstyp $Device)
+	case "$fstype" in
+	EAFS)
+	    fsckCmd="fsck -s $Device"
+	    ;;
+	HTFS)
+	    fsckCmd="fsck -y -ofull $Device"
+	    ;;
+	*)
+	    print -u2 \
+"Filesystem type is '$fstype'; only know what arguments
+to give fsck for EAFS or HTFS filesystems.  fsck not run."
+	    exit 1
+	esac
+	print "Running '$fsckCmd'"
+	$fsckCmd
+    fi
+fi

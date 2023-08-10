@@ -1,0 +1,29 @@
+:
+# fix_newsrc: consolidate ranges in .newsrc
+# @(#) fix_newsrc.sh 1.0 97/04/28
+# 92/08/10 john h. dubois iii (john@armory.com)
+# 92/09/26 Added help.
+
+if [ $# -gt 0 ]; then
+    echo \
+"$0: consolidate message ranges in .newsrc
+Each line in .newsrc is read and the ranges of read messages given on
+the line are replaced with a single range which extends from the first
+message number on the line to the last message number on the line.
+The old .newsrc is moved to .newsrc- and is repaced by the new .newsrc"
+    exit
+fi
+
+cd $HOME
+cp .newsrc .newsrc-
+
+# use gawk for its lack of a line-length limit
+gawk '
+{
+    # Lines without spaces seem to occasionally be put in .newsrc,
+    # so do not depend on them.
+    sub(":.*[-,]",": 1-")
+    sub("!.*[-,]","! 1-")
+    print $0
+}
+' .newsrc- > .newsrc

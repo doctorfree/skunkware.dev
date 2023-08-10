@@ -1,0 +1,31 @@
+:
+# @(#) linerec.sh 1.0 92/02/16
+# 91/09/13 john h. dubois iii (john@armory.com)
+# 91/10/28 changed name to linerec
+# 92/02/16 added help
+
+if [ "$1" = -h ]; then
+    echo \
+"$0: concatenate lines into records.
+Usage: $0 [filename ...]
+$0 reads files consisting of records, concatenates each record
+into a single line, and writes each line onto the standard output.
+Records consist of lines.  A record is continued onto the next line by
+ending it with a \, optionally followed by spaces or tabs.
+The continuatation \, along with any following spaces and tabs,
+is converted into a space in the output."
+    exit 0
+fi
+
+# Read a line.  
+# If the line is continued 
+# (it ends with a \, possibly followed by spaces and tabs),
+# then append the next line of input, replace the \, spaces, tabs, and
+# embedded newline with a space, and branch to the beginning of the
+# script without writing anything.
+# If the line is not continued, the take the default sed action 
+# (write the pattern space, delete it, read the next line, and go to
+# the beginning of the script).
+sed ':a
+/\\[ 	]*$/{N;s/\\[ 	]*\n/ /;b a
+}' "$@"

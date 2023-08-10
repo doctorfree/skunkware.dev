@@ -1,0 +1,30 @@
+#!/usr/bin/awk -f
+# @(#) threaded.awk 1.0 94/02/02
+# 94/02/02 John H. DuBois III
+BEGIN {
+    if (ARGC > 0) {
+	print \
+"threaded: Tell how many articles were threaded on each day covered by the\n"\
+"mthreads log file."
+	exit 0
+    }
+    File = "/usr/lib/news/rn/mt.log"
+    FS = "[+ ]+" 
+    while ((ret = (getline < File)) == 1) {
+	if ($7 != "added")
+	    continue
+	Date = substr($0,1,6)
+	if (Date != LastDate) {
+	    if (Count)
+		printf "%s %5d\n",LastDate,Count
+	    LastDate = Date
+	    Count = 0
+	}
+	Count += $8
+    }
+    if (ret)
+	printf "%s: Error reading file.\n",File | "cat 1>&2"
+    else
+	if (Count)
+	    printf "%s %5d\n",LastDate,Count
+}

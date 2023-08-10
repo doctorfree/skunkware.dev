@@ -1,0 +1,125 @@
+#
+# Makefile for generating the ON-LINE pages
+#
+
+PAGES=devtools.html editors.html relnotes.html shells.html shutils.html \
+	index_web.html winman.html x11.html x11viewers.html textproc.html \
+	fileutil.html interp.html x11apps.html x11games.html \
+	mailnews.html net.html audiovis.html packages_a.html credits.html \
+	links.html index_cd.html sysadmin.html packages_p.html emulators.html
+
+TOPAGES=packages_p.html relnotes.html index_web.html packages_a.html \
+	links.html credits.html index_cd.html
+
+DIRS=sysadmin devtools editors shells shutils \
+	winman x11 x11/viewers x11/apps x11/games textproc \
+	fileutil interp mailnews net audiovis emulators
+
+all: $(PAGES)
+
+install: all
+	( for d in $(DIRS) ; do \
+	  [ -d ../../$$d ] || mkdir ../../$$d ; \
+	  [ -h ../../$$d/gif ] && rm -f ../../$$d/gif ; \
+	  b=`echo $$d | sed -e "s/\///"` ; \
+	  rm -f ../../$$d/index.html ; \
+	  echo "cp $$b.html ../../$$d/index.html" ; \
+	  cp $$b.html ../../$$d/index.html ; \
+	  H=`pwd` ; \
+	  cd ../../$$d ; \
+	  ln -s ../gif gif ; \
+	  cd $$H ; \
+	  done )
+	( for p in $(TOPAGES) ; do \
+	  rm -f ../../$$p ; \
+	  echo "cp $$p ../../$$p" ; \
+	  cp $$p ../../$$p ; \
+	  done )
+	( for g in ../gif/* ; do \
+	  [ -d ../../gif ] || mkdir ../../gif ; \
+	  rm -f ../$$g ; \
+	  echo "cp $$g ../$$g" ; \
+	  cp $$g ../$$g ; \
+	  done )
+	( cd ../.. ; rm -f index.html ; ln -s index_web.html index.html )
+
+clean:
+	rm -f $(PAGES)
+	rm -f *.bak *~ ../src/*~
+
+devtools.html: ../src/devtools.tmpl
+	../util/genskunk -w ../src/devtools devtools packages_a.html emulators
+
+emulators.html: ../src/emulators.tmpl
+	../util/genskunk -w ../src/emulators emulators devtools editors
+
+editors.html: ../src/editors.tmpl
+	../util/genskunk -w ../src/editors editors emulators shells
+
+relnotes.html: ../src/relnotes.tmpl
+	../util/genskunk -w ../src/relnotes relnotes NONE devtools
+
+shells.html: ../src/shells.tmpl
+	../util/genskunk -w ../src/shells shells editors shutils
+
+shutils.html: ../src/shutils.tmpl
+	../util/genskunk -w ../src/shutils shutils shells winman
+
+index_web.html: ../src/sk97home.tmpl
+	@rm -f index_web.html
+	../util/genskunk -w ../src/sk97home sk97home NONE NONE
+	@mv sk97home.html index_web.html
+
+index_cd.html: ../src/sk97home.tmpl
+	@rm -f index_cd.html
+	../util/genskunk cd ../src/sk97home sk97home NONE NONE
+	@mv sk97home.html index_cd.html
+
+winman.html: ../src/winman.tmpl
+	../util/genskunk -w ../src/winman winman shutils x11\/viewers
+
+x11.html: ../src/x11.tmpl
+	../util/genskunk -w ../src/x11 x11 winman textproc
+
+x11viewers.html: ../src/x11viewers.tmpl
+	../util/genskunk -w ../src/x11viewers x11viewers winman textproc
+
+textproc.html: ../src/textproc.tmpl
+	../util/genskunk -w ../src/textproc textproc x11\/viewers fileutil
+
+fileutil.html: ../src/fileutil.tmpl
+	../util/genskunk -w ../src/fileutil fileutil textproc interp
+
+interp.html: ../src/interp.tmpl
+	../util/genskunk -w ../src/interp interp fileutil x11\/apps
+
+x11apps.html: ../src/x11apps.tmpl
+	../util/genskunk -w ../src/x11apps x11apps interp x11\/games
+
+x11games.html: ../src/x11games.tmpl
+	../util/genskunk -w ../src/x11games x11games x11\/apps mailnews
+
+mailnews.html: ../src/mailnews.tmpl
+	../util/genskunk -w ../src/mailnews mailnews x11\/games net
+
+net.html: ../src/net.tmpl
+	../util/genskunk -w ../src/net net x11\/games audiovis
+
+audiovis.html: ../src/audiovis.tmpl
+	../util/genskunk -w ../src/audiovis audiovis net sysadmin
+
+sysadmin.html: ../src/sysadmin.tmpl
+	../util/genskunk -w ../src/sysadmin sysadmin audiovis packages_a.html
+
+packages_a.html: ../src/packages_a.tmpl
+	../util/genskunk -w ../src/packages_a packages_a audiovis devtools
+
+packages_p.html: ../src/packages_p.tmpl
+	../util/genskunk -w ../src/packages_p packages_p audiovis devtools
+
+links.html: ../src/links.tmpl
+	../util/genskunk -w ../src/links links index.html credits.html
+
+credits.html: ../src/credits.tmpl
+	../util/genskunk -w ../src/credits credits packages_a.html devtools
+

@@ -1,0 +1,421 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# @(#) callout.gawk 3.0 93/05/02
+# callout: turn uucico or cu callout on and off
+# 91/03/14 john h. dubois iii
+# 91/04/02 changed method of disabling callout from moving Devices file
+#          to making it unreadable
+# 91/06/11 made uurun report callout status if no args given
+# 92/02/25 changed name to "callout"; controls both cu and uucico callout
+# 92/03/13 Changed to only modify user and group perms on Devices files.
+# 93/05/02 Use Sysfiles; rewrote as awk script; added t option
+
+BEGIN {
+    name = "callout"
+    if ((ARGC = ProcArgs(ARGC,ARGV,"htx:",Options,1)) < 0) {
+	printf "%s: %s\nUse -h for help.\n",name,OptErr
+	exit 1
+    }
+    if ("h" in Options) {
+	printf \
+"Syntax: %s [-ht] [-x<n>] [service-name  [service-name ...]] [on|off]\n"\
+"%s without arguments reports the status of the default services.\n"\
+"The default services are cu, ct, and uucico.\n"\
+"%s on      enables callout on devices by the default services.\n"\
+"%s off    disables callout on devices by the default services.\n"\
+"If service names (typically one of the default services) are given,\n"\
+"actions are restricted to the named services as much as possible.\n"\
+"Service disabling is done by changing the permissions on devices files,\n"\
+"so actions on a service will affect services it shares devices files with.\n"\
+"Device files that do not exist or are not writable by uucp are ignored.\n"\
+"-h prints this help.\n"\
+"-t prints the actions that would be taken but makes no changes.\n"\
+"-x<n> turns on debugging.  Higher values of n give more information.\n",
+name,name,name,name
+	exit 1
+    }
+    if ("x" in Options)
+	debug = Options["x"]
+    for (i = 1; i < ARGC; i++) {
+	arg = ARGV[i]
+	if (arg == "on" || arg == "off")
+	    Change = arg
+	else
+	    Services = Services ":" arg
+    }
+    if (Services == "")
+	Services = "cu:ct:uucico"
+    else
+	Services = substr(Services,2)
+    ReadSysfiles("/usr/lib/uucp/Sysfiles",Sysfiles,"/usr/lib/uucp",Services,
+    AllServices)
+    MakeSet(ServArr,Services,":")
+    for (Service in ServArr)
+	MakeSet(Devices,Sysfiles[Service,"devices"],":")
+    devstat(Devices)
+    if (debug > 1)
+	for (Device in Devices)
+	    if (Devices[Device])
+		printf "%s is readable.\n",Device
+	    else
+		printf "%s is not readable.\n",Device
+    MakeSet(ServEnab,Services,":")
+    ServStat(ServEnab,Sysfiles,Devices)
+    if (Change == "")
+	for (Service in ServArr)
+	    printf "%6s %s\n",Service,ServEnab[Service]
+    else 
+	ChDev(Change,ServArr,ServEnab,Devices,Sysfiles,AllServices)
+}
+
+# Change is "on" or "off" to make devices files readable or not readable.
+# ServArr is the list of services to change device files for.
+# ServEnab tells what the current status for the service is.
+# DevStat gives the devices files to change.
+function ChDev(Change,ServArr,ServEnab,DevStat,Sysfiles,AllServices,
+Service,Dev,Readable,DevList,Ch,Cmd,Inverse,Note) {
+    Inverse["on"] = "off"
+    Inverse["off"] = "on"
+    for (Service in ServArr) {
+	if (Service SUBSEP Change in ServEnab && \
+	!(Service SUBSEP Inverse[Change] in ServEnab)) {
+	    printf "Already %3s %s.\n",Change ":",Service
+	    continue
+	}
+    }
+    Readable = Change == "on"
+    for (Dev in DevStat) {
+	if (DevStat[Dev] == Readable) {
+	    if (debug > 1)
+		printf "%s: no change.\n",Dev
+	}
+	else {
+	    DevList = DevList " " Dev
+	    if (debug > 1)
+		printf "%s: changed.\n",Dev
+	    for (Service in AllServices) {
+		if (!(Service in ServArr) && \
+		Sysfiles[Service,"devices"] ~ "(^|:)" Dev "(:|$)") {
+		    if (!Note) {
+			printf "Note: %s also used by services:",Dev
+			Note = 1
+		    }
+		    printf " " Service
+		}
+	    }
+	    if (Note) {
+		print ""
+		Note = 0
+	    }
+	}
+    }
+    if (debug > 1)
+	printf "changed: %s\n",DevList
+    if (Readable)
+	Ch = "+"
+    else
+	Ch = "-"
+    Cmd = "chmod ug" Ch "r" DevList
+    if ("t" in Options)
+	print "Would do: " Cmd
+    else
+	system(Cmd)
+}
+
+# For each service that is an index of Services,
+# sets Services[service,"on"] if it has readable device files and
+# sets Services[service,"off"] if it has unreadable device files.
+# Also sets Services[service] to "enabled", "disabled", or "partially enabled".
+# Sysfiles gives the devices files used by services.
+# DevStat gives the status of device files.
+# Devices listed in Sysfiles but not in DevStat are ignored.
+function ServStat(Services,Sysfiles,DevStat,  Dev,Service,n,i) {
+    for (Service in Services) {
+	n = split(Sysfiles[Service,"devices"],Dev,":")
+	for (i = 1; i <= n; i++)
+	    if (Dev[i] in DevStat)
+		if (DevStat[Dev[i]])
+		    Services[Service,"on"]
+		else
+		    Services[Service,"off"]
+	if ((Service SUBSEP "on") in Services)
+	    Services[Service] = "enabled"
+	if ((Service SUBSEP "off") in Services)
+	    if (Services[Service] == "enabled")
+		Services[Service] = "partially enabled"
+	    else
+		Services[Service] = "disabled"
+    }
+}
+
+function Union(A,B,Both,  Elem) {
+    for (Elem in A)
+	Both[Elem]
+    for (Elem in B)
+	Both[Elem]
+}
+
+# Returns 1 if Set is empty, 0 if not.
+function IsEmpty(Set,  i) {
+    for (i in Set)
+	return 0
+    return 1
+}
+
+# Usage: devstat(Files)
+# Files is an array with indices giving the names of files to stat.
+# For each file in the array, its value is set to 1 if the file is
+# readable by uucp, 0 if it is not.
+# If the file is not writable by uucp, it is removed from Files.
+# Nonzero is returned if an error occurs.
+function devstat(Files,  Cmd,stats,Device,DevList,ret) {
+    for (Device in Files)
+	DevList = DevList " " Device
+    split("",Files)
+    if (DevList == "")
+	return 0
+    Cmd = "su uucp -c 'for device_file in " DevList \
+    "; do [ ! -w $device_file ] && continue; [ -r $device_file ];" \
+    "echo $device_file $?; done; exit 0'"
+    while ((ret = (Cmd | getline)) == 1)
+	Files[$1] = $2 == 0
+    close(Cmd)
+    return ret
+}
+
+# ReadSysfiles: read & parse Sysfiles.
+# SysFileName should be the name of the sysfiles file,
+# usually /usr/lib/uucp/Sysfiles.
+# It is read and the files assigned to services are put in Sysfiles
+# indexed by service name and file type.
+# The value consists of filenames separated by colons in the same order
+# that they are given in the sysfiles file.
+# If DefDir is given, it is prepended to any non-absolute path names.
+# Usual service names are cu, ct, and uucico.
+# Usual file types are systems, devices, and dialers.
+# Services is a colon-separated list of services.  If it is given, 
+# the default values for systems, devices, and dialers are put in
+# Sysfiles for the service if they are not specified in the sysfiles file.
+# An index is createdin AllServices for every service found.
+# Example: to get the devices files used by cu, use Sysfiles["cu","devices"]
+# If the given sysfile does not exist or cannot be read,
+# the array is left empty and -1 is returned.
+# Otherwise, 0 is returned.
+# Example call:
+# ReadSysfiles("/usr/lib/uucp/Sysfiles",Sysfiles,"/usr/lib/uucp",
+# "cu:ct:uucico",AllServices)
+function ReadSysfiles(SysfileName,Sysfiles,DefDir,Services,AllServices,
+NumServ,ServNames,FileTypes,Service,FileType,
+SysfilesLines,NumLines,Assignments,Assignment,i,j,Ind,Var,Val,Files,NumFiles) {
+    split("",SysfilesLines)
+    if ((NumLines = ReadRecFile(SysfileName,SysfilesLines)) == -1)
+	return -1
+    if (DefDir ~ "[^/]$")
+	DefDir = DefDir "/"
+    for (i = 1; i <= NumLines; i++) {
+	if (debug > 1)
+	    print "sysfiles line: " SysfilesLines[i] | "cat 1>&2"
+	    split(SysfilesLines[i],Assignments,"[ \t]+")
+	split("",VarVal)
+	for (j in Assignments) {
+	    if (debug > 1)
+		print "Assignment: " Assignments[j] | "cat 1>&2"
+	    # More than one assignment for the same file type may be given
+	    # on a line
+	    Var = Val = Assignments[j]
+	    sub("=.*$","",Var)
+	    sub("^[^=]*=","",Val)
+	    if (Var in VarVal)
+		VarVal[Var] = VarVal[Var] ":" Val
+	    else
+		VarVal[Var] = Val
+	}
+	if (!("service" in VarVal)) {
+	    if (debug)
+		print "No service given on Sysfiles line: " Sysfiles[i] | \
+		"cat 1>&2"
+	    continue
+	}
+	# More than one service name may be given
+	split("",ServNames)
+	MakeSet(ServNames,VarVal["service"],":")
+	for (Var in VarVal) {
+	    NumFiles = split(VarVal[Var],Files,":")
+	    for (j = 1; j <= NumFiles; j++) {
+		Val = Files[j]
+		if (Var == "service")
+		    AllServices[Val]
+		else {
+		    if (Val !~ "^/")
+			Val = DefDir Val
+		    for (Service in ServNames) {
+			Ind = Service SUBSEP Var
+			if (Ind in Sysfiles)
+			    Sysfiles[Ind] = Sysfiles[Ind] ":" Val
+			else
+			    Sysfiles[Ind] = Val
+			if (debug > 1)
+			    printf "Sysfiles[%s,%s] = %s\n",
+			    Service,Var,Sysfiles[Ind] | "cat 1>&2"
+		    }
+		}
+	    }
+	}
+    }
+    if (Services != "") {
+	split("",ServNames)
+	MakeSet(ServNames,Services,":")
+	MakeSet(FileTypes,"systems:devices:dialers",":")
+	for (Service in ServNames)
+	    for (FileType in FileTypes) {
+		Ind = Service SUBSEP FileType
+		if (!(Ind in Sysfiles)) {
+		    Sysfiles[Ind] = DefDir toupper(substr(FileType,1,1)) \
+		    substr(FileType,2)
+		    if (debug > 1)
+			printf "Adding default: Sysfiles[%s,%s] = %s\n",
+			Service,FileType,Sysfiles[Ind] | "cat 1>&2"
+		}
+	    }
+    }
+}
+
+# MakeSet: make a set from a list.
+# An index with the name of each element of the list
+# is created in the given array.
+# Input variables: 
+# Elements is a string containing the list of elements.
+# Sep is the character that separates the elements of the list.
+# Output variables:
+# Set is the array.
+function MakeSet(Set,Elements,Sep,  Num,Names) {
+	Num = split(Elements,Names,Sep)
+	for (; Num; Num--)
+		Set[Names[Num]]
+}
+
+# ProcArgs.awk   john h. dubois iii   92/02/29
+# optlist is a string which contains all of the possible command line options.
+# If a character is followed by a colon, 
+# it indicates that that option takes an argument.
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-" or
+# "+" is not taken to be an option string (it is not acted on).
+# If an optoin takes an argument, the argument may either immedately
+# follow it or be given separately.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in options and its value is set to "1".
+# If an option that does take an argument is given,
+# an index with its name is created in options and its value
+# is set to the value of the argument given for it.
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps 
+# left in the indices of argv[].
+# If compress is nonzero, argv[] is packed by moving its elements so that
+# they have contiguous integer indices starting with 0.
+# argv[0] is not examined.
+# An argument of "--" or "++" stops the scanning of argv[].
+# The number of arguments left in argc is returned.
+# If an error occurs,
+# the string OptErr is set to an error message and -1 is returned.
+function ProcArgs(argc,argv,optlist,options,compress,
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos) {
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in optlist of the option being processed.
+    ArgsLeft = argc
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	Arg = argv[ArgNum]
+	if (Arg ~ "^[-+]") {
+	    if ((Arg == "-") || (Arg == "+"))
+		continue
+	    delete argv[ArgNum]
+	    ArgsLeft--
+	    if ((Arg == "--") || (Arg == "++"))
+		break
+	    ArgLen = length(Arg)
+	    for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+		Option = substr(Arg,ArgInd,1)
+		Pos = index(optlist,Option)
+		if (!Pos) {
+		    OptErr = "Invalid option: -" Option
+		    return -1
+		}
+		if (substr(optlist,Pos + 1,1) == ":") {
+		    if (ArgInd < ArgLen) {
+			options[Option] = substr(Arg,ArgInd + 1)
+			ArgInd = ArgLen
+		    }
+		    else {
+			if (ArgNum < (argc - 1)) {
+			    options[Option] = argv[++ArgNum]
+			    delete argv[ArgNum]
+			    ArgsLeft--
+			}
+			else {
+			    OptErr = "Option -" Option " requires an argument."
+			    return -1
+			}
+		    }
+		}
+		else
+		    options[Option] = 1
+	    }
+	}
+    }
+    if (compress != 0)
+	PackArr(argv,ArgsLeft)
+    return ArgsLeft
+}
+
+# Packs Arr to indices starting with 0
+# Num should be the number of elements in Arr
+function PackArr(Arr,Num,  NewInd,OldInd) {
+    NewInd = OldInd = 0
+    for (; Num; Num--) {
+	while (!(OldInd in Arr))
+	    OldInd++
+	if (NewInd != OldInd) {
+	    Arr[NewInd] = Arr[OldInd]
+	    delete Arr[OldInd]
+	}
+	OldInd++
+	NewInd++
+    }
+}
+
+# ReadRecFile: read file File in array Arr[].
+# One logical line is stored in each element of Arr[].
+# The elements of Arr[] have numeric indices starting with 1.
+# A logical line is extended onto another line if it ends with a backslash.
+# The backslash may be followed by whitespace.
+# The backslash and any trailing whitespace are converted into a single
+# space when the physical lines are joined into a logical line.
+# If an error occurs, -1 is returned.
+# Otherwise, the number of logical lines read is returned.
+function ReadRecFile(File,Arr,  result,i,line)
+{
+    i = 1
+    while ((result = (getline line < File)) == 1) {
+	if (!(i in Arr) || (Arr[i] ~ /\\[ \t]*$/)) {
+	    sub(/\\[ \t]*$/," ",Arr[i])
+	    Arr[i] = Arr[i] line
+	}
+	else
+	    Arr[++i] = line
+    }
+    close(File)
+    if (result)
+	return -1
+    else {
+	if (!(i in Arr) && i > 0)
+	    i--
+	return i
+    }
+}
+

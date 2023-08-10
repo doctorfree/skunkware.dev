@@ -1,0 +1,108 @@
+#!/bin/sh
+# *** NOTE!!! ***
+# This is one of three programs you will need to implement advisory quotas.
+# There is also a related utility to actually pare down users' usage.
+# The complete set consists of quota, usage, pareacct, and gawk (quota is
+# written in gawk; it requires gawk to interpret/run it).
+# The URLs to retrieve these are:
+# ftp://ftp.armory.com/pub/admin/quota
+# ftp://ftp.armory.com/pub/admin/usage
+# ftp://ftp.armory.com/pub/admin/pareacct
+# ftp://ftp.armory.com/pub/scobins/gawk (binary for SCO UNIX 3.2v5)
+
+# @(#) usage.sh 2.1 97/04/19
+# 94/03/03 john h. dubois iii (john@armory.com)
+# 94/06/15 Generalized
+# 94/07/10 Do only one 'mount' for all fs
+# 94/07/11 Put date at start of file
+# 95/07/02 Record inodes used
+# 96/03/11 Use gawk to write date as epoch time so that quota can format it.
+# 97/04/19 Make gawk test work right.
+
+# Update usage file for use by quota.
+
+# Usage: fs-device [mountdir fs-device ...]
+MkDB() {
+    quot=/usr/bin/quot
+    Dir=
+    case "$1" in
+    /*) fs="$1";;
+    *) fs="/dev/$1";;	# Add leading /dev if needed.
+    esac
+    shift
+    if [ ! -b "$fs" ]; then
+	echo "$0: $fs does not exist or is not a block device."
+	return 1
+    fi
+    while [ $# -gt 0 ]; do
+	if [ "$fs" = "$2" ]; then
+	    Dir=$1
+	    break
+	fi
+	shift; shift
+    done
+    if [ -z "$Dir" ]; then
+	# Print this only if output is a terminal,
+	# to avoid needless mail from cron.
+	test -t && echo "$0: Filesystem $fs is not mounted."
+	return 1
+    fi
+    file="$Dir/Usage"
+    new=$file+
+    echo "$Date" > $new
+    # Discard error output unless quot fails,
+    # because new quot whines about duplicate UIDs.
+    ErrOut="`$quot $f "$fs" 2>&1 >> $new`" || echo "$ErrOut"
+    # If mv fails, only print an error message if the new file still exists.
+    # If it doesn't, mv failed because cron double-executed this job, creating
+    # a race state; the other job moved it before this one could.
+    mv "$new" "$file" 2>/dev/null || {
+	if [ -f "$new" ]; then
+	    echo "$0: Failed to move '$new' to '$file'"
+	    l "$new" "$file"
+	fi
+    }
+}
+
+if [ "$1" = -h ]; then
+    echo \
+"$0: Build filesystem usage database for the 'quota' program.
+Usage: $0 [-h] filesystem-device ...
+For each filesystem device named, a usage database is written into a
+file named Usage in the directory the filesystem is mounted on.
+This command is typically run from root's crontab at regular intervals.
+Example: $0 /dev/u /dev/v"
+    exit 0
+fi
+
+if [ $# -eq 0 ]; then
+    echo "$0: No device names given.  Use -h for help."
+    exit 1
+fi
+
+Filesystems="$*"
+OIFS=$IFS
+IFS='
+'
+set -- `/etc/mount`
+IFS=$OIFS
+f=-f	# Record inodes used also; comment this out if inode quotas not used
+
+PATH=$PATH:/usr/local/bin
+Date=`(gawk '
+BEGIN {
+    printf "%s (%s)\n",systime(),strftime("%a %b %d %H:%M")
+}
+') 2>/dev/null` || Date=`date '+%a %b %d %H:%M'`
+for fs
+do
+    set -- $fs
+    # This needs to be changed if using xenix 'mount' cmd
+    DevList="$DevList $1 $3"
+done
+
+umask 022	# let everyone read the usage file
+for fs in $Filesystems
+do
+    MkDB "$fs" $DevList
+done

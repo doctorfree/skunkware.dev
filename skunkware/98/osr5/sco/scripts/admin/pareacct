@@ -1,0 +1,266 @@
+#!/bin/ksh
+# @(#) pareacct.ksh 1.1 97/06/29
+# 97/06/22 john h. dubois iii (john@armory.com)
+# 97/06/29 Added pax options.
+# todo: clean up core/temp/versioned files first;
+# todo: allow du -k as alternative to quota
+
+# This utility requires version 1.7 or later of the 'stat' program,
+# available at ftp.armory.com.
+
+### start of doy-date lib
+# 97/06/29 john@armory.com
+typeset -i MStart
+function mstart_setup {
+    if [[ $(( `date +%y` % 4 )) = 0 ]]; then
+	set -A MStart 0 31 60 91 121 152 182 213 244 274 305 335 366
+    else
+	set -A MStart 0 31 59 90 120 151 181 212 243 273 304 334 365
+    fi
+}
+
+function initMonths {
+    set -A mNum2Month "" jan feb mar apr may jun jul aug sep oct nov dec
+}
+
+function month2num {
+    typeset -lL3 month=$1
+    typeset -i i=1
+    [ ${#mNum2Month} -eq 0 ] && initMonths
+    while [ i -le 12 ]; do
+	[ ${mNum2Month[i]} = "$month" ] && return $i
+	let i+=1
+    done
+    return 0
+}
+
+# doy2date day-of-year
+# Returns the day-of-year converted to month & day (separated by a space)
+# in global doy2date
+# assumes conversion is for the current year
+function doy2date {
+    typeset -i M
+    M=$1/32+1
+    [ $1 -gt MStart[M] ] && M=M+1
+    doy2date="$M $(($1 - MStart[M-1]))"
+}
+
+# date2doy month day-of-month
+# Returns the month & day-of-month converted to day-of-year in global date2doy
+# assumes conversion is for the current year
+function date2doy {
+    typeset -i month
+    [[ $1 = +([0-9]) ]] && month=$1 || {
+	month2num "$1" && return 0
+	month=$?
+    }
+    date2doy=$((MStart[month-1] + $2))
+}
+
+# date2days year month day-of-month
+# Returns the number of complete days that passed from 1900 Jan 1 to the start
+# of the given date in global date2days.
+# The month may be given in numeric form (Jan=1) or by name, in which case at
+# least the first 3 characters must be passed (case is ignored).
+# Works from 1901 to 2099.
+# If year < 100, it is assumed to be part of the 1900 century
+typeset -i date2days
+function date2days {
+    typeset -i year=$1 day=$3 leap_days MDays month
+    [ year -ge 100 ] && let year-=1900
+    let leap_days=year/4+1
+    [[ $2 = +([0-9]) ]] && month=$2 || {
+	month2num "$2" && return -1
+	month=$?
+    }
+    [[ month -le 2 && $((year%4)) = 0 ]] && let leap_days-=1
+    [ ${#MDays[*]} -eq 0 ] &&
+    set -A MDays 0 0 31 59 90 120 151 181 212 243 273 304 334 365
+    date2days="year*365+MDays[month]+day-1+leap_days"
+}
+
+# unixdays year month day-of-month
+# Returns the number of complete days that passed from 1970 Jan 1
+# to the start of the given date in global unixdays
+typeset -i unixdays
+function unixdays {
+    date2days "$@"
+    unixdays=date2days-25568
+}
+
+# diffdays year1 month1 day-of-month1 year2 month2 day-of-month2 {
+# prints the number of complete days that passed from date 1 to date 2
+typeset -i diffdays
+function diffdays {
+    date2days $4 $5 $6
+    diffdays=date2days
+    date2days $1 $2 $3
+    diffdays=diffdays-date2days
+}
+
+# Returns the UNIX epoch time in global curtime
+# Depends on SECONDS not being messed with
+# If all date utilities had %s this wouldn't be neccessary...
+typeset -i curtime _shell_start=-1
+function curtime {
+    typeset -i Y m d H M S
+    if [ _shell_start -eq -1 ]; then
+	TZ=0 date '+%Y %m %d %H %M %S' | read Y m d H M S
+	unixdays $Y $m $d
+	curtime="unixdays*86400+H*3600+M*60+S"
+	_shell_start=curtime-SECONDS
+    else
+	curtime=_shell_start+SECONDS
+    fi
+}
+### end of doy-date lib
+
+typeset -i daysold
+function daysold {
+    daysold="(curtime-$1)/86400"
+}
+### start of main program
+
+name=${0##*/}
+Usage=\
+"Usage: $name [-dhpr] [-a<min-age] [-s<min-size>] [-k<reduction>] user ..."
+typeset -i defMinSize=100 reduction=-1 i
+typeset -i minSize=defMinSize
+remove=false
+nodot=true
+unset amtime sd
+byProduct=false
+debug=false
+sort="sort -n"
+
+while getopts a:hs:rk:dpx opt; do
+    case $opt in
+    h)
+	print -r -- \
+"$name: Reduce usage of users to their disk quota by removing large files,
+in order from oldest to newest.  In sorting the files by age, whichever of
+the access and modification time for each file is later (more recent) is used.
+By default, files are listed but not removed.
+$Usage
+Options:
+-d: Do not skip dotfiles (files whose name begins with '.').  By default, these
+    files are not considered candidates for removal.
+-k<reduction>: Set the reduction quota for all users to <reduction> KB.
+    By default, the reduction quota is set to the difference between a user's
+    usage and quota.
+-r: Remove files.
+-s<min-size>: Set the minimum size file to remove, in KB.
+    The default is ${defMinSize} KB.
+-a<min-age>: Set the minimum age a file to be removed, in days.  The default is
+    to remove files all the way to the current time if neccessary.
+-p: Remove files in order of age,filesize product.  For each file, the age
+    (as described above) and filesize are multiplied, and files are removed
+    in order of largest to smallest of this product.  
+-h: Print this help."
+	exit 0
+	;;
+    k)
+	reduction=$OPTARG || exit 1
+	;;
+    d)
+	nodot=false
+	;;
+    s)
+	minSize=$OPTARG || exit 1
+	;;
+    r)
+	remove=true
+	;;
+    a)
+	i=$OPTARG || exit 1	# make sure it's an integer
+	# reduce i by 1 because -xtime +i means > i days
+	let i-=1
+	amtime="-atime +$i -mtime +$i"
+	;;
+    p)
+	byProduct=true
+	typeset -i s_xtime s_size
+	# Make the age-size product be in days*KB, to reduce the chance that
+	# it will be > max_int
+	sort='
+while read s_xtime s_size s_fname; do
+print -r "$(((curtime-s_xtime)/86400*(s_size/1024))):$s_xtime $s_size $s_fname";
+done | sort -rn'
+	;;
+    x)
+	debug=true
+	;;
+    ?)
+	print -r -u2 "Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    print -r -u2 -- "$Usage
+Use -h for help."
+    exit 1
+fi
+
+$remove && xargs rm -f 2>/dev/null |&
+
+curtime	# sets $curtime
+typeset -i size usage quota over total num
+# Don't typeset -i xtime because it may be set to sortkey:time
+for user; do
+    cd ~$user || {
+	print -ru2 -- "Could not change working directory to ~$user"
+	continue
+    }
+    if [ reduction -ne -1 ]; then
+	over=reduction
+    else
+	quota -p $user | read u fs usage quota
+	if [ quota -le 0 -o usage -le 0 ]; then
+	    print -ru2 -- \
+"Bad quota for user $user? -- \"$u $fs $usage $quota\""
+	    continue
+	fi
+	over=usage-quota 
+    fi
+    total=0 num=0
+    if [ over -le 0 ]; then
+	print -ru2 "User $user is not over quota."
+	continue
+    fi
+    # Skip files with embedded whitespace, for simplicity.
+    find . -type f ! -name '*[
+ 	]*' -size +$((minSize*2)) $amtime -print|stat -r -Lysn|eval $sort |
+	while read xtime size filename; do
+	    $debug && $byProduct &&
+	    print "size-age product of $filename: ${xtime%:*}"
+	    $nodot && [[ "$filename" = */.+([!/]) ]] && continue
+	    if $remove; then
+		$remove && print -p "$PWD/$filename"
+		print -r -- "Removing: $filename"
+	    else
+		print -r -- "$filename"
+	    fi
+	    let total+=size/1024 num+=1
+	    if [ total -ge over ]; then
+		print -ru2 -- \
+"Reduction quota of ${over} KB reached for user $user after $num file(s)."
+		break
+	    fi
+	done
+	if [ total -lt over ]; then
+	    print -ru2 -- \
+"Reduction quota of ${over} KB not reached for user $user after $num file(s)."
+	    [ total -gt 0 ] && print -ru2 "Got only ${total} KB."
+	fi
+	if [ "$filename" != "" ]; then
+	    daysold ${xtime#*:}
+	    $byProduct && sd=" (size-age product: ${xtime%:*})"
+	    print -ru2 -- "Most recent file is $daysold days old$sd: $filename"
+	fi
+done

@@ -1,0 +1,269 @@
+#!/bin/ksh
+# @(#) p.ksh 1.2 97/06/26
+# p: page compressed & plain files in the order given 
+# 92/01/23 john h. dubois iii (john@armory.com)
+# 92/02/14 changed incorrect zpack to pcat
+# 92/02/16 added help
+# 92/10/11 search for file.Z and file.z if file not found
+# 92/10/18 pass options to pager
+# 93/11/09 Understand gzipped files too
+#          Wait after printing message about unreadable files
+#          Make less prompt include name of file being uncompressed
+# 95/08/05 Added -<num> option
+# 96/10/27 Make -s required for strings option.  Added m option.
+# 96/12/16 Made options be passed correctly to pager again.
+# 96/12/19 Use LESSOPEN if pager is less
+# 97/06/26 Added v option.
+
+# Usage: PageInput exec filename pager-options
+# Page the standard input.  If filename is non-null and the pager is less,
+# the filename is put in the prompt.  exec should be either null, or the
+# word "exec" to cause the pager to be exec'd.  pager-options are passed to
+# the pager.
+function PageInput {
+    typeset exec=$1 filename=$2 Opts=$3
+
+    # If pager is less, set the prompt to include the name of
+    # the file being uncompressed.  Escape dots in the extension
+    # because less treats . specially in prompts.
+    if [[ "$PAGER" = *less && -n "$filename" ]]; then
+	fsub . "\." "$filename"
+	$exec $PAGER "-P[$fsub_ret] (%pb\\%)" $Opts
+    else
+	$exec $PAGER $Opts
+    fi
+}
+
+# Usage: Page filename pager-options input-file ...
+# No input-file indicates that the standard input should be paged.
+# filename is used to pass a filename (if there is one available) that the
+# standard input is coming from, so that it can be put in a prompt for less.
+# If the global stringsCmd is not null, each input file is run through it.
+# If the global "exec" is set to exec, the pager is exec'ed.  If stringsCmd
+# is set, it is exec'ed for the last file.
+function Page {
+    typeset filename=$1 Opts=$2 file
+
+    shift 2
+
+    if [ $# -eq 0 ]; then	# Page input
+	[ -n "$stringsCmd" ] && 
+	$stringsCmd | PageInput "$exec" "$filename" "$Opts" ||
+	PageInput "$exec" "$filename" "$Opts"
+    elif [ -n "$stringsCmd" ]; then
+	while [ $# -gt 1 ]; do
+	    $stringsCmd < "$1" | PageInput "" "$1" "$Opts"
+	    shift
+	done
+	$stringsCmd < "$1" | PageInput "$exec" "$1" "$Opts"
+    else
+	$exec $PAGER $Opts "$@"
+    fi
+}
+
+# Usage: fsub Old New String
+# Replaces each instance of string Old with string New in string String
+# The result is put in global fsub_ret
+function fsub {
+    typeset Old=$1 New=$2 S=$3
+    fsub_ret=
+    # While the input string contains Old, peel off the part of the string
+    # that comes before the first instance of Old, append it and New
+    # to the output string, and remove the leading Old from the input string.
+    while [ "${S%$Old*}" != "$S" ]; do
+	fsub_ret="$fsub_ret${S%%$Old*}$New"
+	# Get rid of the leading part of the string that contains old
+	S=${S#*$Old}
+done
+    fsub_ret="$fsub_ret$S"	# Prepend the remaining part
+}
+
+# usage: pageComp <compressor>
+# If compressor has changed, page any compressed files that have been stored in
+# comp[]
+# A null argument is used for uncompressed files.
+function pageComp {
+    # Page any compressed files that use any other uncompressor
+    if [ "$1" != "$lastComp" ] && [ ${#comp[@]} -gt 0 ]; then
+	[ -n "$lastComp" ] && export LESSOPEN="|exec $lastComp %s" ||
+	unset LESSOPEN
+	Page "" "$Opts" "${comp[@]}"
+	unset comp[*]
+    fi
+    lastComp=$1
+}
+
+# Globals:
+# Returns match in CheckVer_ret
+# If version is not -1, it is taken to be a file version number.
+function CheckVer {
+    typeset file=$1
+
+    if [ version -eq 0 ]; then
+	# undelete -l seems to list files in order of version, but the man
+	# page doesn't claim that, so use sort to make sure
+	undelete -l "$file" 2>/dev/null|sort -t\; -n +1 | read file || return 1
+    elif [ version -ne -1 ]; then
+	file="$file$vertail"
+    fi
+    if [ -r "$file" ]; then
+	CheckVer_ret=$file
+	return 0
+    fi
+    return 1
+}
+
+### Start of main program
+
+DefPager=/usr/local/bin/less
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+stringsCmd=
+exec=
+Debug=false
+typeset -i version=-1
+
+name=${0##*/}
+Usage="Usage: $name [-hm] [-s<number>] [pager-option ...] [filename ...]"
+
+# Need leading : so getopts will not complain about unknown options.
+while getopts :hms:v: opt; do
+    case $opt in
+    h)
+	print -r -- \
+"$name: page a file.
+$Usage
+Files are paged by the program specified in the user's PAGER
+environment variable, or by $DefPager if PAGER is not set.
+If no filename is given, text to page is read from the standard input.
+If filenames are given, they are either paged directly, or unpacked/
+uncompressed and then paged.  Files are assumed to be in packed, compressed,
+gzipped, hzipped, or bzipped format if the filename ends in .Z, .z, .gz, .hz,
+or .bz respectively.  If a filename that does not end in one of those
+extensions is given and is not found, it is searched for with each of those
+extensions attached.
+Each group of plain files is paged by a single instance of the pager.
+Each compressed file is paged by a separate instance of the pager. 
+Options:
+-h: Print this help.
+-m: Convert carraige returns to newlines.
+-s<number>: Each file is passed through \"strings -a -<number>\".  Each file is
+    paged individually.
+-v<number>: Read version <number> of each file.  This is equivalent to reading
+    the file named filename;<number>.  If 0 is given, the lowest-numbered
+    file version that exists is read.  If there is no versioned copy of the
+    file, an error is produced (-v0 does not extend to the 0th version).
+Any other initial arguments beginning with + or - are taken to be pager options
+and are passed to each instance of the pager.  If a pager option takes a value
+it should be given with the option as a single argument (with no space between
+the option and the value)."
+	exit 0
+	;;
+    m)
+	[ -n "$stringsCmd" ] && stringsCmd="$stringsCmd |"
+	stringsCmd="$stringsCmd tr '\015' '\012'"
+	;;
+    s)
+	[ -n "$stringsCmd" ] && stringsCmd="$stringsCmd |"
+	stringsCmd="$stringsCmd strings -a -$OPTARG"
+	;;
+    v)
+	export SHOWVERSIONS=1
+	version=$OPTARG || exit 1
+	vertail=";$version"
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?)
+	break;	# pager option
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+# Get pager options
+while [[ "$1" = [-+]* ]]; do
+    Opts="$Opts $1"
+    shift
+done
+
+[ -z "$PAGER" ] && PAGER=$DefPager
+
+[[ "$PAGER" = *less ]] && useLO=true || useLO=false
+
+# Read from stdin
+if [ $# = 0 ]; then
+    exec=exec
+    Page "" "$Opts"
+fi
+
+typeset -i filenum=0 badfile=0
+
+# Verify/convert filenames
+for file; do
+    if CheckVer "$file"; then
+	file=$CheckVer_ret
+    elif [[ "$file" != *.@([zZ]|[gbh]z) ]]; then
+	# If file does not already have a compression extension, check whether
+	# user specified a compressed file without giving its extension
+	for ext in Z z gz bz hz; do
+	    if CheckVer "$file.$ext"; then
+		file=$CheckVer_ret
+		break
+	    fi
+	done
+    fi
+    if [ ! -r "$file" ]; then
+	print -u2 -- "$file$vertail: cannot read."
+	badfile=1
+    else
+	files[filenum]=$file
+	let filenum+=1
+    fi
+done
+
+if istrue badfile && [ filenum -gt 0 ]; then
+    print -u2 -n "Press return to continue..."
+    read
+fi
+
+unset plain
+
+# Page files!
+lastComp=
+for file in "${files[@]}"; do
+    # Get name of uncompressor
+    case "$file" in
+    *.@([zZ]|[gbh]z) ) 
+	# one of these is guaranteed to work, due to the pattern test above
+	set -- Z zcat z pcat gz gzcat bz "bzip -dc" hz "hzip -dc"
+	while [ $# -gt 0 ]; do
+	    [[ "$file" = *.* && "${file##*.}" = "$1" ]] && break
+	    shift 2
+	done
+	;;
+    *)	# no compressor
+	set --
+	;;
+    esac
+    # Page any compressed files that use any other uncompressor
+    pageComp "$2"
+    # If an uncompressed file or we're using less (and so can page multiple
+    # compressed files with a single instance of the pager), store filename.
+    # Otherwise, uncompress & page it immediately.
+    if $useLO || [ -z "$2" ]; then
+	comp[${#comp[@]}]=$file
+    else
+	$2 "$file" | Page "$file" "$Opts"
+    fi
+done
+
+# Page any files that haven't been paged yet
+exec=exec
+pageComp "foo"	# to not match any uncompressor

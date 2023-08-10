@@ -1,0 +1,264 @@
+#!/bin/ksh
+# @(#) chkbackup.ksh 2.1 96/06/21
+# 95/05/28 john h. dubois iii (john@armory.com)
+# 95/06/26 Added all options.
+# 96/04/08 Try /dev/nrStp0 in addition to /dev/nrct0.  Added t option.
+# 96/06/16 Added uN options.
+# 96/06/21 Write status to logfile.  Added L option.  Print tape amount info.
+
+# Usage: mkfiles name ...
+# Creates the named files with some attempt at security.
+# This will be more reliable if user do not have chown authority.
+# Any file that contains no / characters is created in the user's tempdir.
+# If TMP was not set, it is set by this function (but not exported).
+# Returns 0 on success; prints a diagnostic message & returns 1 on failure.
+function mkfiles {
+    typeset file files
+    typeset -i i=0
+
+    : ${TMP:=$TMPDIR}
+    : ${TMP:=/tmp}
+    for file; do
+	[[ "$file" != */* ]] && file="$TMP/$file"
+	files[i]=$file
+	let i+=1
+    done
+    set -- "${files[@]}"
+
+    rm -f "$@" || {
+	# hopefully rm will have printed a more specific message.
+	print -r -u2 "Could not remove pre-existing files."
+	return 1
+    }
+    for file; do
+	# Use >> to avoid 0'ing the file in case a symlink was just made from
+	# the filename to something we don't want to truncate
+	>> "$file" || {
+	    print -r -u2 "Could not create temp file $file"
+	    return 1
+	}
+	# These are very suspicious
+	[ -s "$file" ] && {
+	    print -r -u2 "New tempfile is not empty!!!"
+	    return 1
+	}
+	[ -O "$file" ] || {
+	    print -r -u2 "Do not own $file!!!"
+	    return 1
+	}
+    done
+    # Could do some more stuff here, but anyone concerned with security should
+    # have chown authorization off for most users.
+    return 0
+}
+
+# Usage: mktempfile name
+# Creates a tempfile name tempdir/#name$$, and sets the global mktempfile_ret
+# to that name.  tempdir is a temp directory in $TMP, $TMPDIR, or /tmp, and $$
+# is the PID of the current process.
+# name should be 8 characters or less, so that the resulting filename will
+# not be more than 14 characters long (a limit on some machines).
+# Returns 0 on success, prints a diagnostic message & returns 1 on failure.
+function mktempfile {
+    typeset file="#$1$$"
+    mkfiles "$file"
+    mktempfile_ret="$TMP/#$1$$"
+}
+
+function lprint {
+    print -r -- "$*"
+    $log && print -r -- "$*" >> "$logfile"
+}
+
+function Rewind {
+    if $rewind; then
+	print -r "*** Rewinding..."
+	tape rewind $nr_device || {
+	    print -ru2 -- "$longname: Rewind of $nr_device failed.  Exiting."
+	    exit 1
+	}
+    fi
+}
+
+function check {
+    typeset -i status
+
+    let extent+=1
+    lprint "*** `date`  Checking extent $extent"
+    $debug && set -x
+    if [ -n "$Uncompress" ]; then
+	nice -n $nice $Uncompress | nice -$nice "${cmd[@]}"
+    else
+	nice -n $nice "${cmd[@]}"
+    fi < $nr_device >&3
+    status=$?
+    $debug && set +x
+    return $status
+}
+
+nr_device1=/dev/nrct0
+nr_device2=/dev/nrStp0
+nr_device=
+longname=${0##*/}
+rewind=true
+debug=false
+log=true
+defaultCommand="cpio -it -C 65536"
+def_nice=15
+typeset -i nice=$def_nice
+typeset -i maxExtent=0
+Usage=\
+"Usage: $longname [-hLnv] [-e<extents>] [-d<device>] [-u<uncompress-command>]
+       [archive listing command]"
+exec 3>/dev/null	# default dest for file lists
+
+while getopts :hLnN:e:d:vxu: opt; do
+    case $opt in
+    h)
+	print -r -- \
+"$longname: Check tape backups.
+$Usage
+$longname reads all of the file extents (tape sections between filemarks) on a
+tape and passes them through a command to test the archive integrity of each
+backup.  The default command is \"$defaultCommand\".  An alternate command can
+be given at the end of the command line that $longname is invoked with.  It
+will be run for each file extent in turn, with the tape device passed as its
+input and it standard output (which would typically be a listing of the
+archive) discarded so that only errors will be displayed.  The archive listing
+command should not actually extract files onto disk.  The command will be
+repeatedly invoked, either as many times as specified with the -e option (if
+given) or until it exits nonzero, whichever comes first.  If -e is not given,
+the report produced by $longname should give a good status for the number of
+archives stored on the tape, and then one failure when it tries to read beyond
+the end of the last position on the tape that has been written to.  
+For each extent successfully read, a status line and a report of the amount of
+data read from tape is printed.  The same information is written to a logfile
+named /tmp/#chkback.pid, where pid is the process ID of the program.  To get
+the tape amount information, the tape control device is used.  The name of the
+control device is determined by replacing everything up through a leading 'r'
+in the trailing component of the device name with 'x'.  For example, the
+control device for /dev/nrStp0 would be /dev/xStp0.
+Options:
+-h: Print this help.
+-n: Do not rewind the tape device before or after checking the backups.
+-e<extents>: Check only the number of extents specified.
+-d<device>: Use <device> instead of the default of $nr_device1 or (if it does
+    not exist) $nr_device2.  <device> should be a no-rewind device.
+-L: Do not create or write to the logfile.
+-N<nice-increment>: Use <nice-increment> when running uncompressing and archive
+    listing commands.  The default is $def_nice.
+-u<uncompress-command>: Pass the archive data through <uncompress-command>
+    before giving it to the archiving listing command.  This could also be done
+    by making the uncompress-command part of the archive listing command.
+    However, if the default archive listing command is correct, using -u avoids
+    the need to give the archive listing command explicitly.
+-v: Verbose.  Print files found."
+	exit 0
+	;;
+    N)
+	nice=$OPTARG || exit 1
+	;;
+    n)
+	rewind=false
+	;;
+    d)
+	nr_device=$OPTARG
+	[[ "$nr_device" != */* ]] && nr_device=/dev/$nr_device
+	;;
+    e)
+	maxExtent=$OPTARG || {
+	    print -ru2 -- "$longname: Bad number given with -e.  Exiting."
+	    exit 1
+	}
+	;;
+    u)
+	Uncompress=$OPTARG
+	;;
+    L)
+	log=false;;
+    v)
+	exec 3>&1
+	;;
+    x)
+	debug=true
+	;;
+    +?)
+	print -ru2 -- "$longname: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$longname: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?) 
+	print -ru2 -- "$longname: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    set -A cmd $defaultCommand
+else
+    set -A cmd "$@"
+fi
+
+# Find which device to use
+if [ -z "$nr_device" ]; then
+    if [ -c $nr_device1 ]; then
+	nr_device=$nr_device1
+    elif [ -c $nr_device2 ]; then
+	nr_device=$nr_device2
+    else
+	print -ru2 -- \
+    "$longname: Neither $nr_device1 nor $nr_device2 exists.  Exiting."
+	exit 1
+    fi
+elif [ ! -c "$nr_device" ]; then
+    print -ru2 -- \
+    "$longname: $nr_device does not exist or is not a tape device.  Exiting."
+    exit 1
+fi
+
+tail=${nr_device##*/}
+xdev="${nr_device%/*}/x${tail#*r}"
+if [ ! -c "$xdev" ]; then
+    print -ru2 -- \
+    "$longname: Cannot access control device $xdev; skipping tape amounts."
+    unset xdev
+fi
+
+if $debug; then
+    if [ -n "$xdev" ]; then
+	print -ru2 "Using device $nr_device and control device $xdev"
+    else
+	print -ru2 "Using device $nr_device"
+    fi
+fi
+
+typeset -i extent=0
+
+Rewind
+
+if $log; then
+    TMP=/tmp	# for mkfiles
+    mktempfile chkback. || {
+	print -ru2 -- "$longname: exiting."
+	exit 1
+    }
+    logfile=$mktempfile_ret
+    print -r -- "Writing status information to log file $logfile"
+fi
+
+while [ maxExtent -eq 0 -o extent -lt maxExtent ] && check; do
+    [ -n "$xdev" ] && lprint "$(tape amount "$xdev")"
+    lprint "*** `date`  Extent $extent OK"
+    sleep 5
+done
+
+Rewind

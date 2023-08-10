@@ -1,0 +1,128 @@
+#!/usr/lib/scosh/utilbin/oash
+# (was /usr/lib/oa/utilbin/oash)
+# @(#) oatalk.oash 1.1 95/01/12
+# 95/01/12 john h. dubois iii
+
+OALIB=${OALIB-"/usr/lib/oa"}
+PATH=$OALIB/utilbin:$PATH
+
+# run ourself thru oash 
+oainit 2>/dev/null || exec oash -c $0 "$@"
+
+. `findfile shell_strs`
+
+# Usage: Clean_wmopen num lines cols top_row
+# Creates a window centered on column 38/39 and clears a border around it.
+# Uses window #30 to clear.
+Clean_wmopen() {
+    # Save vars since positional params will be changed
+    # N: Window number
+    # L: Number of lines
+    # C: Number of columns
+    # X: Top row
+    N=$1 L=$2 C=$3 X=$4
+
+    set -- \
+    `ksh -c "echo $(($L+2)) $(($C+2)) $(($X-1)) $((38-$C/2)) $((39-$C/2))"`
+    newwin 30 $1 $2 $3 $4
+    wmclose 30
+    # wmopen wants window-num ysize xsize y-offset x-offset
+    wmopen $N $L $C $X $5
+}
+
+EscWasHit() { 
+	oadeinit
+	rm -f $TEMP
+	exit
+}
+
+# This assumes that remote finger will return lines in which the first two
+# lines are unneeded (system name and header) and the first word of each line
+# is the user name.  Unfortunately the tty column is not consistent so can't
+# be used.
+RemoteSelect() {
+    System=`expr $1 : '@\(.*\)'`
+    wmopen 3 4 43 8 19
+    echo "Requesting a list of logged-in users from"
+    echo "$System... please stand by."
+    wrefresh 3
+    finger "@$System" | tail +3 | 
+    awk '{j = substr($0,1,35); sub(" +$","",j); print j;}' > $TEMP
+    set -- `wc -l $TEMP`
+    set -- `expr \( $1 + 1 \) / 2 + 2`
+    [ "$1" -gt 23 ] && set -- 23
+    sleep 5
+#    wmclose 3
+    wmopen 4 $1 78 1 1
+    wmtitle "Select a user on $System to talk to"
+    wmmessage -r "$ppMessage"
+    pp -f $TEMP
+    rm -f $TEMP
+    [ "$PP_NUM" -eq -1 ] && EscWasHit
+    set -- $PP_ITEM
+    Talk_User="$1@$System"
+}
+
+TEMP=/tmp/fm1$$
+
+if [ $# -gt 0 ]; then
+    case "$1" in
+    @*)
+	RemoteSelect "$1"
+	rm -f $TEMP
+	oadeinit
+	[ -n "$Talk_User" ] && exec talk $Talk_User || exit 0
+	;;
+    *)
+	oadeinit
+	echo "Usage: oatalk [@system-name]"
+	exit 1
+	;;
+    esac
+fi
+
+# Crude test for if we might be networked
+[ -c /dev/socksys ] && echo "User on another system" > $TEMP
+# Find writable users
+who -T | awk '$2 == "+" {
+    printf "%-8s %-7s %s %s %s\n",$1,$3,$4,$5,$6
+}' >> $TEMP
+
+if [ ! -s $TEMP ]; then
+    rm -f $TEMP
+    oadeinit
+    echo -n "No writable users are logged on.  Press return to continue... "
+    read response
+    exit
+fi
+
+ppMessage="Press return to select or escape to quit" 
+
+set -- `wc -l $TEMP`
+set -- `expr \( $1 + 1 \) / 2 + 2`
+wmopen 1 $1 67 1 6
+wmtitle "Select a user to talk to" 
+wmmessage -r "$ppMessage" 
+pp -f $TEMP
+rm -f $TEMP
+[ "$PP_NUM" -eq -1 ] && EscWasHit
+set -- $PP_ITEM
+Talk_User="$1 $2"
+if [ "$1" = User ]; then
+    Clean_wmopen 2 5 61 5
+    wmtitle "Remote User Selection"
+    echo "Enter username@host.name for the user you wish to talk to,"
+    echo "or @host.name to get a list of users on the remote host."
+    wmmessage -r "Press return when done"
+    echo -n "-> "
+    wrefresh 2
+    read Talk_User
+    case "$Talk_User" in
+    @*)
+	RemoteSelect "$Talk_User";;
+    esac
+fi
+
+rm -f $TEMP
+oadeinit
+[ -n "$Talk_User" ] && exec talk $Talk_User

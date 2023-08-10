@@ -1,0 +1,1364 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# @(#) name.gawk 2.3 97/06/11
+# 90/06/01 john h. dubois iii (john@armory.com)
+# 90/11/14 removed ksh-specific code
+# 91/06/30 removed dependency on having variable assignments given
+#          on awk command line set before execution of BEGIN block
+#          (doesn't work in some awks)
+# 91/12/07 added PATH setting,
+#          added code to get rid of phone number in GCOS field
+# 92/05/02 converted to #!awk script
+# 96/06/18 Added all options.
+# 96/06/23 Added g option.
+# 96/09/10 2.0: Use pwent library.  Added ec options.
+# 96/11/17 Let UIDs be given.  Added x option.
+# 96/12/17 Added rsGanC options, config file, and home dir search.
+# 97/01/07 Added P option.
+
+BEGIN {
+    Name = "name"
+    Usage = "Usage: " Name " [-ahgecCprsGn] <user> ..."
+    rcFile = "." Name "rc"
+    ARGC = Opts(Name,Usage,"apPecCgxrsGh",1,"~/" rcFile ":$UHOME/" rcFile,
+    "AUTOGCOS,ALLFIELDS,VERBOSE,EXACT,CASE,AUTOCASE",0,"n",0,"","g,s,G;p,P")
+    if ("h" in Options) {
+	printf \
+"%s: Print users' real names from /etc/passwd.\n"\
+"%s\n"\
+"The \"real name\" (the GCOS field from /etc/passwd) for each named user is\n"\
+"printed, in the format\n"\
+"user<tab>real-name\n"\
+"If a user name consists entirely of digits and no options (except -p) are\n"\
+"given, the name is taken to be a UID to search for.\n"\
+"If a user name contains any '/' characters and no options (except -p) are\n"\
+"given, the name is taken to be a home directory to search for.\n"\
+"Options:\n"\
+"Some of the following options can also be set by putting variables in a\n"\
+"configuration file named %s.  This file is searched for first in the home\n"\
+"directory of the invoking user and then, if the environment variable UHOME\n"\
+"is set, in the directory specified by that variable.  If both files exist,\n"\
+"variables assignments in the first file override those in the second file.\n"\
+"Variables are set by putting the indicated variable name in the file.  To\n"\
+"turn off a flag option in the first file and prevent it from being set in\n"\
+"the second file, assign it a value of 0.  e.g. if FOO is set in the first\n"\
+"file, FOO=0 in the second file will override it.  Options can be turned\n"\
+"off on the command line by following them immediately with \"-\", e.g. -v-\n"\
+"to turn off the v option in such a way that it cannot be turned on in a\n"\
+"config file.  Variable names appear in parentheses in the option\n"\
+"descriptions.\n"\
+"-h: Print this help.\n"\
+"-g: Search for names in the GCOS (\"real name\") field instead of the\n"\
+"    account name field.  The search is not case sensitive.  Unlike\n"\
+"    searches by account name, the name need not match the entire field.\n"\
+"    The words of each name given must occur in the same order in a GCOS\n"\
+"    field in order for a match to occur.  Multiple password file entries\n"\
+"    may be matched by one name.  If multiple words of a name are given,\n"\
+"    they must be quoted to form a single argument.  Example:\n"\
+"    %s -g 'john somebody'\n"\
+"-r: Treat the given names as unanchored regular expressions.  Names are\n"\
+"    compared to the same field that would be searched without -r.  With\n"\
+"    this option, the meaning of -e is changed to mean that the regular\n"\
+"    expression should be anchored at the start and end, and the meaning\n"\
+"    of -c is changed to mean that the match should be case sensitive.\n"\
+"-a: If a name is not found as a user name, search for it in the GCOS field\n"\
+"    as though -g had been given.  (AUTOGCOS)\n"\
+"-e: An exact match of the full GCOS field is required.  (EXACT)\n"\
+"-c: Matches against the GCOS field are made case sensitive. (CASE)\n"\
+"-C: Like -c, except that a match is only case sensitive for names that\n"\
+"    are given with some characters in upper case.  (AUTOCASE)\n"\
+"If -e, -c, or -C is given on the command line and -r is not given, the -g\n"\
+"option is turned on.  If the e, c, or C option is turn on by puttings its\n"\
+"variable in a config file, they only have an effect if -r or -g is given.\n"\
+"-s: Take the command line arguments to be the names of login shells, and\n"\
+"    print users who have any of the shells.\n"\
+"-G: Take the command line arguments to be the names or numeric IDs of\n"\
+"    groups, and print users who have any of them as their login group.\n"\
+"-n: Do not read the configuration file.\n"\
+"-p: Print entire password database lines for each user.  (ALLFIELDS)\n"\
+"-P: Print all password database fields (except the password) for each user\n"\
+"    in a more readable format, with headers.  Fields may be truncated so\n"\
+"    that each record fits on an 80-character line.  (VERBOSE)\n",
+	Name,Usage,Name,Name
+	exit(0)
+    }
+    Debug = "x" in Options
+    Verbose = "P" in Options
+    WholePasswd = "p" in Options
+
+    autoGCOS = "a" in Options
+    CaseSensitive = "c" in Options
+    Full = "e" in Options
+    regex = "r" in Options
+    autoCase = "C" in Options
+    GCOS = ("g" in Options) || !regex && (CmdLineOpt(Options,"e") || \
+    CmdLineOpt(Options,"C") || CmdLineOpt(Options,"c"))
+
+    ReadPasswd()	# Set PW_ values
+    if ("s" in Options)
+	fieldReq = PW_SHELL
+    else if (GCOS)
+	fieldReq = PW_GCOS
+    else if ("G" in Options) {
+	fieldReq = PW_GID
+	getGroupMap(gMap)
+	for (i = 1; i < ARGC; i++)
+	    if ((user = ARGV[i]) !~ /^[0-9]+$/)
+		if (user in gMap)
+		    ARGV[i] = gMap[user]
+		else {
+		    errCt++
+		    printf "%s: No group with this name: %s\n",Name,
+		    user > "/dev/stderr"
+		    delete ARGV[i]
+		}
+	if (errCt == ARGC-1)
+	    exit 1
+    }
+    for (argnum = 1; argnum < ARGC; argnum++) {
+	if (!(argnum in ARGV))
+	    continue
+	user = ARGV[argnum]
+	if (fieldReq)
+	    Field = fieldReq
+	else if (user ~ /^[0-9]+$/)
+	    Field = PW_UID
+	else if (user ~ "/")
+	    Field = PW_HOME
+	else
+	    Field = PW_NAME
+	if (Debug)
+	    printf "%s: Searching for user: %s\n",Name,user > "/dev/stderr"
+	if (PWSearch(\
+	user,Field,Entries,autoGCOS,!CaseSensitive,autoCase,regex,Full)) {
+	    if (Debug)
+		printf "%d entries returned by PWSearch().\n",
+		NumElem(Entries) > "/dev/stderr"
+	    for (i = 1; i in Entries; i++)
+		printEntry(Entries[i],WholePasswd,Verbose)
+	}
+	else
+	    printf "%s: No user with this %s: %s\n",Name,
+	    (Field == PW_NAME && autoGCOS) ? \
+	    pwFieldNames[PW_NAME] " or " pwFieldNames[PW_GCOS] : \
+	    pwFieldNames[Field],user > "/dev/stderr"
+    }
+    exit 0
+}
+
+# PWSearch: find entries in password file that match given criteria.
+# pat: Fixed string or pattern to compare to a password field.
+# Field: which password field to compare pat to, from the PW_* set.
+# Entries[]: The indexes of matching entries in the password database are
+#     returned as values in Entries[].  The index for each value in an
+#     integer giving the order in which it was found (starting with 1).
+# autoGCOS: If Field is PW_NAME and autoGCOS is true, pat is first searched
+#     for in the name field; if it is not found there, it is searched for in
+#     the "real name" field (part of the GCOS field).
+# ignoreCase: make matches be independent of case.
+# autoCase: If ignoreCase is false and autoCase is true, then matches are case
+#     case independent only if there are no upper case letters in pat.
+# regex: pat is treated as a regular expression and compared to the "real name"
+#     field.
+# Full: If regex is true, it is required to match the entire "real name" field.
+# Globals: Debug, pwFieldNames, PW_*
+# Return value: number of matching entries found (the highest index in
+#     Entries[]).
+function PWSearch(pat,Field,Entries,autoGCOS,ignoreCase,autoCase,regex,Full,
+oIC,PWEnt,num) {
+    split("",Entries)	# empty
+    if (ignoreCase && autoCase)
+	ignoreCase = (pat !~ /[A-Z]/)
+    num = 0
+    if (Field == PW_NAME && autoGCOS)
+	if (num = PWSearch(pat,Field,Entries,0,ignoreCase,0,regex,Full))
+	    return num
+	else {
+	    Field = PW_GCOS
+	    if (Debug)
+		printf "No match for '%s' in name field, trying GCOS...\n",
+		pat > "/dev/stderr"
+	}
+    if (Debug)
+	printf "Searching for %s in \"%s\" field\n",
+	pat,pwFieldNames[Field] > "/dev/stderr"
+    if (regex) {
+	oIC = IGNORECASE
+	IGNORECASE = ignoreCase
+	if (Full)
+	    pat = "^(" pat ")$"
+	setpwent()
+	while (getpwent(PWEnt,0,PW_REAL) != ":")
+	    if (PWEnt[Field] ~ pat)
+		Entries[++num] = PWEnt[PW_RECORD]
+	IGNORECASE = oIC
+    }
+    else {
+	if (!getpw(Field,pat,PWEnt,"",0,ignoreCase,Full))
+	    return 0
+	Entries[++num] = PWEnt[PW_RECORD]
+	while (getpw(Field,pat,PWEnt,"",1,ignoreCase,Full))
+	    Entries[++num] = PWEnt[PW_RECORD]
+    }
+    if (Debug)
+	printf "Got %d match(es).\n",num > "/dev/stderr"
+    return num
+}
+
+function trunc(s,len) {
+    if (length(s) > len)
+	s = substr(s,1,len-1) ">"
+    return s
+}
+
+# Globals: HeaderPrinted, PW_*
+function printEntry(i,WholePasswd,Verbose,
+Format,Name,Home,Shell,PWEnt,line) {
+    line = PWLines[i]
+    if (WholePasswd)
+	print line
+    else {
+	PWGetFields(line,PWEnt,PW_REAL)
+	if (Verbose) {
+	    Format = "%-8s %5s %5s  %-28s %-12s %s\n"
+	    if (!HeaderPrinted) {
+		printf Format,"User","UID","LGID",
+		"Name            Office","Home dir","Login shell"
+		HeaderPrinted = 1
+	    }
+	    # Let name overflow into office field
+	    Name = PWEnt[PW_REAL]
+	    if (PWEnt[PW_OFFICE] != "")
+		Name = sprintf("%-15s %s",Name,PWEnt[PW_OFFICE])
+	    printf Format,PWEnt[PW_NAME],PWEnt[PW_UID],PWEnt[PW_GID],
+	    trunc(Name,28),trunc(PWEnt[PW_HOME],12),trunc(PWEnt[PW_SHELL],15)
+	}
+	else
+	    printf "%s\t%s\n",PWEnt[PW_NAME],PWEnt[PW_REAL]
+    }
+}
+
+# Globals: FS, $*
+function getGroupMap(map,  ret,count,ofs) {
+    ofs = FS
+    FS = ":"
+    while ((ret = (getline < "/etc/group")) == 1) {
+	map[$1] = $3
+	count++
+    }
+    close("/etc/group")
+    FS = ofs
+    return ret ? -1 : count
+}
+
+### Begin pwent library
+
+# @(#) pwent.awk 1.3 96/12/15
+# 92/08/10 john h. dubois III (john@armory.com)
+# 93/12/13 fixed to not clobber $*
+# 96/01/05 Send error messages to /dev/stderr
+# 96/05/24 Let getpwnam() return a specific field if requested.
+#          Added PW_REAL and PW_OFFICE.
+# 96/06/03 Added Type field to getpwent()
+# 96/06/24 Allow a Field to be requested for getpwent() also.
+# 96/06/29 Added PW_RECORD, and getpwreal().
+#          Changed PWLines to be index by record number instead of name.
+# 96/11/17 Added getpwuid()
+# 96/12/15 Added pwFieldNames, and pwent() as general select-by-field routine.
+
+# Require: ReadShells()
+
+# getpwent, getpwnam: get an entry from the passwd file.
+# Each of the following passwd functions returns an array which contains
+# a passwd file entry.  The array contains the fields of the entry.
+# Global variables:
+# The following variables are defined with the values of the indexes of the
+# entries: PW_NAME, PW_PASSWORD, PW_UID, PW_GID, PW_GCOS, PW_HOME, PW_SHELL
+# PWLines[] contains the lines of the password file, indexed by record number,
+# starting with 1.
+# _pwNames[] is a mapping of name to passwd record number.
+# pwFieldNames[field-index] is set to a short description of each field.
+# getpwentNum is the number of the next entry to be returned by getpwent().
+
+# Left FS global because making it local does not work in gawk.
+function ReadPasswd(  User,Line,i,Ind,ret) {
+    if (PW_Name)
+	return 1
+    PW_NAME = 1
+    PW_PASSWORD = 2
+    PW_UID = 3
+    PW_GID = 4
+    PW_GCOS = 5
+    PW_HOME = 6
+    PW_SHELL = 7
+    PW_REAL = -1	# for PWGetFields()
+    PW_OFFICE = -2
+    PW_RECORD = -3
+
+    split(\
+    "user name,password,UID,login GID,real name,home directory,login shell",
+    pwFieldNames,",")
+    getpwentNum = 1
+    while ((ret = (getline Line < "/etc/passwd")) == 1) {
+	PWLines[++Ind] = Line
+	_pwNames[substr(Line,1,index(Line,":")-1)] = Ind
+    }
+    _num_pw = Ind
+    close("/etc/passwd")
+    if (ret) {
+	printf "ReadPasswd(): Could not open /etc/passwd: %s\n",
+	ERRNO > "/dev/stderr"
+	return 0
+    }
+    return 1
+}
+
+# setpwent resets the passwd file entry pointer used by getpwent
+# to the first entry.
+function setpwent() {
+    getpwentNum = 1
+}
+
+# getpwent sets PWEnt to the next entry in the passwd file.
+# If Type is set to -1, the entry for the next "real" user is returned (others
+# are skipped over), where a real user is a user whose login shell is listed in
+# /etc/shells.  This requires the ReadShells() function.  Other values for
+# Type are not yet defined and are ignored.
+# If the last entry has already been returned, 0 is return if Field is null,
+# ":" if not.
+# If the entry for the next real user has been requested and /etc/shells
+# cannot be read, -1 is returned if Field is null, "\n" if not.
+# See PWGetFields() for other return values and the meaning of the Field
+# parameter.
+function getpwent(PWEnt,Type,Field,  entNum) {
+    if (!PW_NAME)
+	ReadPasswd()
+    if (!(getpwentNum in PWLines))
+	return Field ? ":" : 0
+    if (Type == -1) {
+	if (!_DidReadShells && ReadShells(LoginShells) == -1)
+	    return Field ? "\n" : -1
+	split(PWLines[getpwentNum++],PWEnt,":")
+	while (!(PWEnt[PW_SHELL] in LoginShells)) {
+	    if (!(getpwentNum in PWLines))
+		return Field ? ":" : 0
+	    split(PWLines[getpwentNum++],PWEnt,":")
+	}
+	return PWGetFields("",PWEnt,Field,getpwentNum - 1)
+    }
+    else {
+	entNum = getpwentNum
+	return PWGetFields(PWLines[getpwentNum++],PWEnt,Field,entNum)
+    }
+}
+
+# PWGetFields() splits PWLine into PWEnt[], and optionally returns a field
+# from it.  If PWLine is null, PWEnt[] is assumed to have already been filled
+# in with a password entry.
+# If Field is not passed or is null, the return value is 1.
+# If Field is non-null, it should a PW_ value.  In this case, the value of the
+# requested field is returned.
+# If entNum is nonzero, it is the value that PWEnt[PW_RECORD] should be set to.
+# It should be the index in PWLines[] of the record being processed.
+# In addition to the PW_ values used by the rest of the functions in this
+# library, this function can be passed PW_REAL and PW_OFFICE.
+# PW_REAL will get the part of the GCOS field before the first comma.
+# PW_OFFICE will get the part of the GCOS field after the first comma.
+# If either of these is requested, both values will also be assigned to their
+# indices in PWEnt[], unless there is no comma in the GCOS field, in which case
+# PW_OFFICE will not be set.
+# NOTE: since the global field names are set in ReadShells(), it must be
+# executed before any of the field name can be passed.
+function PWGetFields(PWLine,PWEnt,Field,entNum,  gcos,ind) {
+    if (PWLine != "")
+	split(PWLine,PWEnt,":")
+    if (entNum)
+	PWEnt[PW_RECORD] = entNum
+    if (!Field)
+	return 1
+    if (Field < 0) {
+	if (ind = index(gcos = PWEnt[PW_GCOS],",")) {
+	    PWEnt[PW_OFFICE] = substr(gcos,ind+1)
+	    PWEnt[PW_REAL] = substr(gcos,1,ind-1)
+	}
+	else
+	    PWEnt[PW_REAL] = gcos
+    }
+    return PWEnt[Field]
+}
+
+# getpwnam sets PWEnt to the passwd entry for login name Name.
+# If Next is true or Name does not exist in the password file, the return value
+# is ":" if Field was passed, 0 if not.
+# For other return values and parameter explanation, see PWGetFields()
+function getpwnam(Name,PWEnt,Field,Next) {
+    if (!PW_NAME)
+	ReadPasswd()
+    if (!Next && Name in _pwNames)
+	return PWGetFields(PWLines[_pwNames[Name]],PWEnt,Field,_pwNames[Name])
+    else
+	return Field ? ":" : 0
+}
+
+# Build uid->pw-index and home->pw-index
+# Globals: _pwIndexes[]
+function MakeInd(  Elem,Ind,Line,i,Fields,f) {
+    Fields[PW_UID]
+    Fields[PW_HOME]
+    Fields[PW_GID]
+    Fields[PW_SHELL]
+    for (Ind = 1; Ind in PWLines; Ind++) {
+	Line = PWLines[Ind]
+	split(Line,Elem,":")
+	for (f in Fields) {
+	    i = f ":" Elem[f]
+	    if (i in _pwIndexes)
+		_pwIndexes[i] = _pwIndexes[i] "," Ind
+	    else
+		_pwIndexes[i] = Ind
+	}
+    }
+    IndDone = 1
+}
+
+# getpw sets PWEnt to the first passwd entry whose FieldNum'th field is equal
+# to Value.  FieldNum may select any field except the password field.
+# If Next is true, Value is ignored and the next entry in the password file
+# that has the same FieldNum field as the last one requested is returned.
+# See getpwnam() for return values and the meaning of the Field param.
+# IgnoreCase and Full are used only for PW_GCOS searches; see getpwreal()
+# for their meaning.
+# Uses globals _pwMatches[] to track matches between calls.
+function getpw(FieldNum,Value,PWEnt,Field,Next,IgnoreCase,Full,  elem,i,n) {
+    if (FieldNum == PW_GCOS)
+	return getpwreal(Value,PWEnt,Field,Next,IgnoreCase,Full)
+    if (FieldNum == PW_NAME)
+	return getpwnam(Value,PWEnt,Field,Next)
+    if (Next) {
+	if ((FieldNum,_pwMatches[FieldNum,"cur"]) in _pwMatches) {
+	    i = _pwMatches[FieldNum,_pwMatches[FieldNum,"cur"]++]
+	    return PWGetFields(PWLines[i],PWEnt,Field,i)
+	}
+    }
+    else {
+	if (!IndDone)
+	    MakeInd()
+	Value = FieldNum ":" Value
+	if (Value in _pwIndexes) {
+	    n = split(_pwIndexes[Value],elem,",")
+	    for (i = 1; i <= n; i++)
+		_pwMatches[FieldNum,i] = elem[i]
+	    delete _pwMatches[FieldNum,n+1]	# so we know when to end
+	    _pwMatches[FieldNum,"cur"] = 2
+	    return PWGetFields(PWLines[elem[1]],PWEnt,Field,elem[1])
+	}
+    }
+    return Field ? ":" : 0
+}
+
+function getpwhome(home,PWEnt,Field,Next) {
+    if (!PW_NAME)	# set PW_ values
+	ReadPasswd()
+    return getpw(PW_HOME,home,PWEnt,Field,Next)
+}
+
+function getpwuid(UID,PWEnt,Field,Next) {
+    if (!PW_NAME)	# set PW_ values
+	ReadPasswd()
+    return getpw(PW_UID,(UID+0),PWEnt,Field,Next)
+}
+
+# Make an index by real name.  For each passwd file entry, the real-name
+# is lowercased and split into components on non-alphanums.   The passwd entry
+# index that the name came from is added to the value of each such component
+# in the global _RealInd[].  The indexes stored this way are separated by
+# commas.  If the real-name contains no alphanums, its index is stored under
+# the null index.
+function _makeRealInd(  PWEnt,ret,Elem,nelem,i,Component) {
+    setpwent()
+    while ((ret = getpwent(PWEnt,"",PW_REAL)) != ":") {
+	nelem = split(tolower(ret),Elem,/[^a-z0-9]+/)
+	for (i = 1; i <= nelem; i++) {
+	    Component = Elem[i]
+	    if (Component == "" && nelem > 1)
+		continue
+	    if (Component in _RealInd)
+		_RealInd[Component] = _RealInd[Component] "," PWEnt[PW_RECORD]
+	    else
+		_RealInd[Component] = PWEnt[PW_RECORD]
+	}
+    }
+    _realIndDone = 1
+}
+
+# Make Name into a pattern that will match a name that contains all of the
+# same name components (sequences of alphanums) in the same order.  If Name
+# contains no name components, a null string is returned.
+function MakeNamePat(Name,  Elem,nelem,i,Pat,e) {
+    nelem = split(Name,Elem,/[^a-zA-Z0-9]+/)
+    for (i = 1; i <= nelem; i++) {
+	if ((e = Elem[i]) == "")
+	    continue
+	if (Pat == "")
+	    Pat = "(^|[^a-zA-Z0-9])" e
+	else
+	    Pat = Pat "[^a-zA-Z0-9](.*[^a-zA-Z0-9])?" e
+    }
+    if (Pat == "")	# If Name contained no alphanums...
+	return ""
+    Pat = Pat "([^a-zA-Z0-9]|$)"
+    return Pat
+}
+
+# getpwgreal sets PWEnt to the first passwd entry whose PW_REAL (see
+# PWGetFields()) field matches Real.  Matching occurs if the alphanumeric
+# components of Real occur in the same order in the entry.  Non-alphanums are
+# ignored.  All of the components in Real must occur in the entry, but not all
+# of the components in the entry must occur in Real.
+# If the given name does not exist in the password file,
+# the return value is ":" if Field was passed, 0 if not.
+# If Next is true, getpwreal() sets PWEnt to the next passwd entry whose
+# PW_REAL field matches the last previous Real parameter passed.
+# In this case,  if the last entry has already been returned,
+# the return value is ":" if Field was passed, 0 if not.
+# Different IgnoreCase and Full parameters may be given when doing a Next
+# search.  Both must always be passed; they do not default to the original
+# values when doing a Next search.  The only parameter ignored when doing a
+# Next search is Real.
+# If IgnoreCase is true, case is ignored when searching.
+# If Full is true, a match of the full name is required (including any
+# punctuation).
+# For successful return values and Field parameter explanation,
+# see PWGetFields()
+# Globals: For the Next search, between invokations these varies store values:
+# _getpwrealInd[]: The set of pw indices that matched the query.
+# _getpwrealIndInd: The next index in _getpwrealInd[] to look at.
+# _getpwrealReal: The Real value passed with the original query.
+# _getpwrealPat: Real converted to a component order search pattern.
+function getpwreal(Real,PWEnt,Field,Next,IgnoreCase,Full,  ind,name,Pat) {
+    if (!Next) {
+	if (!PW_NAME)
+	    ReadPasswd()
+	if (!_realIndDone)
+	    _makeRealInd()
+	_getpwrealReal = Real
+	_getpwrealPat = MakeNamePat(Real)
+	# Get first component from Real
+	Real = tolower(Real)
+	gsub("^[^a-z0-9]+","",Real)
+	gsub("[^a-z0-9].*","",Real)
+	if (!(Real in _RealInd))
+	    return Field ? ":" : 0
+	split(_RealInd[Real],_getpwrealInd,",")
+	_getpwrealIndInd = 1
+    }
+    if (Full)
+	Pat = _getpwrealReal
+    else
+	Pat = _getpwrealPat
+    if (IgnoreCase)
+	Pat = tolower(Pat)
+    while (_getpwrealIndInd in _getpwrealInd) {
+	ind = _getpwrealInd[_getpwrealIndInd++]
+	name = PWGetFields(PWLines[ind],PWEnt,PW_REAL,ind)
+	if (IgnoreCase)
+	    name = tolower(name)
+	if (Full ? (name == Pat) : (name ~ Pat))
+	    return PWGetFields("",PWEnt,Field,ind)
+    }
+    return Field ? ":" : 0
+}
+
+### End pwent library
+### Start of ProcArgs library
+# @(#) ProcArgs 1.11 96/12/08
+# 92/02/29 john h. dubois iii (john@armory.com)
+# 93/07/18 Added "#" arg type
+# 93/09/26 Do not count -h against MinArgs
+# 94/01/01 Stop scanning at first non-option arg.  Added ">" option type.
+#          Removed meaning of "+" or "-" by itself.
+# 94/03/08 Added & option and *()< option types.
+# 94/04/02 Added NoRCopt to Opts()
+# 94/06/11 Mark numeric variables as such.
+# 94/07/08 Opts(): Do not require any args if h option is given.
+# 94/09/23 Fixed bug that caused fail if -opt<value> given as last arg.
+# 95/01/22 Record options given more than once.  Record option num in argv.
+# 95/06/08 Added ExclusiveOptions().
+# 96/01/20 Let rcfiles be a colon-separated list of filenames.
+#          Expand $VARNAME at the start of its filenames.
+#          Let varname=0 and -option- turn off an option.
+# 96/05/05 Changed meaning of 7th arg to Opts; now can specify exactly how many
+#          of the vars should be searched for in the environment.
+#          Check for duplicate rcfiles.
+# 96/05/13 Return more specific error values.  Note: ProcArgs() and InitOpts()
+#          now return various negatives values on error, not just -1, and
+#          Opts() may set Err to various positive values, not just 1.
+#          Added AllowUnrecOpt.
+# 96/05/23 Check type given for & option
+# 96/06/15 Re-port to awk
+# 96/10/01 Moved file-reading code into ReadConfFile(), so that it can be
+#          used by other functions.
+# 96/10/15 Added OptChars
+# 96/11/01 Added exOpts arg to Opts()
+# 96/11/16 Added ; type
+# 96/12/08 Added Opt2Set() & Opt2Sets()
+
+# optlist is a string which contains all of the possible command line options.
+# A character followed by certain characters indicates that the option takes
+# an argument, with type as follows:
+# :	String argument
+# ;	Non-empty string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# The only difference the type of argument makes is in the runtime argument
+# error checking that is done.
+
+# The & option is a special case used to get numeric options without the
+# user having to give an option character.  It is shorthand for [-+.0-9].
+# If & is included in optlist and an option string that begins with one of
+# these characters is seen, the value given to "&" will include the first
+# char of the option.  & must be followed by a type character other than ":"
+# or ";".
+# Note that if e.g. &> is given, an option of -.5 will produce an error.
+
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-"
+# or "+" is taken to be a non-option string; like other non-option strings,
+# it stops the scanning of argv and is left in argv[].
+# An argument of "--" or "++" also stops the scanning of argv[] but is removed.
+# If an option takes an argument, the argument may either immediately
+# follow it or be given separately.
+# "-" and "+" options are treated the same.  "+" is allowed because most awks
+# take any -options to be arguments to themselves.  gawk 2.15 was enhanced to
+# stop scanning when it encounters an unrecognized option, though until 2.15.5
+# this feature had a bug that caused problems in some cases.  See the OptChars
+# parameter to explicitly set the option-specifier characters.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in Options and its value is set to the
+# number of times it occurs in argv[].
+
+# If an option that does take an argument is given, an index with its name is
+# created in Options and its value is set to the value of the argument given
+# for it, and Options[option-name,"count"] is (initially) set to the 1.
+# If an option that takes an argument is given more than once,
+# Options[option-name,"count"] is incremented, and the value is assigned to
+# the index (option-name,instance) where instance is 2 for the second occurance
+# of the option, etc.
+# In other words, the first time an option with a value is encountered, the
+# value is assigned to an index consisting only of its name; for any further
+# occurances of the option, the value index has an extra (count) dimension.
+
+# The sequence number for each option found in argv[] is stored in
+# Options[option-name,"num",instance], where instance is 1 for the first
+# occurance of the option, etc.  The sequence number starts at 1 and is
+# incremented for each option, both those that have a value and those that
+# do not.  Options set from a config file have a value of 0 assigned to this.
+
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps left in the indices of argv[].
+# If compress is nonzero, argv[] is packed by moving its elements so that
+# they have contiguous integer indices starting with 0.
+# Option processing will stop with the first unrecognized option, just as
+# though -- was given except that unlike -- the unrecognized option will not be
+# removed from ARGV[].  Normally, an error value is returned in this case.
+# If AllowUnrecOpt is true, it is not an error for an unrecognized option to
+# be found, so the number of remaining arguments is returned instead.
+# If OptChars is not a null string, it is the set of characters that indicate
+# that an argument is an option string if the string begins with one of the
+# characters.  A string consisting solely of two of the same option-indicator
+# characters stops the scanning of argv[].  The default is "-+".
+# argv[0] is not examined.
+# The number of arguments left in argc is returned.
+# If an error occurs, the global string OptErr is set to an error message
+# and a negative value is returned.
+# Current error values:
+# -1: option that required an argument did not get it.
+# -2: argument of incorrect type supplied for an option.
+# -3: unrecognized (invalid) option.
+function ProcArgs(argc,argv,OptList,Options,compress,AllowUnrecOpt,OptChars,
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos,NumOpt,Value,HadValue,specGiven,
+NeedNextOpt,GotValue,OptionNum,Escape,dest,src,count,c,OptTerm,OptCharSet)
+{
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in OptList of the option being processed.
+# NumOpt is true if a numeric option may be given.
+    ArgsLeft = argc
+    NumOpt = index(OptList,"&")
+    OptionNum = 0
+    if (OptChars == "")
+	OptChars = "-+"
+    while (OptChars != "") {
+	c = substr(OptChars,1,1)
+	OptChars = substr(OptChars,2)
+	OptCharSet[c]
+	OptTerm[c c]
+    }
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	Arg = argv[ArgNum]
+	if (length(Arg) < 2 || !((specGiven = substr(Arg,1,1)) in OptCharSet))
+	    break	# Not an option; quit
+	if (Arg in OptTerm) {
+	    delete argv[ArgNum]
+	    ArgsLeft--
+	    break
+	}
+	ArgLen = length(Arg)
+	for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+	    Option = substr(Arg,ArgInd,1)
+	    if (NumOpt && Option ~ /[-+.0-9]/) {
+		# If this option is a numeric option, make its flag be & and
+		# its option string flag position be the position of & in
+		# the option string.
+		Option = "&"
+		Pos = NumOpt
+		# Prefix Arg with a char so that ArgInd will point to the
+		# first char of the numeric option.
+		Arg = "&" Arg
+		ArgLen++
+	    }
+	    # Find position of flag in option string, to get its type (if any).
+	    # Disallow & as literal flag.
+	    else if (!(Pos = index(OptList,Option)) || Option == "&") {
+		if (AllowUnrecOpt) {
+		    Escape = 1
+		    break
+		}
+		else {
+		    OptErr = "Invalid option: " specGiven Option
+		    return -3
+		}
+	    }
+
+	    # Find what the value of the option will be if it takes one.
+	    # NeedNextOpt is true if the option specifier is the last char of
+	    # this arg, which means that if the option requires a value it is
+	    # the next arg.
+	    if (NeedNextOpt = (ArgInd >= ArgLen)) { # Value is the next arg
+		if (GotValue = ArgNum + 1 < argc)
+		    Value = argv[ArgNum+1]
+	    }
+	    else {	# Value is included with option
+		Value = substr(Arg,ArgInd + 1)
+		GotValue = 1
+	    }
+
+	    if (HadValue = AssignVal(Option,Value,Options,
+	    substr(OptList,Pos + 1,1),GotValue,"",++OptionNum,!NeedNextOpt,
+	    specGiven)) {
+		if (HadValue < 0)	# error occured
+		    return HadValue
+		if (HadValue == 2)
+		    ArgInd++	# Account for the single-char value we used.
+		else {
+		    if (NeedNextOpt) {	# option took next arg as value
+			delete argv[++ArgNum]
+			ArgsLeft--
+		    }
+		    break	# This option has been used up
+		}
+	    }
+	}
+	if (Escape)
+	    break
+	# Do not delete arg until after processing of it, so that if it is not
+	# recognized it can be left in ARGV[].
+	delete argv[ArgNum]
+	ArgsLeft--
+    }
+    if (compress != 0) {
+	dest = 1
+	src = argc - ArgsLeft + 1
+	for (count = ArgsLeft - 1; count; count--) {
+	    ARGV[dest] = ARGV[src]
+	    dest++
+	    src++
+	}
+    }
+    return ArgsLeft
+}
+
+# Assignment to values in Options[] occurs only in this function.
+# Option: Option specifier character.
+# Value: Value to be assigned to option, if it takes a value.
+# Options[]: Options array to return values in.
+# ArgType: Argument type specifier character.
+# GotValue: Whether any value is available to be assigned to this option.
+# Name: Name of option being processed.
+# OptionNum: Number of this option (starting with 1) if set in argv[],
+#     or 0 if it was given in a config file or in the environment.
+# SingleOpt: true if the value (if any) that is available for this option was
+#     given as part of the same command line arg as the option.  Used only for
+#     options from the command line.
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Global variables: OptErr
+# Return value: negative value on error, 0 if option did not require an
+# argument, 1 if it did & used the whole arg, 2 if it required just one char of
+# the arg.
+# Current error values:
+# -1: Option that required an argument did not get it.
+# -2: Value of incorrect type supplied for option.
+# -3: Bad type given for option &
+function AssignVal(Option,Value,Options,ArgType,GotValue,Name,OptionNum,
+SingleOpt,specGiven,  UsedValue,Err,NumTypes) {
+    # If option takes a value...    [
+    NumTypes = "*()#<>]"
+    if (Option == "&" && ArgType !~ "[" NumTypes) {	# ]
+	OptErr = "Bad type given for & option"
+	return -3
+    }
+
+    if (UsedValue = (ArgType ~ "[:;" NumTypes)) {	# ]
+	if (!GotValue) {
+	    if (Name != "")
+		OptErr = "Variable requires a value -- " Name
+	    else
+		OptErr = "option requires an argument -- " Option
+	    return -1
+	}
+	if ((Err = CheckType(ArgType,Value,Option,Name,specGiven)) != "") {
+	    OptErr = Err
+	    return -2
+	}
+	# Mark this as a numeric variable; will be propogated to Options[] val.
+	if (ArgType != ":" && ArgType != ";")
+	    Value += 0
+	if ((Instance = ++Options[Option,"count"]) > 1)
+	    Options[Option,Instance] = Value
+	else
+	    Options[Option] = Value
+    }
+    # If this is an environ or rcfile assignment & it was given a value...
+    else if (!OptionNum && Value != "") {
+	UsedValue = 1
+	# If the value is "0" or "-" and this is the first instance of it,
+	# do not set Options[Option]; this allows an assignment in an rcfile to
+	# turn off an option (for the simple "Option in Options" test) in such
+	# a way that it cannot be turned on in a later file.
+	if (!(Option in Options) && (Value == "0" || Value == "-"))
+	    Instance = 1
+	else
+	    Instance = ++Options[Option]
+	# Save the value even though this is a flag
+	Options[Option,Instance] = Value
+    }
+    # If this is a command line flag and has a - following it in the same arg,
+    # it is being turned off.
+    else if (OptionNum && SingleOpt && substr(Value,1,1) == "-") {
+	UsedValue = 2
+	if (Option in Options)
+	    Instance = ++Options[Option]
+	else
+	    Instance = 1
+	Options[Option,Instance]
+    }
+    # If this is a flag assignment without a value, increment the count for the
+    # flag unless it was turned off.  The indicator for a flag being turned off
+    # is that the flag index has not been set in Options[] but it has an
+    # instance count.
+    else if (Option in Options || !((Option,1) in Options))
+	# Increment number of times this flag seen; will inc null value to 1
+	Instance = ++Options[Option]
+    Options[Option,"num",Instance] = OptionNum
+    return UsedValue
+}
+
+# Option is the option letter
+# Value is the value being assigned
+# Name is the var name of the option, if any
+# ArgType is one of:
+# :	String argument
+# ;	Non-null string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Returns null on success, err string on error
+function CheckType(ArgType,Value,Option,Name,specGiven,  Err,ErrStr) {
+    if (ArgType == ":")
+	return ""
+    if (ArgType == ";") {
+	if (Value == "")
+	    Err = "must be a non-empty string"
+    }
+    # A number begins with optional + or -, and is followed by a string of
+    # digits or a decimal with digits before it, after it, or both
+    else if (Value !~ /^[-+]?([0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)$/)
+	Err = "must be a number"
+    else if (ArgType ~ "[#<>]" && Value ~ /\./)
+	Err = "may not include a fraction"
+    else if (ArgType ~ "[()<>]" && Value < 0)
+	Err = "may not be negative"
+    # (
+    else if (ArgType ~ "[)>]" && Value == 0)
+	Err = "must be a positive number"
+    if (Err != "") {
+	ErrStr = "Bad value \"" Value "\".  Value assigned to "
+	if (Name != "")
+	    return ErrStr "variable " substr(Name,1,1) " " Err
+	else {
+	    if (Option == "&")
+		Option = Value
+	    return ErrStr "option " specGiven substr(Option,1,1) " " Err
+	}
+    }
+    else
+	return ""
+}
+
+# Note: only the above functions are needed by ProcArgs.
+# The rest of these functions call ProcArgs() and also do other
+# option-processing stuff.
+
+# Opts: Process command line arguments.
+# Opts processes command line arguments using ProcArgs()
+# and checks for errors.  If an error occurs, a message is printed
+# and the program is exited.
+#
+# Input variables:
+# Name is the name of the program, for error messages.
+# Usage is a usage message, for error messages.
+# OptList the option description string, as used by ProcArgs().
+# MinArgs is the minimum number of non-option arguments that this
+# program should have, non including ARGV[0] and +h.
+# If the program does not require any non-option arguments,
+# MinArgs should be omitted or given as 0.
+# rcFiles, if given, is a colon-seprated list of filenames to read for
+# variable initialization.  If a filename begins with ~/, the ~ is replaced
+# by the value of the environment variable HOME.  If a filename begins with
+# $, the part from the character after the $ up until (but not including)
+# the first character not in [a-zA-Z0-9_] will be searched for in the
+# environment; if found its value will be substituted, if not the filename will
+# be discarded.
+# rcfiles are read in the order given.
+# Values given in them will not override values given on the command line,
+# and values given in later files will not override those set in earlier
+# files, because AssignVal() will store each with a different instance index.
+# The first instance of each variable, either on the command line or in an
+# rcfile, will be stored with no instance index, and this is the value
+# normally used by programs that call this function.
+# VarNames is a comma-separated list of variable names to map to options,
+# in the same order as the options are given in OptList.
+# If EnvSearch is given and nonzero, the first EnvSearch variables will also be
+# searched for in the environment.  If set to -1, all values will be searched
+# for in the environment.  Values given in the environment will override
+# those given in the rcfiles but not those given on the command line.
+# NoRCopt, if given, is an additional letter option that if given on the
+# command line prevents the rcfiles from being read.
+# See ProcArgs() for a description of AllowUnRecOpt and optChars, and
+# ExclusiveOptions() for a description of exOpts.
+# Special options:
+# If x is made an option and is given, some debugging info is output.
+# h is assumed to be the help option.
+
+# Global variables:
+# The command line arguments are taken from ARGV[].
+# The arguments that are option specifiers and values are removed from
+# ARGV[], leaving only ARGV[0] and the non-option arguments.
+# The number of elements in ARGV[] should be in ARGC.
+# After processing, ARGC is set to the number of elements left in ARGV[].
+# The option values are put in Options[].
+# On error, Err is set to a positive integer value so it can be checked for in
+# an END block.
+# Return value: The number of elements left in ARGV is returned.
+# Must keep OptErr global since it may be set by InitOpts().
+function Opts(Name,Usage,OptList,MinArgs,rcFiles,VarNames,EnvSearch,NoRCopt,
+AllowUnrecOpt,optChars,exOpts,  ArgsLeft,e) {
+    if (MinArgs == "")
+	MinArgs = 0
+    ArgsLeft = ProcArgs(ARGC,ARGV,OptList NoRCopt,Options,1,AllowUnrecOpt,
+    optChars)
+    if (ArgsLeft < (MinArgs+1) && !("h" in Options)) {
+	if (ArgsLeft >= 0) {
+	    OptErr = "Not enough arguments"
+	    Err = 4
+	}
+	else
+	    Err = -ArgsLeft
+	printf "%s: %s.\nUse -h for help.\n%s\n",
+	Name,OptErr,Usage > "/dev/stderr"
+	exit 1
+    }
+    if (rcFiles != "" && (NoRCopt == "" || !(NoRCopt in Options)) &&
+    (e = InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch)) < 0)
+    {
+	print Name ": " OptErr ".\nUse -h for help." > "/dev/stderr"
+	Err = -e
+	exit 1
+    }
+    if ((exOpts != "") && ((OptErr = ExclusiveOptions(exOpts,Options)) != ""))
+    {
+	printf "%s: Error: %s\n",Name,OptErr > "/dev/stderr"
+	Err = 1
+	exit 1
+    }
+    return ArgsLeft
+}
+
+# ReadConfFile(): Read a file containing var/value assignments, in the form
+# <variable-name><assignment-char><value>.
+# Whitespace (spaces and tabs) around a variable (leading whitespace on the
+# line and whitespace between the variable name and the assignment character) 
+# is stripped.  Lines that do not contain an assignment operator or which
+# contain a null variable name are ignored, other than possibly being noted in
+# the return value.  If more than one assignment is made to a variable, the
+# first assignment is used.
+# Input variables:
+# File is the file to read.
+# Comment is the line-comment character.  If it is found as the first non-
+#     whitespace character on a line, the line is ignored.
+# Assign is the assignment string.  The first instance of Assign on a line
+#     separates the variable name from its value.
+# If StripWhite is true, whitespace around the value (whitespace between the
+#     assignment char and trailing whitespace on the line) is stripped.
+# VarPat is a pattern that variable names must match.  
+#     Example: "^[a-zA-Z][a-zA-Z0-9]+$"
+# If FlagsOK is true, variables are allowed to be "set" by being put alone on
+#     a line; no assignment operator is needed.  These variables are set in
+#     the output array with a null value.  Lines containing nothing but
+#     whitespace are still ignored.
+# Output variables:
+# Values[] contains the assignments, with the indexes being the variable names
+#     and the values being the assigned values.
+# Lines[] contains the line number that each variable occured on.  A flag set
+#     is record by giving it an index in Lines[] but not in Values[].
+# Return value:
+# If any errors occur, a string consisting of descriptions of the errors
+# separated by newlines is returned.  In no case will the string start with a
+# numeric value.  If no errors occur,  the number of lines read is returned.
+function ReadConfigFile(Values,Lines,File,Comment,Assign,StripWhite,VarPat,
+FlagsOK,
+Line,Status,Errs,AssignLen,LineNum,Var,Val) {
+    if (Comment != "")
+	Comment = "^" Comment
+    AssignLen = length(Assign)
+    if (VarPat == "")
+	VarPat = "."	# null varname not allowed
+    while ((Status = (getline Line < File)) == 1) {
+	LineNum++
+	sub("^[ \t]+","",Line)
+	if (Line == "")		# blank line
+	    continue
+	if (Comment != "" && Line ~ Comment)
+	    continue
+	if (Pos = index(Line,Assign)) {
+	    Var = substr(Line,1,Pos-1)
+	    Val = substr(Line,Pos+AssignLen)
+	    if (StripWhite) {
+		sub("^[ \t]+","",Val)
+		sub("[ \t]+$","",Val)
+	    }
+	}
+	else {
+	    Var = Line	# If no value, var is entire line
+	    Val = ""
+	}
+	if (!FlagsOK && Val == "") {
+	    Errs = Errs \
+	    sprintf("\nBad assignment on line %d of file %s: %s",
+	    LineNum,File,Line)
+	    continue
+	}
+	sub("[ \t]+$","",Var)
+	if (Var !~ VarPat) {
+	    Errs = Errs sprintf("\nBad variable name on line %d of file %s: %s",
+	    LineNum,File,Var)
+	    continue
+	}
+	if (!(Var in Lines)) {
+	    Lines[Var] = LineNum
+	    if (Pos)
+		Values[Var] = Val
+	}
+    }
+    if (Status)
+	Errs = Errs "\nCould not read file " File
+    close(File)
+    return Errs == "" ? LineNum : substr(Errs,2)	# Skip first newline
+}
+
+# Variables:
+# Data is stored in Options[].
+# rcFiles, OptList, VarNames, and EnvSearch are as as described for Opts().
+# Global vars:
+# Sets OptErr.  Uses ENVIRON[].
+# If anything is read from any of the rcfiles, sets READ_RCFILE to 1.
+function InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch,
+Line,Var,Pos,Vars,Map,CharOpt,NumVars,TypesInd,Types,Type,Ret,i,rcFile,
+fNames,numrcFiles,filesRead,Err,Values,retStr) {
+    split("",filesRead,"")	# make awk know this is an array
+    NumVars = split(VarNames,Vars,",")
+    TypesInd = Ret = 0
+    if (EnvSearch == -1)
+	EnvSearch = NumVars
+    for (i = 1; i <= NumVars; i++) {
+	Var = Vars[i]
+	CharOpt = substr(OptList,++TypesInd,1)
+	if (CharOpt ~ "^[:;*()#<>&]$")
+	    CharOpt = substr(OptList,++TypesInd,1)
+	Map[Var] = CharOpt
+	Types[Var] = Type = substr(OptList,TypesInd+1,1)
+	# Do not overwrite entries from environment
+	if (i <= EnvSearch && Var in ENVIRON &&
+	(Err = AssignVal(CharOpt,ENVIRON[Var],Options,Type,1,Var,0)) < 0)
+	    return Err
+    }
+
+    numrcFiles = split(rcFiles,fNames,":")
+    for (i = 1; i <= numrcFiles; i++) {
+	rcFile = fNames[i]
+	if (rcFile ~ "^~/")
+	    rcFile = ENVIRON["HOME"] substr(rcFile,2)
+	else if (rcFile ~ /^\$/) {
+	    rcFile = substr(rcFile,2)
+	    match(rcFile,"^[a-zA-Z0-9_]*")
+	    envvar = substr(rcFile,1,RLENGTH)
+	    if (envvar in ENVIRON)
+		rcFile = ENVIRON[envvar] substr(rcFile,RLENGTH+1)
+	    else
+		continue
+	}
+	if (rcFile in filesRead)
+	    continue
+	# rcfiles are liable to be given more than once, e.g. UHOME and HOME
+	# may be the same
+	filesRead[rcFile]
+	if ("x" in Options)
+	    printf "Reading configuration file %s\n",rcFile > "/dev/stderr"
+	retStr = ReadConfigFile(Values,Lines,rcFile,"#","=",0,"",1)
+	if (retStr > 0)
+	    READ_RCFILE = 1
+	else if (ret != "") {
+	    OptErr = retStr
+	    Ret = -1
+	}
+	for (Var in Lines)
+	    if (Var in Map) {
+		if ((Err = AssignVal(Map[Var],
+		Var in Values ? Values[Var] : "",Options,Types[Var],
+		Var in Values,Var,0)) < 0)
+		    return Err
+	    }
+	    else {
+		OptErr = sprintf(\
+		"Unknown var \"%s\" assigned to on line %d\nof file %s",Var,
+		Lines[Var],rcFile)
+		Ret = -1
+	    }
+    }
+
+    if ("x" in Options)
+	for (Var in Map)
+	    if (Map[Var] in Options)
+		printf "(%s) %s=%s\n",Map[Var],Var,Options[Map[Var]] > \
+		"/dev/stderr"
+	    else
+		printf "(%s) %s not set\n",Map[Var],Var > "/dev/stderr"
+    return Ret
+}
+
+# OptSets is a semicolon-separated list of sets of option sets.
+# Within a list of option sets, the option sets are separated by commas.  For
+# each set of sets, if any option in one of the sets is in Options[] AND any
+# option in one of the other sets is in Options[], an error string is returned.
+# If no conflicts are found, nothing is returned.
+# Example: if OptSets = "ab,def,g;i,j", an error will be returned due to
+# the exclusions presented by the first set of sets (ab,def,g) if:
+# (a or b is in Options[]) AND (d, e, or f is in Options[]) OR
+# (a or b is in Options[]) AND (g is in Options) OR
+# (d, e, or f is in Options[]) AND (g is in Options)
+# An error will be returned due to the exclusions presented by the second set
+# of sets (i,j) if: (i is in Options[]) AND (j is in Options[]).
+# todo: make options given on command line unset options given in config file
+# todo: that they conflict with.
+function ExclusiveOptions(OptSets,Options,
+Sets,SetSet,NumSets,Pos1,Pos2,Len,s1,s2,c1,c2,ErrStr,L1,L2,SetSets,NumSetSets,
+SetNum,OSetNum) {
+    NumSetSets = split(OptSets,SetSets,";")
+    # For each set of sets...
+    for (SetSet = 1; SetSet <= NumSetSets; SetSet++) {
+	# NumSets is the number of sets in this set of sets.
+	NumSets = split(SetSets[SetSet],Sets,",")
+	# For each set in a set of sets except the last...
+	for (SetNum = 1; SetNum < NumSets; SetNum++) {
+	    s1 = Sets[SetNum]
+	    L1 = length(s1)
+	    for (Pos1 = 1; Pos1 <= L1; Pos1++)
+		# If any of the options in this set was given, check whether
+		# any of the options in the other sets was given.  Only check
+		# later sets since earlier sets will have already been checked
+		# against this set.
+		if ((c1 = substr(s1,Pos1,1)) in Options)
+		    for (OSetNum = SetNum+1; OSetNum <= NumSets; OSetNum++) {
+			s2 = Sets[OSetNum]
+			L2 = length(s2)
+			for (Pos2 = 1; Pos2 <= L2; Pos2++)
+			    if ((c2 = substr(s2,Pos2,1)) in Options)
+				ErrStr = ErrStr "\n"\
+				sprintf("Cannot give both %s and %s options.",
+				c1,c2)
+		    }
+	}
+    }
+    if (ErrStr != "")
+	return substr(ErrStr,2)
+    return ""
+}
+
+# The value of each instance of option Opt that occurs in Options[] is made an
+# index of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Set(Options,Opt,Set,  count) {
+    if (!(Opt in Options))
+	return 0
+    Set[Options[Opt]]
+    count = Options[Opt,"count"]
+    for (; count > 1; count--)
+	Set[Options[Opt,count]]
+    return count
+}
+
+# The value of each instance of option Opt that occurs in Options[] that
+# begins with "!" is made an index of nSet[] (with the ! stripped from it).
+# Other values are made indexes of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Sets(Options,Opt,Set,nSet,  count,aSet,ret) {
+    ret = Opt2Set(Options,Opt,aSet)
+    for (value in aSet)
+	if (substr(value,1,1) == "!")
+	    nSet[substr(value,2)]
+	else
+	    Set[value]
+    return ret
+}
+
+# Returns true if option Opt was given on the command line.
+function CmdLineOpt(Options,Opt,  i) {
+    for (i = 1; (Opt,"num",i) in Options; i++)
+	if (Options[Opt,"num",i] != 0)
+	    return 1
+    return 0
+}
+### End of ProcArgs library
+### Begin set library
+# 96/05/23 added return values  jhdiii
+# 96/05/25 added set2list()
+# 97/01/26 Added AOnly(), Exclusive()
+
+# Return value: the number of new elements added to Inter
+function Intersection(A,B,Inter,  Elem,Count) {
+    for (Elem in A)
+	if (Elem in B && !(Elem in Inter)) {
+	    Inter[Elem]
+	    Count++
+	}
+    return Count
+}
+
+# Any element that is in A or B but not both and which is not already in
+# Excl is added to Excl.
+# Return value: the number of new elements added to Excl
+function Exclusive(A,B,Excl) {
+    return AOnly(A,B,Excl) + AOnly(B,A,Excl)
+}
+
+# Any element that is in A and not in B or aOnly is added to aOnly.
+# Return value: the number of new elements added to aOnly.
+function AOnly(A,B,aOnly,  Elem,Count) {
+    for (Elem in A)
+	if (!(Elem in B) && !(Elem in aOnly)) {
+	    aOnly[Elem]
+	    Count++
+	}
+    return Count
+}
+
+# Return value: the number of new elements added to Both
+function Union(A,B,Both) {
+    return CopySet(A,Both) + CopySet(B,Both)
+}
+
+# Deletes any elements that are in both Minuend and Subtrahend from Minuend.
+# Return value: the number of elements deleted.
+function SubtractSet(Minuend,Subtrahend,  Elem,nDel) {
+    for (Elem in Subtrahend)
+	if (Elem in Minuend) {
+	    delete Minuend[Elem]
+	    nDel++
+	}
+    return nDel
+}
+
+# Return value: the number of new elements added to To
+function CopySet(From,To,  Elem,n) {
+    for (Elem in From)
+	if (!(Elem in To)) {
+	    To[Elem]
+	    n++
+	}
+    return n
+}
+
+# Returns 1 if Set is empty, 0 if not.
+function IsEmpty(Set,  i) {
+    for (i in Set)
+	return 0
+    return 1
+}
+
+# MakeSet: make a set from a list.
+# An index with the name of each element of the list is created in the given
+# array.
+# Input variables:
+# Elements is a string containing the list of elements.
+# Sep is the character that separates the elements of the list.
+# Output variables:
+# Set is the array.
+# Return value: the number of new elements added to the set.
+function MakeSet(Set,Elements,Sep,  i,Num,Names,nFound,ind) {
+    nFound = 0
+    Num = split(Elements,Names,Sep)
+    for (i = 1; i <= Num; i++) {
+	ind = Names[i]
+	if (!(ind in Set)) {
+	    Set[ind]
+	    nFound++
+	}
+    }
+    return nFound
+}
+
+# Returns the number of elements in set Set
+function NumElem(Set,  elem,Num) {
+    for (elem in Set)
+	Num++
+    return Num
+}
+
+# Remove all elements from Set
+function DeleteAll(Set,  i) {
+    split("",Set,",")
+}
+
+# Returns a list of all of the elements in Set[], with each pair of elements
+# separated by Sep.
+function set2list(Set,Sep,  list,elem) {
+    for (elem in Set)
+	list = list Sep elem
+    return substr(list,2)	# skip 1st separator
+}
+### End set library

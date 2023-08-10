@@ -1,0 +1,221 @@
+#!/bin/ksh
+# @(#) kvar.ksh 2.1 96/09/07
+# 94/05/14 john h. dubois iii
+# 94/06/13 Check for bad symbol name.
+# 96/01/21 5.0 port.  New crash has different behaviour if input is not a tty
+#          and different error messages.
+# 96/02/02 Print warnings & read again.  Check values.
+# 96/04/23 Added tnmdrsRS options; changed old s option to V.
+# 96/09/07 Added bOXDT options.
+
+name=${0##*/}
+Usage=\
+"Usage: $name [-hnxOXDT] [-t<string>] [-s<seconds>] [-r<num>] [-m<mult>]
+            [-d<div>] [-b<base>] [-RSV|var-name ...]"
+list=
+Tabstring="\n"
+typeset -i Mult=1 Div=1 Repeat=0 Seconds=0
+PrintNames=true
+radix=10
+printFlag=d
+seg=
+
+while getopts :hnxm:d:RSVt:r:s:b:OXDT opt; do
+    case $opt in
+    h)
+	echo \
+"$name: print the value of kernel integer variables.
+$Usage
+Options:
+-b<base>: Print values using radix <base>, which must be a number in the range
+    2 through 36.  The default is 10.
+-X: Print values as unsigned hexadecimal values.  Cannot be used with -m or -d.
+-O: Print values as unsigned octal values.  Cannot be used with -m or -d.
+-D: Print the data symbols nearest to values.
+-T: Print the text symbols nearest to values.
+-m<mult>: Multiply values by integer value <mult> before printing them.
+-d<div>: Divide values by integer value <div> before printing them.
+    Values for -m and -d may be given in ksh form (base#value).
+-h: Print this help.
+-n: Do not print variable names.
+-t<string>: Separate each variable display with <string> instead of a newline.
+-s<seconds>: Print values every <seconds> seconds.  If -r is not also given,
+    values are printed until $name is interrupted.
+-r<num>: Print values <num> times.  If -s is not also given, they are printed
+    about once per second.
+    -r and -s require the \"timer\" utility to be available in the search path.
+-x: Turn on debugging.
+-R: Print freemem as a value in kilobytes.
+-S: Print freeswap as a value in kilobytes.
+-V: Print availsmem as a value in kilobytes."
+	exit 0
+	;;
+    [RSV])
+	case $opt in
+	    R) list="$list freemem";;
+	    S) list="$list freeswap";;
+	    V) list="$list availsmem";;
+	esac
+	Mult=4
+	Div=1
+	;;
+    b)
+	radix=$OPTARG
+	if [[ "$OPTARG" != +([0-9]) || "$OPTARG" -lt 2 || "$OPTARG" -gt 36 ]]
+	then
+	    print -ru2 "Bad radix: $radix"
+	    exit 1
+	fi
+	;;
+    t)
+	Tabstring=$OPTARG
+	;;
+    x)	set -x;;
+    n)  PrintNames=false;;
+    r)
+	Repeat=$OPTARG || exit 1
+	if [ Repeat -le 0 ]; then
+	    print -u2 "Must give a positive integer value with $opt."
+	    exit 1
+	fi
+	;;
+    s)
+	Seconds=$OPTARG || exit 1
+	if [ Seconds -le 0 ]; then
+	    print -u2 "Must give a positive integer value with $opt."
+	    exit 1
+	fi
+	;;
+    m)
+	Mult=$OPTARG || exit 1
+	;;
+    d)
+	Div=$OPTARG || exit 1
+	if ! ((Div)); then
+	    print -u2 "Cannot divide by zero."
+	    exit 1
+	fi
+	;;
+    O)
+	printFlag=o
+	;;
+    X)
+	printFlag=x
+	;;
+    D)
+	seg=ds
+	printFlag=x
+	;;
+    T)
+	seg=ts
+	printFlag=x
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$name: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 -a -z "$list" ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+if [ ! -r /dev/mem ]; then
+    print -u2 "Cannot open /dev/mem."
+    exit 1
+fi
+
+function GetValues {
+    typeset -L17 pvar
+    typeset value
+    typeset DoTab=false
+    typeset var line sign= pt
+    if [ radix -eq 10 ]; then
+	typeset out=
+    else
+	typeset -i$radix out
+    fi
+
+
+    for var in $list $*; do
+	if $DoTab; then
+	    print -n "$Tabstring"
+	else
+	    DoTab=true
+	fi
+	print -rp od -$printFlag $var
+	read -p line
+	# Get rid of header.  Must do it here rather than immediately after
+	# starting coprocess because new crash does not print the header until
+	# the first line of other output.
+	[[ "$line" = dumpfile* ]] && read -p line
+	if [[ "$line" = Warning* ]]; then
+	    print -ru2 -- "$line"
+	    read -p line
+	fi
+	if [[ "$line" = *@(not found in symbol table|is an unknown symbol)* ]]
+	then
+	    print -ru2 "$var: No such symbol."
+	    continue
+	fi
+	set -- $line
+	# Old crash will have a prompt as field 1; new one does not,
+	# so do a shift to make the value be in a known place.
+	shift $(($#-1))
+	if [[ "$1" != +([-0-9a-f]) ]]; then
+	    print -ru2 "Error getting value of $var:
+>> $line"
+	    continue
+	fi
+	value=$1
+	pvar=$var:
+	$PrintNames && print -rn -- "$pvar "
+	if [ -n "$seg" ]; then
+	    print -rp "$seg $value"
+	    read -p line
+	    print -nr -- "$line"
+	else
+	    if [ Mult -ne 1 -o Div -ne 1 ]; then
+		out=$((value*Mult/Div))
+	    else
+		out=$value
+	    fi
+	    if [[ "$out" = -* ]]; then	# deal with sign separately
+		sign=-
+		out=${out#-}
+	    fi
+	    pt=${out#*#}	# get rid of base spec if any
+	    pt=${pt##+(0)}	# get rid fo leading 0s
+	    print -n -- $sign$pt
+	fi
+    done
+    print ""
+}
+
+crash |&
+if [ Repeat -gt 1 -o Seconds -ne 0 ]; then
+    # Subtract 1 from Repeat because one instance will be done initially.
+    ((Repeat)) && rOpt=-r$((Repeat-1)) || rOpt=
+    ((Seconds)) || Seconds=1
+    # Use timer instead of sleeps to keep the system as quiescent as possible.
+    timer -i $rOpt ${Seconds}s | while read; do
+	GetValues "$@"
+    done
+else
+    GetValues "$@"
+fi

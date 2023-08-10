@@ -1,0 +1,183 @@
+#!/bin/ksh
+# ibmchars: print ibm graphic characters for reference.
+# @(#) ibmchars.ksh 1.1 94/05/09
+# 92/01/26 john h. dubois iii (john@armory.com)
+# 92/09/15 Converted from boxchars into ibmchars.
+# 92/10/17 Added 'low', 'high', and 'all' options.
+# 94/05/09 Added v option, expanded help.
+
+# Usage: PrintChar <format> <charnum> <char>
+# Shows the value <charnum> in various bases according to <format>,
+# then prints the string <char>
+function PrintChar {
+    typeset Format=$1 out=
+    typeset -i fwidth value=$2
+
+    while [ -n "$Format" ]; do
+	case $Format in
+	d*)
+	    typeset -R3 dec=$value
+	    out="$out$dec "
+	    ;;
+	[oO]*)
+	    typeset -i8 octal=$value
+	    typeset -Z3 o3=${octal#8#}
+	    [[ $Format = O* ]] && out="${out}0"
+	    out="$out$o3 "
+	    ;;
+	[xX]*)
+	    typeset -i16 hex=$value
+	    typeset x2=${hex#16#}
+	    # Can't use -Z2 because hex chars may not be digits
+	    [[ ${#x2} -lt 2 ]] && x2=0$x2
+	    [[ $Format = X* ]] && x2=0x$x2
+	    out="$out$x2 "
+	    ;;
+	esac
+	Format=${Format#?}
+    done
+    let fwidth=${#out}+3
+    let printcount+=fwidth
+    if [ printcount -gt width ]; then
+	echo ""
+	printcount=fwidth
+    fi
+    echo -n "$out$3  "
+}
+
+function PrintBox {
+    for box in ascii ibm1 ibm2; do
+	# Select box drawing characters.
+	# t, b, l, r: used where a bar joins with the outer 
+	# {top, left, bottom, right} bar of the box.
+	# tl, bl, tr, br: used for the
+	# {top left, bottom left, top right, bottom right} corner of the box.
+	# m: middle; used where a horizontal and vertical bar cross each other.
+	# h, v: used for drawing {horizontal, vertical} bars.
+	case $box in
+	ascii) t="\0055" b="\0055" l="\0174" r="\0174" tl="\0055" bl="\0055"
+	      tr="\0055" br="\0055" m="\0053" h="\0055" v="\0174";;
+	ibm2) t="\0313" b="\0312" l="\0314" r="\0271" tl="\0311" bl="\0310"
+	      tr="\0273" br="\0274" m="\0316" h="\0315" v="\0272";;
+	ibm1) t="\0302" b="\0301" l="\0303" r="\0264" tl="\0332" bl="\0300"
+	      tr="\0277" br="\0331" m="\0305" h="\0304" v="\0263";;
+	esac
+
+	echo -n "
+$tl$h$t$h$tr        ${tl#\\} $tl ${h#\\} $h ${t#\\} $t ${h#\\} $h ${tr#\\} $tr
+$v $v $v        ${v#\\} $v        ${v#\\} $v        ${v#\\} $v
+$l$h$m$h$r        ${l#\\} $l ${h#\\} $h ${m#\\} $m ${h#\\} $h ${r#\\} $r
+$v $v $v        ${v#\\} $v        ${v#\\} $v        ${v#\\} $v
+$bl$h$b$h$br        ${bl#\\} $bl ${h#\\} $h ${b#\\} $b ${h#\\} $h ${br#\\} $br"
+    done
+    echo ""
+}
+
+function PrintAll {
+    typeset -i i=0
+    while [ i -lt 32 ]; do
+	PrintChar $Format $i `echo "\033[${i}g"`
+	let i+=1
+    done
+    i=127
+    while [ i -lt 256 ]; do
+	PrintChar $Format $i `echo "\033[${i}g"`
+	let i+=1
+    done
+    echo ""
+}
+
+
+function PrintHigh {
+    typeset -i count=127 endcount=255
+    typeset -i8 oct
+
+    while [ count -le endcount ]; do
+	oct=count
+	if [ count -eq 155 ]; then
+	    PrintChar $Format $count ' '
+	else
+	    PrintChar $Format $count `echo "\0${oct#8#}"`
+	fi
+	let count+=1
+    done
+    echo ""
+}
+
+name=${0##*/}
+Usage="Usage: $name [-h] [-f filename] ..."
+typeset -i width=${COLUMNS:-79}-1	# Max column to print to
+typeset -i printcount=0			# Column counter
+Usage="Usage: $name [-h] [-v[doOxX-]] [box|all|high ...]"
+Format=do
+
+while getopts :hv: opt; do
+    case $opt in
+    h) echo \
+"$name: print IBM graphics characters for reference.
+$Usage
+high: Prints the high (127..255) characters directly.  This is the default
+      display.  Requires an 8-bit-clean connection.  This will work with any
+      device (printer, terminal, etc.) that uses the IBM character set if it
+      has an 8-bit connection.  Other devices will display characters from
+      their native set.  The high-escape character (escape+128, character 155)
+      is displayed as a space because the SCO console interprets it as an
+      escape character.
+all:  Print the low (0..31) and high (127..255) characters.  Character 155 is
+      displayed correctly.  The SCO console alternate-font escape sequence is
+      used to print both low and high characters.  This does not actually
+      switch hardware fonts; it lets characters be printed by decimal value. 
+      This allows the printing of characters whose ASCII values are normally
+      mapped to control characters, and the printing of characters with high
+      values (>127) that are not printable without an 8-bit-clean connection.
+box:  Draws boxes using ascii, ibm1, and ibm2 characters.
+      Next to each box structure, a similar box structure is drawn
+      with the octal value of each character printed next to it.
+Options:
+-h: Print this help.
+-v[doOxX-]: Set the format in which the value of each character is printed for
+    the high & low character sets.  The value precedes each character.
+    o and O print the value in octal without and with a leading 0.
+    x and X print the value in hex without and with a leading 0x.
+    d prints the value in decimal.  - prints no value.  The default is -vdo."
+       exit 0
+       ;;
+    v)
+	Format=$OPTARG
+	if [[ "$Format" != +([-doOxX]) ]]; then
+	    print -u2 "Bad format given with -v.  Use -h for help."
+	    exit 1
+	fi
+	;;
+    +?)
+	echo "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	echo "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+[ $# -eq 0 ] && PrintHigh
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+    box) PrintBox;;
+    all) PrintAll;;
+    high) PrintHigh;;
+    *) print -u2 "$Usage"
+	exit 1;;
+    esac
+    shift
+done

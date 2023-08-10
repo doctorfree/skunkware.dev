@@ -1,0 +1,29 @@
+:
+# @(#) fb.sh 1.0 93/04/17
+# 93/02/24 john h. dubois iii (john@armory.com)
+# 93/04/17 Treat each command line arg as a separate equation
+
+# fb: invoke bc with scale=10
+# bc will not take commands on command line, only the names of files to
+# read commands from.
+# The following starts a subshell with fd 3 dupped from fd 0 (stdin)
+# so that the scale command can be piped to bc on fd 0 and then further
+# commands read from the standard input of fb on fd 3.
+# The standard input to bc (the scale command) is dupped to fd 4 and
+# put on the command line as /dev/fd/4 so that it will be read first;
+# fd 0 is then dupped from fd 3, where fb's standard input was preserved.
+#alias fb='( echo "scale = 10" | bc /dev/fd/0 /dev/fd/3 ) 3<&0'
+
+if [ $# -eq 0 ]; then
+    exec bc /dev/fd/3 3<<END_OF_INPUT
+scale = 10
+END_OF_INPUT
+else
+    {
+	echo "scale = 10"
+	for arg
+	do
+	    echo "$arg"
+	done
+    } | bc
+fi

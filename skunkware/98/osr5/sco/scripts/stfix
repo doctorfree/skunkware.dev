@@ -1,0 +1,62 @@
+#!/usr/local/bin/gawk -f
+# @(#) stfix.gawk 2.2 97/07/17
+# 95/07/24 john h. dubois iii (john@armory.com)
+# 96/12/11 Rewrote as awk program (based on tabset).
+# 97/06/27 Added fg/bg color and scrolling region reset.
+# 97/07/17 2.2 Added keyboard unlock, autowrap on, character set reset,
+#          jump scroll (unset smooth scroll).  Save & restore cursor position.
+
+# CSI is the Control Sequence Introducer, ESC[
+# CSI[0;37;40m removes attributes and sets white on black (default colors)
+# CSI2l unlocks keyboard
+# CSI?7h turns autowrap on.
+# ESEC(B sets G0 character set to US ASCII.
+# ESC)B sets G1 character set to US ASCII.
+# \017 selects G0 character set.
+# CSIr removes scrolling region.
+# CSI?4l sets jump scroll
+
+# CSIr moves cursor to top of screen, so save cursor position (ESC7) before
+# emitting anything and restore it (ESC8) afterward.
+
+BEGIN {
+    Name = "settabs"
+    Reset = "ESC7CSI0;37;40mCSI2lCSI?7hESC(BESC)B\017CSIrCSI?4lCSI10nCSI=XESC8"
+    gsub("CSI","\033[",Reset)
+    gsub("ESC","\033",Reset)
+    for (tabstop = 0; tabstop <= 9; tabstop++)
+	Reset = Reset "        \033H"
+
+    if (ARGC < 2)
+	printf "%s",Reset
+    else {
+	if (ARGV[1] ~ /^[-+]h$/) {
+	    printf \
+"%s: Reset scoterm\n"\
+"Usage: %s [-ah] [ttynn ...]\n"\
+"A string is emitted to reset the pointer behaviour, background and\n"\
+"foreground colors, character set, and scrolling region, turn autowrap on,\n"\
+"and unlock the keyboard.  If no ttys are named, the string is emitted to\n"\
+"the current screen.\n"\
+"Options:\n"\
+"-h: print this help.\n",
+	    Name,Name
+	    exit(0)
+	}
+	else {
+	    for (i = 1; i in ARGV; i++) {
+		screen = ARGV[i]
+		if (screen !~ "^/") {
+		    if (screen !~ /^tty/) {
+			if (screen !~ /^p/)
+			    screen = "p" screen
+			screen = "tty" screen
+		    }
+		    screen = "/dev/" screen
+		}
+		printf "%s",Reset > screen
+		close(screen)
+	    }
+	}
+    }
+}

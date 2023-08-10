@@ -1,0 +1,908 @@
+#!/bin/ksh
+# @(#) maim.ksh 2.0 97/06/29
+# 88/03/01-1992 john h. dubois iii (john@armory.com)
+# 93/04/20 Protect $PPID
+# 93/05/16 Added -f option & multiple process-names, use getopts
+# 94/02/08 Added -a option
+# 94/02/19 Allow multiple user names
+# 94/02/25 Added -t option
+# 94/05/22 If -a given, interpret args as user names.  Understand -signame.
+#          Added -l.
+# 94/09/28 Understand -signum.  Added -n.
+# 94/11/06 -t w/no procs implies -a.  Added -k.
+# 94/12/09 Warn about process names longer than 8 chars.  Added v option.
+# 95/01/28 Do one kill for all procs.
+# 95/02/24 Let [-?] be given for tty to match proc w/o controlling tty
+# 95/04/11 Added p option, ! versions of [ktup].
+# 95/05/03 Added r option.
+# 95/06/08 Added s option.
+# 95/08/26 Put quotes around all the stuff that ps returns when it is used on
+#          the LHS of a [ a = b ] test, since it might start with (or be ) -.
+# 95/12/30 v5 port: Use "PID" to recognize header instead of COMMAND
+# 96/01/28 Under v5, ps -l will list up to 14 chars (was 8).
+# 96/01/31 Make tty name match whether given with leading /dev/ or not, and
+#          whether ps gives leading 'tty' part or not.
+#          Added iq options.
+# 96/02/13 Explicitly disallow -ta.
+# 96/04/13 Get user name from id output more reliably.
+# 96/11/17 Check once per second while sleeping for whether procs are dead.
+# 97/04/24 Changed -i to -b; added new -i (interactive) and -m options.
+# 97/05/29 Added o option.
+# 97/06/03 Let sleep times be specified individually.
+# 97/06/29 Skip ps process, to avoid having it clutter output
+
+# maim: kill processes by name.
+# I believe the name 'maim' originated with Jon Luini (falcon@echo.com).
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+function doArgs {
+    typeset opt Arg
+    # Puts args in array to make -signum easier to process.
+    set -A Args -- "$@"
+
+    # 0-9 are given as not expecting a value because getopts does not allow
+    # optional values.  If a multi-digit signal number is given, it will be
+    # dealt with by a hack.
+    while getopts \
+    :irzafhblmno:vxp:qk:s:t:u:A:B:C:E:F:H:I:K:P:Q:S:T:S:U:V:W:0123456789 \
+    opt "${Args[@]}"; do
+	case "$opt" in
+	h)
+	print \
+"$name: kill processes by name.  
+$Usage
+$name kills procesess owned by the invoking user that match any of the
+given names.  Korn shell patterns may be used in process names if they are
+escaped from the shell.  Each matching process is first sent signal 1
+(SIGHUP).  If the process has not exited after $defSleep seconds, it is sent
+signal 15 (SIGTERM).  If the process has still not exited after $defSleep more
+seconds, it is sent signal 9 (SIGKILL).  Neither $name nor its parent
+process are killed even if their names match.
+Options:
+-a: Kill all processes.  This is equivalent to a process name pattern of '*'.
+    The shell that $name is run from is protected from being killed.
+    If -a is given, any arguments are taken to be user names and are acted
+    on as they are when given with -u.
+-f: The process' own idea of its name (as listed by ps -f) is used for
+    comparison to the process names given, instead of the name recorded
+    for system accounting purposes (as listed by ps without arguments).
+-h: Print this help.
+-b: Quit immediately after sending the last signal.  $name normally pauses for
+    the sleep period after the last signal, and then checks for processes that
+    have not died so that the user can be informed of them.
+-l: List all signals by name and number.
+-n: List the processes that would be killed, but do not signal them.
+-<signal>: If a signal is given, it is sent instead of the default signals.
+    More than one signal may be specified, in which case the specified signals
+    will be sent with $defSleep-second pauses between them.  Signals may be
+    specified by number or by name (in capital letters), e.g. -HUP.
+-s<sleeptime>: Set the sleep between signals, after the last signal, and before
+    restarting the process (if -r is given), to <sleeptime> seconds instead of
+    the default of $defSleep seconds.  To set these individually, the alternate
+    form -sb,a,r may be used, where b is the time between signals, a is the
+    time after the last signal, and r is the time before restart.
+-q: Be quiet.  Only error messages are printed.
+-r: Restart the process.  Only one process name may be given.  It is first
+    killed (the signal delivered defaults to signal 9 only, but can be set with
+    -<signal>); then, after a wait of $defSleep seconds, the named process is
+    started up.  It should be in the command search path, and should be a
+    process that will automatically background itself.
+-i: Interactive operation.  Information on each matching process is printed,
+    and then a response from the user determines whether it is killed or not.
+    If -i is given without any process selection options, all processes are
+    selected and asked about (as though -a had been given).
+-m: Menu operation.  Information on all matching processes are printed along
+    with menu line numbers, which are used to select among them.
+-v: Tell what processes are skipped in addition to those being killed.
+-t<tty-list>: Limit process selection to those running on the specified tty(s).
+    A list of whitespace or comma separated tty names may be given.  If a tty
+    name of '-' or '?' is given, processes which have no controlling tty are
+    matched.  If -t is given and no process patterns are given, -a is implied.
+-k<tty-list>: Like -t, except that processes are killed regardless of user ID.
+-o<age>: Limit process selection to those that are at least <age> old.  <age>
+    is given as a an integer followed by a unit, where the unit specifiers are
+    d, h, m, and s for days, hours, minutes, and seconds.  Example: -o5h
+    would select processes at least 5 hours.  This option causes process
+    start times to be given in GMT.
+-u<user-list>: Processes owned by the specified user(s) are killed, instead of
+    those owned by the invoking user.  A list of whitespace or comma separated
+    user names may be given.
+-p<process-ID-list>: Limit process selection to those given in the comma-
+    or whitespace-separated list.
+If the argument to -t, -k, -u, or -p begins with a '!', then any process that
+matches the given criterion is skipped.  Only one version of any option should
+be used.  Note: -u!userlist and -o<age> turn on the -f option too (a ps
+limitation)."
+	    exit 0
+	    ;;
+	m)
+	    Menu=true
+	    Query=true
+	    ;;
+	i)
+	    Interactive=true
+	    Query=true
+	    ;;
+	a)
+	    KillAll=true
+	    ;;
+	v)
+	    Verbose=true
+	    ;;
+	n)
+	    NoKill=true
+	    ;;
+	r)
+	    Restart=true
+	    ;;
+	f)
+	    f=-f
+	    ;;
+	b)
+	    testSig=
+	    ;;
+	l)
+	    kill -list
+	    exit 0;;
+	x)
+	    x=1
+	    ;;
+	s)
+	    OIFS=$IFS
+	    IFS=,
+	    set -- $OPTARG
+	    IFS=$OIFS
+	    bSleep=$1
+	    aSleep=$1
+	    rSleep=$1
+	    [ $# -gt 1 ] && aSleep=$2
+	    [ $# -gt 2 ] && rSleep=$3
+	    ;;
+	o)
+	    OTZ=$TZ
+	    export TZ=0	# avoid DST issues
+	    makeAge "$OPTARG"
+	    date '+%Y %j' | read cur_year cur_day
+	    mstart_setup
+	    f=-f
+	    checkAge=true
+	    ;;
+	p)
+	    if [[ "$OPTARG" = !* ]]; then
+		PIDpat="$PPID $$ ${OPTARG#?}"
+		NotPID=true
+	    else
+		PIDpat=$OPTARG
+		NotPID=false
+	    fi
+	    # Convert comma-separated list to ksh pattern
+	    OIFS=$IFS
+	    IFS=" ,"
+	    set -- $PIDpat
+	    IFS=\|
+	    PIDpat="@($*)"
+	    IFS=$OIFS
+	    ;;
+	q)
+	    exec >/dev/null
+	    ;;
+	u)
+	    u=true
+	    if [[ "$OPTARG" = !* ]]; then
+		# Convert comma-separated list to ksh pattern
+		OIFS=$IFS
+		IFS=" ,"
+		set -- ${OPTARG#?}
+		IFS=\|
+		NotUserPat="@($*)"
+		IFS=$OIFS
+		AllUsers=true
+		f=-f
+	    else
+		UserList=$OPTARG
+	    fi
+	    ;;
+	[kt])
+	    if [[ "$OPTARG" = !* ]]; then
+		TTYPat=${OPTARG#?}
+		NotTTY=true
+	    else
+		TTYPat=$OPTARG
+		NotTTY=false
+	    fi
+	    # Convert comma-separated list to ksh pattern
+	    OIFS=$IFS
+	    IFS=" ,"
+	    set -- $TTYPat
+	    IFS=$OIFS
+	    TTYPat=
+	    for tty; do
+		case "$tty" in
+		[-?])	# Convert - to ? since that's the way ps gives it
+		    TTYPat="$TTYPat|\\?"
+		    ;;
+		*)
+		    tty=${tty#/dev/}
+		    TTYPat="$TTYPat|${tty#tty}"
+		    ;;
+		esac
+	    done
+	    # Some versions of ps strip leading 'tty' from tty name; some
+	    # don't.  Make it optional.
+	    TTYPat="?(tty)@(${TTYPat#?})"
+	    [ $opt = k ] && AllUsers=true
+	    ;;
+	[ABCEFHIKPQSTSUVW])
+	    signals="$signals $opt$OPTARG"
+	    ;;
+	[0123456789])
+	    Arg=${Args[OPTIND-1]}
+	    # Get rid of everything up to the option we are dealing with.
+	    Arg=${Arg##-*([!$opt])}
+	    signals="$signals $Arg"
+	    # Replace the rest of the arg with a noop so that if more than one
+	    # digit was given, the rest of them aren't processed separately.
+	    # Changing OPTIND in a getopts loop does not have the desired
+	    # effect.  Also, if getopts thought there was going to be another
+	    # option, there better be one or it will barf.  So, tack on a z
+	    # to replace anything we might have disposed of.
+	    Args[OPTIND-1]=${Args[OPTIND-1]%$Arg}${opt}z
+	    ;;
+	z)	# noop
+	    ;;
+	+?)
+	    print -u2 "$name: options should not be preceded by a '+'."
+	    exit 1
+	    ;;
+	?) 
+	    print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	    exit 1
+	    ;;
+	esac
+    done
+
+    # OPTIND seems to be local to functions, so return # of args procced
+    return $OPTIND
+}
+
+# Set functions  
+# 95/01/28 John H. DuBois III
+
+# Usage: SubtractSet setname element ... 
+# setname is the name of an array that holds a set.
+# A set is stored in an array using contiguous indices starting with 0,
+# in ascending order by lexicographic value.
+# Any named element that is in setname is removed.
+# The named elements do not have to be sorted.
+# It is not an error for an element to not be in the set.
+function SubtractSet {
+    typeset SetName=$1 Elements Set
+    typeset -i i=0 NumElem
+
+    shift
+    set -s	# sort elements
+    # Save elements, because the next set -A will nuke them
+    set -A Elements -- "$@"
+    # Save the set into a copy to make it easier to work with
+    eval set -A Set -- \"\${$SetName[@]}\"
+    # Restore elements as positional params, to make them easier to work with
+    set -- "${Elements[@]}"
+    NumElem=${#Set[*]}
+    while [ $# -gt 0 -a i -lt NumElem ]; do
+	while [[ $# -gt 0 && "$1" < "${Set[i]}" ]]; do
+	    shift
+	done
+	[[ "$1" = "${Set[i]}" ]] && unset Set[i]
+	let i+=1
+    done
+    eval set -A $SetName -- '"${Set[@]}"'
+}
+ 
+# Sets _OSRelease to the entire OS release (e.g. 3.2v5.0.0}
+# Sets _OSVersion to the version part (e.g. 5.0.0)
+# Returns the major part of the version (e.g. 5)
+# If an OSVersion value is given as an arg, returns 0 if the system OS version
+# is lexicographically less than it; 1 if they are equal; 2 if the system OS
+# version is greater.
+function OSVersion {
+    typeset arg=$1
+    if [ -z "$_OSRelease" ]; then
+	# Name of release field is different in different langs
+	set -- $(LANG=english_us.ascii uname -X)
+	while [ "$1" != Release -a $# -ge 3 ]; do
+	    shift 3
+	done
+	[ $# -lt 3 ] && return 1
+	_OSRelease=$3
+	_OSVersion=${3##*v}
+    fi
+    [ -z "$arg" ] && return ${_OSVersion%%.*}
+    [[ "$_OSVersion" > "$arg" ]] && return 2
+    [[ "$_OSVersion" < "$arg" ]] && return 0
+    return 1
+}
+
+# Usage: dosleep <seconds> <pid> ...
+# Sleeps for <seconds> or until no pids are still alive, whichever occurs
+# first, checking each second.
+function dosleep {
+    typeset -i sleeptime=$1 pid
+    typeset return
+    shift
+    while [ sleeptime -gt 0 ]; do
+	# kill exits with status 0 for successful delivery, 2 for permission
+	# denied or no such process
+	return=true
+	for pid; do
+	    if kill -0 $pid 2>/dev/null; then
+		return=false
+	    fi
+	done
+	$return && return
+	let sleeptime=sleeptime-1
+	sleep 1
+    done
+}
+
+# Converts time in the format h:m:s to seconds & returns it in hsm2sec
+# Returns failure status if $1 does not have 3 fields
+typeset -i hms2sec
+function hms2sec {
+    typeset IFS
+    IFS=:
+
+    set -- $1
+    hms2sec="$1*3600+$2*60+$3"
+    [ $# -eq 3 ]
+}
+
+# Convert relative time spec of the form n[dhms] to a UNIX epoch time
+# and returns it in max_stime.
+typeset -i max_stime
+function makeAge {
+    typeset -i i sec
+
+    if [[ "$1" != *([0-9])[dhms] ]]; then
+	print -ru2 -- "$name: Bad age: $1"
+	exit 1
+    fi
+    i=${1%?}
+    if [ i -eq 0 ]; then
+	print -ru2 -- "$name: Age value must be a positive integer."
+	exit 1
+    fi
+    case "$1" in
+    *d)
+	sec='i*86400'
+	;;
+    *h)
+	sec='i*3600'
+	;;
+    *m)
+	sec='i*60'
+	;;
+    *s)
+	sec=i
+	;;
+    esac
+    # Convert relative values to absolute, using current time
+    curtime
+    max_stime=curtime-sec
+    istrue x && type unixtime > /dev/null &&
+    print -u2 "Will kill processes older than: $(TZ=$OTZ unixtime $max_stime)"
+}
+
+# Uses globals max_stime, PS_month, PS_day, and PS_time
+function doCheckAge {
+    $checkAge || return 0
+
+    typeset -i time day year proctime
+
+    curtime
+    if [ -n "$PS_month" ]; then
+	date2doy $PS_month $PS_day
+	[ date2doy -lt cur_day ] && year=cur_year || year=cur_year-1
+	unixdays $year $PS_month $PS_day
+	proctime=unixdays*86400
+    else	# max age was specified as seconds
+	hms2sec "$PS_time" || {
+	    print -u2 "Bad time field: $PS_time"
+	    return 1
+	}
+	day=curtime/86400
+	time=curtime%86400
+	[ hms2sec -gt time ] && let day-=1
+	proctime='day*86400+hms2sec'
+    fi
+    istrue x && type unixtime > /dev/null && print -u2 "Process time "\
+"'$PS_month $PS_day $PS_time' converted to: $(TZ=$OTZ unixtime $proctime)"
+    # Return true if process time is earlier than max start time
+    [ proctime -lt max_stime ]
+}
+
+### start of doy-date lib
+# 97/06/29 john@armory.com
+typeset -i MStart
+function mstart_setup {
+    if [[ $(( `date +%y` % 4 )) = 0 ]]; then
+	set -A MStart 0 31 60 91 121 152 182 213 244 274 305 335 366
+    else
+	set -A MStart 0 31 59 90 120 151 181 212 243 273 304 334 365
+    fi
+}
+
+function initMonths {
+    set -A mNum2Month "" jan feb mar apr may jun jul aug sep oct nov dec
+}
+
+function month2num {
+    typeset -lL3 month=$1
+    typeset -i i=1
+    [ ${#mNum2Month} -eq 0 ] && initMonths
+    while [ i -le 12 ]; do
+	[ ${mNum2Month[i]} = "$month" ] && return $i
+	let i+=1
+    done
+    return 0
+}
+
+# doy2date day-of-year
+# Returns the day-of-year converted to month & day (separated by a space)
+# in global doy2date
+# assumes conversion is for the current year
+function doy2date {
+    typeset -i M
+    M=$1/32+1
+    [ $1 -gt MStart[M] ] && M=M+1
+    doy2date="$M $(($1 - MStart[M-1]))"
+}
+
+# date2doy month day-of-month
+# Returns the month & day-of-month converted to day-of-year in global date2doy
+# assumes conversion is for the current year
+function date2doy {
+    typeset -i month
+    [[ $1 = +([0-9]) ]] && month=$1 || {
+	month2num "$1" && return 0
+	month=$?
+    }
+    date2doy=$((MStart[month-1] + $2))
+}
+
+# date2days year month day-of-month
+# Returns the number of complete days that passed from 1900 Jan 1 to the start
+# of the given date in global date2days.
+# The month may be given in numeric form (Jan=1) or by name, in which case at
+# least the first 3 characters must be passed (case is ignored).
+# Works from 1901 to 2099.
+# If year < 100, it is assumed to be part of the 1900 century
+typeset -i date2days
+function date2days {
+    typeset -i year=$1 day=$3 leap_days MDays month
+    [ year -ge 100 ] && let year-=1900
+    let leap_days=year/4+1
+    [[ $2 = +([0-9]) ]] && month=$2 || {
+	month2num "$2" && return -1
+	month=$?
+    }
+    [[ month -le 2 && $((year%4)) = 0 ]] && let leap_days-=1
+    [ ${#MDays[*]} -eq 0 ] &&
+    set -A MDays 0 0 31 59 90 120 151 181 212 243 273 304 334 365
+    date2days="year*365+MDays[month]+day-1+leap_days"
+}
+
+# unixdays year month day-of-month
+# Returns the number of complete days that passed from 1970 Jan 1
+# to the start of the given date in global unixdays
+typeset -i unixdays
+function unixdays {
+    date2days "$@"
+    unixdays=date2days-25568
+}
+
+# diffdays year1 month1 day-of-month1 year2 month2 day-of-month2 {
+# prints the number of complete days that passed from date 1 to date 2
+typeset -i diffdays
+function diffdays {
+    date2days $4 $5 $6
+    diffdays=date2days
+    date2days $1 $2 $3
+    diffdays=diffdays-date2days
+}
+
+# Returns the UNIX epoch time in global curtime
+# Depends on SECONDS not being messed with
+# If all date utilities had %s this wouldn't be neccessary...
+typeset -i curtime _shell_start=-1
+function curtime {
+    typeset -i Y m d H M S
+    if [ _shell_start -eq -1 ]; then
+	TZ=0 date '+%Y %m %d %H %M %S' | read Y m d H M S
+	unixdays $Y $m $d
+	curtime="unixdays*86400+H*3600+M*60+S"
+	_shell_start=curtime-SECONDS
+    else
+	curtime=_shell_start+SECONDS
+    fi
+}
+### end of doy-date lib
+# start of main program
+
+name=${0##*/}
+Usage=\
+"Usage: $name [-afhilqnv] [-<signal>] [-[tk][!]<tty[,tty...]>] [-o<age>]
+[-u[!]<user[,user...]>] [-p[!]<process-ID,[process-ID,...>] <process-name> ..."
+
+typeset -i x=0 
+KillAll=false
+NoKill=false
+AllUsers=false
+Verbose=false
+Restart=false
+testSig=0
+defSleep=3
+bSleep=$defSleep
+aSleep=$defSleep
+rSleep=$defSleep
+NotUserPat=-
+Interactive=false
+Menu=false
+Query=false
+checkAge=false
+u=false
+
+set -o noglob
+
+# Make sure that if "maim sh" [ksh, etc] is given,
+# neither this process nor its parent will be killed
+PIDpat="@($$|$PPID)"
+NotPID=true
+
+typeset -i cur_year cur_day
+doArgs "$@"
+shift $(($?-1))		# remove args that were options
+
+if [ -n "$TTYPat" ]; then
+    # Do not allow this because if both -t and -a are given, it isn't clear
+    # whether the user meant args to be user names or tty names.
+    if $KillAll; then
+	print -u2 "Cannot give both -a and -t."\
+"  -t implies -a, so you probably should use just -t."
+	exit 1
+    fi
+    # If a tty pattern is given w/o process names, all processes on the tty are
+    # candidates for being killed.  If -a was given along with user names,
+    # $# will not be 0, so this test will fail (incorrectly, since there are
+    # no process patterns), but the process pattern will be set to * anyway
+    # in the KillAll block.
+    [ $# -lt 1 ] && set -- '*'
+else
+    # By default, kill matching processes regardless of tty
+    TTYPat=\*
+    NotTTY=false
+fi
+
+# If killing all procs (ignoring process name),
+# make the pattern be '*', and take any args to be user names.
+# If Interactive is set and no process selection options given, do KillAll.
+if $KillAll || [ $# -lt 1 -a $Query = true ]; then
+    if $Restart; then	# Must have proc name for restart
+	print -u2 "$name: Cannot give -r and -a options together."
+	exit 1
+    fi
+    # Only set user list if args given since even setting it to a space
+    # will prevent it from being set to the invoking user
+    [ $# -gt 0 ] && UserList="$UserList $*"
+    set -- '*'
+fi
+
+if [ $# -lt 1 ]; then
+    print -u2 "$name: No non-option arguments given."
+    $u && print -u2 "You gave -u; perhaps you also meant to give -a?"
+    print -u2 \
+"$Usage
+Use -h for help."
+    exit
+fi
+
+if [ -z "$signals" ]; then
+    $Restart && signals=9 || signals="1 15 9"
+fi
+
+# If UserList not set, set it
+if [ -z "$UserList" ]; then
+    $AllUsers || {
+	if [ -n "$USER" ]; then
+	    UserList=$USER
+	else
+	    id=$(id)
+	    UserList=${id%%\)*}
+	    UserList=${UserList##*\(}
+	    istrue x && print -u2 "id output: <$id>.  User: $UserList"
+	fi
+    }
+else	# A list of users has been given.
+    if $AllUsers; then
+	print -u2 \
+"$name: User names must not be given with -k.
+$Usage
+Use -h for help."
+	exit
+    fi
+fi
+
+if $Restart; then
+    if [ $# -gt 1 ]; then
+	# Only allow one because it's difficult to keep track of which procs
+	# were killed.
+	print -u2 "$name: Must not give more than one process name with -r."
+	exit 1
+    fi
+    RestartProc=$1
+fi
+
+pat=
+typeset -i maxName m MenuPIDs
+
+for pname; do
+    # Only run uname if actually neccessary
+    if [[ -z "$f" && ${#pname} -gt 8 && "$pname" != *[][*?()]* ]]; then
+	((maxName)) || { OSVersion 5 && maxName=8 || maxName=14; }
+	if [ ${#pname} -gt maxName ]; then
+	    print -u2 \
+"$name: Warning: process names longer than $maxName characters will not match
+any processes unless -f is given.  Skipping: $pname"
+	else
+	    pat="$pat|$pname"
+	fi
+    else
+	pat="$pat|$pname"
+    fi
+done
+if [ -z "$pat" ]; then
+    print -u2 "$name: No patterns.  Aborting."
+    exit 1
+fi
+# Get rid of the leading |
+pat="@(${pat#?})"
+
+$AllUsers && set -A psArgs -- $f -e || set -A psArgs -- $f "-u$UserList"
+
+istrue x && print -u2 \
+"Process name pattern: <$pat>
+TTY pattern: <$TTYPat>
+NotTTY: $NotTTY
+Process pattern: <$PIDpat>
+NotPID: $NotPID
+User list: <$UserList>
+User exclusion pattern: $NotUserPat
+Signals: <$signals>
+ps command: ps ${psArgs[*]}"
+
+if $Query; then
+    exec 3<&0	# save stdin
+    if $Interactive; then
+	print -r \
+"For each process, enter 'y' to kill it, 'n' or return to skip it,
+'q' to stop prompting and kill all processes that 'y' was entered for,
+or 'a' to abort without killing anything."
+    fi
+else
+    $NoKill || print "Maiming:"
+fi
+
+typeset -i pspid=0
+# Want IFS set to nothing when reads are done so that leading whitespace will
+# not be stripped (so that psline can be printed nicely)
+# Start up ps as coprocess so we can get its pid
+ps "${psArgs[@]}" |&
+pspid=$!
+while IFS="" && read -r psline; do
+    IFS=" "
+    set -- $psline
+    if [ -z "$f" ]; then	# if doing plain ps
+	PS_cmd=$4
+	PS_tty=$2
+	PS_pid=$1
+    else			# if doing ps -f
+	if [[ "$5" = ??? ]]; then	# if start time given as month&day
+	    PS_cmd=$9
+	    PS_tty=$7
+	    PS_month=$5
+	    PS_day=$6
+	    PS_time=
+	else				# if start time given as time of day
+	    PS_cmd=$8
+	    PS_tty=$6
+	    PS_month=
+	    PS_day=
+	    PS_time=$5
+	    [ "$PS_time" = - ] && continue	# zombie
+	fi
+	PS_cmd=${PS_cmd##*/}
+	PS_pid=$2
+	PS_user=$1
+    fi
+    [ "$PS_tty" = - ] && continue	# zombie
+    # ignore header & line for ps process itself
+    [[ "$PS_pid" = PID || "$PS_pid" -eq pspid ]] && continue
+    istrue x && print -ru2 -- \
+"Command: $PS_cmd
+TTY: $PS_tty
+PID: $PS_pid"
+    if eval "[[ '$PS_cmd' = $pat && 
+    ( $NotTTY = true && '$PS_tty' != $TTYPat ||
+    $NotTTY = false && '$PS_tty' = $TTYPat ) &&
+    '$PS_user' != $NotUserPat &&
+    ( $NotPID = true && '$PS_pid' != $PIDpat ||
+    $NotPID = false && '$PS_pid' = $PIDpat ) ]]" && doCheckAge; then
+	if $Menu; then
+	    let m+=1
+	    MenuLines[m]=$psline
+	    MenuPIDs[m]=$PS_pid
+	else
+	    print -r -- "$psline"	# Tell what we're maiming
+	    if $Interactive; then
+		print -nr -- "Kill? [nyqa] "
+		read -u3 resp
+		case "$resp" in
+		[yY]*)
+		    ;;
+		[nN]|"")
+		    continue
+		    ;;
+		[qQ])
+		    break
+		    ;;
+		[aA])
+		    print Aborting.
+		    exit 0
+		    ;;
+		*)
+		    print Skipping.
+		    continue
+		    ;;
+		esac
+	    fi
+	    pids="$pids $PS_pid"
+	fi
+    elif $Verbose; then
+	print -u2 "No match: $psline"
+	SkippedProcs=true
+    fi
+done <&p
+IFS=" 	
+"
+
+if $Menu && [ ${#MenuLines[*]} -gt 0 ]; then
+    typeset -i num numElem
+    PS3=\
+"Enter: process numbers (NOT PIDs) to kill; q or EOF to quit and kill selected
+processes; a to abort without killing anything; or press <return> to reprint
+the process list: "
+    DoCont=true
+    while $DoCont; do
+	DoCont=false
+	if [ ${#MenuLines[*]} -eq 0 ]; then
+	    print -n "All processes have been selected.  Kill them? [ny] "
+	    read line
+	    [[ "$line" != [yY]* ]] && exit 0
+	    break
+	fi
+	select line in "${MenuLines[@]}"; do
+	    case "$REPLY" in
+	    # EOF in case it's taken literally!
+	    [qQ]*|EOF)
+		break
+		;;
+	    [aA])
+		exit 0
+		;;
+	    +([0-9 	]))
+		numElem=${#MenuPIDs[*]}
+		for num in $REPLY; do
+		    if [ num -eq 0 -o num -gt numElem ]; then
+			print "Process number out of range (skipping): $num"
+		    else
+			# Avoid leading whitespace in PID list
+			[ -n "$pids" ] && pids="$pids ${MenuPIDs[num]}" ||
+			pids=${MenuPIDs[num]}
+			KillLines="$KillLines
+${MenuLines[num]}"
+			unset MenuPIDs[num] MenuLines[num]
+		    fi
+		done
+		;;
+	    *)
+		print "Unrecognized input; not processed."
+		;;
+	    esac
+	    if [ -n "$KillLines" ]; then
+		print -r -- "Kill list (PIDs $pids):$KillLines
+"
+	    fi
+	    # Compact array
+	    set -A MenuPIDs -- "" "${MenuPIDs[@]}"
+	    set -A MenuLines -- "" "${MenuLines[@]}"
+	    unset MenuPIDs[0] MenuLines[0]
+	    DoCont=true
+	    break
+	done
+    done
+    print ""	# In case EOF is hit
+fi
+
+# Sort pids so they can be operated on as a set
+set -s $pids
+set -A KillPIDs -- $pids
+
+istrue x && print -u2 "process ids: ${KillPIDs[*]}"
+
+if [ -z "$pids" ]; then
+    print -u2 "Nothing to maim."
+    exit 1
+fi
+
+$NoKill && exit 0
+
+set -A sigList 0 $signals $testSig
+numSig=${#sigList[*]}
+istrue x && print -u2 \
+"$numSig signals to send (including initial & test signals): ${sigList[*]}"
+typeset -i signum=0
+while [ signum -lt numSig ]; do
+    signal=${sigList[signum]}
+    istrue x && print -u2 "Processing signal $signal..."
+    DonePIDs=
+    KilledPIDs=
+    kill -$signal "${KillPIDs[@]}" 2>&1 | while read result; do
+	# Output of kill looks like this (one process per line):
+	# kill: 1: permission denied
+	# kill: 30000: no such process
+	# Lines for processes are printed in the same order as PIDs given.
+	set -- $result
+	pid=${2%:}
+	case "$result" in
+	*denied*) print -u2 "$result";;
+	*"no such process"*)
+	    # If this is the 2nd or later signal being sent,
+	    # announce that the previous signal killed the process.
+	    if [ -n "$lastsig" ]; then
+		KilledPIDs="$KilledPIDs $pid"
+	    else	# If 1st signal, announce that process didn't exist.
+		print -u2 "$result"
+	    fi
+	    DonePIDs="$DonePIDs $pid"
+	    ;;
+	*) print -u2 "$result"
+	    ;;
+	esac
+    done
+    [ -n "$KilledPIDs" ] &&
+    print Processes killed by signal $lastsig: $KilledPIDs
+    SubtractSet KillPIDs $DonePIDs
+    [ ${#KillPIDs[*]} -eq 0 ] && break
+
+    if [ -n "$lastsig" ]; then
+	if [ "$signal" = 0 ]; then
+	    # If there was a previous signal, and this is the final test
+	    # signal, warn about any processes still alive.
+	    print "Processes not killed: ${KillPIDs[*]}"
+	else
+	    print "Processes sent signal $signal: ${KillPIDs[*]}"
+	fi
+    fi
+
+    lastsig=$signal
+    let signum+=1
+    # Don't sleep after first (test) and final signals.
+    [ signum -gt 1 -a signum -lt numSig ] && dosleep $bSleep ${KillPIDs[*]}
+done
+if $Restart; then
+    sleep $rSleep
+    print "Restarting '$RestartProc'..."
+    $RestartProc
+fi
+print Done.

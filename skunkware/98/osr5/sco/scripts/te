@@ -1,0 +1,388 @@
+#!/bin/ksh
+# @(#) te.ksh,where.ksh 2.1.1 97/07/20
+# 92/08/31 John H. DuBois III (john@armory.com)
+# 92/09/10 added -p option to whence
+# 92/10/16 Allow multiple ,-separated targets; added help
+# 92/10/21 Added {}
+# 93/08/02 Changed name to te to avoid conflict with to
+# 94/03/08 Added -c option
+# 94/06/29 Added -xpt.  Fixed bug in {} processing which caused all target
+#          executables to be substituted for {} as a single word.
+# 95/04/23 Added TECMD env var, n option, & rcfile processing
+# 95/05/17 Change window title if appropriate
+# 96/08/24 Let capital letters turn off options.  Merged te and where.
+#          Added aL options.
+# 96/09/03 Do not search for absolute paths in $PATH.
+# 97/07/20 2.1.1 In 'where' mode, print each match as it is found rather than
+#          storing in an array, to avoid 1024-element limit.
+
+# todo: option to cd to directory that 1st file is found in before running
+# command.
+
+name=${0##*/}
+iUsage="$name [-aAeEfFhlLnsStTvVwW] [-p<path>]"
+Usage=\
+"Usage: 
+$iUsage target[,target,...] [cmd [arg ...]]
+$iUsage -c \"cmd [arg ...]\" target [target ...]"
+
+# Only take TECMD from the environment
+Debug=false Test=false VERBOSE= notVERBOSE=false Readrc=true CmdGiven=false
+ALL= notALL=false NOTITLE= notNOTITLE=false ANYFILE= notANYFILE=false
+SYMLINKS= notSYMLINKS=false EXACT= notEXACT=false SHELLPAT= notSHELLPAT=false
+listTargets=false where=false types=
+rcFile=.terc
+searchPath=$PATH
+
+if [ "$name" = where ]; then
+    listTargets=true SHELLPAT=1 Readrc=false where=true
+fi
+
+while getopts :aAc:eEfFhlLnp:sStTvVwWx opt; do
+    case $opt in
+    h)
+    echo \
+"$name: execute commands on commands.
+$Usage
+Each target is searched for as a command in \$PATH and expanded into its
+full filename.  command [arg ...] is then executed with the list of
+filenames as additional arguments.  Targets given with absolute paths are
+operated on directly without searching for them in \$PATH (as is the behaviour
+when a program name is given to the shell to be executed).
+If one of the arguments is \"{}\", it is replaced with the list of
+filenames and the filenames are not passed as additional arguments.
+Targets can be specified either as a comma-separated list followed by the
+command and its optional initial arguments, or if the command is given with -c,
+as a list of separate arguments following the command (which in this case must
+be quoted to make it a single argument if it includes initial arguments to the
+command).  
+If the environment variable TECMD is set, it provides a default command and
+optional initial arguments to it to run if no command is specified (if only
+one argument is given and -c is not given).  TECMD may also be assigned a value
+in the configuration file described below.
+If the environment variables WINTITLE, DISPLAY, and EDITOR are set, and the
+command to be run is the same as the value of EDITOR, an xterm escape sequence
+is sent to change the window title to the name of the files being edited,
+followed by the value of WINTITLE in parentheses.  After editing is completed,
+another sequence is sent to change the window title back to the value of
+WINTITLE by itself.
+
+Options:
+Some of the following options can be set in a configuration file named
+\"$rcFile\", which may be in the invoking user's home directory or in the
+directory specified by the environment variable UHOME (if both exist,
+assignments in the former take precedence).  In this file, values are assigned
+to variables in shell style, e.g. \"VARNAME=value\".  To set an option that
+does not take a value, use \"VARNAME=1\".  Options given in the configuration
+files are overridden by those given on the command line.  Use the upper case
+version of a Boolean (on or off) option letter to unset it.  Variable names are
+given in parentheses following option descriptions.
+Example contents of a $rcFile file:
+TECMD=\"vi -c'set ts=4'\"
+If this program is invoked as \"where\", the T, s, and n options are turned on.
+-a: Execute the command on every instance of the target that occurs in the
+    search path, instead of just the first occurance.  (ALL)
+-s: Treat filenames as unanchored ksh shell patterns.  This causes e.g. the
+    pattern \"bar@(ba|fi)z\" to select filenames that contain the string barbaz
+    or barfiz.  See the regexp(M) man page for a description of ksh filename
+    patterns.  Patterns are surrounded by implicit '*' characters, causing them
+    to be unanchored.  This can be overridden by using '^' and '$' to force a
+    match to start at the beginning and end at the end of a filename
+    respectively.  Characters that are special to the shell must generally
+    be protected from the shell by surrounding them with quotes.  (SHELLPAT)
+-e: Used with -s, finds exact (complete) matches only; equivalent to putting ^
+    and $ at the start and end of each pattern.  (EXACT)
+-f: Find any matching regular file in the search path, regardless of whether it
+    is executable or not.  (ANYFILE)
+-l: Also find any matching symlink in the search path, regardless of whether
+    the file it points to exists or is executable.  (SYMLINKS)
+-p<path>: Use <path> as the search path instead of using the value of the PATH
+    variable.
+-h: Print this help.
+-n: Do not read the $rcFile file.
+-w: Do not send an xterm title escape sequence.  (NOTITLE)
+-v: Print the command before it is run.  (VERBOSE)
+-t: Print the command that would be executed, but do not run it.
+-T: Print a list of all matching target files, without doing anything to them.
+    This turns on the a option."
+	exit 0
+	;;
+    c)
+	Cmd=$OPTARG
+	CmdGiven=true
+	;;
+    x)	Debug=true;;
+    w)	NOTITLE=1;;
+    W)	notNOTITLE=true;;
+    n)	Readrc=false;;
+    t)	Test=true;;
+    T)	listTargets=true;;
+    v)	VERBOSE=1;;
+    V)	notVERBOSE=true;;
+    p)	searchPath=$OPTARG;;
+    f)	ANYFILE=1;;
+    F)	notANYFILE=true;;
+    e)	EXACT=1;;
+    E)	notEXACT=true;;
+    s)	SHELLPAT=1;;
+    S)	notSHELLPAT=true;;
+    l)	SYMLINKS=1;;
+    L)	notSYMLINKS=true;;
+    a)	ALL=1;;
+    A)
+	notALL=true;;
+    +?)
+	print -ru2 -- "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -ru2 -- "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+function CheckPat {
+    typeset file pattern=$1 t
+    typeset -i ret=0
+
+    [ -n "$SHELLPAT" ] && set -- $pattern || set -- "$pattern"
+    for file; do
+	if [ -x "$file" -a -f "$file" ]; then
+	    if $listTargets; then
+		print "$file"
+	    else
+		Files[type_i]=$file
+		[ -z "$ALL" ] && return
+	    fi
+	    ret=1
+	    let type_i+=1
+	else
+	    for t in $types; do
+		if [ -$t "$file" ]; then
+		    if $listTargets; then
+			print "$file"
+		    else
+			Files[type_i]=$file
+			[ -z "$ALL" ] && return
+		    fi
+		    ret=1
+		    let type_i+=1
+		fi
+	    done
+	fi
+    done
+    return $ret
+}
+
+# Usage: PathSearch pattern
+# Sets Files[] to all files in Paths[] that match the pattern
+# type_i is set to the number of matches, which is the number of elements
+# put in Files[] if listTargets is false.
+typeset -i type_i
+function PathSearch {
+    typeset arg=$1 found=false PathElem
+
+    set +f			# make sure filename globbing is on
+    unset Files
+    type_i=0
+    if [ -n "$SHELLPAT" -a -z "$EXACT" ]; then
+	# Discard anchor chars if given, since they are not real metachars
+	if [[ "$arg" = ^* ]]; then
+	    arg=${arg#?}	
+	else
+	    arg="*$arg"	# Pattern is not anchored at start
+	fi
+	if [[ "$arg" = *\$ ]]; then
+	    arg=${arg%?}
+	else
+	    arg="$arg*"	# Pattern is not anchored at end
+	fi
+    fi
+    if [[ "$arg" = /* ]]; then
+	CheckPat "$arg"
+    else
+	# Find all pattern matches that are executable regular files.
+	for PathElem in "${Paths[@]}"; do
+	    CheckPat "$PathElem/$arg"
+	done
+    fi
+}
+
+# This code must come after arg processing because until args are processed
+# we do not know if we should read the rcfile or not.
+rcFile=$HOME/$rcFile
+# Let TECMD in the environment override rcfile
+oTECMD=$TECMD
+$Readrc && [ -f "$rcFile" ] && . $rcFile
+[ -n "$oTECMD" ] && TECMD=$oTECMD
+[ -z "$Cmd" -a -n "$TECMD" ] && Cmd=$TECMD
+
+$listTargets && ALL=1
+$notNOTITLE && NOTITLE=
+$notVERBOSE && VERBOSE=
+$notALL && ALL=
+$notANYFILE && ANYFILE=
+$notSYMLINKS && SYMLINKS=
+$notSHELLPAT && SHELLPAT=
+$notEXACT && EXACT=
+[ -z "$SHELLPAT" ] && EXACT=
+[ -n "$SYMLINKS" ] && types=L
+[ -n "$ANYFILE" ] && types="$types f"
+
+# $Cmd is now either a command given with -c or a default command (if any).
+# If a command was given with -c, each remaining arg is a target.
+# Otherwise, $1 is a comma-separated list of targets; any further arguments
+# are the command and its args.
+
+typeset -i MinArgs
+# If we have a default or -c command, need only one arg (target).
+# Otherwise, need at least two (list of targets and command).
+[ "$name" = where -o -n "$Cmd" ] && MinArgs=1 || MinArgs=2
+if [ $# -lt MinArgs ]; then
+    print -ru2 "$Usage
+Use -h for help."
+    exit
+fi
+
+if $CmdGiven; then
+    # -c given; all args are targets
+    # Save targets, since the next set -A will wipe out positional params
+    set -A targets -- "$@"	
+    # eval this so that quoted options can be given in Cmd
+    eval set -A command $Cmd
+else
+    # First arg is a comma-separated list of targets.
+    targets=$1
+    shift 1
+    if [ $# -eq 0 ]; then
+	# eval this so that quoted options can be given in Cmd
+	eval set -A command $Cmd
+    else
+	set -A command "$@"
+    fi
+    OFS=$IFS
+    IFS=,
+    set -A targets -- $targets
+    IFS=$OFS
+fi
+
+targList="$*"
+
+$Debug && print -ru2 "Command: <${command[*]}>  Targets: <${targets[*]}>"
+
+# Command & args now reside in command[]; 
+# target executables are in targets[]
+
+# If we need to get every instance of a match in the search path (ALL),
+# or need to get both executable and non-executable matches (ANYFILE),
+# or need to get dangling symlinks (SYMLINKS),
+# or need to be able to match shell patterns (SHELLPAT),
+# then we must do our own search.  Otherwise we can just use 'whence'.
+if [ -n "$ALL" -o -n "$ANYFILE" -o -n "$SYMLINKS" -o -n "$SHELLPAT" ]; then
+    OIFS=$IFS
+    IFS=:		# Make PATH be split on :
+    set -A Paths -- $PATH
+    IFS=$OIFS
+    LongSearch=true
+else
+    LongSearch=false
+fi
+
+# Get full paths to matches.
+oPATH=$PATH
+PATH=$searchPath
+typeset -i numMatch=0
+for target in "${targets[@]}"; do
+    if $LongSearch; then
+	PathSearch "$target"
+    else
+	set -A Files -- "$(whence -p $target)"	# quick search
+	[ -z "$Files" ] && unset Files
+	type_i=${#Files[*]}
+    fi
+    if [ type_i -eq 0 ]; then
+	print -ru2 -- "$target: not found"
+    else
+	$listTargets ||
+	set -A TargetExecutables -- "${TargetExecutables[@]}" "${Files[@]}"
+    fi
+    let numMatch+=type_i
+done
+
+PATH=$oPATH
+# Quit if there were no good targets
+[ numMatch -eq 0 ] && exit 1
+
+$Debug && print -ru2 "Number of matches: $numMatch"
+
+$listTargets && exit 0
+
+#if $listTargets; then
+#    IFS="
+#"
+#    print -r -- "${TargetExecutables[*]}"
+#    exit 0
+#fi
+
+# Replace any {} with the list of target executables
+typeset -i CmdInd=0 DestInd=0
+NoAppend=false
+while [ CmdInd -lt ${#command[*]} ]; do
+    if [ "${command[CmdInd]}" = {} ]; then
+	# Stick target args at end of cmd line being built
+	set -A FullCmd -- "${FullCmd[@]}" "${TargetExecutables[@]}"
+	DestInd=${#FullCmd[*]}	# Recalculate dest index
+	NoAppend=true
+    else
+	FullCmd[DestInd]=${command[CmdInd]}
+	let DestInd+=1
+    fi
+    let CmdInd+=1
+done
+
+$NoAppend && unset TargetExecutables[*]
+
+if $Test; then
+    print -ru2 "Would execute: ${FullCmd[@]} ${TargetExecutables[@]}"
+    exit 0
+fi
+
+a0=${FullCmd[0]} 
+[[ -z "$WINTITLE" || -z "$DISPLAY" || -n "$NOTITLE" || \
+${a0##*/} != "${EDITOR##*/}" ]] && NOTITLE=true || NOTITLE=false
+
+[ -n "$VERBOSE" ] && 
+print -ru2 "Executing: ${FullCmd[@]} ${TargetExecutables[@]}"
+$Debug && { print -ru2 "Press return to continue..."; read; }
+
+function ResetTitle {
+    print -n "\033]0;$OWINTITLE\007"
+}
+
+if $NOTITLE; then
+    exec "${FullCmd[@]}" "${TargetExecutables[@]}"
+else
+    OWINTITLE=$WINTITLE
+    # Change WINTITLE in environment, so that in case another app that
+    # uses WINTITLE is run from the editor, it will use modified value
+    WINTITLE="$targList ($OWINTITLE)"
+    trap ResetTitle INT QUIT
+    print -n "\033]0;$WINTITLE\007"      # set win title
+    "${FullCmd[@]}" "${TargetExecutables[@]}"
+    ResetTitle
+fi

@@ -1,0 +1,32 @@
+
+scriptname="$0"
+step="$1"
+keywords="$2"
+pkglist="$3"
+
+# Source in the standard functions library, ccsSetup.sh
+. ccsSetup.sh
+
+doPostExport() {
+# Run device-dependent config script
+	if [ -r $XMCD_LIB_DIR/config/config.sh ]
+	then
+		$XMCD_LIB_DIR/config/config.sh
+		if [ $? != 0 ]
+		then
+			ccsLog "$XMCD_LIB_DIR/config/config.sh failed."
+		fi
+	else
+		ccsLog "Cannot execute $XMCD_LIB_DIR/config/config.sh"
+	fi
+}
+
+ccs_return_value=0
+XMCD_LIB_DIR=/usr/local/lib/X11/xmcd
+
+case "$step" in
+        POST_EXPORT) doPostExport ;;
+esac
+
+exit $ccs_return_value
+

@@ -1,0 +1,169 @@
+#!/usr/local/bin/gawk -f
+# @(#) psn.gawk 1.0 96/01/27
+# 92/10/06 john@armory.com
+# 92/10/12 Convert +'s to -'s in Flags
+# 93/06/19 Fixed incorrect references to FieldNums[] as FieldNum[]
+#          Changed command field with from 1(?!) to 100
+#          Print header
+# 96/01/27 Make ps input come from /dev/null to work around gawk+protlib bugs
+
+BEGIN {
+    for (i = 1; i < ARGC && (ARGV[i] ~ "^[-+]."); i++)
+	Flags = Flags " " ARGV[i]
+    gsub(/\+/,"-",Flags)
+    if (ARGC - i < 1) {
+	print \
+"psn: No pattern.  Usage: psn [-psflags] search-pattern ...\n" \
+"Any processes whose ps line matches any of the given patterns is\n" \
+"printed.  Patterns may contains egrep(C)-type regular expressions."
+	exit
+    }
+    for (; ARGC - i < 1; i++)
+	Pattern = Pattern "|" ARGV[i]
+    Pattern = Pattern ARGV[i]
+    Cmd = "echo $$; exec ps -ef " Flags " < /dev/null"
+    Cmd | getline shPID
+    Cmd | getline Header
+    Left = 0
+    Right = 1
+
+    NumFields = FindColumns(Header,FieldNums,FieldNames,Columns)
+    if ("COMMAND" in FieldNums)
+	CmdField = "COMMAND"
+    else
+	CmdField = "CMD"
+
+    # Fields that are left-adjusted (at least, the only one we care about)
+    # Set to 1 just to put a value integer in Width[].
+    Width[CmdField] = 100
+
+    FindWidths(FieldNums,FieldNames,Columns,NumFields,Width,Right)
+    Command = FieldNums[CmdField]
+    if (Command == "") {
+	printf "Error: %s not found in header of commmand '%s'.\n",CmdField,Cmd
+	exit 1
+    }
+    PPID = FieldNums["PPID"]
+    PID = FieldNums["PID"]
+    gsub(" ","|",Pattern)
+    # Get all procs before printing anything so we will have the awk prog
+    # pid to check against
+    while ((Cmd | getline) == 1) {
+	# Ignore ps command (same pid as sh because it is exec'ed)
+	# but record its parent for comparison
+	if ($PID == shPID)
+	    awkPID = $PPID
+	else
+	    if ($Command ~ Pattern)
+		Commands[$PID] = $0
+    }
+    print Header
+    for (Proc in Commands)
+	if (Proc != awkPID)
+	    print Commands[Proc]
+}
+
+# FindWidths: Find the real width of fields.    92/10/06 john@armory.com
+# FindWidths takes information on the starting and ending columns of
+# header labels and determines the starting and ending columns of the entire
+# field, using information on whether fields are left- or right-adjusted.
+#
+# Return value: the number of fields found is returned.
+# FieldNums[] should contain the number of each field indexed by field name.
+# FieldNames[] should contain the name of each field indexed by field number.
+# Columns[n,Left] and Columns[n,Right] should contain the left and right 
+# columns of the header label for each field.  The values in columns are
+# changed, but the column numbers indexes are not updated if they are changed,
+# so Columns[] may not be useful after this function is called.
+# Column numbers are changed if right- and left-adjusted fields abut in
+# such a way as to create a range of columns between them that is not
+# allocated to any field.  If this occurs, the column numbers in
+# FieldNums[] and the indices of FieldNames[] are changed.
+# NumFields should be the number of header labels found.
+# DefaultAdj is the adjustment used for fields whose adjustment and width
+# is not specified.  It should be set to Left or Right.
+# Width[] is used to specify the width of fields which do not have the
+# default adjustment.
+# If a field name is not in Width[], then the DefaultAdj (Left or Right)
+# column of the field is fixed.  If a field name is in Width[], then the other
+# column is fixed and the width of the field is Width[fieldname].
+# If the rightmost field is left-adjusted, its width is set to 32000.
+# Global variables:
+# Left and Right should be set to boolean values before this function is
+# called (the same values used when FindColumns was called).
+# FIELDWIDTHS is set to a string that will cause lines to split into fields
+# at points determined by the information supplied to this function.
+function FindWidths(FieldNums,FieldNames,Columns,NumFields,Width,DefaultAdj,
+NewFieldNames,Num,FWidth,FieldName,Gap) {
+    # Set widths given explicitly
+    for (FieldName in Width) {
+	Num = FieldNums[FieldName]
+	if (DefaultAdj == Left)
+	    Columns[Num,Left] = Columns[Num,Right] - Width[FieldName] + 1
+	else
+	    Columns[Num,Right] = Columns[Num,Left] + Width[FieldName] - 1
+    }
+    # Set widths not given explicitly
+    for (Num = 1; Num <= NumFields; Num++)
+	if (!(FieldNames[Num] in Width))
+	    if (DefaultAdj == Left)
+		Columns[Num,Right] = Columns[Num + 1,Left] - 1
+	    else
+		Columns[Num,Left] = Columns[Num - 1,Right] + 1
+    # If rightmost field is left adjusted, it will be made negative
+    # by the previous loop.  Make it big.
+    if (Columns[NumFields,Right] < 1) {
+	Columns[NumFields,Right] = 32000
+    }
+    NewFieldNum = 0
+    # Generate value for FIELDWIDTHS,
+    # create new fields where right- & left-adjusted fields abut,
+    # reset field numbers in FieldNums,
+    # create array of field names indexed by new field numbers.
+    for (Num = 1; Num <= NumFields; Num++) {
+	FWidth = FWidth " " Columns[Num,Right] - Columns[Num,Left] + 1
+	FieldName = FieldNames[Num]
+	FieldNums[FieldName] = ++NewFieldNum
+	NewFieldNames[NewFieldNum] = FieldName
+	if ((Gap = Columns[Num + 1,Left] - Columns[Num,Right] - 1) > 0) {
+	    FWidth = FWidth " " Gap
+	    NewFieldNum++
+	}
+    }
+    # Set FieldNames to new field numbers.
+    if (NewFieldNum > NumFields)
+	for (Num = 1; Num <= NewFieldNum; Num++)
+	    if (Num in NewFieldNames)
+		FieldNames[Num] = NewFieldNames[Num]
+	    else
+		delete FieldNames[Num]
+    # Discard initial blank.
+    FIELDWIDTHS = substr(FWidth,2)
+    return NewFieldNum
+}
+
+# FindColumns: finds the start and end of field names given in a header line.
+# Header is separted into field names on FS.
+# The number of each field is put in FieldNums[] indexed by the field name.
+# The name of each field is put in FieldNames[] indexed by the field number.
+# The start and end column is put into Columns[fieldnum,Left] and
+# Columns[fieldnum,Right].
+# Global variables:
+# Left and Right should be set before this function is called.
+# Return value: the number of fields found is returned.
+function FindColumns(Header,FieldNums,FieldNames,Columns,
+Fields,Field,FieldNum,NumFields,StartC,EndC) {
+    EndC = 0
+    NumFields = split(Header,FieldNames)
+    for (FieldNum = 1; FieldNum <= NumFields; FieldNum++) {
+	Field = FieldNames[FieldNum]
+	FieldNums[Field] = FieldNum
+	match(Header,Field)
+	StartC = RSTART + EndC
+	EndC = StartC + RLENGTH - 1
+	Columns[FieldNum,Left] = StartC
+	Columns[FieldNum,Right] = EndC
+	Header = substr(Header,RSTART + RLENGTH)
+    }
+    return NumFields
+}

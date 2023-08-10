@@ -1,0 +1,119 @@
+#!/bin/ksh
+# @(#) psf.ksh 1.0 93/11/19
+# 93/11/09 John H. DuBois III (john@armory.com)
+# 93/11/19 Get rid of c, p, r codes at end of PIDs
+#          Use $(ps) instead of ps|read so that leading whitespace isn't lost
+#          Added options (-h and -x)
+
+name=${0##*/}
+Usage="Usage: $name [-hx] file ..."
+
+typeset -i i=0 j numfiles debug=0
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+while getopts :hx opt; do
+    case $opt in
+    h)
+	echo \
+"$name: list processes using files.
+$Usage
+A ps line is printed for any process that has any of the named files open.
+Options:
+-h: Print this help.
+-x: Turn on debugging."
+	exit 0
+	;;
+    x)
+	debug=1
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$name: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+# Generate process ID list
+OIFS=$IFS
+# Need to get error output with standard output so that we can
+# keep process lists associated with files
+fuser $* 2>&1 | while read file proclist; do
+    set -- $proclist
+    if [ -z "$proclist" ]; then
+	print -u2 "$file no processes"
+    elif [[ "$1" != [0-9]* ]]; then
+	# If a word starting with anything other than a digit is printed
+	# after a  file name, it is the start of an error message
+	print -u2 "$file $proclist"
+    else
+	istrue debug && print -u2 "$file $proclist"
+	files[i]=${file%:}
+
+	j=0
+	unset pids[*]
+	for pid; do
+	    pids[j]=${pid%[!0-9]}	# get rid of file use code (c, p, r)
+	    let j+=1
+	done
+	# Make the PID list be an egrep pattern: pid1|pid2|pid3...
+	IFS=\|
+	procpat[i]="${pids[*]}"
+	IFS=$OIFS
+
+	allprocs="$allprocs ${pids[*]}"
+	let i+=1
+    fi
+done
+istrue debug && print "PIDs: $allprocs"
+[ i -lt 1 ] && exit
+numfiles=i
+
+# Set ps args.  Use -e instead of -fp because ps has a 20 proc limit
+set -- $allprocs
+[ $# -le 20 ] && set -- -fp "$allprocs" || set -- -fe
+
+# Get ps output for each process ID
+IFS="
+"
+# Use this instead of read because read always strips leading whitespace
+set -- $(ps "$@")
+IFS=$OIFS
+for line in "$@"; do
+    set -- $line
+    pid=$2
+    i=0
+    while [ i -lt numfiles ]; do
+	if eval [[ $pid = "@(${procpat[i]})" ]]; then
+	    pslines[i]="${pslines[i]}
+$line"
+	fi
+	let i+=1
+    done
+done
+
+# Print output by filename
+i=0
+while [ i -lt numfiles ]; do
+    print "${files[i]}:${pslines[i]}"
+    let i+=1
+done

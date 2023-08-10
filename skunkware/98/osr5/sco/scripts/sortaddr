@@ -1,0 +1,141 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# @(#) sortaddr.gawk 1.0 97/01/06
+# sortaddr: sort address file(s) containing records separated by
+# lines consisting solely of '+'.
+# Records are sorted based on the lexical value of the entire record.
+# 92/08/05 john h. dubois iii (john@armory.com)
+
+BEGIN {
+    RS = "+"
+    i = 0
+}
+
+{
+    if ($0 != "\n" && $0 != "")
+	Elem[++i] = $0
+}
+
+END {
+    qsortNumIndByValue(Elem,1,i)
+    printf "+"
+    for (j = 1; j <= i; j++)
+	printf "%s+",Elem[j]
+    print ""
+}
+
+### Begin qsort routines
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k[] are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its elements.
+# The return value is the number of elements in the arrays (n).
+function qsortArbIndByValue(Arr,k,  ArrInd,ElNum) {
+    ElNum = 0
+    for (ArrInd in Arr)
+	k[++ElNum] = ArrInd
+    qsortSegment(Arr,k,1,ElNum)
+    return ElNum
+}
+
+# Sort a segment of an array.
+# Arr[] contains data with arbitrary indices.
+# k[] has indices 1..nelem, with the indices of arr[] as values.
+# This function sorts the elements of arr that are pointed to by
+# k[start..end], swapping the values of elements of k[] so that
+# when this function returns arr[k[start..end]] will be in order.
+function qsortSegment(Arr,k,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((end - start) == 1) {
+	if (Arr[tmps = k[start]] > Arr[tmpe = k[end]]) {
+	    k[start] = tmpe
+	    k[end] = tmps
+	}
+	return
+    }
+    # Make sure comparisons act on these as numbers
+    left = start+0
+    right = end+0
+    sepval = Arr[k[int((left + right) / 2)]]
+    # Make every element <= sepval be to the left of every element > sepval
+    while (left < right) {
+	while (Arr[k[left]] < sepval)
+	    left++
+	while (Arr[k[right]] > sepval)
+	    right--
+	if (left < right) {
+	    tmp = k[left]
+	    k[left++] = k[right]
+	    k[right--] = tmp
+	}
+    }
+    if (left == right)
+	if (Arr[k[left]] < sepval)
+	    left++
+	else
+	    right--
+    if (start < right)
+	qsortSegment(Arr,k,start,right)
+    if (left < end)
+	qsortSegment(Arr,k,left,end)
+}
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its indices.
+# The return value is the number of elements in the arrays (n).
+# If the indexes are numeric, Numeric should be true, so that they can be
+# compared as such rather than as strings.  Numeric indexes do not have to be
+# contiguous.
+function qsortByArbIndex(Arr,k,Numeric,  ArrInd,ElNum) {
+    ElNum = 0
+    if (Numeric)
+	# Indexes do not preserve numeric type, so must be forced
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd+0
+    else
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd
+    qsortNumIndByValue(k,1,ElNum)
+    return ElNum
+}
+
+# Arr is an array of elements with contiguous numeric indexes to be sorted
+# by value.
+# start and end are the starting and ending indexes of the range to be sorted.
+function qsortNumIndByValue(Arr,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((start - end) == 1) {
+	if ((tmps = Arr[start]) > (tmpe = Arr[end])) {
+	    Arr[start] = tmpe
+	    Arr[end] = tmps
+	}
+	return
+    }
+    left = start+0
+    right = end+0
+    sepval = Arr[int((left + right) / 2)]
+    while (left < right) {
+	while (Arr[left] < sepval)
+	    left++
+	while (Arr[right] > sepval)
+	    right--
+	if (left <= right) {
+	    tmp = Arr[left]
+	    Arr[left++] = Arr[right]
+	    Arr[right--] = tmp
+	}
+    }
+    if (start < right)
+	qsortNumIndByValue(Arr,start,right)
+    if (left < end)
+	qsortNumIndByValue(Arr,left,end)
+}
+
+### End qsort routines

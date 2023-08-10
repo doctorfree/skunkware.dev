@@ -1,0 +1,190 @@
+#!/bin/ksh
+# @(#) cleannews.ksh 1.1 96/01/20
+# 94/11/19 john h. dubois iii (john@armory.com)
+# 94/11/21 Remove dirs.  Print running group count.
+# 94/12/12 Let group-list be given as 2nd arg.  Allow spool dirs in group-list.
+# 96/01/20 Create temp file more carefully
+
+Active=/usr/lib/news/active
+
+Help="Usage: cleannews save-file [group-list-file]
+save-file is a list of groups to save.  If group-list-file is given, it should
+contain a list of groups to consider for article removal.  Only the first word
+of each line is used.  The word can be a newsgroup name or a spool directory
+(relative to /usr/spool/news).  If a group-list-file is not given, the file
+$Active is used.  All articles in all groups in the
+group-list-file that are not in save-file are removed."
+
+case $# in
+1)
+    if [ "$1" = -h ]; then
+	print "$Help"
+	exit 0
+    fi
+    ;;
+2)
+    Active=$2
+    ;;
+*)
+    print -u2 "Wrong number of arguments.  Use -h for help."
+    exit 1
+    ;;
+esac
+
+# @(#) mktempfile 1.0 96/05/22
+# 96/01/20 jhdiii
+
+# Usage: mkfiles name ...
+# Creates the named files with some attempt at security.
+# This will be more reliable if user do not have chown authority.
+# Any file that contains no / characters is created in the user's tempdir.
+# If TMP was not set, it is set by this function.
+# Returns 0 on success; prints a diagnostic message & returns 1 on failure.
+function mkfiles {
+    typeset file files
+    typeset -i i=0
+
+    : ${TMP:=$TMPDIR}
+    : ${TMP:=/tmp}
+    for file; do
+	[[ "$file" != */* ]] && file="$TMP/$file"
+	files[i]=$file
+	let i+=1
+    done
+    set -- "${files[@]}"
+
+    rm -f "$@" || {
+	# hopefully rm will have printed a more specific message.
+	print -u2 "Could not remove pre-existing files."
+	return 1
+    }
+    for file; do
+	# Use >> to avoid 0'ing the file in case a symlink was just made from
+	# the filename to something we don't want to truncate
+	>> "$file" || {
+	    print -u2 "Could not create temp file $file"
+	    return 1
+	}
+	# These are very suspicious
+	[ -s "$file" ] && {
+	    print -u2 "New tempfile is not empty!!!"
+	    return 1
+	}
+	[ -O "$file" ] || {
+	    print -u2 "Do not own $file!!!"
+	    return 1
+	}
+    done
+    # Could do some more stuff here, but anyone concerned with security should
+    # have chown authorization off for most users.
+    return 0
+}
+
+# Usage: mktempfile name
+# Creates a tempfile name tempdir/#name$$, and sets the global mktempfile_ret
+# to that name.  tempdir is a temp directory in $TMP, $TMPDIR, or /tmp, and $$
+# is the PID of the current process.
+# name should be 8 characters or less, so that the resulting filename will
+# not be more than 14 characters long (a limit on some machines).
+# Returns 0 on success, prints a diagnostic message & returns 1 on failure.
+function mktempfile {
+    typeset file="#$1$$"
+    mkfiles "$file"
+    mktempfile_ret="$TMP/#$1$$"
+}
+
+name=${0##/}
+ClearToEOL=$(tput el)
+newsdir=/usr/spool/news
+xargsCmd="env - /usr/local/bin/gxargs -n 2000 -P 2 /bin/rm --"
+typeset -Z4 groupNum=0
+mktempfile clnnews. || {
+    print -u2 "$name: Exiting."
+    exit 1
+}
+dirFile=$mktempfile_ret
+
+cd $newsdir
+
+# start coprocess to keep track of how many files in the undesired groups
+# were not cross-posted (had only one link).
+# make stat emit filename after link count just so we can detect /dev/null
+# when it comes through.
+stat -rnfln | awk '
+$2 == "/dev/null" {
+    printf "%d of %d files had only one link.\n",count,NR | "cat 1>&2"
+    exit
+}
+$1 == 1 {
+    count++
+}
+' |&
+
+# Find all groups in active file that are not in save-groups file and print
+# their spool directories
+awk -v "active=$Active" '
+{
+    SaveGroups[$1]
+}
+END {
+    if (NR < 10) {
+	print "Only " NR " groups in save file?!" | "cat 1>&2"
+	exit 1
+    }
+    printf "%d groups to be saved.\n",NR | "cat 1>&2"
+    close("cat 1>&2")	# flush output
+    while ((ret = (getline < active)) == 1) {
+	group = $1
+	gsub("/",".",group)	# convert paths to newsgroup names
+	gsub(/^\.+/,"",group)	# in case paths begin with e.g. ./ or .
+	if (!(group in SaveGroups)) {
+	    gsub(/\./,"/",group)
+	    print group
+	}
+    }
+    if (ret != 0)
+	print "Error reading group-list-file" | "cat 1>&2"
+}
+' "$1" | while read dir; do
+    let groupNum+=1
+    # Echoing filenames w/full group path will require many more 
+    if [ -d $newsdir/$dir ] && cd $newsdir/$dir; then
+	print $dir >> $dirFile
+	print -u2 -n "${ClearToEOL}$groupNum Checking $dir\r"
+	# Pattern ?(+([0-9])|.thread) does not work
+	set -- +([0-9])
+	[[ $1 = \+* ]] && set --
+	[ -f .thread ] && set -- "$@" .thread
+	if [ $# -gt 0 ]; then
+	    print -u2 "Removing $# file(s) from $dir"
+	    # If removing these files with full group path would require
+	    # more than two invokations of rm, do a special gxargs/rm
+	    # from the group dir for it.
+	    if [ $(( (${#dir}+1)*$# )) -gt 10000 ]; then
+		print -- "$*" | $xargsCmd
+		for file; do
+		    print -p $dir/$file
+		done
+	    else
+		for file; do
+		    print -- $dir/$file
+		    print -p $dir/$file
+		done
+	    fi
+	fi
+    fi
+    # jobs > /dev/null 2>&1	# work around accumulating jobs ksh bug
+done | $xargsCmd
+# use gxargs because it takes arbitrarily long input lines and uses max command
+# line space.  -P 2 tells it to start up to 2 processes at a time.
+# Get rid of environment to leave more room for cmd line args.
+
+# Doesn't seem to be any way of closing pipe to coprocess.
+# So, use /dev/null as the eof marker.
+print -p /dev/null
+
+print -u2 "\nRemoving directories..."
+cd $newsdir
+# Reverse sort to ensure that lowest dirs come first
+sort -r $dirFile |
+env - /usr/local/bin/gxargs -n 2000 -P 2 /bin/rmdir -- 2>/dev/null

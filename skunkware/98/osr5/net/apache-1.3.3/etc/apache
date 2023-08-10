@@ -1,0 +1,55 @@
+#!/bin/sh
+#
+# Apache start/stop script
+# 
+# Written by Ron Record (rr@sco.com)
+# Modified 30-Jun-98 for use in conjunction with the apachectl script
+# proficed in Apache 1.3.0
+#
+# Usage: 
+# apache [ start|stop|restart|fullstatus|status|graceful|enable|disable|help ]
+#
+
+PATH=/usr/local/lib/apache/sbin:/bin:/usr/bin:/etc
+SCRIPT=`basename $0`
+RCSCRIPT=/etc/rc2.d/S91apache
+HTTPD=/usr/local/lib/apache/sbin/httpd
+
+http_enable() {
+        if [ -h $RCSCRIPT ] ; then
+                echo "$HTTPD is already enabled."
+        else
+                echo "Enabling $HTTPD ... \c"
+		rm -f $RCSCRIPT
+                ln -s /etc/apache $RCSCRIPT
+                echo "done."
+        fi
+	return 0
+}
+
+http_disable() {
+        echo "Disabling $HTTPD ... \c"
+        rm -f $RCSCRIPT
+        echo "done."
+	return 0
+}
+
+# main()
+
+cd /
+
+case $1 in
+
+enable)
+        http_enable
+        ;;
+disable)
+        http_disable
+        ;;
+*)
+	apachectl $*
+        ;;
+
+esac
+
+exit $?

@@ -1,0 +1,359 @@
+#!/bin/ksh
+# @(#) unarch.ksh 2.8 97/07/27
+# 92/10/08 john h. dubois iii (john@armory.com)
+# 92/10/31 make it actually work if archive isn't in current dir!
+# 93/11/10 Added pack and gzip archive support
+# 94/10/22 Added -h option.
+# 95/01/29 Work with cpio too (generalized from untar)
+# 95/08/19 Understand packed extensions (.tgz, etc.).  More verbose messages.
+#          If everything in the archive is under one dir, make that be the
+#          main dir.  Added f option.
+# 95/12/20 v5 mvdir does not recognize --; work around it.
+# 96/03/29 Added arc.
+# 96/04/19 Catch files with unknown archive type.  Added zip.
+# 96/04/27 Added t option.
+# 96/04/30 Added c1 options.
+# 96/09/13 Added e option.
+# 96/11/01 Added hzip and bzip support.
+# 96/11/27 Added d option.
+# 96/12/27 Added arj support.
+# 97/01/17 Added shar support.
+# 97/03/11 Added ar support.
+# 97/07/27 Do not give -c to uncompressors
+
+name=${0##*/}
+Usage=\
+"Usage: $name [-cfht1] [-e<ext>] [-d<directory>]
+       archive[.[tar|a|cpio|shar][.[Z|[ghb]z]]|t[ghb]z|tz|arc|zip|arj] ..."
+Force=false
+Tell=false
+NoArchDir=false
+One=false
+pExt=
+fixedDir=
+typeset -i debug=0
+function debug {
+    if [ debug -ge $1 ]; then
+	shift
+	print -ru2 -- "$*"
+    fi
+}
+
+while getopts :cfht1x:e:d: opt; do
+    case $opt in
+    h)
+	echo \
+"$name: extract archives into directories, uncompressing if required.
+$Usage
+If an archive name given does not end in a recognized extension, it is searched
+for with each possible extensions in turn.  The real filename must end with one
+of them.  A directory with the name of the archive is created in the current
+directory (not necessarily the directory that the archive is in), and the
+contents of the archive are extracted into it.  Absolute pathnames in tar and
+cpio archives are suppressed.
+Options:
+-c: Extract files relative to current directory (don't create archive dirs).
+-d<directory>: Extract files into <directory> instead of a directory derived
+    from the archive name.  Only one archive name should be given.
+-f: Extract an archive even if the directory it would be extracted into already
+    exists.
+-e<ext>: For the purpose of determining archive type, treat all filenames as
+    though <ext> was tacked onto them.  For the purpose of reading the files,
+    the file names are left alone, so they must be the real names of the input
+    files.  This allows processing of files that do not include their
+    compression or compression & archive type extensions.
+    Examples: \"$name -etar.Z foo\" and \"$name -eZ foo.tar\" will both treat
+    the file foo as though it was foo.tar.Z.  
+-h: Print this help.
+-t: Tell what is in an archive, without writing any files.
+    This does not work for sharfiles.
+-1: Treat only the first non-option argument as an archive name.  Any arguments
+    given after it are the names of files to extract; if any are given, only
+    those files are extracted.  This does not work for sharfiles."
+	exit 0
+	;;
+    c)
+	NoArchDir=true
+	;;
+    d)
+	fixedDir=$OPTARG
+	;;
+    e)
+	pExt=.$OPTARG
+	;;
+    1)
+	One=true
+	;;
+    f)
+	Force=true
+	;;
+    t)
+	Tell=true
+	NoArchDir=true
+	;;
+    x)
+	if [[ "$OPTARG" != +([0-9]) ]]; then
+	    print -ru2 -- "$name: Option -x must be given an integer argument."
+	    exit 1
+	fi
+	debug=$OPTARG || exit 1
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?)
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit 1
+fi
+
+OWD=$PWD
+
+# @(#) glob.ksh 1.0 95/07/29
+# 95/07/29 john h. dubois iii
+# Usage: Glob <Pattern> ...
+# Glob() sets the global Glob_ret[] to contain the results of globbing on
+# the given filename patterns.  The difference between this and using the
+# patterns directly is that Glob_ret[] will not contain any entries for
+# patterns that did not match any filenames.
+# Note that only 1024 filenames can be stored in Glob_ret[].  If the
+# globbing produces more than 1024 matches, Glob() will return 2.
+# Unfortunately, it isn't possible to set the global positional parameters
+# (which can have more than 1024 elements) from within a function.
+# Example: Glob ".[!.]*" "*"
+# This will set Glob_ret[] to all filenames in the current directory except
+# .  and ..
+# Return value: 1 if any of the patterns did not match; 2 if more than 1024
+# matched resulted; else 0.
+function Glob {
+    set +o noglob	# Turn on globbing; local to this function
+    # In order for a pattern contained in a shell var to be globbed, the shell
+    # var must not be quoted.  But, if the pattern contains any whitespace, the
+    # pattern will be split into words on the whitespace before globbing.
+    # To get around this, we set IFS to the null string so no word splitting
+    # will occur.  But, this causes ${array[*]} to be expanded as a single
+    # word, so we have to glob each element of the array individually.
+    typeset Patterns OIFS=$IFS IFS
+    typeset -i NumPats=$# NoMatch=0 PatNum=0
+    set -A Patterns -- "$@"
+    unset Glob_ret[*]
+    while [ PatNum -lt NumPats ]; do
+	IFS=
+	set -- ${Patterns[PatNum]}
+	IFS=$OIFS
+	if [ $# = 1 -a "$1" = "${Patterns[PatNum]}" -a ! -a "$1" ]; then
+	    NoMatch=1
+	else
+	    set -A Glob_ret -- "${Glob_ret[@]}" "$@" || return 2
+	fi
+	let PatNum+=1
+    done
+    return $NoMatch
+}
+
+if $One; then
+    # Move everything except 1st arg to file list
+    Arch=$1
+    shift
+    set -A FileList -- "$@"
+    set -- "$Arch"
+else
+    unset FileList
+fi
+
+for file in "$@"; do
+    debug 1 "Processing: $file"
+    cd -- "$OWD"
+
+    tName="$file$pExt"
+    ## Determine what the real archive full & base names are
+    if [[ "$tName" = \
+    *.@(@(tar|a|cpio|shar)?(.@(z|Z|[ghb]z))|[ct]@(Z|z|[ghb]z)|ar[cj]|zip) ]]
+    then
+	# If file was given with a known extension, the archive name
+	# is the filename without the extension.
+	ArchName=\
+${tName%%.@(@(tar|a|cpio|shar)?(.@(z|Z|[ghb]z))|[ct]@(Z|z|[ghb]z)|ar[cj]|zip)}
+	debug 1 "$tName has known extension; archive name = $ArchName"
+    elif [ -n "$pExt" ]; then
+	print -u2 "$name: Unknown archive type: $tName"
+	continue
+    else
+        ArchName=$file
+	file=
+	# The filename did not have a known extension; try attaching all
+	# known extensions and see if the archive exists.
+	for ext in \
+	{tar,a,cpio,shar}{,.Z,.z,.{g,h,b}z} {t,c}{z,Z,{g,h,b}z} arc arj zip; do
+	    debug 3 "Searching for file as: $ArchName.$ext"
+	    if [ -f "$ArchName.$ext" ]; then
+		file="$ArchName.$ext"
+		break
+	    fi
+	done
+	if [ -z "$file" ]; then
+	    print -u2 -- \
+"$name: Unknown archive type (not found with any known extension):
+$ArchName"
+	    continue
+	fi
+	debug 1 "No known extension in $ArchName; found archive file as $file"
+	tName=$file
+    fi
+    if [ ! -r "$file" ]; then
+	print -u2 "$name: Cannot read archive file: $file"
+	continue
+    fi
+
+    [[ "$file" != /* ]] && file="$OWD/$file"
+    if $Tell; then
+	print "Contents of archive $file:"
+    elif $NoArchDir; then
+	print "Extracting archive $file into current directory ($PWD)..."
+    else
+	if [ -n "$fixedDir" ]; then
+	    DirName=$fixedDir
+	else
+	    DirName=${ArchName##*/}
+	fi
+	# If the directory doesn't already exist in the local dir, make it.
+	if [ -a "$DirName" ]; then
+	    if [ ! -d "$DirName" ]; then
+		print -u2 \
+"$name: $DirName already exists in the current directory 
+and is not a directory.  It must be removed in order to
+extract the archive \"$file\"."
+		continue
+	    fi
+	    $Force || {
+		print -u2 \
+"$name: The directory $DirName already exists.  It must be removed,
+or the -f option must be used to force extraction into it."
+		continue
+	    }
+	else
+	    mkdir "$DirName" || {
+		print -u2 "$name: Could not make archive directory: $DirName"
+		continue
+	    }
+	    debug 1 "Created directory $DirName"
+	fi
+	cd -- "$DirName"
+	print "Extracting archive $file into directory $DirName"
+    fi
+    case "$tName" in
+    *.?([ct])Z)
+	uncomp=zcat
+	compression="compressed "
+	;;
+    *.?([ct])z)
+	uncomp=pcat
+	compression="packed "
+	;;
+    *.?([ct])[ghb]z)
+	l=${tName##*.}
+	l=${l#[ct]}
+	l=${l%z}
+	# Do not give -c to uncompressor, because input is always redirected
+	# into it and some do not like being given -c if not given a filename
+	uncomp="${l}zip -d"
+	compression="${l}zipped "
+	;;
+    *) uncomp=
+	compression=
+	;;
+    esac
+    debug 1 "Uncompressor=$uncomp"
+    case "$tName" in
+    *.tar?(.@(z|Z|[ghb]z))|*.t@(Z|z|[ghb]z))
+	$Tell && x=t || x=x
+	# Redirect input to uncompress routines because file might not end
+	# with the extension they expect
+	[ -z "$uncomp" ] && tar nvAf$x "$file" "${FileList[@]}" ||
+	$uncomp < "$file" | tar vAf$x - "${FileList[@]}"
+	arch=tar
+	;;
+    *.a?(.@(z|Z|[ghb]z))|*.t@(Z|z|[ghb]z))
+	$Tell && x=t || x=x
+	# Redirect input to uncompress routines because file might not end
+	# with the extension they expect
+	[ -z "$uncomp" ] && ar v$x "$file" "${FileList[@]}" ||
+	$uncomp < "$file" | ar v$x /dev/stdin "${FileList[@]}"
+	arch=ar
+	;;
+    *.cpio?(.@(z|Z|[ghb]z))|*.c@(Z|z|[ghb]z))
+	$Tell && x=t || x=
+	[ -z "$uncomp" ] && cpio -${x}idmvAI "$file" "${FileList[@]}" ||
+	$uncomp < "$file" | cpio -${x}idmvA "${FileList[@]}"
+	arch=cpio
+	;;
+    *.shar?(.@(z|Z|[ghb]z))|*.c@(Z|z|[ghb]z))
+	if $One; then
+	    print -u2 -- "$name: Cannot use -1 with a sharfile.  Skipping."
+	    continue
+	fi
+	if $Tell; then
+	    print -u2 -- "$name: Cannot use -t with a sharfile.  Skipping."
+	    continue
+	fi
+	[ -z "$uncomp" ] && unshar -f "$file" "${FileList[@]}" ||
+	$uncomp < "$file" | unshar -f "${FileList[@]}"
+	arch=shell
+	;;
+    *.arj)
+	$Tell && x=l || x=e
+	unarj $x "$file" "${FileList[@]}"
+	arch=arj
+	;;
+    *.arc)
+	$Tell && x=v || x=e
+	arc $x "$file" "${FileList[@]}"
+	arch=arc
+	;;
+    *.zip)
+	$Tell && x=v || x=e
+	unzip -$x "$file" "${FileList[@]}"
+	arch=zip
+	;;
+    *)
+	# Shouldn't be able to get here!
+	print -u2 "Fatal error: unknown extension in $tName"
+	exit 1
+	;;
+    esac
+    $Tell && continue
+    print \
+"Done extracting $compression$arch archive $file
+into directory: $DirName"
+    $NoArchDir && continue
+    Glob ".[!.]*" "*"
+    if [ ${#Glob_ret[*]} = 1 -a -d "${Glob_ret[0]}" ]; then
+	root=${Glob_ret[0]}
+	print \
+"Archive root contains one directory, \"$root\".
+Moving $DirName/$root to: $DirName"
+	# mvdir does not recognize -- to end option list, so use ./
+	cd .. &&
+	mvdir "./$DirName" "$DirName.$$" &&
+	mvdir "./$DirName.$$/$root" "$DirName" &&
+	rmdir -- "$DirName.$$" &&
+	print "Directory move completed successfully." ||
+	print "Directory move failed."
+    fi
+done

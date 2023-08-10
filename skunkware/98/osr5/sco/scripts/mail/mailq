@@ -1,0 +1,47 @@
+:
+# @(#) mailq.sh 1.0 92/09/20
+# 90/11/04 john h. dubois iii (john@armory.com)
+# 92/02/16 added help, added output formatting
+# 92/09/20 Better formatting
+
+if [ $# -gt 0 ]; then
+    echo \
+"$0: list mail in MMDF & UUCP queues.
+$0 tells how many messages are waiting for delivery by the MMDF mail system,
+and prints information on mail waiting for delivery by the UUCP system.
+For each UUCP rmail job, $0 prints the size of the message in bytes,
+the date the job was submitted or refreshed, and the recipient."
+    exit 0
+fi
+
+echo "Mail waiting for processing by MMDF:"
+/usr/mmdf/bin/checkque -z | egrep -v 'queued|Kbytes|^$'
+
+echo "\nMail waiting for delivery by UUCP:"
+/usr/bin/uustat -a | awk '
+BEGIN {
+    Format = "%-11s %7s  %s\n"
+    printf Format,"Job Date","Size","Recipients"
+}
+
+/^[ \t]/ {
+    if ($5 == "rmail") {
+	if ($3 != sysname)
+	    size = "?"
+	sysname = $3
+	recipients = ""
+	# Do not prepend UUCP system name if the address includes a domain
+	for (i = 6; i <= NF; i++)
+	    if ($i !~ /\..*!/)
+		recipients = recipients sysname "!" $i " "
+	    else
+		recipients = recipients $i " "
+	sub("-"," ",$1)
+	printf Format,$1,size,recipients
+    }
+}
+{
+    sysname = $4
+    size = $6
+}
+'

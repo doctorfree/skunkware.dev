@@ -1,0 +1,123 @@
+#!/bin/ksh
+# @(#) vidtype.ksh 1.0 93/04/01
+# 93/04/01 John H. DuBois III (john@armory.com)
+# vidtype: tell video adapter type.
+
+name=${0##*/}
+
+Usage="Usage: $name [-acht] [ttyname ...]"
+
+typeset -i typeonly=0
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+set -A AdaptNames vga ega cga mono
+set -A TestFont font{8x16,8x14,8x8}
+
+# Sets global Adapters[] to the types of adapters present
+function FindAdapters {
+    typeset Name
+    typeset -i i=0 j=0
+    while [ i -lt ${#AdaptNames[*]} ]; do
+	( < /dev/${AdaptNames[i]} ) > /dev/null 2>&1 &&
+	Adapters[i]=${AdaptNames[i]}
+	let i+=1
+    done
+    [ ${#Adapters[*]} -gt 2 ] &&
+    echo "Invalid result: more than two adapters present?!"
+}
+
+while getopts :acht opt; do
+    case $opt in
+    h) echo \
+"$name: tell video adapter type.
+$Usage
+For each ttyname given, a line is printed giving the tty name and the type of
+adapter the tty is associated with.
+If no tty name is given, the standard input is used.
+The adapter type will be one of mono, cga, ega, or vga, '-' if the
+tty is not associated with any of them, 'nontty' if the device name
+given is not a tty, or 'noopen' if the device could not be opened.
+If a mono adapter and a non-mono/cga/ega/vga adapter are both present,
+it is possible for ttys associated with the non-mono adapter to be
+reported as being associated with the mono adapter.
+Options:
+-a: print the adapter types present.
+-c: print the types for all of the console ttys (tty01..tty12).
+-h: print this help.
+-t: print only the adapter types, not the tty names."
+       exit 0;;
+     a)
+	FindAdapters
+	echo ${Adapters[*]}
+	exit 0
+	;;
+     c)
+	ctty="tty0{1,2,3,4,5,6,7,8,9} tty1{0,1,2}"
+	;;
+     t)
+	typeonly=1
+	;;
+#    f) files="$files $OPTARG";;    # add arg to list of address files
+    +?) echo "$name: options should not be preceded by a '+'."; exit 1;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) echo "$name: $OPTARG: bad option.  Use -h for help."; exit 1;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+set -- $ctty "$@"
+
+[ $# -lt 1 ] && set -- `tty`
+
+FindAdapters
+isfalse ${#Adapters[*]} && set -A Adapters ${AdaptNames[*]}
+typeset -i i
+
+for tty; do
+    tty="/dev/${tty#/dev/}" 
+    isfalse typeonly && echo -n "${tty#/dev/} "
+    if [ ! -r "$tty" ]; then
+	echo noopen
+	continue
+    fi
+    if [ ! -t 0 ] < "$tty"; then
+	echo nontty
+	continue
+    fi
+    i=0
+    while [ i -lt ${#AdaptNames[*]} ]; do
+	if [ -n "${Adapters[i]}" ]; then
+	    [ -z "${TestFont[i]}" ] && break
+	    # vidi -d font   exits:
+	    # nonzero on a color adapter if the named font is invalid
+	    # nonzero if the standard input is not a known video adapter
+	    # zero but emits all zeros if the input is a mono adapter
+	    (vidi -d ${TestFont[i]} < "$tty" 2>/dev/null || echo "") |
+	    tr | wc | read l w c
+	    # c (number of non-null chars emitted by vidi) will be
+	    # 0 if the input was a mono adapter
+	    # 1 (the echoed newline) if vidi exits nonzero
+	    # >1 if the font was valid
+	    case $c in
+	    0) ;;	# probably a mono adapter; continue
+	    1)
+		# The font was invalid; this is not a known adapter
+		let i=${#AdaptNames[*]}+1
+		break ;;
+	    *)	# Found adapter type
+		break ;;
+	    esac
+	fi
+	let i+=1
+    done
+    [ -n "${AdaptNames[i]}" ] && echo ${AdaptNames[i]} || echo -
+done

@@ -1,0 +1,270 @@
+#!/ibin/sh
+#******************************************************************************
+#                Apache Web Server cqs script
+#-----------------------------------------------------------------------------
+#	Adapted from the Netscape FastTrack @(#) cqs 5.2 96/08/14 
+#	by Ronald Joe Record (rr@sco.com) 07-Jul-98
+#-----------------------------------------------------------------------------
+#       input:
+#           $1 is the name of the step
+#           $2 is the keyword list (e.g. UPGRADE)
+#           $3 is the package list
+#=============================================================================
+
+# Read arguments into variables
+scriptname="$0"
+keywords="$1"
+pkglist="$2"
+
+# Source in the standard functions library, ccsSetup.sh
+. /ibin/ccsSetup.sh
+
+# Set global variables that may be used elsehere in this script
+
+CNTLDIR=${SSO_SHARED_ROOT}/cntl
+
+OSR500_HERE=
+OSR502_HERE=
+OSR504_HERE=
+OSR505_HERE=
+
+# some messages
+
+CUSTOMFIX_MSG="\nProblems with the custom product databases have been detected and corrected.\nPlease exit the Software Manager (custom) completely and then restart\nthe installation of this product so that the Software Manager (custom) can\nuse the new database information. Continuing the installation without exiting \nand restarting the Software Manager (custom) will result in an unsupported\nconfiguration."
+
+OS_MSG="\nThe following are supported Operating System environments for this\nproduct:\n\nSCO OpenServer 5.0.0\nSCO OpenServer 5.0.2\nSCO OpenServer 5.0.4\nSCO OpenServer 5.0.5\n\nNone of these products are installed on your system. Installation may \nresult in an unsupported configuration."
+
+MSG_missPatch="WARNING: The following supplements(s) are STRONGLY recommended
+    for all systems running this software. You should install
+    these supplement(s) as soon as this product installation
+    is complete. The supplement(s) are available via anonymous ftp
+    from ftp.sco.com in the /SLS directory (ftp://ftp.sco.com/SLS/).
+    In particular, the Network Maintenance Supplement can be downloaded from 
+    ftp://ftp.sco.com/SLS/oss449f/ ."
+
+MSG_noDB="ERROR: Cannot locate component database for _cmpnt_ component."
+
+old_upgrade=
+sso_upgrade=
+iqm_file_exists=
+local_client=
+true_client=
+customMode=LAYERED
+for word in $keywords
+do
+    case "$word" in 
+        OLD_CUSTOM_UPGRADE) old_upgrade=TRUE
+                 ;;
+	UPGRADE)            sso_upgrade=TRUE
+		;;
+	IQM_SAVE)	    iqm_file_exists=TRUE
+                	    customMode="IQM"
+		;;
+	FOR_LOCAL_CLIENT)   local_client=TRUE
+		;;
+	TRUE_CLIENT_ROOT)   true_client=TRUE
+		;;
+    esac
+done
+
+# Set the appropriate NLSPATH to enable the 'dspmsg' utility to work later
+# in this script.  
+
+NLSPATH="${SSO_SHARED_ROOT}/cntl/msg/%L/%N.cat":"${NLSPATH}"
+export NLSPATH
+
+#******************************************************************************
+#  cleanup --
+#
+#    cleanup exits the package script with the passed argument
+#
+#******************************************************************************
+
+cleanup() {
+        exit $1
+}
+
+#============================================================================
+#
+#
+# stop_start
+#
+# stops or starts servers
+#
+#============================================================================
+stop_start()
+{
+	STOP_START=$1
+	DIR=$2
+
+	if [ -x "${DIR}"/"${STOP_START}"-admin ]
+	then
+		"${DIR}"/"${STOP_START}"-admin >/dev/null 2>/dev/null
+	fi
+
+	for type in httpd https
+	do
+		for dir in `ls -d "${DIR}"/"${type}"* 2>/dev/null`
+		do
+			if [ -x "${dir}"/"${STOP_START}" ]
+			then
+				"${dir}"/"${STOP_START}" >/dev/null 2>&1
+			fi
+		done
+	done
+}
+
+
+#=============================================================================
+#
+# getyn
+#
+# Prompt for yes or no answer - returns non-zero for no
+#
+# Usage: getyn "question"
+# Argument is a quoted question
+# Notes: getyn returns 0 if the answer is y or Y
+#        and 1 if the answer is n or N
+#        and 2 if the answer is q or Q
+#=============================================================================
+getyn() {
+        while   echo "$* (y/n/q) \c"
+        do      read yn rest
+                case $yn in
+                [yY])   return 0                                ;;
+                [nN])   return 1                                ;;
+                [qQ])   return 2                                ;;
+                *)      echo "Please Make a selection\n"          ;;
+                esac
+        done
+}
+
+#=============================================================================
+# check_patch <patchID> <patchDescription>
+#
+# Check that a given patch is applied to the component that we are
+# working on. We need to check for this in the *client* databases.
+#=============================================================================
+
+check_patch() {
+    if [ -f $CLIENT_DB ] ; then
+	pattern=`echo $1 | sed "s!\.!\\\\\.!g"`
+	pattern="patches.*[= ]${pattern}"
+
+	grep -q "${pattern}" $CLIENT_DB
+	if [ $? -ne 0 ] ; then
+	    List="$List\n\t$2"
+	fi
+    else
+	echo "\n$MSG_noDB" | sed "s!_cmpnt_!${CMPNT}!"
+    fi
+}
+
+#====================================================================== INT ===
+#  main --
+#   
+#------------------------------------------------------------------------------
+#
+#
+# check for an OS first
+
+if [ "${customMode}" = "LAYERED" ]
+then
+	component=`customquery ListComponents -p CONFIGURE SCO:Unix | grep "SCO:Unix" 2>/dev/null`
+else	# IQM install
+	if [ -x /ibin/uname ]
+	then
+		component=`/ibin/uname -X | grep Release | /ibin/awk '{ print $3 }' 2>/dev/null`
+	fi
+fi
+
+echo "${component}" | grep "5.0.0" >/dev/null 2>&1
+if [ $? -eq 0 ]
+then
+        OSR500_HERE=TRUE
+fi
+
+echo "${component}" | grep "5.0.2" >/dev/null 2>&1
+if [ $? -eq 0 ]
+then
+        OSR502_HERE=TRUE
+fi
+
+echo "${component}" | grep "5.0.4" >/dev/null 2>&1
+if [ $? -eq 0 ]
+then
+        OSR504_HERE=TRUE
+fi
+
+echo "${component}" | grep "5.0.5" >/dev/null 2>&1
+if [ $? -eq 0 ]
+then
+        OSR505_HERE=TRUE
+fi
+
+# if this is 500, 502, 504 or 505, good, else,
+# inform of invalid configuration and ask to continue or not
+
+if [ -n "${OSR504_HERE}" ] || [ -n "${OSR505_HERE}" ] || [ -n "${OSR500_HERE}" ] || [ -n "${OSR502_HERE}" ]
+then
+	continue
+else
+	ccsWarning "${OS_MSG}"
+	getyn "\nDo you wish to proceed with the installation? "
+	
+	if [ $? -eq 0 ]
+	then
+		continue
+	else
+		exit ${FAIL}
+	fi
+fi
+
+# look for important supplements; print WARNING if NOT installed
+
+[ "$customMode" = "LAYERED" ] && {
+    unixVer=`customquery ListComponents -p CONFIGURE SCO:Unix`
+
+    case $unixVer in
+	SCO:Unix::5.0.0Cl)
+		CMPNT=Unix
+		CLIENT_DB=/var/opt/K/SCO/Unix/5.0.0Cl/.softmgmt/client.db
+		check_patch rs.Unix500.1 "SCO OpenServer Release 5 Release Supplement" 
+		check_patch rs.Unix500.2 "Networking Supplement Release 1.0"
+		check_patch rs.4.0 "SCO Internet Supplement for SCO OpenServer 5"
+		check_patch OSS449. "OSS449 Network Performance SLS"
+		[ "${List}" ] && {
+			echo "\n${MSG_missPatch}"
+			echo "${List}"
+		}
+		break
+		;;
+	SCO:Unix::5.0.2Dp)
+		CMPNT=Unix
+		CLIENT_DB=/var/opt/K/SCO/Unix/5.0.2Dp/.softmgmt/client.db
+		check_patch rs.4.0 "SCO Internet Supplement for SCO OpenServer 5"
+		check_patch OSS449. "OSS449 Network Performance SLS"
+		[ "${List}" ] && {
+			echo "\n${MSG_missPatch}"
+			echo "${List}"
+		}
+		break
+		;;
+	SCO:Unix::5.0.4Eb)
+		break
+		;;
+	SCO:Unix::5.0.5*)
+		break
+		;;
+	*)	echo "WARNING: Use of this product on this Operating System
+	environment is unsupported. You should be using
+	Release 5.0.0, 5.0.2, 5.0.4 or 5.0.5 of SCO OpenServer."
+		;;
+    esac
+}
+
+# the exit value from this script
+
+cqs_return_value=0
+
+exit $cqs_return_value

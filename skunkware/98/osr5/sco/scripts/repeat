@@ -1,0 +1,122 @@
+#!/bin/ksh
+# repeat: repeat a command.
+# @(#) repeat.ksh 1.1 93/06/03
+# 90/05 john h. dubois iii (john@armory.com)
+# 90/11 added help
+# 93/06/03 Added s, h, p, and v options
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+name=${0##*/}
+Usage=\
+"Usage: repeat [-hpv] [-s <sec>] [[startcount]-][endcount] command [arg ...]"
+
+typeset -i count=1 forever=0 sleep=0 print=0 verbose=0
+
+while getopts :0123456789hpvs: opt; do
+    case $opt in
+    h)
+	echo \
+"$name: repeatedly execute a command line.
+$Usage
+commandline is executed once for each integer from startcount through endcount
+inclusive.  The default for startcount is 1 if a positive endcount or no
+endcount is given, and -1 if a negative endcount is given.  A count
+parameter consisting of a single number is taken to be an endcount.  If
+only an endcount is given and it is positive, commandline is executed
+endcount times.  endcount may be less than startcount.  If no endcount is
+given (e.g. a count parameter of \"10-\"), commandline execution repeats
+indefinitely with the iteration variable incrementing in a positive
+direction.  A count parameter of consisting of \"-\" will repeat
+indefinitely starting with 1.
+
+Note that quoting and variables in commandline are interpreted twice, once
+when it is passed to the repeat command, and once when it is actually executed.
+
+The iteration variable is \"count\".  If \$count is used in commandline, make
+sure it is quoted with ' or \.
+
+Options:
+-h: Print this help.
+-p: Print value of iteration variable on stderr before each iteration.
+-s <sec>: sleep for <sec> seconds after each iteration except the last.
+-v: Print start and end values before beginning."
+       exit 0
+       ;;
+    s)
+	sleep=$OPTARG || exit 1
+	;;
+    p)
+	print=1;;
+    v)
+	verbose=1;;
+    [0-9])
+	break;;
+    +?)
+	echo "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	echo "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 2 ]; then
+    echo "$Usage\nUse -h for help."
+    exit 1
+fi
+
+case "$1" in
+?(-)+([0-9]))
+    end=$1
+    [[ $end = -* ]] && count=-1
+    ;;
+?(-)+([0-9])-)
+    # Start value only
+    count=${1%-}
+    forever=1
+    ;;
+?(-)+([0-9])-?(-)+([0-9]))
+    # Start and end value
+    end=${1##?(-)+([0-9])-}
+    count=${1%-$end}
+    ;;
+-)
+    forever=1
+    ;;
+*) 
+    print -u2 "Bad count parameter."
+    exit 1
+    ;;
+esac
+
+shift
+
+[ -z "$end" -o count -le "$end" ] && increment=1 || increment=-1
+
+istrue verbose && print -u2 "start=$count end=$end"
+
+# Need to do this here so that up to this point, -0 will keep the leading -
+# and end will not be 0 if no value assigned
+typeset -i end
+
+let end+=increment	# make loop inclusive of original endcount
+
+while istrue forever || [ $count -ne $end ]; do
+    istrue print && print -u2 -- $count
+    eval "$@"
+    istrue sleep && sleep $sleep
+    let count+=increment
+done

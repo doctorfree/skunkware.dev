@@ -1,0 +1,1276 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# @(#) fs.gawk 1.9 96/10/25
+# Reports average file sizes on filesystems,
+# determines optimum number of inodes for filesystem given average filesize,
+# and determines maximum useful size of a filesystem with that average file
+# size.
+# 91/03/11 john h. dubois iii (john@armory.com)
+# 91/03/16 added more info to display.
+# 91/04/08 increased max fs size field width
+# 91/04/18 changed name from filesizes to fs
+# 91/06/30 replaced incorrect continues with nexts
+# 92/05/01 converted to #!awk script
+# 92/08/01 Remove any directory component from fs name
+# 92/08/22 Use space used by inode table & superblock in calculations
+# 93/10/17 Use total inodes, not inodes used, in calculating non-file space
+# 93/11/02 Try to deal with NFS garbage
+# 94/01/27 Added n option
+# 94/03/09 Use gawk so - options can be given
+# 94/06/24 Increased size of total-blocks and used-blocks fields for >=1GB fs
+# 94/06/26 Strip multiple /'s in device names; sometimes used to fool mount
+# 94/08/17 Let max fs size be up to 99 GB without pushing fields right
+# 95/02/10 Run output lines through FmtLinePatch()
+# 95/04/29 Added [tx] options.
+# 95/08/04 Make df input be /dev/null
+# 96/01/15 Use metric suffixes to reduce max field width.  Added s option.
+#          Do not print max fs size if fs has >64K inodes.
+# 96/01/27 Use i2emet instead of i2met
+# 96/01/30 Added b option and rcfile processing.
+# 96/02/10 Complain if no valid filesystems named.  Added e option.
+# 96/04/17 Only add values for lines that are printed to the total line.
+# 96/04/27 Require files to be block devs by default; added a option.
+# 96/06/12 Separated dodf() code into a function.  Added yYT options.
+# 96/06/26 Detect NFS mount even if the : is lost
+# 96/10/25 Print total line only if more than one fs is reported on.
+
+# expects df to report in 512 byte blocks,
+# and expects df -i -v output to be in this format:
+#    1            2         3      4       5        6      7      8        9
+#Mount Dir   Filesystem  blocks	  used	  free	% used	 iused	ifree	%iused
+#/           /dev/root    27438	 18650	  8788	   68%	 1140	 2284	   33%
+#/usr/spool/ /dev/news   103530	 57276	 46254	   55%	11206	 1722	   87%
+#/usr        /dev/usr     80000	 66974	 13026	   84%	 3584	 6416	   36%
+#/u          /dev/u       50000	 35224	 14776	   70%	 1909	 4331	   31%
+BEGIN {
+    Name = "fs"
+    Usage = \
+"Usage: " Name " [-abhnstT] [-e<device,...>] [-[yY]<fstype,...>] [device ...]"
+    MaxInodes = 65488
+    rcFile = ".fs"
+    ARGC = Opts(Name,Usage,"abe:nstTy:Y:xh",0,
+    "~/" rcFile ":$UHOME/" rcFile ":/etc/default/fs","ALLOWFILES,NOMAXFS,"\
+    "EXCLUDEFS,SHOWNFS,NOMETRIC,TOTAL,SHOWFSTYPE,FSTYPES,NOTFSTYPES")
+    if ("h" in Options) {
+	printf \
+"%s: report average file sizes and other information for filesystems.\n"\
+"%s\n"\
+"For each mounted filesystem, %s prints:\n"\
+"its name, its size in blocks, blocks used, %% of blocks used, blocks free,\n"\
+"the maximum size of a filesystem containing files with the same average\n"\
+"size that this one has (given a maximum of %d files per filesystem),\n"\
+"number of inodes in its inode table, inodes used, %% of inodes used,\n"\
+"inodes free, the optimum number of inodes for a filesystem of this size\n"\
+"given the average size of files on it, and the average file size.\n"\
+"If a filesystem has more than %d inodes, the maximum filesystem size is\n"\
+"not printed, since this indicates that it has a much higher inode limit.\n"\
+"The metric suffixes used refer to powers of 2 (1K=1024, 1M=1048576, etc.)\n"\
+"when used for bytes, and to powers of 10 (1K=1000, 1M=1000000, etc.) when\n"\
+"used for inode counts.\n"\
+"If a list of devices is given, they are reported on instead of using the\n"\
+"list of mounted filesystems.  Devices given without a directory name are\n"\
+"assumed to be in the directory /dev unless the -a option is given.\n"\
+"Options:\n"\
+"Some of the following options can also be set by assigning values to\n"\
+"variables in a configuration file.  Three configuration files are read, in\n"\
+"order: a file named %s in the invoking user's home directory; a file\n"\
+"named %s in the directory specified by the environment variable UHOME\n"\
+"(if it is set); and the file /etc/default/fs.  Variables are assigned\n"\
+"to with the syntax:  varname=value  or in the case of flags, by simply\n"\
+"putting the indicated variable name in the file without a value.\n"\
+"A variable assigned to in one of these files will override values assigned\n"\
+"to the same variable in one of the files read after it.  To turn off an\n"\
+"option and prevent it from being set in a file read later, assign it a\n"\
+"value of 0.  e.g. if TOTAL is set in /etc/default/httplog, TOTAL=0 in\n"\
+"a %s file will override it.  Flag options can be turned off on the\n"\
+"command line by following them immediately with '-', e.g. -n- to turn off\n"\
+"the n option in such a way that it cannot be turned on in a config file.\n"\
+"Variable names appear in parentheses in the option descriptions.\n"\
+"-a: Allow any filename to be given, not just block devices.  For files\n"\
+"    other than block devices, the filesystem that the file resides on is\n"\
+"    reported on.  Files given with relative pathnames are not assumed to\n"\
+"    reside under /dev.  (ALLOWFILES)\n"\
+"-h: Print this help.\n"\
+"-b: Do not print the \"maximum filesystem size\" field.  (NOMAXFS)\n"\
+"-e<device,...>: Exclude the named filesystems from the output. (EXCLUDEFS)\n"\
+"-s: Do not use metric suffixes.  This may cause fields to be misaligned.\n"\
+"    All block reports will be in units of 1024 bytes.  (NOMETRIC)\n"\
+"-n: Show NFS mounts too.  (SHOWNFS)\n"\
+"-t: If more than one filesystem is reported on, print a total line. (TOTAL)\n"\
+"-y<fstype,..>: List only filesystems that are one of the types given in\n"\
+"    the comma-separated list.  The filesystem types are as produced by\n"\
+"    'dtype', except that \"UNIX 1K\" is converted to \"S51K\".  Types may\n"\
+"    be given in either case.  Example types: S51K, HTFS, RCKRDG. (FSTYPES)\n"\
+"-Y<fstype,..>: List only filesystems that are not one of the given types.\n"\
+"    (NOTFSTYPES)\n"\
+"-T: Show the filesystem type in the output.  This turns on the -b option.\n"\
+"    (SHOWTYPE)\n",
+	Name,Usage,Name,MaxInodes,MaxInodes,rcFile,rcFile,rcFile
+	exit(0)
+    }
+    if ((Err = ExclusiveOptions("n,t;y,Y",Options)) != "") {
+	printf "Error: %s\n",Err > "/dev/stderr"
+	Err = 1
+	exit(1)
+    }
+    doi2met = !("s" in Options)
+    Debug = "x" in Options
+    NoNFS = !("n" in Options)
+    AllowFiles = "a" in Options
+    if (!(numfs = dodf(ARGV,ARGC-1,AllowFiles,Debug,dfOut,fsDevs))) {
+	print "No valid filesystems named." > "/dev/stderr"
+	exit 1
+    }
+    showType = "T" in Options
+    if ("b" in Options || showType) {
+	maxWidth = ".0"
+	xtraD2 = " "
+    }
+    else {
+	maxWidth = "7"
+	xtraD1 = "----"
+	xtraD2 = "----"
+    }
+    TotLine = "t" in Options
+    if ("e" in Options) {
+	split(Options["e"],Elem,",")
+	for (i = 1; i in Elem; i++) {
+	    fs = Elem[i]
+	    if (fs !~ "/")
+		fs = "/dev/" fs
+	    if (Debug)
+		print "Added to NotDevs[]: " fs > "/dev/stderr"
+	    NotDevs[fs]
+	}
+    }
+    if (gotTypes = ("y" in Options)) {
+	i = MakeSet(Types,toupper(Options["y"]),",")
+	if (Debug)
+	    printf "%d types given with y option.\n",i > "/dev/stderr"
+    }
+    else if (gotNotTypes = ("Y" in Options)) {
+	i = MakeSet(notTypes,toupper(Options["Y"]),",")
+	if (Debug)
+	    printf "%d types given with Y option.\n",i > "/dev/stderr"
+    }
+
+    # printf format string for both header and data lines
+    Format = "%-6s %7s %7s %3s %7s %" maxWidth "s %6s %5s %3s %5s %5s %7s"
+    if (showType)
+	Format = Format " %s"
+    print "Filesys " xtraD1 "-----Filesystem Space-----" xtraD2 \
+    "  ----------Inodes----------- AvgSize" (showType ? " FS" : "")
+    printf Format "\n","Name","Total","Used","%","Free","Max", \
+    "Total","Used","%","Free","Opt","(bytes)","Type"
+    split(Format,FieldLengths,/[^0-9]+/)
+
+    if (gotTypes || gotNotTypes || showType) {
+	for (dev in fsDevs)
+	    if (dev !~ ":")
+		fList = fList " " dev
+	getfsTypes(fList,fs2Type)
+    }
+    for (i = 1; i <= numfs; i++) {
+	fsname = dfOut[i,"fsname"]
+	if (Debug) {
+	    printf "fsname: %s\n",fsname > "/dev/stderr"
+	    if (gotTypes || gotNotTypes) {
+		printf "type: %s\n",fs2Type[fsname] > "/dev/stderr"
+		printf "%s in Types: %d;  in notTypes: %d\n",fs2Type[fsname],
+		fs2Type[fsname] in Types,fs2Type[fsname] in notTypes
+	    }
+	}
+	if (!(fsname in NotDevs) && (!gotTypes || fs2Type[fsname] in Types) &&
+	(!gotNotTypes || !(fs2Type[fsname] in notTypes))) {
+	    if (PrintLine(Format,NoNFS,MaxInodes,dfOut[i,"mountdir"],fsname,
+	    dfOut[i,"blocks"]/2, dfOut[i,"bused"]/2,
+	    dfOut[i,"inodes"], dfOut[i,"iused"],fs2Type) && TotLine) {
+		Blocks_tot += dfOut[i,"blocks"]
+		BlocksUsed_tot += dfOut[i,"bused"]
+		Inodes_tot += dfOut[i,"inodes"]
+		InodesUsed_tot += dfOut[i,"iused"]
+		numRep++
+	    }
+	}
+    }
+    if (TotLine && numRep > 1)
+	PrintLine(Format,NoNFS,0,"","Total",Blocks_tot/2,
+	BlocksUsed_tot/2,Inodes_tot,InodesUsed_tot,fs2Type)
+}
+
+function dodf(fslist,num,AllowFiles,Debug,Out,fsDevs,  i,dev,fList,Cmd,ret,n) {
+    if (num > 0) {
+	for (i = 1; i <= num; i++) {
+	    dev = fslist[i]
+	    if (AllowFiles || dev ~ "/")
+		fList = fList " " dev
+	    else
+		fList = fList " /dev/" dev
+	}
+	if (AllowFiles)
+	    Cmd = "set -- " fList "; "
+	else
+	    Cmd = sprintf("for file in %s\n"\
+	    "do\n"\
+	    " test -b \"$file\" && set -- \"$@\" \"$file\" ||\n"\
+	    " echo Does not exist or is not a block device: $file >&2\n"\
+	    "done\n"\
+	    "[ $# -eq 0 ] && exit 0\n",fList)
+    }
+    # Redirect input from /dev/null to work around bug in df/protlib
+    # Discard stderr so that failed NFS queries will be ignored.
+    Cmd = Cmd "exec </dev/null 2>/dev/null df -i -v \"$@\""
+    if (Debug)
+	print "df command is: " Cmd > "/dev/stderr"
+    Cmd | getline	# ignore header
+    if (Debug)
+	print "df header line:\n" $0
+    # Get 1st fs line from df.
+    # Don't print header if df doesn't produce anything
+    if ((ret = (Cmd | getline)) != 1) {
+	if (Debug)
+	    print \
+	    "No fs lines from df.  df exit status: " close(Cmd) > "/dev/stderr"
+	return 0
+    }
+
+    # Get the rest of the fs lines from df.
+    while (ret == 1) {
+	# If a list of devices is given to df, it leaves mount dir field blank.
+	# Shift fields to compensate.
+	if (NF == 8) {
+	    for (i = 8; i >= 1; i--)
+		$(i + 1) = $i
+	    $1 = ""
+	}
+	if (Debug) {
+	    print "df output: " $0 > "/dev/stderr"
+	    printf "mountdir: %s   fsname: %s\n",$1,$2 > "/dev/stderr"
+	}
+#    1            2         3      4       5        6      7      8        9
+#Mount Dir   Filesystem  blocks	  used	  free	% used	 iused	ifree	%iused
+	Out[++n,"mountdir"] = $1
+	Out[n,"fsname"] = $2
+	Out[n,"blocks"] = $3
+	Out[n,"bused"] = $4
+	Out[n,"inodes"] = $7+$8
+	Out[n,"iused"] = $7
+	fsDevs[$2]
+	ret = (Cmd | getline)
+    }
+    close(Cmd)
+    return n
+}
+
+# Use dtype because a) fstyp runs a TYPE command for each filesystem type
+# until it gets one that returns true, so it is slow; c) can give more than 1
+# device name to dtype; c) dtype will work on filesystems stored in ordinary
+# files as well as devices.  Unfortunately, dtype reports generic "UNIX 1K"
+# instead of e.g. EAFS.  This is converted to S51K for compactness and to make
+# it a single word.
+function getfsTypes(fList,fs2Type,  Cmd,fs,type) {
+    Cmd = "exec dtype " fList
+    if (Debug)
+	print "dtype command: " Cmd > "/dev/stderr"
+    # dtype output:
+    # /dev/local     : HTFS filesystem
+    # /dev/boot      : UNIX 1K filesystem
+    # /dev/root      : HTFS filesystem -- needs cleaning
+    while ((Cmd | getline) == 1) {
+	if (sub(" filesystem[^:]*","")) {
+	    fs = $1
+	    sub(".*: ","")
+	    type = $0 == "UNIX 1K" ? "S51K" : $0
+	    if (Debug)
+		printf "fs type for %s: %s\n",fs,type > "/dev/stderr"
+	    fs2Type[fs] = type
+	}
+    }
+    close(Cmd)
+}
+
+# Input variables:
+# Format: printf format string.
+# NoNFS: true if NFS automounter lines should be ignored.
+# MaxInodes: the maximum number of inodes a filesystem can have.
+# Global vars used: FieldLengths[]
+# Return value: true if a line was printed (so that values for this line can be
+# added to total line).
+function PrintLine(Format,NoNFS,MaxInodes,MountDir,FsDevice,DivisionSize,
+BlocksUsed,TotalInodes,InodesUsed,Types,
+AvgFileSize,FileSpaceUsed,MaxFsSize,NonFileSpace,OptimumInodes,TotalFileSpace,
+FsName) {
+    # Allow more than one / after /dev; double / sometimes used to trick mount
+    # into not reading /etc/default/filesys
+    FsName = FsDevice
+    sub("^/+dev/+","",FsName)	
+    InodesFree = TotalInodes - InodesUsed
+    bigInodes = TotalInodes > MaxInodes
+    # Space used by inode table and superblock
+    # Actual size of superblock is different for different filesys types
+    NonFileSpace = int(TotalInodes / (bigInodes ? 8 : 16) + 2)
+    # Amount of space actually used by files
+    FileSpaceUsed = BlocksUsed - NonFileSpace
+    # Amount of space available to files
+    TotalFileSpace = DivisionSize - NonFileSpace
+    if (Debug)
+	printf \
+	"fsname: %s; Blocks used: %d; non-file space: %d; file space: %d\n",
+	FsName,BlocksUsed, NonFileSpace, FileSpaceUsed > "/dev/stderr"
+
+    # NFS fs lines do not include inode info
+    if ((InodesUsed+0) > 0) {
+	AvgFileSize = FileSpaceUsed / InodesUsed
+	# max useful size of fs division
+	MaxFsSize = int(AvgFileSize * MaxInodes + MaxInodes / 16 + 2)
+	if (AvgFileSize > 0) {
+	    OptimumInodes = int(TotalFileSpace / AvgFileSize)
+	    AvgFileSize = int(AvgFileSize * 1024)
+	}
+	else
+	    AvgFileSize = "-"
+    }
+    else
+	MaxFsSize = OptimumInodes = AvgFileSize = "-"
+    if (MaxInodes == 0)	# These are not meaningful for Total line
+	MaxFsSize = OptimumInodes = "-"
+    # NFS mount
+    # If the hostname is long, the : at the end is lost to truncation, so use
+    # an extra test
+    if (FsName ~ ":" || (index(FsName,".") && !InodesUsed && !InodesFree)) {
+	if (Debug)
+	    printf "%s is an NFS mounted volume.\n",MountDir > "/dev/stderr"
+	if (NoNFS)
+	    return 0
+	FsName = MountDir
+	sub("^.*/","",FsName)
+	FsName = "*" FsName
+    }
+    if (length(FsName) > 6)
+	FsName = substr(FsName,1,5) ">"
+    # The percentage calculations are done without adding 0.5 before
+    # doing int() because that's what df seems to do (so that when fs -t is
+    # done on a single filesystem, the filesys line will will match the total
+    # line).
+    print FmtLinePatch(FieldLengths,12,
+    #              Name   Total blocks
+    sprintf(Format,FsName,maybei2met(int(DivisionSize),7,1,1),
+    #          Blocks used            % blocks used
+    maybei2met(int(BlocksUsed),7,1,1),int(BlocksUsed/DivisionSize*100+0.5),
+    #          Blocks free
+    maybei2met(int(DivisionSize-BlocksUsed),7,1,1),
+    # Max fs size
+    bigInodes ? "-" : maybei2met(MaxFsSize,7,1,1),
+    # Total inodes                                  Inodes used
+    TotalInodes ? maybei2met(TotalInodes,5,0) : "-",maybei2met(InodesUsed,5,0),
+    # % inodes used
+    TotalInodes ? maybei2met(int(InodesUsed/TotalInodes*100+0.5),5,0) : "-",
+    # Free inodes
+    maybei2met(InodesFree,5,0),
+    # Optimal inodes              Average file size           Filesystem type
+    maybei2met(OptimumInodes,5,0),maybei2met(AvgFileSize,7,1),Types[FsDevice]))
+    return 1
+}
+
+function maybei2met(Value,MaxLen,Pow2,Units) {
+    if (doi2met && Value != "-")
+	return i2emet(Value,MaxLen,Pow2,Units)
+    else
+	return Value
+}
+
+# @(#) FmtLinePatch 1.0 95/02/10 jhdiii
+# FmtLinePatch: compensate for fields that overrun their bounds.
+# FieldLengths is an array giving the length of each field.
+# The array may start with index 1 or 2.  An empty value at index 1 is ignored.
+# NumFields is the number of fields on the line.
+# Each field is expected to be separated from the next by one space, so that
+# the total number of characters from the start of one field to the start of
+# the next is its fieldlength+1.
+# The field itself may be padded with spaces on the left or right.
+# If a field overruns its bounds (protrudes into the field on the right),
+# this function first tries to move it left; this can be done if there is more
+# than one space on its left.  It then removes excess spaces on the right.  If
+# there are not enough extra spaces available, the field will still cause the
+# next field over to be misaligned.
+# This function will be confused if a field is pushed far enough right that the
+# space(s) preceding it appear where the space after it is expected.
+function FmtLinePatch(FieldLengths,NumFields,Line,
+FieldInd,Width,Offset,c,SpacePos,Excess) {
+    FieldInd = 1
+    if (!(1 in FieldLengths && FieldLengths[1] != ""))
+	FieldInd++
+    Offset = 0
+    for (; NumFields; NumFields--) {    # For each field...
+	# Find what should be the space after the field.
+	Offset += FieldLengths[FieldInd++] + 1
+	# While it isn't a space...
+	while ((c = substr(Line,Offset,1)) != " " && c != "") {
+	    # If the field is preceded by more than one space, remove it.
+	    if ((SpacePos = FindC(Line,Offset," ",-1)) && SpacePos > 1 &&
+	    substr(Line,SpacePos-1,1) == " ")
+		Line = DelStr(Line,SpacePos,1)
+	    else
+		break	# No more excess preceding spaces to remove; give up.
+	}
+	# If there still isn't a space where there should be, but there are
+	# spaces after the field...
+	if (c != " " && c != "" && (SpacePos = FindC(Line,Offset," ",1))) {
+	    for (Excess = SpacePos - Offset; Excess; Excess--)
+	    # If the field is followed by more than one space, remove it.
+		if (substr(Line,SpacePos+1,1) == " ")
+		    Line = DelStr(Line,SpacePos,1)
+		else
+		    break # No more excess following spaces to remove; give up.
+	}
+    }
+    return Line
+}
+
+# Delete the string starting at Start and having length Num from the middle
+# of string S, and return the remaining part.
+function DelStr(S,Start,Num) {
+    return substr(S,1,Start - 1) substr(S,Start+Num)
+}
+
+# Search for char C in string S starting at position Pos, in the direction
+# specified by Dir (1 = forward, -1 = backward).  
+# Return position char found at for success, 0 if not found before start or end
+# of string.
+function FindC(S,Pos,C,Dir,  FoundC) {
+    while (Pos > 0 && (FoundC = substr(S,Pos,1)) != C && FoundC != "")
+	Pos += Dir
+    if (FoundC == C)
+	return Pos
+    else
+	return 0
+}
+
+# @(#) i2emet.awk 1.0 96/01/27
+# jhdiii 96/01/27
+# Convert numeric value Value to one with the decimal point set according to
+# engineering convention.  In this convention, there is always between 1 and
+# 3 digits before the decimal point.  A metric suffix is attached to retain
+# the original value.
+# If Pow2 is true, then each factor of 1K is taken to be 1024; if it is false,
+# it is taken to be 1000.
+# If Pow2 is true, MaxLen must be >= 5; if Pow2 is false, MaxLen must be >= 4. 
+# If Units is given, it is the units that Value is passed in, where
+# Units=0 means Value is in base units; Units=-1 means Value is in milliunits,
+# Units=1 means Value is in kilounits, etc.
+# If NoZeroes is true, trailing zeroes in the fractional part are removed.
+function i2emet(Value,MaxLen,Pow2,Units,NoZeroes,  Len,Factor,i,suf2) {
+    if (Value == 0)
+	return "0"
+    if (!(1 in _Suf)) {
+	_MaxUnit = split("K,M,G,T,P,E,Z,Y",_Suf,",")
+	split("m,u,n,p,f,a,z,y",suf2,",")
+	for (i = 1; i in suf2; i++)
+	    _Suf[-i] = suf2[i]
+    }
+    # Make sure awk treats all of these as numbers
+    Factor = (Pow2 ? 1024 : 1000)+0
+    Units += 0
+    Value += 0
+    if (Value < 1)
+	for (; Value < 1 && Units > -_MaxUnit; Value *= Factor)
+	    Units--
+    else
+	for (; Value >= Factor && Units < _MaxUnit; Value /= Factor)
+	    Units++
+    if (Units)
+	MaxLen -= 1		# Leave space for suffix
+    # Round reasonably carefully
+    fDig = MaxLen-length(int(Value))-1
+    if (fDig > 0)
+	Value = sprintf("%." fDig "f",Value)+0	# Turn it back into a number!
+    else
+	Value = int(Value+0.5)
+    # Rounding may have caused rollover of leading digit, making the result
+    # exceed the allowed range (e.g. 999.6 -> 1000)
+    if (Value >= Factor) {
+	Value /= Factor
+	Units++
+    }
+    if (substr(Value,MaxLen,1) == ".")
+	Value = substr(Value,1,MaxLen-1)	# Get rid of trailing '.'
+    else
+	Value = substr(Value,1,MaxLen)
+    if (NoZeroes && Value ~ /\..*0$/)
+	sub(/\.?0+$/,"",Value)
+    return Value _Suf[Units]
+}
+
+### Begin set library
+# 96/05/23 added return values  jhdiii
+# 96/05/25 added set2list()
+
+# Return value: the number of new elements added to Inter
+function Intersection(A,B,Inter,  Elem,Count) {
+    for (Elem in A)
+	if (Elem in B && !(Elem in Inter)) {
+	    Inter[Elem]
+	    Count++
+	}
+    return Count
+}
+
+# Return value: the number of new elements added to Both
+function Union(A,B,Both) {
+    return CopySet(A,Both) + CopySet(B,Both)
+}
+
+# Deletes any elements that are in both Minuend and Subtrahend from Minuend.
+# Return value: the number of elements deleted.
+function SubtractSet(Minuend,Subtrahend,  Elem,nDel) {
+    for (Elem in Subtrahend)
+	if (Elem in Minuend) {
+	    delete Minuend[Elem]
+	    nDel++
+	}
+    return nDel
+}
+
+# Return value: the number of new elements added to To
+function CopySet(From,To,  Elem,n) {
+    for (Elem in From)
+	if (!(Elem in To)) {
+	    To[Elem]
+	    n++
+	}
+    return n
+}
+
+# Returns 1 if Set is empty, 0 if not.
+function IsEmpty(Set,  i) {
+    for (i in Set)
+	return 0
+    return 1
+}
+
+# MakeSet: make a set from a list.
+# An index with the name of each element of the list is created in the given
+# array.
+# Input variables: 
+# Elements is a string containing the list of elements.
+# Sep is the character that separates the elements of the list.
+# Output variables:
+# Set is the array.
+# Return value: the number of new elements added to the set.
+function MakeSet(Set,Elements,Sep,  i,Num,Names,nFound,ind) {
+    nFound = 0
+    Num = split(Elements,Names,Sep)
+    for (i = 1; i <= Num; i++) {
+	ind = Names[i]
+	if (!(ind in Set)) {
+	    Set[ind]
+	    nFound++
+	}
+    }
+    return nFound
+}
+
+# Returns the number of elements in set Set
+function NumElem(Set,  elem,Num) {
+    for (elem in Set)
+	Num++
+    return Num
+}
+
+# Remove all elements from Set
+function DeleteAll(Set,  i) {
+    split("",Set,",")
+}
+
+# Returns a list of all of the elements in Set[], with each pair of elements
+# separated by Sep.
+function set2list(Set,Sep,  list,elem) {
+    for (elem in Set)
+	list = list Sep elem
+    return substr(list,2)	# skip 1st separator
+}
+### End set library
+### Start of ProcArgs library
+# @(#) ProcArgs 1.11 96/12/08
+# 92/02/29 john h. dubois iii (john@armory.com)
+# 93/07/18 Added "#" arg type
+# 93/09/26 Do not count -h against MinArgs
+# 94/01/01 Stop scanning at first non-option arg.  Added ">" option type.
+#          Removed meaning of "+" or "-" by itself.
+# 94/03/08 Added & option and *()< option types.
+# 94/04/02 Added NoRCopt to Opts()
+# 94/06/11 Mark numeric variables as such.
+# 94/07/08 Opts(): Do not require any args if h option is given.
+# 95/01/22 Record options given more than once.  Record option num in argv.
+# 95/06/08 Added ExclusiveOptions().
+# 96/01/20 Let rcfiles be a colon-separated list of filenames.
+#          Expand $VARNAME at the start of its filenames.
+#          Let varname=0 and -option- turn off an option.
+# 96/05/05 Changed meaning of 7th arg to Opts; now can specify exactly how many
+#          of the vars should be searched for in the environment.
+#          Check for duplicate rcfiles.
+# 96/05/13 Return more specific error values.  Note: ProcArgs() and InitOpts()
+#          now return various negatives values on error, not just -1, and
+#          Opts() may set Err to various positive values, not just 1.
+#          Added AllowUnrecOpt.
+# 96/05/23 Check type given for & option
+# 96/06/15 Re-port to awk
+# 96/10/01 Moved file-reading code into ReadConfFile(), so that it can be
+#          used by other functions.
+# 96/10/15 Added OptChars
+# 96/11/01 Added exOpts arg to Opts()
+# 96/11/16 Added ; type
+# 96/12/08 Added Opt2Set() & Opt2Sets()
+# 96/12/27 Added CmdLineOpt()
+
+# optlist is a string which contains all of the possible command line options.
+# A character followed by certain characters indicates that the option takes
+# an argument, with type as follows:
+# :	String argument
+# ;	Non-empty string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# The only difference the type of argument makes is in the runtime argument
+# error checking that is done.
+
+# The & option is a special case used to get numeric options without the
+# user having to give an option character.  It is shorthand for [-+.0-9].
+# If & is included in optlist and an option string that begins with one of
+# these characters is seen, the value given to "&" will include the first
+# char of the option.  & must be followed by a type character other than ":"
+# or ";".
+# Note that if e.g. &> is given, an option of -.5 will produce an error.
+
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-"
+# or "+" is taken to be a non-option string; like other non-option strings,
+# it stops the scanning of argv and is left in argv[].
+# An argument of "--" or "++" also stops the scanning of argv[] but is removed.
+# If an option takes an argument, the argument may either immediately
+# follow it or be given separately.
+# "-" and "+" options are treated the same.  "+" is allowed because most awks
+# take any -options to be arguments to themselves.  gawk 2.15 was enhanced to
+# stop scanning when it encounters an unrecognized option, though until 2.15.5
+# this feature had a flaw that caused problems in some cases.  See the OptChars
+# parameter to explicitly set the option-specifier characters.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in Options and its value is set to the
+# number of times it occurs in argv[].
+
+# If an option that does take an argument is given, an index with its name is
+# created in Options and its value is set to the value of the argument given
+# for it, and Options[option-name,"count"] is (initially) set to the 1.
+# If an option that takes an argument is given more than once,
+# Options[option-name,"count"] is incremented, and the value is assigned to
+# the index (option-name,instance) where instance is 2 for the second occurance
+# of the option, etc.
+# In other words, the first time an option with a value is encountered, the
+# value is assigned to an index consisting only of its name; for any further
+# occurances of the option, the value index has an extra (count) dimension.
+
+# The sequence number for each option found in argv[] is stored in
+# Options[option-name,"num",instance], where instance is 1 for the first
+# occurance of the option, etc.  The sequence number starts at 1 and is
+# incremented for each option, both those that have a value and those that
+# do not.  Options set from a config file have a value of 0 assigned to this.
+
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps left in the indices of argv[].
+# If compress is nonzero, argv[] is packed by moving its elements so that
+# they have contiguous integer indices starting with 0.
+# Option processing will stop with the first unrecognized option, just as
+# though -- was given except that unlike -- the unrecognized option will not be
+# removed from ARGV[].  Normally, an error value is returned in this case.
+# If AllowUnrecOpt is true, it is not an error for an unrecognized option to
+# be found, so the number of remaining arguments is returned instead.
+# If OptChars is not a null string, it is the set of characters that indicate
+# that an argument is an option string if the string begins with one of the
+# characters.  A string consisting solely of two of the same option-indicator
+# characters stops the scanning of argv[].  The default is "-+".
+# argv[0] is not examined.
+# The number of arguments left in argc is returned.
+# If an error occurs, the global string OptErr is set to an error message
+# and a negative value is returned.
+# Current error values:
+# -1: option that required an argument did not get it.
+# -2: argument of incorrect type supplied for an option.
+# -3: unrecognized (invalid) option.
+function ProcArgs(argc,argv,OptList,Options,compress,AllowUnrecOpt,OptChars,
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos,NumOpt,Value,HadValue,specGiven,
+NeedNextOpt,GotValue,OptionNum,Escape,dest,src,count,c,OptTerm,OptCharSet)
+{
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in OptList of the option being processed.
+# NumOpt is true if a numeric option may be given.
+    ArgsLeft = argc
+    NumOpt = index(OptList,"&")
+    OptionNum = 0
+    if (OptChars == "")
+	OptChars = "-+"
+    while (OptChars != "") {
+	c = substr(OptChars,1,1)
+	OptChars = substr(OptChars,2)
+	OptCharSet[c]
+	OptTerm[c c]
+    }
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	Arg = argv[ArgNum]
+	if (length(Arg) < 2 || !((specGiven = substr(Arg,1,1)) in OptCharSet))
+	    break	# Not an option; quit
+	if (Arg in OptTerm) {
+	    delete argv[ArgNum]
+	    ArgsLeft--
+	    break
+	}
+	ArgLen = length(Arg)
+	for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+	    Option = substr(Arg,ArgInd,1)
+	    if (NumOpt && Option ~ /[-+.0-9]/) {
+		# If this option is a numeric option, make its flag be & and
+		# its option string flag position be the position of & in
+		# the option string.
+		Option = "&"
+		Pos = NumOpt
+		# Prefix Arg with a char so that ArgInd will point to the
+		# first char of the numeric option.
+		Arg = "&" Arg
+		ArgLen++
+	    }
+	    # Find position of flag in option string, to get its type (if any).
+	    # Disallow & as literal flag.
+	    else if (!(Pos = index(OptList,Option)) || Option == "&") {
+		if (AllowUnrecOpt) {
+		    Escape = 1
+		    break
+		}
+		else {
+		    OptErr = "Invalid option: " specGiven Option
+		    return -3
+		}
+	    }
+
+	    # Find what the value of the option will be if it takes one.
+	    # NeedNextOpt is true if the option specifier is the last char of
+	    # this arg, which means that if the option requires a value it is
+	    # the next arg.
+	    if (NeedNextOpt = (ArgInd >= ArgLen)) { # Value is the next arg
+		if (GotValue = ArgNum + 1 < argc)
+		    Value = argv[ArgNum+1]
+	    }
+	    else {	# Value is included with option
+		Value = substr(Arg,ArgInd + 1)
+		GotValue = 1
+	    }
+
+	    if (HadValue = AssignVal(Option,Value,Options,
+	    substr(OptList,Pos + 1,1),GotValue,"",++OptionNum,!NeedNextOpt,
+	    specGiven)) {
+		if (HadValue < 0)	# error occured
+		    return HadValue
+		if (HadValue == 2)
+		    ArgInd++	# Account for the single-char value we used.
+		else {
+		    if (NeedNextOpt) {	# option took next arg as value
+			delete argv[++ArgNum]
+			ArgsLeft--
+		    }
+		    break	# This option has been used up
+		}
+	    }
+	}
+	if (Escape)
+	    break
+	# Do not delete arg until after processing of it, so that if it is not
+	# recognized it can be left in ARGV[].
+	delete argv[ArgNum]
+	ArgsLeft--
+    }
+    if (compress != 0) {
+	dest = 1
+	src = argc - ArgsLeft + 1
+	for (count = ArgsLeft - 1; count; count--) {
+	    ARGV[dest] = ARGV[src]
+	    dest++
+	    src++
+	}
+    }
+    return ArgsLeft
+}
+
+# Assignment to values in Options[] occurs only in this function.
+# Option: Option specifier character.
+# Value: Value to be assigned to option, if it takes a value.
+# Options[]: Options array to return values in.
+# ArgType: Argument type specifier character.
+# GotValue: Whether any value is available to be assigned to this option.
+# Name: Name of option being processed.
+# OptionNum: Number of this option (starting with 1) if set in argv[],
+#     or 0 if it was given in a config file or in the environment.
+# SingleOpt: true if the value (if any) that is available for this option was
+#     given as part of the same command line arg as the option.  Used only for
+#     options from the command line.
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Global variables: OptErr
+# Return value: negative value on error, 0 if option did not require an
+# argument, 1 if it did & used the whole arg, 2 if it required just one char of
+# the arg.
+# Current error values:
+# -1: Option that required an argument did not get it.
+# -2: Value of incorrect type supplied for option.
+# -3: Bad type given for option &
+function AssignVal(Option,Value,Options,ArgType,GotValue,Name,OptionNum,
+SingleOpt,specGiven,  UsedValue,Err,NumTypes) {
+    # If option takes a value...    [
+    NumTypes = "*()#<>]"
+    if (Option == "&" && ArgType !~ "[" NumTypes) {	# ]
+	OptErr = "Bad type given for & option"
+	return -3
+    }
+
+    if (UsedValue = (ArgType ~ "[:;" NumTypes)) {	# ]
+	if (!GotValue) {
+	    if (Name != "")
+		OptErr = "Variable requires a value -- " Name
+	    else
+		OptErr = "option requires an argument -- " Option
+	    return -1
+	}
+	if ((Err = CheckType(ArgType,Value,Option,Name,specGiven)) != "") {
+	    OptErr = Err
+	    return -2
+	}
+	# Mark this as a numeric variable; will be propogated to Options[] val.
+	if (ArgType != ":" && ArgType != ";")
+	    Value += 0
+	if ((Instance = ++Options[Option,"count"]) > 1)
+	    Options[Option,Instance] = Value
+	else
+	    Options[Option] = Value
+    }
+    # If this is an environ or rcfile assignment & it was given a value...
+    else if (!OptionNum && Value != "") {
+	UsedValue = 1
+	# If the value is "0" or "-" and this is the first instance of it,
+	# do not set Options[Option]; this allows an assignment in an rcfile to
+	# turn off an option (for the simple "Option in Options" test) in such
+	# a way that it cannot be turned on in a later file.
+	if (!(Option in Options) && (Value == "0" || Value == "-"))
+	    Instance = 1
+	else
+	    Instance = ++Options[Option]
+	# Save the value even though this is a flag
+	Options[Option,Instance] = Value
+    }
+    # If this is a command line flag and has a - following it in the same arg,
+    # it is being turned off.
+    else if (OptionNum && SingleOpt && substr(Value,1,1) == "-") {
+	UsedValue = 2
+	if (Option in Options)
+	    Instance = ++Options[Option]
+	else
+	    Instance = 1
+	Options[Option,Instance]
+    }
+    # If this is a flag assignment without a value, increment the count for the
+    # flag unless it was turned off.  The indicator for a flag being turned off
+    # is that the flag index has not been set in Options[] but it has an
+    # instance count.
+    else if (Option in Options || !((Option,1) in Options))
+	# Increment number of times this flag seen; will inc null value to 1
+	Instance = ++Options[Option]
+    Options[Option,"num",Instance] = OptionNum
+    return UsedValue
+}
+
+# Option is the option letter
+# Value is the value being assigned
+# Name is the var name of the option, if any
+# ArgType is one of:
+# :	String argument
+# ;	Non-null string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Returns null on success, err string on error
+function CheckType(ArgType,Value,Option,Name,specGiven,  Err,ErrStr) {
+    if (ArgType == ":")
+	return ""
+    if (ArgType == ";") {
+	if (Value == "")
+	    Err = "must be a non-empty string"
+    }
+    # A number begins with optional + or -, and is followed by a string of
+    # digits or a decimal with digits before it, after it, or both
+    else if (Value !~ /^[-+]?([0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)$/)
+	Err = "must be a number"
+    else if (ArgType ~ "[#<>]" && Value ~ /\./)
+	Err = "may not include a fraction"
+    else if (ArgType ~ "[()<>]" && Value < 0)
+	Err = "may not be negative"
+    # (
+    else if (ArgType ~ "[)>]" && Value == 0)
+	Err = "must be a positive number"
+    if (Err != "") {
+	ErrStr = "Bad value \"" Value "\".  Value assigned to "
+	if (Name != "")
+	    return ErrStr "variable " substr(Name,1,1) " " Err
+	else {
+	    if (Option == "&")
+		Option = Value
+	    return ErrStr "option " specGiven substr(Option,1,1) " " Err
+	}
+    }
+    else
+	return ""
+}
+
+# Note: only the above functions are needed by ProcArgs.
+# The rest of these functions call ProcArgs() and also do other
+# option-processing stuff.
+
+# Opts: Process command line arguments.
+# Opts processes command line arguments using ProcArgs()
+# and checks for errors.  If an error occurs, a message is printed
+# and the program is exited.
+#
+# Input variables:
+# Name is the name of the program, for error messages.
+# Usage is a usage message, for error messages.
+# OptList the option description string, as used by ProcArgs().
+# MinArgs is the minimum number of non-option arguments that this
+# program should have, non including ARGV[0] and +h.
+# If the program does not require any non-option arguments,
+# MinArgs should be omitted or given as 0.
+# rcFiles, if given, is a colon-seprated list of filenames to read for
+# variable initialization.  If a filename begins with ~/, the ~ is replaced
+# by the value of the environment variable HOME.  If a filename begins with
+# $, the part from the character after the $ up until (but not including)
+# the first character not in [a-zA-Z0-9_] will be searched for in the
+# environment; if found its value will be substituted, if not the filename will
+# be discarded.
+# rcfiles are read in the order given.
+# Values given in them will not override values given on the command line,
+# and values given in later files will not override those set in earlier
+# files, because AssignVal() will store each with a different instance index.
+# The first instance of each variable, either on the command line or in an
+# rcfile, will be stored with no instance index, and this is the value
+# normally used by programs that call this function.
+# VarNames is a comma-separated list of variable names to map to options,
+# in the same order as the options are given in OptList.
+# If EnvSearch is given and nonzero, the first EnvSearch variables will also be
+# searched for in the environment.  If set to -1, all values will be searched
+# for in the environment.  Values given in the environment will override
+# those given in the rcfiles but not those given on the command line.
+# NoRCopt, if given, is an additional letter option that if given on the
+# command line prevents the rcfiles from being read.
+# See ProcArgs() for a description of AllowUnRecOpt and optChars, and
+# ExclusiveOptions() for a description of exOpts.
+# Special options:
+# If x is made an option and is given, some debugging info is output.
+# h is assumed to be the help option.
+
+# Global variables:
+# The command line arguments are taken from ARGV[].
+# The arguments that are option specifiers and values are removed from
+# ARGV[], leaving only ARGV[0] and the non-option arguments.
+# The number of elements in ARGV[] should be in ARGC.
+# After processing, ARGC is set to the number of elements left in ARGV[].
+# The option values are put in Options[].
+# On error, Err is set to a positive integer value so it can be checked for in
+# an END block.
+# Return value: The number of elements left in ARGV is returned.
+# Must keep OptErr global since it may be set by InitOpts().
+function Opts(Name,Usage,OptList,MinArgs,rcFiles,VarNames,EnvSearch,NoRCopt,
+AllowUnrecOpt,optChars,exOpts,  ArgsLeft,e) {
+    if (MinArgs == "")
+	MinArgs = 0
+    ArgsLeft = ProcArgs(ARGC,ARGV,OptList NoRCopt,Options,1,AllowUnrecOpt,
+    optChars)
+    if (ArgsLeft < (MinArgs+1) && !("h" in Options)) {
+	if (ArgsLeft >= 0) {
+	    OptErr = "Not enough arguments"
+	    Err = 4
+	}
+	else
+	    Err = -ArgsLeft
+	printf "%s: %s.\nUse -h for help.\n%s\n",
+	Name,OptErr,Usage > "/dev/stderr"
+	exit 1
+    }
+    if (rcFiles != "" && (NoRCopt == "" || !(NoRCopt in Options)) &&
+    (e = InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch)) < 0)
+    {
+	print Name ": " OptErr ".\nUse -h for help." > "/dev/stderr"
+	Err = -e
+	exit 1
+    }
+    if ((exOpts != "") && ((OptErr = ExclusiveOptions(exOpts,Options)) != ""))
+    {
+	printf "%s: Error: %s\n",Name,OptErr > "/dev/stderr"
+	Err = 1
+	exit 1
+    }
+    return ArgsLeft
+}
+
+# ReadConfFile(): Read a file containing var/value assignments, in the form
+# <variable-name><assignment-char><value>.
+# Whitespace (spaces and tabs) around a variable (leading whitespace on the
+# line and whitespace between the variable name and the assignment character) 
+# is stripped.  Lines that do not contain an assignment operator or which
+# contain a null variable name are ignored, other than possibly being noted in
+# the return value.  If more than one assignment is made to a variable, the
+# first assignment is used.
+# Input variables:
+# File is the file to read.
+# Comment is the line-comment character.  If it is found as the first non-
+#     whitespace character on a line, the line is ignored.
+# Assign is the assignment string.  The first instance of Assign on a line
+#     separates the variable name from its value.
+# If StripWhite is true, whitespace around the value (whitespace between the
+#     assignment char and trailing whitespace on the line) is stripped.
+# VarPat is a pattern that variable names must match.  
+#     Example: "^[a-zA-Z][a-zA-Z0-9]+$"
+# If FlagsOK is true, variables are allowed to be "set" by being put alone on
+#     a line; no assignment operator is needed.  These variables are set in
+#     the output array with a null value.  Lines containing nothing but
+#     whitespace are still ignored.
+# Output variables:
+# Values[] contains the assignments, with the indexes being the variable names
+#     and the values being the assigned values.
+# Lines[] contains the line number that each variable occured on.  A flag set
+#     is record by giving it an index in Lines[] but not in Values[].
+# Return value:
+# If any errors occur, a string consisting of descriptions of the errors
+# separated by newlines is returned.  In no case will the string start with a
+# numeric value.  If no errors occur,  the number of lines read is returned.
+function ReadConfigFile(Values,Lines,File,Comment,Assign,StripWhite,VarPat,
+FlagsOK,
+Line,Status,Errs,AssignLen,LineNum,Var,Val) {
+    if (Comment != "")
+	Comment = "^" Comment
+    AssignLen = length(Assign)
+    if (VarPat == "")
+	VarPat = "."	# null varname not allowed
+    while ((Status = (getline Line < File)) == 1) {
+	LineNum++
+	sub("^[ \t]+","",Line)
+	if (Line == "")		# blank line
+	    continue
+	if (Comment != "" && Line ~ Comment)
+	    continue
+	if (Pos = index(Line,Assign)) {
+	    Var = substr(Line,1,Pos-1)
+	    Val = substr(Line,Pos+AssignLen)
+	    if (StripWhite) {
+		sub("^[ \t]+","",Val)
+		sub("[ \t]+$","",Val)
+	    }
+	}
+	else {
+	    Var = Line	# If no value, var is entire line
+	    Val = ""
+	}
+	if (!FlagsOK && Val == "") {
+	    Errs = Errs \
+	    sprintf("\nBad assignment on line %d of file %s: %s",
+	    LineNum,File,Line)
+	    continue
+	}
+	sub("[ \t]+$","",Var)
+	if (Var !~ VarPat) {
+	    Errs = Errs sprintf("\nBad variable name on line %d of file %s: %s",
+	    LineNum,File,Var)
+	    continue
+	}
+	if (!(Var in Lines)) {
+	    Lines[Var] = LineNum
+	    if (Pos)
+		Values[Var] = Val
+	}
+    }
+    if (Status)
+	Errs = Errs "\nCould not read file " File
+    close(File)
+    return Errs == "" ? LineNum : substr(Errs,2)	# Skip first newline
+}
+
+# Variables:
+# Data is stored in Options[].
+# rcFiles, OptList, VarNames, and EnvSearch are as as described for Opts().
+# Global vars:
+# Sets OptErr.  Uses ENVIRON[].
+# If anything is read from any of the rcfiles, sets READ_RCFILE to 1.
+function InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch,
+Line,Var,Pos,Vars,Map,CharOpt,NumVars,TypesInd,Types,Type,Ret,i,rcFile,
+fNames,numrcFiles,filesRead,Err,Values,retStr) {
+    split("",filesRead,"")	# make awk know this is an array
+    NumVars = split(VarNames,Vars,",")
+    TypesInd = Ret = 0
+    if (EnvSearch == -1)
+	EnvSearch = NumVars
+    for (i = 1; i <= NumVars; i++) {
+	Var = Vars[i]
+	CharOpt = substr(OptList,++TypesInd,1)
+	if (CharOpt ~ "^[:;*()#<>&]$")
+	    CharOpt = substr(OptList,++TypesInd,1)
+	Map[Var] = CharOpt
+	Types[Var] = Type = substr(OptList,TypesInd+1,1)
+	# Do not overwrite entries from environment
+	if (i <= EnvSearch && Var in ENVIRON &&
+	(Err = AssignVal(CharOpt,ENVIRON[Var],Options,Type,1,Var,0)) < 0)
+	    return Err
+    }
+
+    numrcFiles = split(rcFiles,fNames,":")
+    for (i = 1; i <= numrcFiles; i++) {
+	rcFile = fNames[i]
+	if (rcFile ~ "^~/")
+	    rcFile = ENVIRON["HOME"] substr(rcFile,2)
+	else if (rcFile ~ /^\$/) {
+	    rcFile = substr(rcFile,2)
+	    match(rcFile,"^[a-zA-Z0-9_]*")
+	    envvar = substr(rcFile,1,RLENGTH)
+	    if (envvar in ENVIRON)
+		rcFile = ENVIRON[envvar] substr(rcFile,RLENGTH+1)
+	    else
+		continue
+	}
+	if (rcFile in filesRead)
+	    continue
+	# rcfiles are liable to be given more than once, e.g. UHOME and HOME
+	# may be the same
+	filesRead[rcFile]
+	if ("x" in Options)
+	    printf "Reading configuration file %s\n",rcFile > "/dev/stderr"
+	retStr = ReadConfigFile(Values,Lines,rcFile,"#","=",0,"",1)
+	if (retStr > 0)
+	    READ_RCFILE = 1
+	else if (ret != "") {
+	    OptErr = retStr
+	    Ret = -1
+	}
+	for (Var in Lines)
+	    if (Var in Map) {
+		if ((Err = AssignVal(Map[Var],
+		Var in Values ? Values[Var] : "",Options,Types[Var],
+		Var in Values,Var,0)) < 0)
+		    return Err
+	    }
+	    else {
+		OptErr = sprintf(\
+		"Unknown var \"%s\" assigned to on line %d\nof file %s",Var,
+		Lines[Var],rcFile)
+		Ret = -1
+	    }
+    }
+
+    if ("x" in Options)
+	for (Var in Map)
+	    if (Map[Var] in Options)
+		printf "(%s) %s=%s\n",Map[Var],Var,Options[Map[Var]] > \
+		"/dev/stderr"
+	    else
+		printf "(%s) %s not set\n",Map[Var],Var > "/dev/stderr"
+    return Ret
+}
+
+# OptSets is a semicolon-separated list of sets of option sets.
+# Within a list of option sets, the option sets are separated by commas.  For
+# each set of sets, if any option in one of the sets is in Options[] AND any
+# option in one of the other sets is in Options[], an error string is returned.
+# If no conflicts are found, nothing is returned.
+# Example: if OptSets = "ab,def,g;i,j", an error will be returned due to
+# the exclusions presented by the first set of sets (ab,def,g) if:
+# (a or b is in Options[]) AND (d, e, or f is in Options[]) OR
+# (a or b is in Options[]) AND (g is in Options) OR
+# (d, e, or f is in Options[]) AND (g is in Options)
+# An error will be returned due to the exclusions presented by the second set
+# of sets (i,j) if: (i is in Options[]) AND (j is in Options[]).
+# todo: make options given on command line unset options given in config file
+# todo: that they conflict with.
+function ExclusiveOptions(OptSets,Options,
+Sets,SetSet,NumSets,Pos1,Pos2,Len,s1,s2,c1,c2,ErrStr,L1,L2,SetSets,NumSetSets,
+SetNum,OSetNum) {
+    NumSetSets = split(OptSets,SetSets,";")
+    # For each set of sets...
+    for (SetSet = 1; SetSet <= NumSetSets; SetSet++) {
+	# NumSets is the number of sets in this set of sets.
+	NumSets = split(SetSets[SetSet],Sets,",")
+	# For each set in a set of sets except the last...
+	for (SetNum = 1; SetNum < NumSets; SetNum++) {
+	    s1 = Sets[SetNum]
+	    L1 = length(s1)
+	    for (Pos1 = 1; Pos1 <= L1; Pos1++)
+		# If any of the options in this set was given, check whether
+		# any of the options in the other sets was given.  Only check
+		# later sets since earlier sets will have already been checked
+		# against this set.
+		if ((c1 = substr(s1,Pos1,1)) in Options)
+		    for (OSetNum = SetNum+1; OSetNum <= NumSets; OSetNum++) {
+			s2 = Sets[OSetNum]
+			L2 = length(s2)
+			for (Pos2 = 1; Pos2 <= L2; Pos2++)
+			    if ((c2 = substr(s2,Pos2,1)) in Options)
+				ErrStr = ErrStr "\n"\
+				sprintf("Cannot give both %s and %s options.",
+				c1,c2)
+		    }
+	}
+    }
+    if (ErrStr != "")
+	return substr(ErrStr,2)
+    return ""
+}
+
+# The value of each instance of option Opt that occurs in Options[] is made an
+# index of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Set(Options,Opt,Set,  count) {
+    if (!(Opt in Options))
+	return 0
+    Set[Options[Opt]]
+    count = Options[Opt,"count"]
+    for (; count > 1; count--)
+	Set[Options[Opt,count]]
+    return count
+}
+
+# The value of each instance of option Opt that occurs in Options[] that
+# begins with "!" is made an index of nSet[] (with the ! stripped from it).
+# Other values are made indexes of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Sets(Options,Opt,Set,nSet,  count,aSet,ret) {
+    ret = Opt2Set(Options,Opt,aSet)
+    for (value in aSet)
+	if (substr(value,1,1) == "!")
+	    nSet[substr(value,2)]
+	else
+	    Set[value]
+    return ret
+}
+
+# Returns true if option Opt was given on the command line.
+function CmdLineOpt(Options,Opt,  i) {
+    for (i = 1; (Opt,"num",i) in Options; i++)
+	if (Options[Opt,"num",i] != 0)
+	    return 1
+    return 0
+}
+### End of ProcArgs library

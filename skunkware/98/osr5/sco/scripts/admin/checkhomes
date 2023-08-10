@@ -1,0 +1,24 @@
+#!/bin/ksh
+# @(#) checkhomes.ksh 1.0 96/06/17
+# 93/09/13 John H. DuBois III (john@armory.com)
+# 94/06/27 Added help.
+# 96/06/17 su to daemon instead of nouser; nouser has no shell under 3.2v5
+
+if [ $# -gt 0 ]; then
+    print \
+"${0##*/}: Check home directories to make sure they aren't writable.
+Writable home directories are subject to various types of attack; for example
+a .rhosts attack.  A line is printed for each user with a publicly writeable
+home directory giving the user name and home directory."
+    exit 0
+fi
+# need to su to a user with a shell who is unlikely to be in any group that
+# a user would change their home dir group ownership to.
+# daemon is as good a bet as any other.
+su daemon -c ksh <<\END
+IFS=:
+typeset -L8 user
+while read user p uid gid n home s; do
+    [ -w "$home" ] && echo "$user  $home"
+done < /etc/passwd
+END

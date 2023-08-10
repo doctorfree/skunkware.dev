@@ -1,0 +1,73 @@
+:
+# newext: change filename extension
+# @(#) newext.sh 1.1 93/04/13
+# 90/06/06 john h. dubois iii (john@armory.com)
+# 90/11/14 changed ksh-specific code to hybrid: if running under Bourne,
+#          uses expr instead of ksh builtin ops.  Removed SYSV specific code.
+# 91/08/06 added -t option
+# 92/11/06 made earlier code actually work!
+# 93/04/13 If no filenames given, act on files in current dir
+
+name=newext
+usage="Usage: $name [-th] <oldext> <newext> [filename ...]"
+
+case "$1" in
+-t) 
+    test=true
+    shift
+    ;;
+-h) 
+    echo \
+"$name: Rename all given files that end in oldext with newext replacing oldext.
+$usage
+If no filenames are given, all files in the current directory that end
+in oldext are acted on (no filename is equivalent to '*').
+Options:
+-h: Print this help.
+-t: Test: No action is taken except to print the mv commands that would
+    be executed if -t was not given."
+    exit 0 
+    ;;
+esac
+
+oldext=$1
+newext=$2
+
+case $# in 
+[01])
+    echo "$usage\nUse -h for help."
+    exit 1
+    ;;
+2)
+    shift ; shift
+    set -- *
+    ;;
+*)
+    shift ; shift
+    ;;
+esac
+
+found=
+
+for file
+do
+    case "$file" in
+    *$oldext) 
+	# if $PS3 set, use ksh builtins
+	if [ -n "$PS3" ]; then
+	    newname="${file%$oldext}$newext"
+	else
+	    newname=`expr "$file" : "\(.*\)$oldext`"$newext"
+	fi
+	if [ -n "$test" ]; then
+	    echo mv "$file" "$newname"
+	else
+	    mv "$file" "$newname"
+	fi
+	found=true;;
+    esac
+done
+
+if [ -z "$found" ]; then
+    echo "No files ending in \"$oldext\"."
+fi

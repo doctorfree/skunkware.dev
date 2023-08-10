@@ -1,0 +1,421 @@
+#!/bin/ksh
+# @(#) conglom.ksh 1.1 96/06/20
+# 93/11/23 John H. DuBois III (john@armory.com)
+# 93/11/26 If no match, mention almost-matching files.
+# 94/11/22 Exit with number of failures.  Added ln options.
+#          Do select if multiple matches found in database.
+# 95/08/09 Skip any file found in database if it isn't a regular file or
+#          doesn't exist anymore.
+# 96/06/20 Do uncompression as neccessary.  Added tDf options.  Read rcfile.
+#          Removed CGFILES environment variable.
+
+l_name=${0##*/}
+Usage="Usage: $l_name [-bdDhlstv] filename [filename ...] [destination]"
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+typeset -i backup=0 remove=1 verbose=0 database=0 list=0 interactive=0
+test=false
+destLookup=false
+[ -t 0 ] && interactive=1
+rcFile=.conglom
+db=.files
+
+while getopts :bdDhlstvn opt; do
+    case $opt in
+    h)
+	print -r -- \
+"$l_name conglomerate files.
+$l_name appends the contents of files to other already existing files and then
+removes the files whose contents were appended.
+$Usage
+If the destination is a directory, the contents of each file is appended to a
+file with the same name in the directory.  If the directory does not exist or a
+file with the same name does not exist in the directory, the operation fails
+and the source file is not removed.  The destination can be forced to be a
+directory by ending it with a '/'.  If the destination is a file, the contents
+of all of the other files is appended to it.  If the destination does not
+exist, the operation fails and the source files are not removed.
+In all cases, if a source filename ends with a compression suffix (.Z, .z, and
+.gz), the suffix is removed before searching for a match, and the file is
+uncompressed before its contents are appended to the destination file.
+If only one filename is given, a file database is used to find the destination.
+The last component of the filename is searched for in the database; if one and
+only one name is found that ends with that component (other than a name that
+refers to the source file itself), it is used as the destination.   If more
+thank one matching name is found and the standard input is a terminal, the
+matching filenames are printed to be selected from.  If no match is found, an
+error message is printed.  Relative filenames in the database are taken to be
+relative to the user's home directory.  The default database is the file
+\"$db\" in the user's home directory.  Any file named which is not
+successfully appended and (if -s is not given) removed is considered to have
+failed. $l_name exits with the number of failures, or 255 if more than 255
+conglomerations failed.
+Options:
+Some of the following options can be set in a configuration file named
+\"$rcFile\", which may be in the invoking user's home directory or in the
+directory specified by the environment variable UHOME (if both exist,
+assignments in the former take precedence).  In this file, values are assigned
+to variables in shell style, e.g. \"VARNAME=value\".  To set an option that
+does not take a value, use \"VARNAME=1\".  Options given in the configuration
+files are overridden by those given on the command line.  Variable names are
+given in parentheses following option descriptions.
+-b: A backup of each destination file is made; the name is its original name
+    with a '-' attached.  Any file that exists with that name is overwritten.
+    (BACKUP)
+-f<database>: Use <database> instead of the default file database.  (DATABASE)
+-d: Use the file database to find the destination for each source file.
+    All arguments are taken to be source files.  
+-D: If more than one argument is given and the last filename is a simple
+    filename without a directory component (it contains no '/' characters), the
+    last argument is taken to be a destination file, and is looked up in the
+    database.  (By default, if more than one filename is given the last name is
+    the destination file, but it is taken to be a literal filename and is not
+    looked up in the database.)  (DESTLOOKUP)
+-l: Each file is looked up in the database, and the filename is printed
+    followed by the matches.  No conglomeration is done.
+-n: Force non-interactive mode: if multiple matches are found in database,
+    fail rather than offering them for selection.  (NONINTERACTIVE)
+-h: Print this help.
+-s: Save.  The source file is not removed.
+-t: Test.  The actions that would be performed are printed but not carried out.
+-v: Verbose.  The operations performed are printed.  (VERBOSE)"
+	exit 0
+	;;
+    b)
+	backup=1
+	;;
+    n)
+	interactive=0
+	;;
+    d)
+	database=1
+	;;
+    D)
+	destLookup=true
+	;;
+    f)
+	DATABASE=$OPTARG;;
+    s)
+	remove=0
+	;;
+    v)
+	verbose=1
+	;;
+    l)
+	database=1
+	list=1
+	;;
+    t)
+	test=true;;
+    +?)
+	print -u2 "$l_name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$l_name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# Usage: ProcDest <destfile>
+# Process a destination file.  Check that it can be appended to,
+# and make a backup of it if backup is true.
+# Return nonzero on failure.
+# Globals used: backup verbose test
+function ProcDest {
+    typeset DestFile=$1
+    if [ ! -f "$DestFile" ]; then
+	print -r -u2 "$l_name: $DestFile: no such file."
+	return 1
+    fi
+    if [ ! -w "$DestFile" ]; then
+	print -r -u2 \
+	"$l_name: $DestFile: not writable."
+	return 1
+    fi
+    if istrue backup; then
+	if $test; then
+	    print -r "Would do: cp $DestFile $DestFile-"
+	else
+	    if cp "$DestFile" "$DestFile-"; then :; else
+		print -r -u2 "$l_name: $DestFile: could not copy to $DestFile-"
+		return 1
+	    fi
+	    istrue verbose && print -r -u2 "Copied $DestFile to $DestFile-"
+	fi
+    fi
+    return 0
+}
+
+# Usage: FindMatch <filename>
+# Sets global FindMatch_ret to matching filename from database
+# Returns nonzero on error
+# Uses global vars db, HOME
+function FindMatch {
+    typeset file tail=${1##*/} ChkFile=$1 dest alldest DestFound file
+    typeset -i numdest=0
+
+    OIFS=$IFS
+    IFS="
+"
+    for file in $(grep -e "$tail\$" "$db"); do
+	# grep may give extra files due to tail having e.g. '.' in it,
+	# and because we don't want to put / in front of $tail in the grep
+	# expression since bare files in home dir may be in database, nor
+	# do we want to use egrep since there would be even more opportunities
+	# for metacharacter misinterpretation...  so do a further test
+	if eval [[ \"$file\" = "?(*/)$tail" ]]; then
+	    # Convert relative path in database to absolute path from home
+	    [[ $file != /* ]] && dest="$HOME/${file#./}" || dest=$file
+	    # Skip if it's the same file as the source file.
+	    [[ "$ChkFile" -ef "$dest" ]] && continue
+	    # Skip it if it isn't a regular file or doesn't exist anymore.
+	    if [ ! -f "$dest" ]; then
+		[ ! -a "$dest" ] && print -r -u2 -- \
+		"$dest found in database, but no longer exists."
+		continue
+	    fi
+	    let numdest+=1
+	    DestFound=$dest
+	    alldest="$alldest
+$dest"
+	fi
+    done
+    file=$1
+    set -- $alldest
+    IFS=$OIFS
+    if istrue list; then
+	print -r -- "$file: $*"
+	return 0
+    fi
+    if isfalse numdest; then
+	print -r -u2 "$l_name: No matching file for $tail found in $db."
+	CloseFiles=
+	egrep -ie "(^|/)$tail(\\.z|\\.gz)?\$" "$db" | while read file; do
+	    [[ $file != /* ]] && file="$HOME/$file"
+	    [[ "$file" -ef "$dest" ]] || CloseFiles="$CloseFiles
+$file"
+	done
+	[ -n "$CloseFiles" ] && print -r -u2 "Note: did find:$CloseFiles"
+	return 1
+    fi
+    if [ numdest -gt 1 ]; then
+	if istrue interactive; then
+	    print -r -u2 \
+"$numdest files ending in '$tail' found in $db
+Enter a number to select from the following:"
+	    select file in $alldest "None of the above"; do
+		if [ -n "$file" ]; then
+		    [ "$file" = "None of the above" ] && return 1 ||
+		    FindMatch_ret=$file
+		    return 0
+		fi
+	    done
+	    print -u2 "No selection."
+	    return 1
+	else
+	    print -r -u2 \
+	    "$l_name: Found $numdest files ending in $tail in $db:$alldest"
+	    return 1
+	fi
+    fi
+    FindMatch_ret=$DestFound
+    return 0
+}
+
+# Usage: CheckDest <destfile>
+# Test destfile & set it up to have file(s) appended
+# Global DirDest is set to 1 if destination is a directory, 0 if a file
+# Globals used: DirDest remove
+# Return value is 0 for success, 1 for error
+function CheckDest {
+    typeset dest=$1
+    if [[ -d "$dest" || "$dest" = */ ]]; then
+	DirDest=1
+	if [ ! -d "$dest" ]; then
+	    print -r -u2 "$l_name: $dest is not a directory."
+	    return 1
+	fi
+	if [ ! -x "$dest" ]; then
+	    print -r -u2 "$l_name: $dest: cannot access."
+	    return 1
+	fi
+    else
+	DirDest=0
+	DestFile=$dest
+	if ProcDest "$DestFile"; then :; else
+	    istrue remove && print -u2 "Source file(s) not removed."
+	    return 1
+	fi
+    fi
+    return 0
+}
+
+# Set getBase_ret to $1 without any compression suffix.
+# Sets getBase_suf to the compression suffix (without the leading dot), if any.
+# Return value: 0 if $1 had a compression suffix, else 1.
+function getBase {
+    getBase_ret=${1%.@(gz|z|Z)}
+    getBase_suf=${1#$getBase_ret}
+    [ "$1" = "$base" ]
+}
+
+# Usage: Append sourcefile destfile
+# Uses globals: l_name test
+function Append {
+    typeset file=$1 DestFile=$2
+    typeset cat
+    if [ ! -f "$file" ]; then
+	print -r -u2 "$l_name: $file: no such file."
+	continue
+    fi
+    if [ ! -r "$file" ]; then
+	print -r -u2 "$l_name: $file is not readable."
+	continue
+    fi
+    case "$file" in
+    *.gz) cat=gunzip;;
+    *.Z)  cat=zcat;;
+    *.z)  cat=pcat;;
+    *)    cat=cat;;
+    esac
+    if "$test"; then
+	print -r -- "Would do: $cat < $file >> $DestFile"
+	return 0
+    fi
+    $cat < "$file" >> "$DestFile"
+}
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -eq 0 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit 1
+fi
+
+# Source file in UHOME first, so that values in HOME will have precedence.
+rc=$UHOME/$rcFile
+[ -f $rc -a -r $rc ] && . $rc
+rc=$HOME/$rcFile
+[ -f $rc -a -r $rc ] && . $rc
+[ -n "$BACKUP" ] && backup=1
+[ -n "$DESTLOOKUP" ] && destLookup=true
+[ -n "$NONINTERACTIVE" ] && interactive=0
+[ -n "$VERBOSE" ] && verbose=1
+# verbose messages are only to say that we did things that are not actually
+# done if test is true
+$test && verbose=0
+
+typeset -i DirDest nsource numfiles=0 NumTried Success=0 Failed
+
+if [ $# -eq 1 ]; then
+    database=1
+fi
+
+[ -n "$DATABASE" ] && db=$DATABASE || db=$HOME/$db
+
+# Find matches in database.  This block does not do the actual concatenation.
+if istrue database; then
+    if [ ! -f "$db" -o ! -r "$db" ]; then
+	print -r -u2 "$l_name: $db: cannot read."
+	exit 1
+    fi
+
+    NumTried=$#
+    for file; do
+	getBase "$file"
+	if FindMatch "$getBase_ret"; then
+	    if isfalse list && ProcDest "$FindMatch_ret"; then
+		if istrue DirDest; then
+		    print -r -u2 \
+"$l_name: Destination $FindMatch_ret is a directory.
+Skipping source file $file."
+		else
+		    SourceFiles[numfiles]=$file
+		    DestFiles[numfiles]=$FindMatch_ret
+		    let numfiles+=1
+		fi
+	    fi
+	else
+	    print -r -u2 "Skipping source file $file."
+	fi
+    done
+else
+    if [ $# -lt 2 ]; then
+	print -u2 "$Usage\nUse -h for help."
+	exit 1
+    fi
+    set -A args -- "$@"
+    nsource=$#-1
+    DestFile=${args[nsource]}
+    unset args[nsource]
+    if $destLookup && [[ "$DestFile" != */* ]]; then
+	FindMatch "$DestFile"
+	DestFile=$FindMatch_ret
+    fi
+    if CheckDest "$DestFile"; then :; else
+	print -u2 Aborting.
+	exit 1
+    fi
+    DestDir=$DestFile
+    NumTried=${#args[*]}
+    for file in "${args[@]}"; do
+	getBase "$file"
+	if istrue DirDest; then
+	    DestFile="$DestDir/$getBase_ret"
+	    ProcDest "$DestFile" || {
+		istrue remove && print -r -u2 \
+	    "Appending of $file to $DestFile not attempted; $file not removed."
+		continue
+	    }
+	fi
+	SourceFiles[numfiles]=$file
+	DestFiles[numfiles]=$DestFile
+	let numfiles+=1
+    done
+fi
+
+istrue list && exit 0
+
+typeset -i filenum=0
+
+while [ filenum -lt numfiles ]; do
+    file=${SourceFiles[filenum]}
+    DestFile=${DestFiles[filenum]}
+    let filenum+=1
+    if Append "$file" "$DestFile"; then 
+	istrue verbose && print -r -u2 "Concatenated $file to $DestFile"
+	if istrue remove; then
+	    if $test; then
+		print -r -- "Would do: rm -- $file"
+		let Success+=1
+	    else
+		if rm -- "$file"; then
+		    istrue verbose && print -r -u2 "Removed $file"
+		    let Success+=1
+		else
+		    print -r -u2 "$l_name: Failed to remove $file"
+		fi
+	    fi
+	else
+	    let Success+=1
+	fi
+    else
+	print -u2 "$l_name: concatenation failed."
+	istrue remove && print -r -u2 "Source file $file not removed."
+    fi
+done
+
+Failed=NumTried-Success
+[ Failed -gt 255 ] && Failed=255
+exit $Failed

@@ -1,0 +1,132 @@
+:
+# @(#) rcv_groups.sh 1.0 93/04/29
+# 92/08/13 john h. dubois iii (john@armory.com)
+# 93/04/29 Print "Ignored" instead of "Bad"
+#          Require that article name *end* in a digit, not just include a digit
+#          Added d and p options
+
+PathLen=2
+ReportDist=0
+
+while getopts dhp:s: opt; do
+    case $opt in
+    h) echo \
+"Usage: $0 [-dh] [-p pathlen] [-s system] [-s system] ... [group ...]
+$0 determines what newsgroups the local system receives by scanning
+articles in the news tree.  Any group that has at least one article posted
+exclusively to it (not crossposted to any other groups) is reported as
+being received by the local system.  Articles which have only one system
+(generally the local system) listed on the Path: line are ignored.  
+Running diagnostics are written to stderr.  The list of newsgroups is
+written at completion to stdout.  The report can be restricted to
+particular groups by listing them after any options.
+Options:
+-d: For each newsgroup, print the greatest distance from which an article
+    was received (the highest number of systems on the Path: line).  This
+    scan takes much longer because every article must be examined.
+-h: Print this help.
+-s <system>: Restrict report to articles received from particular systems.
+   The system names must be the same as those added to the Path: line by
+   the systems.
+-p <pathlen>: Ignore articles that do not have at least <pathlen> systems
+   on the Path: line.  The default is 2.  A pathlen of 1 will include
+   articles posted locally.  A pathlen of e.g. 3 would be used when the
+   system's immediate newsfeed sends everything it receives to the local
+   system, but it does not receive everything; this ignores articles
+   generated on the immediate newsfeed."
+	exit;;
+    s) Systems="$Systems $OPTARG";;
+    p) PathLen=$OPTARG;;
+    d) ReportDist=1;;
+    esac
+done
+
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+cd /usr/spool/news
+
+if [ $# -gt 0 ]; then
+    for group in `echo $* | tr . /`; do
+	echo "$group"
+    done
+else
+    awk '{ gsub(/\./,"/",$1); print $1; }' /usr/lib/news/active
+fi | while read dir; do 
+    [ ! -d $dir ] && continue
+    for article in $dir/*
+    do
+	echo "$article"
+    done
+done |
+awk -v "PathLen=$PathLen" -v "ReportDist=$ReportDist" -v "SysList=$Systems" '
+BEGIN {
+    if (SysList == "")
+	AllGoodPath = 1
+    else {
+	split(SysList,F)
+	for (i in F)
+	    Systems[F[i]]
+    }
+}
+
+/\/[0-9]+$/ {
+    group = article = $0
+    sub("/[0-9]*$","",group)
+    gsub("/",".",group)
+    if (!ReportDist && (group in Distance)) {
+	printf "Skipping: %s   \015",article > "/dev/stderr"
+	next
+    }
+    Path = Newsgroups = ""
+    while (getline HeaderLine < article) {
+	if (HeaderLine == "")		# Found end of header
+	    printf "Newsgroups or Path not found: %s    \015",article > \
+	    "/dev/stderr"
+	else if (HeaderLine ~ "^Path:")
+	    Path = HeaderLine
+	else if (HeaderLine ~ "^Newsgroups:")
+	    Newsgroups = HeaderLine
+	if (Newsgroups != "" && Path != "") {
+	    ProcHdr(Path,Newsgroups,group,article)
+	    break
+	}
+    }
+    close(article)
+}
+
+function ProcHdr(Path,Newsgroups,group,article,  Fields,NumSys) {
+    if (Newsgroups !~ "^Newsgroups: +"  group " *$") {
+	printf "Ignored: >1 newsgroup: %s         \015", article > "/dev/stderr"
+	return
+    }
+    if ((NumSys = split(Path,Fields,"!") - 1) < PathLen) {
+	printf "Ignored: Distance = %d: %s            \015",NumSys,
+	article > "/dev/stderr"
+	return
+    }
+    if (!AllGoodPath && !(Fields[2] in Systems)) {
+	printf "Ignored: not received from a specified system: %s        \015",
+	article > "/dev/stderr"
+	return
+    }
+    if (!(group in Distance))
+	print "\nGet group: " group > "/dev/stderr"
+    if (NumSys > Distance[group]) {
+	Distance[group] = NumSys
+	sub("^.*/","",article)
+	printf "%2d %s (%d)          \n",Distance[group],group,
+	article > "/dev/stderr"
+    }
+}
+
+END {
+    print "" > "/dev/stderr"
+    if (ReportDist)
+	for (group in Distance)
+	    printf "%2d %s\n",Distance[group],group
+    else
+	for (group in Distance)
+	    print group
+}
+'

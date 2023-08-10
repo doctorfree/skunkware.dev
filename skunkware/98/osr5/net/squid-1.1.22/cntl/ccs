@@ -1,0 +1,124 @@
+#!/bin/sh
+#
+# Postinstallscript written by Ron Record (rr@sco.com) for use with my
+# UnixWare 7 packaging of Squid. Just need to setup the Squid configuration
+# file with the right hostname and initialize the cache. Also output a
+# message about using Squid as an HTTP accelerator.
+# 
+
+scriptname="$0"
+step="$1"
+keywords="$2"
+pkglist="$3"
+
+# Source in the standard functions library, ccsSetup.sh
+. ccsSetup.sh
+
+#############################################################################
+#
+# enable_squid
+#
+# enable the preconfigured server, as a default
+# 
+#############################################################################
+enable_squid()
+{
+	if [ -x /etc/squid ]; then
+		/etc/squid enable
+	fi
+}
+
+#############################################################################
+#
+# HOST_set
+#         fixup the HOST name in any configuration files
+#
+#############################################################################
+HOST_set()
+{
+  HOSTPROG=/usr/bin/hostname
+  if [ -x $HOSTPROG ] 
+  then
+    HOSTNAME=`$HOSTPROG`
+  else
+    HOSTNAME=localhost
+  fi
+  [ "$HOSTNAME" ] || HOSTNAME=localhost
+  HOST_FILES="/usr/local/squid/etc/squid.conf"
+  for i in $HOST_FILES
+  do
+  [ -f $i ] && {
+    sed -e "s/foo.bar.spam.com/$HOSTNAME/g" < $i > /tmp/_ccs$$
+    mv /tmp/_ccs$$ $i
+    rm -f /tmp/_ccs$$
+    chown root:sys $i
+  }
+  done
+}
+
+doPostExport() {
+# edit configuration file
+HOST_set
+
+# Stop and restart the Netscape FastTrack server on port 80, if it's running
+FAST=
+ps -ef | grep /usr/internet/ns_httpd/httpd-80 > /dev/null && {
+         /usr/internet/ns_httpd/httpd-80/stop > /dev/null 2>&1
+         FAST=1
+}
+# Initialize the cache
+/usr/local/squid/bin/squid -z > /dev/null 2>&1
+
+# Configure for automatic startup when going multi-user
+if [ "$FAST" ]
+then
+    echo "In order to enable Squid, you will need to first disable the
+Netscape FastTrack server running on port 80. After doing so, run the
+commands (as root):
+     /etc/squid enable
+     /etc/squid start"
+else
+    enable_squid
+fi
+
+# Tell the user what we're configured for
+echo "
+This release of Squid is pre-configured to act as an HTTP accelerator.
+As such, it runs on port 80 and caches requests to the 'real' server
+running on port 8080. These parameters can be configured by editing
+/usr/local/squid/etc/squid.conf. In addition, the Apache web server
+contained elsewhere in this distribution is configured by default to
+run on port 8080. Thus, you can install these preconfigured versions
+of Squid and Apache and they should 'just work'.
+
+If you already have a server running on port 80 (e.g. the Netscape FastTrack
+server), you will need to disable that or reconfigure Squid prior to starting
+Squid. In addition to the Squid binary distribution, this package also
+contains the Squid User's Guide which has been installed in the Apache
+web server's default document root (/usr/local/lib/apache/share/htdocs/squid).
+To access it, after installing Squid and Apache, open :
+http://your.host.name/squid/
+
+Squid has been configured to start automatically every time the system goes 
+multi-user. To start Squid now, execute the command '/etc/squid start' after
+the successful completion of this installation. "
+
+[ "$FAST" ] && /usr/internet/ns_httpd/httpd-80/start > /dev/null 2>&1
+}
+
+DisableStop()
+{
+    /etc/squid disable > /dev/null 2>&1
+    /etc/squid stop > /dev/null 2>&1
+}
+
+ccs_return_value=0
+
+case "$step" in
+        POST_EXPORT) doPostExport ;;
+        PRE_UNEXPORT) DisableStop ;;
+        POST_UNEXPORT) rm -f /etc/rc2.d/S97squid ;;
+esac
+
+exit $ccs_return_value
+

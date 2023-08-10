@@ -1,0 +1,86 @@
+#!/bin/ksh
+# @(#) saravg.ksh 1.2 97/02/05
+# 94/02/05 John H. DuBois III (john@armory.com)
+# 94/07/06 Added all options.
+# 97/02/05 Added o option.  Print formfeeds between output sets.
+
+name=${0##*/}
+Usage="Usage: $name [-ho] [-aBbcdgHmnpqRruvwy] [-[se] time] [filename ...]"
+sarout=false
+
+# Save args because some ksh versions lose positional params when set -A is
+# used.
+set -A files -- "$@"
+
+while getopts :hoaBbcdgHmnpqRruvwys:e: opt; do
+    case $opt in
+    h)
+	echo \
+"$name: print system activity averages.
+$Usage
+$name runs 'sar' with any arguments, and prints only the headers and average
+values.  If no filenames are given, the current sadc logfile is processed.
+Otherwise, sar is run on each named sadc logfile.  If more than one logfile is
+given, a formfeed is printed between each output set.  If no report selection
+options are given, the default of -A (all reports) is used.  Use -H instead of
+-h to get buffer statistics.
+Non-sar options:
+-h: Print this help.
+-o: Take the files to be sar output files rather than sadc logfiles (data
+    recorded by sadc, the system activity data collector).  If this option is
+    used, no other options may be given; the output will be averages from
+    whatever reports sar was asked to generate.  If no filenames are given, the
+    standard input is read."
+	exit 0
+	;;
+    [se])
+	set -A args -- "${args[@]}" -$opt "$OPTARG"
+	;;
+    [aBbcdgmnpqRruvwy])
+	set -A args -- "${args[@]}" -$opt
+	;;
+    o)
+	sarout=true
+	;;
+    H)
+	set -A args -- "${args[@]}" -h
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$name: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+if [ ${#args[*]} -eq 0 ]; then
+    set -A args -- -A
+elif $sarout; then
+    print -ru2 -- "$name: -o may not be given with any other options.  Exiting."
+    exit 1
+fi
+
+set -- "${files[@]}"	# Restore args
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -eq 0 ]; then
+    $sarout && cat || sar "${args[@]}"
+else
+    while [ $# -gt 0 ]; do
+	print -r -- "Input file: $1
+"
+	$sarout && cat -- "$1" || sar "${args[@]}" -f "$1"
+	shift
+	[ $# -gt 0 ] && echo -n "\014"
+    done
+fi | sed -n '/Average/,/^[0-9]/p;1,/^[0-9]/p'

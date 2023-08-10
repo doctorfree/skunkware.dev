@@ -1,0 +1,174 @@
+#! /bin/sh
+
+PROGRAM=genskunk
+
+# Usage: gencd file name prev next
+
+if [ $# -ne 5 ]; then
+  echo "Usage: $PROGRAM [web | cd ] file name prev next"
+  echo "  file     - the name of the .tmpl file without the .tmpl extension"
+  echo "  name     - the name of the package for file names"
+  echo "  prev     - the location of the previous link"
+  echo "  next     - the location of the next link"
+  echo "  Use the word NONE for the next and prev elements if there are none"
+  exit 1
+fi
+
+MODE=unknown
+NOW=`date -u +"%c (GMT)"`
+
+if [ "$1" = "web" ]; then
+  MODE=SKUNK_WEB
+fi
+
+if [ "$1" = "cd" ]; then 
+  MODE=SKUNK_CD
+fi
+
+if [ "$MODE" = "unknown" ]; then
+  echo "$PROGRAM error: first argument must be one of either 'web' or 'cd'"
+  exit 1
+fi
+shift
+
+BASEFILE=$1
+SHORTNAME=$2
+PREVIOUS=$3
+NEXT=$4
+
+REALBASE=`basename $BASEFILE`
+OUTPUT=${REALBASE}.html
+
+if [ ! -f ${1}.tmpl ]; then
+  echo "$PROGRAM error: ${1}.tmpl not found"
+  exit 1
+fi
+
+if [ "$MODE" = "SKUNK_CD" ]; then
+  if [ "$PREVIOUS" = "NONE" ]; then
+    PREVREF=
+  else
+    PREVREF="<AREA SHAPE=\"rect\" COORDS=\"112,2,236,26\" HREF=\"${PREVIOUS}.html\">"
+  fi
+
+  if [ "$NEXT" = "NONE" ]; then
+    NEXTREF=
+  else
+    NEXTREF="<AREA SHAPE=\"rect\" COORDS=\"252,1,331,26\" HREF=\"${NEXT}.html\">"
+  fi
+
+HEADERSED="s^@@@SKUNKHEADER(\(.*\))\\<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 3.2//EN\">\\
+<HTML>\\
+<HEAD>\\
+  <TITLE>\\1</TITLE>\\
+  <LINK REV=\"made\" HREF=\"mailto:jkj@sco.com\">\\
+</HEAD>\\
+<BODY BGCOLOR=\"#ffffff\">\\
+\\
+<MAP NAME=\"skunknav\">\\
+  <AREA SHAPE=\"rect\" COORDS=\"347,1,460,26\" HREF=\"http://www.sco.com/skunkware/${SHORTNAME}\">\\
+  ${PREVREF}\\
+  ${NEXTREF}\\
+  <AREA SHAPE=\"rect\" COORDS=\"3,1,93,26\" HREF=\"index.html\">\\
+</MAP>\\
+\\
+<TABLE CELLSPACING=\"0\" CELLPADDING=\"0\" WIDTH=\"100%\" BORDER=\"0\">\\
+  <TR ALIGN=\"LEFT\" VALIGN=\"TOP\">\\
+    <TD ROWSPAN=\"2\" WIDTH=\"20%\">\\
+      <IMG SRC=\"gif\/sk97s.gif\" HEIGHT=\"104\" WIDTH=\"108\" ALIGN=\"BOTTOM\">\\
+    </TD>\\
+    <TD VALIGN=\"BOTTOM\" WIDTH=\"79%\">\\
+      <IMG ISMAP USEMAP=\"#skunknav\" SRC=\"gif\/skunknav.gif\" HEIGHT=\"26\" WIDTH=\"466\"\\
+            ALIGN=\"BOTTOM\" BORDER=\"0\">\\
+    </TD>\\
+  </TR>\\
+  <TR>\\
+    <TD VALIGN=\"TOP\">\\
+      <IMG SRC=\"gif\/${SHORTNAME}.gif\" HEIGHT=\"26\" ALIGN=\"BOTTOM\">\\
+    </TD>\\
+  </TR>\\
+</TABLE>\\
+\\
+<H2 ALIGN=\"CENTER\">Last Updated: ${NOW}</H2>\\
+"
+fi
+
+PACKLISTSED="s^@@@PACKLIST(\(.*\);\(.*\);\(.*\);\(.*\);\(.*\))\\<TR>\\
+  <TD><A HREF=\"#\\1\">\\1</A></TD>\\
+  <TD>\\2</TD>\\
+  <TD>\\3</TD>\\
+  <TD ALIGN=\"CENTER\">\\4</TD>\\
+  <TD ALIGN=\"CENTER\">\\5</TD>\\
+</TR>\\
+"
+
+STARTPACKLISTSED="s^@@@START_PACKAGELIST\\<H2 ALIGN=\"CENTER\">Package List</H2>\\
+\\
+<CENTER><TABLE WIDTH=\"100%\" BORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"2\">\\
+  <TR>\\
+    <TH WIDTH=\"11%\" HEIGHT=\"23\">\&nbsp;Name</TH>\\
+    <TH WIDTH=\"62%\">Description</TH>\\
+    <TH WIDTH=\"9%\">Version</TH>\\
+    <TH WIDTH=\"7%\">OSR5</TH>\\
+    <TH WIDTH=\"11%\">UnixWare</TH>\\
+  </TR>\\
+"
+
+ENDPACKLISTSED="s^@@@END_PACKAGELIST\\</TABLE></CENTER>\\
+<H4><HR ALIGN=\"LEFT\"></H4>"
+
+STARTPACKSED="s^@@@STARTPACK(\(.*\);\(.*\))\\<H4><A NAME=\"\\1\"></A>\\2</H4>\\
+\\
+<BLOCKQUOTE>\\
+"
+
+ENDPACKSED="s^@@@ENDPACK\\</BLOCKQUOTE>\\
+<P>\&nbsp;</P>\\
+"
+
+FOOTERSED="s^@@@SKUNKFOOTER\\<P><HR ALIGN=LEFT>\\
+<P>\&nbsp;<FONT SIZE=-2>\&COPY; Copyright 1997 The Santa Cruz Operation, Inc.\\
+All rights reserved.</FONT>\\
+</BODY>\\
+</HTML>\\
+\\
+"
+
+OSR5DISTSED="s^@@@OSR5DIST(\(.*\))<P><A HREF=\"\\1\">\\
+  <IMG SRC=\"gif\/osr5dist.gif\" HSPACE=\"20\" BORDER=\"0\" HEIGHT=\"32\" WIDTH=\"160\"\\
+  ALIGN=\"CENTER\" ALT=\"OpenServer Distribution\">\\
+\\1\\
+</A></P>\\
+"
+
+UW2DISTSED="s^@@@UW2DIST(\(.*\))<P><A HREF=\"\\1\">\\
+  <IMG SRC=\"gif\/uw2dist.gif\" HSPACE=\"20\" BORDER=\"0\" HEIGHT=\"32\" WIDTH=\"160\"\\
+  ALIGN=\"CENTER\" ALT=\"UnixWare Distribution\">\\
+\\1\\
+</A></P>\\
+"
+
+SOURCESED="s^@@@SOURCE(\(.*\))<P>\\
+<A HREF=\"\\1\">\\
+  <IMG SRC=\"gif\/origsrc.gif\" ALT=\"Original source code\" HSPACE=\"20\" BORDER=\"0\"\\
+            HEIGHT=\"32\" WIDTH=\"160\" ALIGN=\"CENTER\"></A>\\
+<A HREF=\"\\1\">\\1</A></P>\\
+"
+
+HOMEPAGESED="s^@@@HOMEPAGE(\(.*\))<P>\\
+<A HREF=\"\\1\">\\
+  <IMG SRC=\"gif\/homepage.gif\" ALT=\"Package Home page\" HSPACE=\"20\" BORDER=\"0\"\\
+            HEIGHT=\"32\" WIDTH=\"160\" ALIGN=\"CENTER\"></A>\\
+<A HREF=\"\\1\">\\1</A></P>\\
+"
+
+if [ -f ${BASEFILE}.html ]; then
+  if [ ! -f ${BASEFILE}.html.bak ]; then
+    mv ${BASEFILE}.html ${BASEFILE}.html.bak
+  fi
+fi
+
+rm -f ${OUTPUT}
+
+cat ${1}.tmpl | /lib/cpp -I. -I.. -I../src -D${MODE} | sed -e "/^# [0-9]* \"/d" -e "$HEADERSED" -e "$PACKLISTSED" -e "$STARTPACKLISTSED" -e "$ENDPACKLISTSED" -e "$STARTPACKSED" -e "$ENDPACKSED" -e "$FOOTERSED" -e "$OSR5DISTSED" -e "$UW2DISTSED" -e "$SOURCESED" -e "$HOMEPAGESED" > ${OUTPUT}
+chmod 444 ${OUTPUT}

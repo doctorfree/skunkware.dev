@@ -1,0 +1,676 @@
+#!/bin/ksh
+# @(#) fbackup.ksh 4.5 97/01/06
+# Make backup list before feeding it to cpio to help tape drive stream.
+# XENIX 2.3.2 tape driver hangs if written with much more than 64K at a time.
+# cpio allocates 2-10 times the given buffer size (as much as it can,
+# up to 10 times).
+# 91/05/04 john h. dubois iii (john@armory.com)
+# 91/06/11 change find cmd to generate relative pathnames
+# 91/06/14 changed buffer size to 65536
+# 91/10/24 added 'a' option to cpio so we can tell how long it's been since
+#          someone used a file, and V to indicate progression of backup
+# 91/12/11 added -K 150000 to cpio options
+# 92/03/21 Use -mount option; back up selected fs
+# 92/07/01 Allow tapesize to be given on cmd line
+# 92/07/10 Don't backup #files or corefiles
+# 94/10/03 Make tape size of 0 mean no limit.  Added s and l options.
+# 94/12/04 Added fhnorx options.  Modified to do multi-filesystem backup.
+# 94/12/09 Added t option.
+# 94/12/14 Fixed BLOCKSIZE use.
+# 94/12/30 Allow a prepared filelist to be given for each filesystem.
+# 95/02/12 Added w option.
+# 95/03/06 Renamed to avoid confusion with /usr/lib/sysadmin/cbackup.
+# 95/05/27 Give parameters to slow in the correct units.
+# 95/08/31 Added c option.  Not tested yet.
+# 96/01/20 Make tmpfile more carefully.
+# 96/02/06 Added generation of control device name
+# 96/02/13 Added p option.
+# 96/03/27 Make TAPESIZE 0 by default.
+# 96/04/09 Try both rct0 and rStp0
+# 96/04/15 Get defaults from /etc/default/fbackup.  Check remote backups too.
+#          Added S option.
+# 96/06/19 Added C option.
+# 96/06/21 Write status to logfile.  Added L option.  Print tape amount info.
+# 96/06/23 Let -S be given without -t.  Rewind before backup.  Added N option.
+# 96/06/28 Use coprocess for logger.  Added g option.
+# 96/07/12 Make coprocess output to stdout properly.
+# 97/01/06 Added dD options.
+
+set -A Args -- "$@"	# Save args because set -A loses them in some versions
+set -A rDevs /dev/r{ct,Stp}0 
+set -A nrDevs /dev/nr{ct,Stp}0 
+set -- "${Args[@]}"	# Restore args
+ControlDev=
+deftape=0
+DEVICE=
+lname=${0##*/}
+filelist=/tmp/#bk.$$.{}
+PrepList=false
+debug=false
+rVerify=false
+TestTape=false
+CheckOnly=false
+logfile=
+# Typical kernel tape buffer size size, which is the largest size the DAT
+# driver will accept.
+typeset -i DefBlockSize=64 NumGood=0 BLOCKSIZE TAPESIZE=-1 WRITERATE=0
+REMOTE=
+CHECK=
+PRESERVELISTS=
+NOLOG=
+NOREWIND=
+CPIOPATH=cpio
+defaultFile=/etc/default/fbackup
+Usage=\
+"Usage: $lname [-cChNptS] [-f<find-options>] [-r<remote-system[:remote-user]>]
+              [-o<device>] [-l<filename>] [-s<tapesize>] [-g<logfile-name>]
+	      [-b<blocksize>] [-w<write-rate>] [-[dD]<cpio-path>] <fs-root> ..."
+
+
+[ -f $defaultFile -a -r $defaultFile ] && . $defaultFile
+
+while getopts cChpl:Ls:o:f:nNxr:tb:w:Sg:d:D: opt "$@"; do
+    case $opt in
+    h)
+	print -r -- \
+"$lname: Make cpio backups of filesystems on tape.
+$Usage
+If more than one filesystem-root is given, they are stored in seperate cpio
+archives on the tape, with filemarks between them.  This is achieved by using
+the no-rewind tape device (${nrDevs[0]}, or if it does not exist, ${nrDevs[1]})
+and closing and opening the device between extents.  All filesystems must be
+mounted to be backed up.  find is always given the -mount option, so only files
+on the same filesystems as the <fs-root> arguments are backed up.
+For each archive, a status line giving the amount of data written to tape is
+printed.  The same information is written to a logfile named /tmp/#fbackup.pid,
+where pid is the process ID of the program. 
+Options:
+The defaults for some of the following options can be set by assigning values
+to variables in the file $defaultFile, in the form
+VARNAME=value
+For options that do not take a value, use
+VARNAME=1
+The variable names are given in parentheses after the option descriptions.
+-h: Print this help.
+-c: Check backups after they are written.  This does not work with multivolume
+    tape backups, or backups appended to a tape.  The same blocksize used to
+    write the tape is used to read it.  It is read at full speed regardless of
+    what the write-rate is set to.  (CHECK)
+-C: Check an already-written backup.  The number of filesystem-root names given
+    on the backup determines how many tape extents are checked.  However, the
+    filesystem-roots need not exist.
+-f<find-options>: Pass the given options to find, to restrict the files
+    archived.  If more than one word is used, they should be quoted. (FINDOPTS)
+-N: Do not rewind the tape before writing to it.
+-o<device>: Write output to device <device>, instead of the default device
+    (${rDevs[0]} or ${rDevs[1]} if a single filesystem is being backed up, or
+    ${nrDevs[0]} or ${nrDevs[1]} if multiple filesystems are being backed up). 
+    If multiple filesystems are to be backed up, be sure to give a device which
+    does not rewind when closed.  Use a device name of '-' to write to the
+    standard output.  The name of the control device will be determined by
+    replacing everything up through a leading 'r' in the trailing component of
+    the device name with 'x'; e.g., the control devices for /dev/nurStp0 and
+    /dev/rct0 would be /dev/xStp0 and /dev/xct0 respectively.  If the control
+    device does not exist, the read/write device is used instead.  (DEVICE)
+-p: Preserve file lists (in /tmp/#bk.pid.fs-name).  (PRESERVELISTS)
+-s<tapesize>: Set the size of the tape media to <tapesize> KB.  The default is
+    0, which causes $lname to write to the end of the media.  If multiple
+    filesystems are given or backup is being done to a drive on a remote
+    system, a tapesize of 0 is always used, since only individual cpio sessions
+    keep track of tape size and the rcmd pipe cannot be reopened.  (TAPESIZE)
+-b<blocksize>: Set the size of blocks written to the tape device (this does not
+    affect the size of blocks as they appear on tape).  <blocksize> is given in
+    kilobytes.  The default is $DefBlockSize.  (BLOCKSIZE)
+-l<filename>: Take a list of files to be backed up from <filename> instead of
+    generating a list.  If the filename is relative (does not start with /),
+    it is taken to be relative to the filesystem mount point.  If the name
+    includes the string '{}', the {} is replaced by the trailing part of the
+    mount point path, except that if the mount point is /, it is replaced with
+    'root'.  The default filename is is /tmp/#bk.pid.{}, where pid is the
+    process ID of the backup program, so that the filelist for e.g. /u might be
+    stored in /tmp/#bk.12045.u.  Unless -l is given, any prexisting file is
+    overwritten.
+-L: Do not create or write to the logfile.  (NOLOG)
+-g<logfile-name>: Write to <logfile-name> instead of the default log file.
+-n: Use the no-rewind tape device (${nrDevs[0]} or ${nrDevs[1]}).  (NRDEVICE)
+-r<remote-system[:remote-user]>: Use rcmd to back up onto a tape drive on a
+    remote system.  If a : and a user name are appended to the system name,
+    $lname attempt to execute the dd command that is used to write to tape as
+    that user on the remote system; if not, it attempts to execute the command
+    as the same user as the one running $lname.  Whatever user the remote
+    command is run as, that user must have user equivalency for the same user
+    on the local system.  (REMOTE)
+-t: Used only with -r.  Instead of being written to a tape device, the cpio
+    stream is piped through cpio -it on the remote system (without writing
+    anything to disk) to test the archive integrity after it has crossed
+    the network.
+-S: Check status and accessibility of local or remote tape control device with
+    'tape status'.
+-d<cpio-path>: Use <cpio-path> as the cpio command.  The default is to use
+    \"cpio\" wherever it exists in the command search path.  (CPIOPATH)
+-D<cpio-path>: Use <cpio-path> as the cpio used to test archive integrity.
+    This path is used on the remote system if -t is given, or -c or -C is used
+    with -r.  (TCPIOPATH)
+-w<write-rate>:  Pipe the data stream through 'slow', which throttles the data
+    rate to <write-rate> kilobytes per second.  This can be used to reduce the
+    backup load on a system, or (if used with -r) to reduce the network load.
+    If used with -t, the 'slow' command will be run on the remote system
+    instead of the local system, with its output sent to cpio.  This can be
+    used to exercise (test) network buffers more thoroughly than -t by itself.
+    Use of -w requires the 'slow' command to be available on the local or, if
+    used with -t, the remote system.  (WRITERATE)"
+	exit 0
+	;;
+    g)
+	logfile=$OPTARG
+	;;
+    C)
+	CheckOnly=true
+	CHECK=1
+	;;
+    c)
+	CHECK=1
+	;;
+    l)
+	filelist=$OPTARG
+	PrepList=true
+	;;
+    L)
+	NOLOG=1;;
+    p)
+	PRESERVELISTS=1
+	;;
+    f)
+	FINDOPTS=$OPTARG
+	;;
+    n)
+	NRDEVICE=1
+	;;
+    b)
+	BLOCKSIZE=$OPTARG
+	# Must test exit status in a separate operation
+	[ $? -eq 0 ] || exit 1
+	;;
+    s)
+	TAPESIZE=$OPTARG
+	[ $? -eq 0 ] || exit 1
+	;;
+    w)
+	WRITERATE=$OPTARG
+	[ $? -eq 0 ] || exit 1
+	;;
+    o)
+	DEVICE=$OPTARG
+	;;
+    x)
+	debug=true
+	;;
+    r)
+	REMOTE=$OPTARG
+	;;
+    t)
+	rVerify=true
+	;;
+    N)
+	NOREWIND=1
+	;;
+    S)
+	TestTape=true
+	;;
+    d)
+	CPIOPATH=$OPTARG
+	;;
+    D)
+	TCPIOPATH=$OPTARG
+	;;
+    ?) 
+	print -ru2 "Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+[ -z "$TCPIOPATH" ] && TCPIOPATH=$CPIOPATH
+
+if [ -n "$REMOTE" ]; then
+    RemoteSys=${REMOTE%%:*}
+    RemoteUser=${REMOTE#*:}
+else
+    if $rVerify; then
+	print -ru2 "Must give system name (-r or REMOTE) with -t."
+	exit 1
+    fi
+fi
+
+if [ -n "$NRDEVICE" ]; then
+    if [ -n "$DEVICE" ]; then
+	print -ru2 "Cannot give both -o (DEVICE) and -n (NRDEVICE) options."
+	exit 1
+    fi
+    nDev=n
+fi
+
+[ BLOCKSIZE -eq 0 ] && BLOCKSIZE=DefBlockSize
+[ WRITERATE -gt 0 ] &&
+SlowCmd="slow -s ${BLOCKSIZE}k -b ${BLOCKSIZE}k ${WRITERATE}k"
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+case $# in
+0)
+    if ! $TestTape; then
+	print -ru2 -- "$Usage
+Use -h for help."
+	exit
+    fi
+    ;;
+1)
+    ;;
+*)
+    if [ TAPESIZE -gt 0 ]; then
+	print -ru2 -- \
+	"$lname: cannot give a tape size for multi-filesystem backup."
+	exit 1
+    fi
+    TAPESIZE=0
+    ;;
+esac
+
+if [ -n "$REMOTE" ]; then
+    if [ TAPESIZE -gt 0 ]; then
+	print -ru2 -- "$lname: cannot give a tape size for remote backup."
+	exit 1
+    fi
+    TAPESIZE=0
+    if [ "$DEVICE" = - ]; then
+	print -ru2 -- "$lname: cannot write to stdout for remote backup."
+	exit 1
+    fi
+    if [ -n "$RemoteUser" ]; then
+	UserArg="-l $RemoteUser"
+    else
+	UserArg=
+    fi
+fi
+
+# Select devices to try
+if [ -z "$DEVICE" ]; then
+    [ $# -eq 1 ] && set -A Devs "${rDevs[@]}" || set -A Devs "${nrDevs[@]}"
+else
+    set -A Devs -- "$DEVICE"	# make this the only device in list
+fi
+
+if [ -z "$REMOTE" -a "$DEVICE" != - ]; then
+    for DEVICE in "${Devs[@]}"; do
+	[ -c "$DEVICE" ] && break
+    done
+    if [ ! -c "$DEVICE" ]; then
+	print -ru2 -- "No character device in: ${Devs[*]}.  Exiting."
+	exit 1
+    fi
+fi
+
+# Check these before we begin backing up any filesystems
+if ! $CheckOnly; then
+    for dir; do
+	if [ ! -d "$dir" ]; then
+	    print -ru2 -- "$dir is not a directory.  Exiting."
+	    exit 1
+	fi
+	if [ ! -x "$dir" ]; then
+	    print -ru2 -- "Cannot execute directory $dir.  Exiting."
+	    exit 1
+	fi
+    done
+fi
+
+[ TAPESIZE -lt 0 ] && TAPESIZE=$deftape
+[ TAPESIZE -eq 0 ] && TapeSizeOpt= || TapeSizeOpt="-K $TAPESIZE"
+
+if [ -n "$REMOTE" -o "$DEVICE" = - ]; then
+    DevArg=
+else
+    DevArg="-O $DEVICE"
+fi
+
+if $debug; then
+    print -ru2 \
+"Tape Size: $TAPESIZE  
+Block Size: $BLOCKSIZE
+Write Rate: $WRITERATE
+filesystems: $*
+device: $DEVICE
+find options: $FINDOPTS
+filelist: $filelist
+remote system: $RemoteSys
+remote user: $RemoteUser
+Check: $CHECK
+Nolog: $NOLOG
+Preserve: $PRESERVELISTS
+Nrdevice: $NRDEVICE"
+    set -x
+fi
+
+# @(#) mktempfile 1.0 96/06/22
+# 96/01/20 jhdiii
+
+# Usage: mkfiles [-n] name ...
+# Creates the named files with some attempt at security.
+# This will be more reliable if user do not have chown authority.
+# Any file that contains no / characters is created in the user's tempdir.
+# If TMP was not set, it is set by this function.
+# The resulting filenames are put in mkfiles_ret[0..n-1]
+# Returns 0 on success; prints a diagnostic message & returns 1 on failure.
+# Options:
+# If -n is given, files are not put in the tempdir, and TMP is not set.
+# Use -- to force termination of the option list.
+function mkfiles {
+    typeset file dotmp=true
+    typeset -i i=0
+
+    if [ "$1" = -n ]; then
+	dotmp=false
+	shift
+    else
+	: ${TMP:=$TMPDIR}
+	: ${TMP:=/tmp}
+    fi
+    if [ "$1" = -- ]; then
+	shift
+    fi
+    for file; do
+	if $dotmp; then
+	    [[ "$file" != */* ]] && file="$TMP/$file"
+	fi
+	mkfiles_ret[i]=$file
+	let i+=1
+    done
+
+    rm -f -- "${mkfiles_ret[@]}" || {
+	# hopefully rm will have printed a more specific message.
+	print -ru2 "Could not remove pre-existing files."
+	return 1
+    }
+    for file in "${mkfiles_ret[@]}"; do
+	# Use >> to avoid 0'ing the file in case a symlink was just made from
+	# the filename to something we don't want to truncate
+	>> "$file" || {
+	    print -ru2 "Could not create temp file $file"
+	    return 1
+	}
+	# These are very suspicious
+	[ -s "$file" ] && {
+	    print -ru2 "New tempfile is not empty!!!"
+	    return 1
+	}
+	[ -O "$file" ] || {
+	    print -ru2 "Do not own $file!!!"
+	    return 1
+	}
+    done
+    # Could do some more stuff here, but anyone concerned with security should
+    # have chown authorization off for most users.
+    return 0
+}
+
+# Usage: mktempfile name
+# Creates a tempfile name tempdir/#name$$, and sets the global mktempfile_ret
+# to that name.  tempdir is a temp directory in $TMP, $TMPDIR, or /tmp, and $$
+# is the PID of the current process.
+# name should be 8 characters or less, so that the resulting filename will
+# not be more than 14 characters long (a limit on some machines).
+# Returns 0 on success, prints a diagnostic message & returns 1 on failure.
+function mktempfile {
+    typeset file="#$1$$"
+    mkfiles "$file" || return 1
+    mktempfile_ret=${mkfiles_ret[0]}
+}
+
+typeset -i nList=0
+function CleanExit {
+    [ nList -gt 0 ] && rm -f -- "${fLists[@]}"
+    exit "$1"
+}
+
+# Do an operation on tape device.
+# Usage: TapeOp tape-cmd
+function TapeOp {
+    typeset cDevs dev
+
+    $debug && set -x
+    if [ -n "$REMOTE" ]; then
+	[ "$1" = rewind ] && print -rp "Rewinding..."
+	for dev in ${Devs[*]}; do
+	    tail=${dev##*/}
+	    set -A cDevs -- "${cDevs[@]}" "${dev%/*}/x${tail#*r}"
+	done
+	rcmd "$RemoteSys" $UserArg "
+for ControlDev in ${cDevs[*]}
+do
+    if [ -c \$ControlDev ]
+    then
+	tape $1 \$ControlDev
+	exit 0
+    fi
+done
+echo 'Could not find remote tape device for tape $1.  Tried: ${cDevs[*]}'
+exit 1"
+    else
+	[ "$1" = rewind ] && print -rp "Rewinding $ControlDev ..."
+	tape $1 "$ControlDev"
+    fi
+}
+
+# Globals:
+# Uses filelist PrepList lname FINDOPTS PRESERVELISTS flist BLOCKSIZE REMOTE
+# RemoteSys UserArg rVerify SlowCmd PATH TapeSizeOpt Devs[]
+# Sets fLists[] nList NumGood GoodFS[]
+function Backup {
+    typeset fs=$1
+    typeset mountTail flist cpioCmd RCommand DDcmd dev
+
+    if cd "$fs"; then
+	if [[ "$filelist" = *{}* ]]; then
+	    [ "$fs" -ef / ] && mountTail=root || mountTail=${fs##*/}
+	    flist="${filelist%%{\}*}$mountTail${filelist#*{\}}"
+	else
+	    flist=$filelist
+	fi
+	[[ "$flist" != /* ]] && flist="$fs/$flist"
+	$PrepList || {
+	    mkfiles "$flist" || {
+		print -ru2 "$lname: could not make temp file.  Exiting."
+		CleanExit 1
+	    }
+	    print -rp "Generating file list for $fs"
+	    find . -mount ! \( -name '#*' -o -name '#*' -o -name '*
+*' -o -name core \) $FINDOPTS -print > $flist
+	    [ "$PRESERVELISTS" = 1 ] || {
+		fLists[nList]=$flist
+		let nList+=1
+	    }
+	}
+	print -rp "Backing up $fs"
+	cpioCmd="$CPIOPATH -aoC $((BLOCKSIZE*1024))"
+	if [ -n "$REMOTE" ]; then
+	    RCommand="rcmd $RemoteSys $UserArg"
+	    $cpioCmd | if $rVerify; then
+		if [ -z "$SlowCmd" ]; then
+		    $RCommand "$TCPIOPATH -it > /dev/null"
+		else
+		    # Add to PATH to increase chances of picking up 'slow'.
+		    $RCommand \
+		    "PATH=\$PATH:/usr/local/bin; $SlowCmd |
+		    $TCPIOPATH -it > /dev/null"
+		fi
+	    else
+		if [ "${#Devs}" = 1 ]; then
+		    DDcmd="dd bs=${BLOCKSIZE}k of=${Devs[0]}"
+		else
+		    DDcmd="
+for dev in ${Devs[*]}
+do
+    if [ -c \$dev ]
+    then
+	dd bs=${BLOCKSIZE}k of=\$dev
+	break
+    fi
+done"
+		fi
+		if [ -z "$SlowCmd" ]; then
+		    $RCommand "$DDcmd"
+		else
+		    $SlowCmd | $RCommand "$DDcmd"
+		fi
+	    fi
+	elif [ -z "$SlowCmd" ]; then
+	    $cpioCmd $TapeSizeOpt -O "$DEVICE"
+	else
+	    $cpioCmd $TapeSizeOpt | $SlowCmd > "$DEVICE"
+	fi < "$flist"
+	$realControl && print -rp "$(TapeOp amount)"
+	let NumGood+=1
+	GoodFS[NumGood]=$fs
+    else
+	print -ru2 "Could not cd to $fs."
+    fi
+}
+
+if [[ "$DEVICE" = *r+([!/]) ]]; then
+    dir=${DEVICE%/*}
+    tail=${DEVICE##*/}
+    ControlDev="$dir/x${tail#*r}"
+    $debug && print -ru2 "Generated control device name: $ControlDev"
+    realControl=true
+else
+    ControlDev=$DEVICE
+    realControl=false
+fi
+
+if [ -z "$REMOTE" ]; then
+    [ ! -c "$ControlDev" ] && ControlDev=$DEVICE
+    $debug && print -ru2 "Final device name: $ControlDev"
+fi
+
+if $TestTape; then
+    TapeOp status
+    exit $?
+fi
+
+if [ -n "$NOLOG" ]; then
+    unset logfile
+else
+    if [ -z "$logfile" ]; then
+	TMP=/tmp
+	mktempfile fbackup. || {
+	    print -ru2 -- "$lname: exiting."
+	    exit 1
+	}
+	logfile=$mktempfile_ret
+    else
+	mkfiles -n -- "$logfile" || {
+	    print -ru2 -- "$lname: exiting."
+	    exit 1
+	}
+	logfile=${mkfiles_ret[0]}
+    fi
+    print -r -- "Writing status information to log file $logfile"
+fi
+
+# duplicate fd 1 as 3 for logger, because writing to fd 1 in coprocess
+# writes to the coprocess output pipe.
+exec 3>&1
+
+# Set up logger/timestamper as coprocess.
+# Use gawk if available to avoid repeatedly executing date.
+if type gawk > /dev/null; then
+    gawk -v "logfile=$logfile" '
+    {
+	time = systime()
+	if (time != otime) {
+	    date = strftime("%D %T",time)
+	    otime = time
+	}
+	line = date " " $0
+	print line > "/dev/stdout"
+	close("/dev/stdout")	# flush output 
+	if (logfile != "") {
+	    print line >> logfile
+	    # flush to logfile to; it may be being remotely monitored
+	    close(logfile)
+	}
+    }' 1>&3 |&
+else
+    (
+	# SECONDS in subshell starts at 0; make sure oSec will initially be
+	# different than it.
+	typeset -i oSec=-1
+	while read line; do
+	    # Only run date if the seconds have changed, to avoid executing
+	    # date many times for bursts of log activity
+	    if [ SECONDS -ne oSec ]; then
+		date=$(date "+%D %T")
+		oSec=SECONDS
+	    fi
+	    s="$date $line"
+	    print -r -u3 -- "$s"
+	    [ -n "$logfile" ] && print -r -- "$s" >> "$logfile"
+	done
+    ) |&
+fi
+Logger=$!
+
+if $CheckOnly; then
+    set -A GoodFS -- "$@"
+else
+    [ -z "$NOREWIND" ] && TapeOp rewind
+    for fs; do
+	Backup "$fs"
+    done
+fi
+
+TapeOp rewind
+
+[ "$CHECK" = 1 ] || CleanExit 0
+
+if [ -n "$REMOTE" ]; then
+    CheckCmd="
+for DEVICE in ${Devs[*]}
+do
+    [ -c \$DEVICE ] && break
+done
+[ -c \$DEVICE ] || {
+    echo 'Could not find remote tape device for tape check.  Tried: ${Devs[*]}'
+    exit 1
+}
+"
+fi
+
+CheckCmd="$CheckCmd
+set -- ${GoodFS[*]}
+num=${#GoodFS[*]}
+while [ \$# -gt 0 ]
+do "'
+    extent=`expr $num - $# + 1`
+    echo "Checking extent $extent ($1)" '"
+    if $TCPIOPATH -it -C $((BLOCKSIZE*1024)) < "' $DEVICE > /dev/null
+    then
+	echo "Extent $extent ($1) OK"
+	sleep 5
+    else
+	break
+    fi
+    shift
+done'
+
+if [ -n "$REMOTE" ]; then
+    rcmd "$RemoteSys" $UserArg "$CheckCmd"
+else
+    eval "$CheckCmd"
+fi 2>&1 | while read line; do print -rp -- "$line"; done
+#^^^ should be able to just do 1>&p, but it causes the logger to die (ksh bug?)
+    
+TapeOp rewind
+CleanExit 0

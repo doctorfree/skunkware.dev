@@ -1,0 +1,28 @@
+#!/usr/lib/scosh/utilbin/oash
+# (was /usr/lib/oa/utilbin/oash)
+# @(#) oawho.oash 1.0 96/01/30
+# 96/01/30 john h. dubois iii (john@armory.com)
+
+# NOTE - this utility needs the 'flon' utility (a super-who utility).
+# A binary for SCO UNIX 3.2v5 can be found at
+# ftp://ftp.armory.com./pub/scobins/flon; a binary for 3.2v4 can be found at
+# ftp://ftp.armory.com./pub/scobins/3.2v4/flon
+
+OALIB=${OALIB-"/usr/lib/oa"}
+PATH=$OALIB/utilbin:$PATH
+
+tmpfile=/tmp/oatalk$$
+
+flon -bhtao'%22p%8u %6t %l %.100h' > $tmpfile
+set -- `wc -l $tmpfile`
+winSize=`expr "$1" + 2`
+window=${LINES:=`tput lines`}
+[ "$winSize" -gt "$window" ] && winSize=$window
+oainit
+wmopen 1 "$winSize" 79 0 0
+wmtitle " Who is Logged On "
+. `findfile shell_strs`
+wmmessage -r "$USEARROW" 
+scan -e"$EOFMSG" $tmpfile 
+rm -f $tmpfile
+oadeinit

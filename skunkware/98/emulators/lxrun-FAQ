@@ -1,0 +1,251 @@
+			       ===== === ====
+			       lxrun FAQ v1.1
+			       ===== === ====
+
+		  by Steve Ginzburg <stevieg@cco.caltech.edu>
+                 with modifications by Ron Record <rr@sco.com>
+
+			(last modified: Aug 26, 1997)
+
+Index:
+-----
+
+ Section 0: The Basics
+
+    Q0.0:  What is "lxrun"?
+
+    Q0.1:  That sounds awesome!  Tell me very quickly how I can
+	   get started using lxrun!
+
+    Q0.2:  How does lxrun work?
+
+    Q0.3:  That's brilliant.  Who was the genius who came up with lxrun?
+
+
+ Section 1: Using lxrun
+
+    Q1.0:  What binary formats does lxrun support?
+
+    Q1.1:  What does lxrun need in order to work?
+
+    Q1.2:  How can I run Linux applications that use audio?
+
+    Q1.3:  What sorts of Linux binaries work well with lxrun?
+
+
+ Section 2: Adding System Calls to lxrun
+
+    Q2.0:  How complete is lxrun?
+
+    Q2.1:  What if I find a Linux binary that lxrun doesn't support?
+
+
+ Section 3: Troubleshooting
+
+    Q3.0:  What does "linuxemul:  fatal error:  program load failed:  No
+	   such file or directory" mean?
+
+    Q3.1:  What does "progname:  can't load library 'some_library_name.so'"
+	   mean?
+
+    Q3.2:  Why are my Linux binaries unable to find their data files?
+
+    Q3.3:  What should i do if i find a problem with lxrun ?
+
+
+
+		       === Section 0: The Basics ===
+
+Q0.0: What is "lxrun"?
+
+   A: It is a Linux emulator for SCO OpenServer and UnixWare machines.
+
+
+Q0.1:  That sounds awesome!  Tell me very quickly how I can get
+       started using lxrun!
+
+   A:  Follow these steps:
+
+	0. Unpack lxrun-0.8.6.cpio.gz.
+           Do this as "root" from the root directory (/).
+           Issue the commands (assuming you downloaded into /tmp) :
+             # cd /
+             # gzcat /tmp/lxrun-0.8.6.cpio.gz | cpio -icdvu
+           The lxrun distribution should extract into the
+           etc and usr/local directories.
+
+	1. Copy a Linux binary to the /usr/local/linux/bin directory
+           If you don't have a Linux system at hand, use one of the
+           mirrors at ftp://sunsite.unc.edu/pub/Linux/welcome.html
+           to download an app off the net.
+
+	2. Create a symbolic link to "lxfront" as follows :
+           # ln -s /usr/local/linux/bin/lxfront /usr/local/bin/<app-name>
+           where "<app-name>" refers to the name of the Linux binary.
+
+	3. Type "/usr/local/bin/<app-name>" 
+
+	3b. Optionally, set the environment variable LINUX_ROOT to
+	    "/usr/local/linux" and execute your Linux applications
+            by running "lxrun <app-pathname>" where "<app-pathname>"
+            refers to the Linux application path (lxfront does this
+            for you).
+
+
+Q0.2: How does lxrun work?
+
+   A: It works by remapping system calls on the fly.  As it turns
+      out, there's not much difference between Linux and SCO
+      binaries.  The main difference is the way in which system
+      calls are handled.  In Linux, an "int 80" instruction is
+      used, which jumps to the system-call-handling portion of
+      the Linux kernel.  On SCO systems, "int 80" causes a
+      SIGSEGV signal.  lxrun intercepts these signals and calls
+      the SCO equivalent of the system call that the Linux
+      program attempted.  The result is that the Linux binary
+      runs (with the help of lxrun) on the SCO platform with a
+      small (often negligible) performance penalty.  All this is
+      accomplished without modifying the kernel.
+
+
+Q0.3: That's brilliant.  Who was the genius who came up with lxrun?
+
+   A: Michael Davidson, an engineer at SCO.
+
+
+
+		       === Section 1: Using lxrun ===
+
+Q1.0: What binary formats does lxrun support?
+
+   A: lxrun understands Intel Linux a.out and ELF format
+   binaries.
+
+
+Q1.1: What does lxrun need in order to work?
+
+   A: To run most Linux programs, lxrun requires the help of the
+      Linux dynamic loader (ld.so) and whatever Linux shared
+      libraries are required by the program.  Follow the steps
+      in Q0.1 above to set up lxrun.
+
+
+Q1.2: How can I run Linux applications that use audio?
+
+      If you want to run a program that uses audio, get a copy
+      of the OSS drivers from:
+
+	http://www.sco.com/skunkware/audiovis/index.html#4front
+
+      for 100% soundblaster compatible cards or:
+
+      	http://www.4front-tech.com/
+
+      for other sound cards.
+
+
+Q1.3: What sorts of Linux binaries work well with lxrun?
+
+   A: X applications seem to work well.  Curses programs often
+      seem to leave the stty settings in strange states.  (This
+      is because the termio ioctls are not handled well by
+      lxrun.  Anybody want to fix this?)
+
+      In particular, xdoom and raplayer (RealAudio client) seem
+      to work well.
+
+
+	       === Section 2: Adding System Calls to lxrun ===
+
+Q2.0: How complete is lxrun?
+
+   A: Somewhat complete.  Obviously, the more system calls lxrun is
+      able to translate, the more complete its emulation
+      capabilities.  In this release, lxrun has a _lot_ of
+      unimplemented system calls, but they are calls that are
+      not used very often.  So lxrun can successfully run _many_
+      Linux binaries.
+
+
+Q2.1: What if I find a Linux binary that lxrun doesn't support?
+
+   A: Follow these simple steps:
+
+	0. Go to http://www.sco.com/skunkware and make
+	sure you have the most recent version of lxrun.  If not,
+	download the latest one and try it.  We are updating
+	lxrun with new system calls all the time.
+
+	1. Recompile lxrun with the TRACE option enabled.  (This
+	requires modifying one line in the Makefile.)  This will
+	cause lxrun to produce a history of all system calls
+	used by the binary as it was run (similar to the
+	"truss" and "trace" commands).  The trace dump will be
+	created in a file called "lxrun.log".
+
+	2. Try to narrow down exactly which system call failed.
+	Most likely, the failure will be due to a system call
+	that has not yet been implemented in lxrun.
+
+	3. Implement the system call mapping.  This is usually
+	pretty easy to do.  The vast majority of lxrun's code
+	does mappings of this sort, so you can pick out almost
+	any source file to see how it is done.  Chances are, the
+	system call you need to remap is already in one of the
+	lxrun source files, but its code looks something like
+	this:
+
+	int lx_flock()		{ errno = ENOSYS; return -1; }	
+
+	This means that you're the first person who has gotten
+	around to mapping that particular system call.
+
+	4. After making your modification, recompile lxrun and
+	see if it works.  You may have to remap more than one
+	system call to get your binary working!
+
+	5. E-Mail your changes to skunkware@sco.com.  This way,
+	we can put your changes into the next release of lxrun.
+
+	6. If steps 1-5 seem are beyond your programming
+	ability, contact skunkware@sco.com and maybe one of the
+	Skunk team will have time to give you a hand with it.
+	Make sure to tell us exactly what program you're having
+	trouble with.
+
+
+		     === Section 3: Troubleshooting ===
+
+Q3.0: What does "linuxemul: fatal error: program load failed: No
+      such file or directory" mean?
+
+   A: It probably means you have your LINUX_ROOT environment
+      variable set up incorrectly.
+
+
+Q3.1: What does "progname: can't load library 'some_library_name.so'"
+      mean?
+
+   A: It means you're missing a shared library that is needed to
+      run a particular binary.  You can either try to find a
+      compiled version of the library from a Linux ftp site
+      (such as ftp://sunsite.unc.edu/pub/Linux/libs/) or if you
+      have access to a running Linux system, you can copy the
+      library directly.  You should put the library in
+      $LINUX_ROOT/lib on your SCO system.
+
+
+Q3.2: Why are my Linux binaries unable to find their data files?
+
+   A: To aid in the emulation process, lxrun prepends the contents
+      of the $LINUX_ROOT variable too many common pathnames.  Try
+      putting your program's data files in $LINUX_ROOT/whatever
+      instead of /whatever.
+
+Q3.3: What should i do if i find a problem with lxrun ?
+
+   A: Please report any difficulty you have with lxrun by e-mailing
+      skunkware@sco.com. Feel free to include suggestions, comments, 
+      code modifications, extensions, ...
+
+-------

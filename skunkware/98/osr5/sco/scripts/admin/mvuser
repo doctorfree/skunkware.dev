@@ -1,0 +1,164 @@
+#!/bin/ksh
+# @(#) mvuser.ksh 1.0 95/10/26
+# 95/10/26 john h. dubois iii (john@armory.com)
+
+name=${0##*/}
+
+Usage="Usage:
+$name [-htn] [-d<parent-dir>] <newdir> <user> ..."
+Tell=false
+Symlink=true
+parentDir=
+
+while getopts :htd:n opt; do
+    case $opt in
+    h)
+	echo \
+"$name: Move a user's home directory to a different parent directory.
+$Usage
+<newdir> is the name of a directory (typically the mount point of a user
+filesystem) that user accounts are put in.  For safety, <newdir> is required to
+be an absolute path (one beginning with /).  The home directory of each named
+user is moved so that it resides under <newdir>.  The last component of the
+user's home directory name is maintained.  This utility does NOT make any
+changes to the password database; instead, symbolic links are created where
+the old home directories were, pointing to the new home directories.
+Example:
+$name /v pax midnight
+If pax's home directory was /u/pax and midnight's home directory was /u/jon,
+this would copy /u/pax to /v/pax and /u/jon to /v/jon, remove the original home
+directories, and create symbolic links pointing from /u/pax to /v/pax and from
+/u/jon to /v/jon.
+User's home directories should be moved at a time when the user is not logged
+in, preferably in single-user (system maintenance) mode.
+Options:
+-d<parent-dir>: Expect users' current home directories to be
+    <parent-dir>/username, instead of using the password database to find
+    users' home directories.
+-h: Print this help.
+-n: Do not create a symbolic link pointing from users' old home directories
+    to their new home directories.
+-t: Tell what would be done without doing it."
+	exit 0
+	;;
+    d)
+	parentDir=$OPTARG
+	if [[ "$parentDir" != /* ]]; then
+	    print -u2 \
+"$name: Directory given with -d must be given as an absolute path.  Aborting."
+	    exit 1
+	fi
+
+	;;
+    t)
+	Tell=true
+	;;
+    n)
+	Symlink=false
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$name: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+# Must have 2 or more args.
+if [ $# -lt 2 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+set -e	# for extra safety
+newdir=$1
+shift
+
+if [[ "$newdir" != /* ]]; then
+    print -u2 \
+    "$name: New directory must be given as an absolute path.  Aborting."
+    exit 1
+fi
+
+if [ ! -d "$newdir" ]; then
+    print -u2 "$name: $newdir is not a directory.  Aborting."
+    exit 1
+fi
+
+typeset -i i=0
+
+# Get list of old home dirs
+OIFS="$IFS"
+IFS=:
+for user; do
+    egrep "^$user:" /etc/passwd | read us pa ui gi na home shell || {
+	print -u2 "$name: $user: No such user.  Aborting."
+	exit 1
+    }
+    [ -n "$parentDir" ] && home="$parentDir/$user"
+    # Check for as much as we can before moving any users
+    if [ ! -d "$home" ]; then
+	print -u2 \
+"$name: Home directory for $user ($home) does not exist or
+is not a directory.  Aborting."
+	exit 1
+    fi
+    if [ "$home" -ef / ]; then
+	print -u2 \
+	"$name: Home directory for $user is the root directory! Aborting."
+	exit 1
+    fi
+    homeName=${home##*/}
+    newHome=$newdir/$homeName
+    if [ -a "$newHome" ]; then
+	print -u2 \
+    "$name: New home directory for $user ($newHome) already exists.  Aborting."
+	exit 1
+    fi
+    oldHomes[i]=$home
+    let i+=1
+done
+IFS="$OIFS"
+
+for home in "${oldHomes[@]}"; do
+    homeName=${home##*/}
+    newHome=$newdir/$homeName
+    if $Tell; then
+	print "Would move $home to $newHome"
+	continue
+    fi
+    mvdir "$home" "$newHome" 2>/dev/null || {
+	oldBase=${home%/*}
+	cd $oldBase
+	print "Copying $home to $newHome..."
+	find "$homeName" -print | cpio -pldmu $newdir || {
+	    print -u2 "$name: Copy of $home to $newHome failed.  Aborting."
+	    exit 1
+	}
+	print "Removing $home..."
+	rm -r $home || {
+	    print -u2 "$name: Removal of $home failed.  Aborting."
+	    exit 1
+	}
+    }
+    if $Symlink; then
+	print "Creating symlink pointing from $home to $newHome..."
+	ln -s $newHome $home || {
+	    print -u2 "$name: symlink of $newHome to $home failed.  Aborting."
+	    exit 1
+	}
+    fi
+    print "Completed move of $home to $newHome"
+done

@@ -1,0 +1,454 @@
+#!/bin/ksh
+# @(#) frcp.ksh 2.8 97/06/06
+# 92/06/29 john h. dubois iii (john@armory.com)
+# 92/10/14 Cleaned up, improved, added -d and -r options
+# 92/11/11 Made work with a dest of '.'
+# 93/07/09 Added -l and -n options, & login as anonymous if no .netrc entry
+# 93/11/14 Use either passwd or password in .netrc, since ftp does.
+# 94/10/05 Changed local machine name to that returned by hostname instead
+#          of uname, since it's used in anonymous ftp password and some sites
+#          want a FQDN.
+# 94/10/16 Added -i to ftp args.  Do not lcd when mgetting.
+# 95/11/02 Strip trailing . from hostname used as password for anonymous ftp;
+#          some ftpds don't like that.
+# 96/03/08 If -D is given and dest is remote, create dirs on remote machine
+# 96/05/22 Added support for ftp URLs.
+# 96/06/11 Added sw options.
+# 96/07/17 Remove any trailing : and 23 from machine name given in FTP URLs.
+# 96/12/18 Added gtDL options.
+# 96/12/24 Added px options.
+# 97/04/01 Make coprocess output go to stderr.
+# 97/06/06 Rewrote .netrc parsing to make it more like ftp
+
+# frcp: ftp front end with rcp-like syntax.
+# Note: requires machine names given to be listed with
+#       user and password in .netrc; if not, login "anonymous" is used.
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+# For each (machine,path) given, put the filename in filename[n]
+# and the machine it is on in machine[n].
+# (machine,path) may be given as machine:path or ftp://machine/path or
+# ftp://machine:23/path or ftp://machine:/path
+function SplitNames {
+    typeset file sourceMach=$LocalMach paths
+    typeset -i i=1
+
+    set -A paths -- "$@"
+    [[ -n "$gethost" && "${paths[$#-1]}" != *:* ]] && sourceMach=$gethost
+
+    unset filename[*] machine[*]
+    for file; do
+	case "$file" in
+	@(ftp|FTP)://*)
+	    file=${file#???://}
+	    machine[i]=${file%%?(:?(23))/*}
+	    filename[i]=${file#*/}
+	    ;;
+	*:*)
+	    machine[i]=${file%%:*}
+	    filename[i]=${file#*:}
+	    ;;
+	*)
+	    [ i -lt $# ] && machine[i]=$sourceMach || machine[i]=$LocalMach
+	    filename[i]=$file
+	    ;;
+	esac
+	let i+=1
+    done
+}
+
+function verboseprint {
+    print -u1 "$*"
+    print -u2 "$*"
+}
+
+function MakeDir {
+    OFS=$IFS
+    typeset IFS=/ dir component
+
+    [[ $1 != /* ]] && dir=.
+    set -- $1
+    IFS=$OFS
+    for component; do
+	dir=$dir/$component
+	if [ ! -d "$dir" ]; then
+	    if mkdir "$dir"; then :; else
+		print -u2 "Could not make directory $dir."
+		return 1
+	    fi
+	fi
+    done
+    return 0
+}
+
+function MakeRemoteDir {
+    OFS=$IFS
+    typeset IFS=/ dir component
+
+    [[ $1 != /* ]] && dir=.
+    set -- $1
+    IFS=$OFS
+    for component; do
+	dir=$dir/$component
+	# Optimization: only create dir if we didn't last time
+	[[ "$dir" = "$lastdir" || "$lastdir" = "$dir/"* ]] ||
+	verboseprint mkdir $dir
+    done
+    lastdir=$dir
+    return 0
+}
+
+# CopyFiles: issue ftp(TC) commands to copy files.
+# Usage: CopyFiles [sourcemachine:]sourcepath ... [destmachine:]destpath
+# An alternate way of specifying machine:path, for the sake of copied & pasted
+# URLs, is: ftp://machine/path
+# Global vars:
+# Uses LocalMach (should be name of local machine), defDest
+# Sets global arrs machine[]/filename[]
+function CopyFiles {
+    unset machine[*] filename[*]
+    [ -n "$defDest" ] && set -- "$@" "$defDest"
+    SplitNames "$@"	# split names into filename[1..n] and machine[1..n]
+    typeset DestMach=${machine[$#]}	# Machine to copy files to
+    typeset DestPath=${filename[$#]} 	# Destination file/dir
+    unset machine[$#] filename[$#]
+    [ -z "$DestPath" ] && DestPath=.	# dest was given as machine:
+
+    $debug && print -ru2 -- \
+"
+Source machines: ${machine[*]}
+Source files: ${filename[*]}
+Dest machine: $DestMach
+Dest path: $DestPath"
+    # Try to determine if destination should be a directory
+    # so that it can be forced to be a directory.
+    [[ $DestPath != */ &&	# don't add / if it already ends in /
+    ( $# -gt 2 ||	# if more than two args given, last must be a dir
+    # If dest in on local machine, we can check whether it is a directory
+    $DestMach = $LocalMach && -d $DestPath || 
+    # If dest ends with . or .., it is a directory
+    # If we are appending source path, dest must be a directory
+    $DestPath = ?(*/)@(.|..) ) ]] || $AddSourcePath && DestPath=$DestPath/
+
+    # If one of the above tests made us think dest is a directory,
+    # but it isn't, complain
+    if [[ ( "$DestPath" = */ ) && 
+    ( "$DestMach" = $LocalMach ) && ! -d "$DestPath" ]];
+    then
+	print -u2 "Destination is not a directory."
+	exit
+    fi
+    DoCopy "$DestMach" "$DestPath"
+}
+
+# Usage: OpenMachine machine-name
+# Emits login sequence or doesn't, depending on .netrc file and global
+# variables anon and noanon
+function OpenMachine {
+    typeset machine=$1 netrc=$HOME/.netrc user= password=
+
+    [ "$machine" = "$lastmachine" ] && return 0
+    lastmachine=$machine
+
+    # .netrc parsing is done as closely to ftp as possible.
+    # ftp processes .netrc as a stream of tokens separated by whitespace or ","
+    # Unfortunately standard awk can only have one record separator character,
+    # so must use FS, and has a limit on the number of fields per record, so
+    # must still deal with one line at a time even though newline is the same
+    # as the other separators as far as ftp is concerned.
+    if isfalse anon && [ -r $netrc ]; then
+	awk -F'[ \t,]' "-vmachine=$machine" -vdebug=$debug '
+BEGIN {
+    split("machine,default,login,password,passwd,account,macdef",e,",")
+    for (i = 1; i in e; i++)
+	names[e[i]]
+    debug = debug == "true"
+    if (debug)
+	printf "Reading .netrc; debugging is on\n" > "/dev/stderr"
+}
+function gotmach(m) {
+    if (gotMachName) {	# if there was a previous entry, process it
+	if (debug)
+	    printf "Ending entry for machine <%s>\n",machName > "/dev/stderr"
+	if (machName == "" || machName == machine) {
+	    if (debug)
+		printf "Found search machine <%s>\n",machName > "/dev/stderr"
+	    if ("passwd" in Fields)
+		Fields["password"] = Fields["passwd"]
+	    if ("login" in Fields && "password" in Fields)
+		print Fields["login"] " " Fields["password"]
+	    gotMachName = 0
+	    exit
+	}
+    }
+    if (debug)
+	printf "Starting entry for machine <%s>\n",m > "/dev/stderr"
+    split("",Fields)
+    gotMachName = 1
+    machName = m
+}
+function dotok(tok) {
+    if (debug)
+	printf "got token <%s>\n",tok > "/dev/stderr"
+    if (name == "") {
+	if (debug)
+	    printf "Directive is <%s>\n",tok > "/dev/stderr"
+	if (tok == "default")
+	    gotmach("")
+	else if (tok in names)
+	    name = tok
+	else if (debug)
+	    printf "Unrecognized directive <%s>\n",tok > "/dev/stderr"
+    }
+    else if (name == "macdef") {
+	if (debug)
+	    printf "In macro definition <%s>\n",tok > "/dev/stderr"
+	continue
+    }
+    else {
+	if (debug)
+	    printf "Directive <%s> gets value <%s>\n",name,tok > "/dev/stderr"
+	if (name == "machine")
+	    gotmach(tok)
+	else
+	    Fields[name] = tok
+	name = ""
+    }
+}
+{
+    if (debug)
+	printf "Processing line: %s\n",$0 > "/dev/stderr"
+    if (name == "macdef") {
+	if ($0 ~ /^[ \t\n,]*$/)	# end of macdef
+	    name = ""
+	if (debug)
+	    printf "Macro text: %s\n",$0 > "/dev/stderr"
+    }
+    else
+	for (i = 1; i <= NF; i++)
+	    dotok($i)
+}
+END {
+    if (gotMachName)
+	gotmach("END OF FILE")
+    if (debug)
+	printf "Finished processing .netrc\n" > "/dev/stderr"
+}
+' $netrc | read user password
+    fi
+    if [ -z "$password" ]; then
+	if istrue noanon; then
+	    print -u2 "No .netrc entry for machine $machine"
+	    exit 1
+	fi
+	user=anonymous
+	password=$USER@${LocalMach%%.}
+    fi
+    verboseprint open $machine
+    print -u2 "user $user *******"
+    print "user $user $password"
+}
+
+# Usage: DoCopy destination-machine destination-path
+# Copies the files in global arrs machine[]/filename[] to the given dest
+# Global vars:
+# Uses machine[], filename[], LocalMach, check
+function DoCopy {
+    typeset DestMach=$1
+    typeset DestPath=$2
+    typeset OpenMach	# Machine that connection is currently open to
+    typeset SourceMach SourceFile
+    typeset -i i=1
+    typeset FileName
+
+    while [ i -le ${#machine[*]} ]; do
+	istrue check && verboseprint "runique"
+
+	SourceMach=${machine[i]}
+	SourceFile=${filename[i]}
+
+	DestFile=$DestPath
+	if $PreCWD; then
+	    [[ "$DestFile" != /* ]] && DestFile=$PWD/$DestFile
+	    [[ "$SourceFile" != /* ]] && SourceFile=$PWD/$SourceFile
+	fi
+	# if DestPath is a dir, add source filename to it without source path
+	if [[ "$DestFile" = */ ]]; then
+	    $AddSourcePath && DestFile=$DestFile$SourceFile ||
+	    DestFile=$DestFile${SourceFile##*/}
+	fi
+
+	if [ $SourceMach = $LocalMach ]; then
+	    if [ $DestMach != "$OpenMach" ]; then
+		OpenMachine $DestMach
+		OpenMach=$DestMach
+	    fi
+	    if istrue createdirs; then
+		MakeRemoteDir "${DestFile%/*}"
+	    fi
+	    verboseprint put $SourceFile $DestFile
+	elif [ $DestMach = $LocalMach ]; then
+	    if istrue check && [ -f "$DestFile" ]; then
+		print -u2 "$DestFile already exists."
+		continue
+	    fi
+	    # If destination is on local machine,
+	    # the dest will be a full dir/filename
+	    if istrue createdirs; then
+		MakeDir "${DestFile%/*}" || continue
+	    fi
+	    if [ $SourceMach != "$OpenMach" ]; then
+		OpenMachine $SourceMach
+		OpenMach=$SourceMach
+	    fi
+	    # If source filename has wildcards ([, ], *, ?) do an mget
+	    if [[ "$SourceFile" = *[][*?]* ]]; then
+#		verboseprint lcd "$DestFile"
+		verboseprint mget "$SourceFile"
+#		verboseprint lcd $PWD
+	    else
+		verboseprint get "$SourceFile" "$DestFile"
+		dests[destct]=$DestFile
+		let destct+=1
+	    fi
+	else
+	    print -u2  "Neither source machine \"$SourceMach\" "\
+"nor destination machine \"$DestMach\" is local."
+	fi
+	let i+=1
+    done
+}
+
+# This has to be something that actually reads all of its input, so that
+# the output process won't get SIGPIPE
+function discard {
+    typeset line
+    while read line; do
+	:
+    done
+}
+
+### Start of main program
+nam=${0##*/}
+AddSourcePath=false
+PreCWD=false
+do_l=false
+pairs=false
+debug=false
+
+typeset -i check=0 createdirs=0 readinput=0 anon=0 noanon=0 destct=0
+typeset gethost= ftp="ftp -in"
+
+while getopts :cdflnrswg:htD:Lpx Option
+do
+    case "$Option" in
+    h)
+	print -r -- \
+"$nam: do ftp transfers using rcp-style parameters.
+Usage: $nam [-cdtfhlnrswL] [-g<host>] [-D<dest>] <source> [<source> ...] <dest>
+At least one of <source> and <destpath> must be the local system.
+A remote filename is given as machinename:filename or ftp://hostname/filename
+If remote filenames contain wildcards, they will be globbed on the remote
+machine.  Make sure they are quoted when $nam is invoked.
+If the invoking user's .netrc file (see ftp(TC)) contains an entry for the
+remote system (or a \"default\" entry) with a login and password supplied, $nam
+will log in using the given login and password.  If not, $nam will login in as
+user anonymous and with the user@localsystem as the password.
+Files are transferred into the local directory or into the named remote
+directory regardless of the path to the source file.
+Options:
+-c: check: do not overwrite files.
+-d: create directories as needed.
+-D<dest>: All non-option arguments are taken to be source files and are copied
+    to destination <dest>.  This lets the destination be given as the first
+    argument intead of the last, and also lets input lines given for the -r
+    option consist of source filenames only.
+-p: Each pair of filenames given on the command line is taken to be a source
+    and destination pair.  For example, \"$nam a b c d e f\" is equivalent to
+    invoking $nam three time separately, with a b, c d, and e f as arguments.
+-t: Tell what commands would be issued to ftp without actually doing it.
+-f: force: overwrite files (default).
+-g<host>: If the destination is on the local host (does not contain a ':'), all
+    source files that do not have a host name specified (do not contain a ':')
+    are assumed to exist on <host>.
+-h: print this help.
+-l: fail if there is no entry with login and password for the remote system,
+    instead of logging in as anonymous.
+-L: After transferring allfiles, do an 'ls -l' on any destination files that
+    are on the local host.  Files copied using wildcards are skipped.
+-n: log in as anonymous even if there is an entry for the remote system in
+    the user's .netrc file.
+-r: read lists of source files and destination from the standard input, one
+    set per line, and copy files accordingly.  If -D is given, input lines may
+    consist of single filenames.
+-s: Append the entire pathname of the source file to the destination for
+    each file copied.   If no destination path is given, '.' is used, so the
+    destination will become relative to the current directory (if the
+    destination is the local) or the ftp login directory (if the destination
+    is remote).
+-w: Prepend the current working directory to any of the source files and
+    destination that do not begin with a '/'."
+	exit 0;;
+    g) gethost=$OPTARG;;
+    t) ftp=discard;;
+    c) check=1;;
+    d) createdirs=1;;
+    D) 
+	defDest=$OPTARG
+	if [ -z "$defDest" ]; then
+	    print -u2 -- "$nam: Value given with -D must be non-null."
+	    exit 1
+	fi
+	;;
+    f) check=0;;
+    l) noanon=1;;
+    L) do_l=true;;
+    p) pairs=true;;
+    n) anon=1;;
+    r) readinput=1;;
+    s) AddSourcePath=true;;
+    w) PreCWD=true;;
+    x) debug=true;;
+    :) 
+	print -r -u2 -- \
+	"$nam: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    \?) echo "$OPTARG: invalid option."; exit 1;;
+    esac
+done
+
+shift $((OPTIND-1))
+if isfalse readinput && [ $# -lt 2 -a -z "$defDest" ]; then
+    print -u2 "$nam: Not enough arguments.  Use -h for help."
+    exit 1
+fi
+
+if $pairs && [ $(($#%2)) -ne 0 ]; then
+    print -ru2 -- "Must give an even number of filenames with -p."
+    exit 1
+fi
+
+LocalMach=`hostname` 
+
+# In order to be able to reference dests[] and destct at the end of the
+# program, we must keep CopyFiles in the context of the parent process.
+# Doing a simple pipe into $ftp puts CopyFiles in a separate process, so
+# instead start it as a coprocess and then write into the coprocess pipe.
+$ftp >&2 |&
+if istrue readinput; then
+    while read line; do
+	CopyFiles $line
+    done
+elif $pairs; then
+    while [ $# -gt 0 ]; do
+	CopyFiles "$1" "$2"
+	shift 2
+    done
+else
+    CopyFiles "$@"
+fi >&p
+wait	# for ftp to finish
+$do_l && [ destct -gt 0 ] && l -- "${dests[@]}"

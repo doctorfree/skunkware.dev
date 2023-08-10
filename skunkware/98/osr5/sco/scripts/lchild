@@ -1,0 +1,29 @@
+#!/usr/local/bin/gawk -f
+# @(#) lchild.gawk 1.1 97/04/12
+# 91/02/27 john h. dubois iii (john@armory.com)
+# 92/02/16 added help
+# 92/05/01 put ps invokation inside awk prog
+# 96/06/18 3.2v5 port
+BEGIN {
+    Name = "lchild"
+    if (ARGC > 1) {
+	printf \
+"%s: list processes associated with the current tty that have children,\n"\
+"with the exception of this program.\n"
+	exit(0)
+    }
+    getline pid < "/dev/pid"
+    Cmd = "echo $$; exec ps -f < /dev/null"
+    Cmd | getline pspid
+    Cmd | getline
+    print $0	# print ps header
+    while ((Cmd | getline) == 1)
+	if (($2 != pid) && ($2 != pspid)) { 	# ignore script processes
+	    ppids[$3] 	# generate set of all parent processes
+	    p[$2] = $0	# save ps lines
+	}
+    close(Cmd)
+    for (pid in p)	# for each process
+	if (pid in ppids) 	# if it was listed as a parent process
+	    print p[pid]	# print its ps line
+}

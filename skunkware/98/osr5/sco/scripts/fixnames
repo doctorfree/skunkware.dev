@@ -1,0 +1,466 @@
+#!/bin/ksh
+# @(#) fixnames.ksh 1.1 95/07/30
+# 95/07/16 John H. DuBois III (john@armory.com)
+# 95/07/20 Catch filenames that start with -
+# 95/07/21 Deal with bad symlinks & names that contain whitespace correctly.
+#          Print filenames that contain \ correctly.  Added xH options.
+# 95/07/30 Added r option.
+
+name=${0##*/}
+Usage="Usage: $name [-hHilnr] [-c<character-list>] [name ...]"
+ExpandDirs=true
+ReadInput=false
+ListOnly=false
+Debug=false
+Recurse=false
+
+### Argument processing
+
+while getopts :hlinc:rxH opt; do
+    case $opt in
+    h)
+	echo \
+"$name: deal with filenames that contain problematic characters.
+$name generates a file list from the list of file and directory names given
+on the command line, expanding directory names into a list of the files they
+contain.  If no names are given, the file list is generated from the contents
+of the current working directory.  The names in the list are then checked for
+the existance of characters which may be difficult to enter at the command
+line, due to lack of keyboard support or because they are special to one of the
+standard shells.  Any names that contain such characters are presented to the
+user, with options given to rename or remove them.  When names are printed, any
+unprintable characters are presented in ^X (for characters below ASCII 128) or
+octal (for characters >= ASCII 128) notation.
+$Usage
+Options:
+-c<character-list>: Add the given characters to the list of legal characters.
+    The existance of these characters in a filename will then not cause the
+    filename to be considered a problem.
+-h: Print this help.
+-H: Print a description of the problems that certain characters can cause.
+-i: Read a list of filenames from the standard input, one per line.  Directory
+    names are not expanded into the files they contain.  NOTE -- filenames
+    containing newlines cannot be read from the standard input!
+-r: Recursively search any of the named files that are directories, or the
+    current directory if no names are given, searching for problem names.
+-l: List problem filenames along with information about the files, but do not
+    do anything to them.
+-n: Do not expand directory names given on the command line into the files
+    they contain.  This allows the directory names themselves to be acted on."
+	exit 0
+	;;
+    H)  print -r \
+"The following lists the characters considered to be problem characters when
+used in filenames, and the reasons they cause difficulties:
+\"Non-printing\" characters (most of those with ASCII values below 33 and above
+  126) will print in a manner dependent on the display, possibly not printing
+  at all or being interpreted as screen control characters.  Some are difficult
+  to enter at a keyboard because they have special meaning to the serial driver
+  or line discipline.
+Tab and space may be confused with each other, and require quoting when entered
+  at the command line.
+Newline requires quoting, is difficult to quote in some shells, and confuses
+  any utility that expects a newline-separated list of filenames.
+! is special to csh and some other shells, with its special meaning having a
+  high enough precedence that it can be difficult for novices to escape.
+# is the comment character, special to the shells when appearing at the start
+  of a word.
+~ is the home directory expansion character, special to csh, ksh, and some
+  other shells when appearing at the start of a word.
+- at the start of an argument list is special to most commands.
+*?[]<>|$&();\` are used for filename globbing, IO redirection, variable
+  expansion, backgrounding, subshell statements, statement separation, and
+  command line substitution.  They must be be quoted or escaped.
+\"'\\ are quoting and escape characters, and can be tricky to quote or escape.
+{} are used to generate argument lists in csh, ksh, and some other shells.
+^ is the old pipe character, still used by sh.
+Characters with ASCII values above 128 cannot be entered at most keyboards
+  without special support, and have no standard display representation."
+	exit 0;
+	;;
+    c)
+	ExtraChars="$OPTARG"
+	;;
+    l)
+	ListOnly=true
+	;;
+    n)
+	ExpandDirs=false
+	;;
+    i)
+	ReadInput=true
+	;;
+    x)
+	Debug=true
+	;;
+    r)
+	Recurse=true
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?)
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+### Function definitions
+
+# uSelect.ksh 1.0 95/01/02
+# 95/01/02 john h. dubois iii (john@armory.com)
+
+# Usage: uSelect prefix prompt-string word ...
+# uSelect presents the words in a select list.
+# If prefix is non-null, it is printed before the select list.
+# If prompt-string is null, a default prompt is used.
+# Each word must have at least one capital letter in it.
+# A word may be selected by number or by entering the first capital letter
+# in it (in upper or lower case).  The letter (always capitalized) is returned
+# in the global var uSelect_ret.  If more than one word is entered, the extra
+# words are returned in the global var uSelect_params.
+# If a word contains '#', the part before the '#' is used in the select list.
+# If no extra parameters are entered, then the part after the '#' is used as a
+# secondary prompt, and the words entered in response are assigned to
+# uSelect_params.  The selection fails if no words are entered.
+# The entire selection selection string is returned in the global variable
+# uSelect_selected.
+# The return status is the number of the word selected (starting with 1),
+# or 0 if EOF or 'q' is entered.
+# Example usage:
+#     uSelect "Current file: $file" "" "View" "Move#Move to:" && Finish
+#     case "$uSelect_ret" in
+#         V)  foo "$file";;
+#         M)  [ -n "$uSelect_params" ] && $mv -- "$file" "$uSelect_params"
+#     esac
+# This would produce the display:
+#     Current file: bsize
+#     1) View
+#     2) Move
+#     Select by # or letter (hit return for options); use Q to quit:
+# The final line would be replaced by the prompt-string if one was given.
+
+typeset -uL1 uSelect_ret
+function uSelect {
+    typeset PS3 Cmd word letters= Options FullOpts Prefix="
+$1"
+    typeset -uL1 l
+    typeset -u U
+    typeset -i CmdNum=1
+
+    # Quit is not added as a regular menu item so that one more regular item
+    # will fit on the screen.  Instead, list it in prompt.
+    # Had to shorten this prompt because ksh wouldn't let it be longer!
+    [ -n "$2" ] && PS3=$2 || PS3=\
+"Select by # or letter (hit return for options); use Q to quit: "
+    shift 2
+    set -A FullOpts -- "" "$@"
+    for word; do
+	Options[CmdNum]=${word%#*}
+	l=${word##*([!A-Z])}
+	letters=$letters$l
+	let CmdNum+=1
+    done
+    # Do the elif test in two [[]] so that the one eval'ed is only done if
+    # $REPLY is an upper-case letter
+    # Use -r wherever Prefix is used because it might contain \ sequences
+    # that should be printed literally.
+    print -r -u2 "$Prefix"
+    select Cmd in "${Options[@]}"; do
+	set -- $REPLY
+	U=$1
+	[ "$U" = Q ] && return 0	# Quit option was selected by letter
+	if [ -n "$Cmd" ]; then
+	    CmdNum=$1
+#	    # If Quit option was selected by number...
+#	    [ CmdNum -gt ${#Options[*]} ] && return 0
+	    uSelect_ret=${Cmd##*([!A-Z])}
+	elif [[ "$1" = [a-zA-Z] ]] && eval [[ "$letters" = "*$U*" ]]; then
+	    uSelect_ret=$U
+	    letters=${letters%%$U*}
+	    CmdNum=${#letters}+1
+	else
+	    print -u2 "Invalid selection."
+	    print -r -u2 "$Prefix"
+	    continue
+	fi
+	shift
+	uSelect_params="$*"
+	word=${FullOpts[CmdNum]}
+	if [[ -z "$uSelect_params" && "$word" = *#* ]]; then
+	    print -nr -u2 "${word##*#} "
+	    read
+	    if [ -z "$REPLY" ]; then
+		print -u2 "Must give a non-null response."
+		print -r -u2 "$Prefix"
+		continue
+	    fi
+	    uSelect_params=$REPLY
+	fi
+	uSelect_selected=${Options[CmdNum]}
+	return $CmdNum
+    done
+    return 0
+}
+
+# Can't pipe names through awk because before uncontrol they might have
+# embedded newlines.  So, must pass all names on cmd line.  Use a separate
+# invokation for each filename so that argument space isn't exceeded;
+# using this utility on current dir might generate a very large name list.
+function Uncontrol {
+awk '
+BEGIN {
+    MakeUncontrolTable()
+    print Uncontrol(ARGV[1])
+}
+# @(#) uncontrol.awk 92/11/09
+# Uncontrol(S): Convert control characters in S to symbolic form.
+# Characters in S with values < 32 and with value 128 are converted to the form
+# ^X.  Characters with value >= 128 are converted to the octal form \0nnn.
+# The resulting string is returned.
+# Global variables: UncTable[] must be initialized to a lookup table by
+# MakeUncontrolTable() before using this function.
+function Uncontrol(S,  i,len,Output) {
+    len = length(S)
+    Output = ""
+    for (i = 1; i <= len; i++)
+	Output = Output UncTable[substr(S,i,1)]
+    return Output
+}
+
+# MakeUncontrolTable: Make a table for use by Uncontrol().
+# Global variables:
+# UncTable[] is made into a character -> symbolic character lookup table.
+function MakeUncontrolTable(  i) {
+    for (i = 0; i < 32; i++)
+	UncTable[sprintf("%c",i)] = "^" sprintf("%c",i + 64)
+    for (i = 32; i < 127; i++)
+	UncTable[sprintf("%c",i)] = sprintf("%c",i)
+    UncTable[sprintf("%c",127)] = "^?"
+    for (i = 128; i < 256; i++)
+	UncTable[sprintf("%c",i)] = "\\" sprintf("%03o",i)
+}
+' "$1"
+}
+
+function GetInfo {
+    typeset file=$1 out ftype
+
+    info=$(l -d -- "$file")
+    info="${info% $file}"
+
+    ftype=$(file -- "$file")
+    ftype="${ftype##$file:*([ 	])}"
+    print -r "File type: $ftype
+$info"
+}
+
+# Usage: FixName filename printable-name
+function FixName {
+    typeset File=$1 PrintableName=$2
+    typeset info=$(GetInfo "$File")
+
+    if $ListOnly; then
+	print -r -- "$PrintableName: $info $PrintableName"
+	return
+    fi
+    uSelect "File: $PrintableName
+$info $PrintableName" "" "Move#Move to:" Remove Skip && exit 0
+     case "$uSelect_ret" in
+     M)  [ -n "$uSelect_params" ] && mv -- "$file" "$uSelect_params";;
+     R)  if [ -d "$file" ]; then
+	     rmdir -- "$file" ||  print -u2 \
+"$name: The directory could not be removed.  If the directory is not empty,
+you should instead use the 'm' option to rename it so that its contents can
+be dealt with."
+	 else
+	     rm -- "$file"
+	 fi;;
+     esac
+}
+
+# Usage: CheckName filename
+# Globals: foundBad
+function CheckName {
+    typeset file=$1
+
+    $Debug && print -r -u2 "Checking file: $(Uncontrol "$file")"
+    if [ ! -a "$file" ]; then
+	print -r -u2 "$name: file does not exist: $(Uncontrol "$file")"
+    # All of the other characters have meaning to various shells.
+    # Check only the filename part of the path to be tested.
+    elif TestFilename "$file"; then
+	FixName "$file" "$(Uncontrol "$file")"
+	foundBad=true
+    fi
+    return 0
+}
+
+# Globals: ExtraChars
+function TestFilename {
+    typeset file="${file##*/}"
+
+    # Difficult to add metachars held in shell var to a pattern, since the
+    # statement must then be eval'ed, causing problems.  So, use awk to
+    # to do the test.
+    if [ -n "$ExtraChars" ]; then
+	awk '
+BEGIN {
+    Chars = ARGV[1]
+    Name = ARGV[2]
+    len = length(Name)
+    # Since the extra chars are liable to be metachars, avoid using them in
+    # any pattern match.  Instead, just remove them from the filename before
+    # comparing it to the legal name pattern.
+    Output = ""
+    for (i = 1; i <= len; i++)
+	if (!index(Chars,c = substr(Name,i,1)))
+	    Output = Output c
+    if (Output !~ /^[-a-zA-Z0-9@%_+=:.,~#]*$/ || Output ~ /^[-~#]/)
+	exit 0
+    else
+	exit 1
+}
+' "$ExtraChars" "$file"
+    else
+	[[ "$file" != +([-a-zA-Z0-9@%_+=:.,~#]) || "$file" = [-~#]* ]]
+    fi
+}
+
+# @(#) ftw.ksh 1.0 95/07/30
+# 95/07/30 john h. dubois iii
+# Usage: ftw Path Command [optional-arg ...]
+# ftw will recursively search the directory tree rooted at Path, invoking
+# on each filename found, starting with Path itself:
+# Command optional-args Filename
+# where Command is the command name given, optional-args are any fixed args
+# given for Command, and Filename is the filename found.  ftw does not follow
+# symlinks.  If Path is not a directory, Command is invoked once, with that
+# filename.  ftw does a depth-first search, processing each directory before
+# the files in the directory.  ftw is liable to use a significant
+# amount of memory, causing the script interpreter to permanently grow in size.
+# ftw skips the . and .. entries in each directory, except for the Path given,
+# which will be processed even if it is . or ..
+# ftw will abort if Command ever exits nonzero.
+# Return value:
+# 0 on success.  1 if invoked incorrectly.
+# 2 if Command ever exits nonzero.
+function ftw {
+    set +o noglob	# Turn on globbing; local to this function
+    typeset Root=$1 file pat OIFS=$IFS IFS Command
+
+    [ $# -lt 2 ] && return 1
+
+    shift
+    set -A Command -- "$@"
+    "${Command[@]}" "$Root" || return 2
+    # ksh directory test returns true for symlink that points to dir, so must
+    # test for that everywhere that we test for dir
+    [ -L "$Root" -o ! -d "$Root" ] && return 0
+    for pat in "$Root/.[!.]*" "$Root/*"; do
+	IFS=
+	set -- $pat
+	IFS=$OIFS
+	[ $# = 1 -a "$1" = "$pat" -a ! -a "$1" ] && continue
+	for file; do
+	    if [ ! -L "$file" -a -d "$file" ]; then
+		ftw "$file" "${Command[@]}" || return 2
+	    else
+		"${Command[@]}" "$file" || return 2
+	    fi
+	done
+    done
+    return 0
+}
+
+### Start of main program
+
+unset Files[*]
+if $ReadInput; then
+    :
+elif $Recurse; then
+    [ $# -eq 0 ] && set -A Files . || set -A Files -- "$@"
+elif [ $# -eq 0 ]; then
+    # Find all files except . and ..
+    set -A Files -- .[!.]* *
+    typeset -i i=0 nf=${#Files[*]}
+    while [ i -lt nf ]; do
+	file=${Files[i]}
+	if [ ! -a "$file" ]; then
+	    if [ "$file" = "*" -o "$file" = ".[!.]*" ]; then
+		unset Files[i]
+	    elif [ -L "$file" ]; then
+		# If a filename that results from globbing does not exist
+		# and is a symlink, assume it is a bad symlink rather than
+		# a globbing failure, since bad symlinks are normal while
+		# globbing should never fail.
+		print -r -u2 \
+		"$name: Note: found bad symlink: $(Uncontrol "$file")"
+		unset Files[i]
+	    else
+		print -r -u2 \
+"$name: globbing failure - got filename '$(Uncontrol "$file")'
+from directory listing, but it does not exist.  Continuing..."
+	    fi
+	fi
+	let i+=1
+    done
+    if [ ${#Files[*]} -eq 0 ]; then
+	print -u2 "$name: No files found in current directory.  Exiting."
+	exit 1
+    fi
+else
+    if $ExpandDirs; then
+	# Expand directory names given on command line into a list of the files
+	# they contain.
+	for file in "$@"; do
+	    if [ -d "$file" ]; then
+		set -- "$file"/*
+		# If no files in dir, skip it
+		[[ $# -eq 1 && "$1" = *"/*" && ! -a "$1" ]] && continue
+		set -A Files -- "${Files[@]}" "$@"
+		TestFilename "$file" && print -r -u2 \
+"$name: note: the directory name '$(Uncontrol "$file")' contains problem
+characters.  Use the -n option to act on directory names."
+	    else
+		set -A Files -- "${Files[@]}" "$file"
+	    fi
+	done
+    else
+	set -A Files -- "$@"
+    fi
+fi
+
+set -o noglob
+foundBad=false
+
+if $ReadInput; then
+    while read -r file; do
+	if $Recurse; then
+	    ftw "$file" CheckName </dev/tty
+	else
+	    CheckName "$file" </dev/tty
+	fi
+    done
+else
+    for file in "${Files[@]}"; do
+	if $Recurse; then
+	    ftw "$file" CheckName
+	else
+	    CheckName "$file"
+	fi
+    done
+fi
+
+$foundBad || print -- "$name: No problem filenames found."

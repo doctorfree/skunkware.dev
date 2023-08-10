@@ -1,0 +1,90 @@
+#!/bin/ksh
+# @(#) mbiff.ksh 1.2 95/08/25
+# mbiff: turn mail notification on or off.    
+# 92/02/15 john h. dubois iii (john@armory.com)
+# 92/03/25 rcvalert broken under 3.2v4; use mailalert instead
+#          (modified so that alertprog is only given once so it can be changed)
+# 92/09/26 Remove ksh dependence
+# 93/12/04 Changed name from notify to mbiff; notify is a tcsh builtin
+# 94/07/14 exec alertprog to avoid needless shell fork.
+#          Put user name on mailalert cmd line for efficiency.
+# 95/02/04 Added 'status' command.
+
+alertprog=/usr/local/bin/mailalert
+expression="^\*[ 	][ 	]*-[ 	].*[ 	](exec )?$alertprog"
+
+# status: returns zero if mail notification is enabled; nonzero if not.
+status() {
+    egrep "$expression" $HOME/.maildelivery > /dev/null 2>&1
+}
+
+function help {
+    echo \
+"$name: Turn immediate mail notification on or off.  If immediate mail
+notification is on, any time that a mail message is received for you while
+you are logged in a message will be printed to your screen regardless of what
+you are doing.
+Usage: $name [on|off|status]
+$name          tells you whether notification is on or off.
+$name status   prints a more terse notification status.
+$name on       turns on immediate notification of new mail.
+$name off      turns off immediate notification of new mail.
+
+Notification status does not change between logins (when you turn
+it on or off, it will remain on or off until you change it again)."
+    exit 0
+}
+
+if [[ "${0##*/}" = biff ]]; then
+    echo 'Use "mbiff" to turn on immediate notification of new mail.'
+    name=mbiff
+    help
+fi
+
+name=${0##*/}
+
+cd
+case "$1" in
+on)
+    if status; then
+	echo "Immediate mail notification was already on."
+    else
+	# preserve old .maildelivery permissions
+	[ -f .maildelivery ]
+	hasmaildelivery=$?
+	[ $hasmaildelivery = 0 ] && /bin/cp .maildelivery .maildelivery-
+	# put alert line at top of .maildelivery
+	echo \
+"*	-	pipe	R	exec $alertprog $USER" > .maildelivery
+	[ $hasmaildelivery = 0 ] && cat .maildelivery- >> .maildelivery
+	echo "Immediate mail notification is now on."
+    fi
+    ;;
+off)
+    if status; then
+	# preserve old .maildelivery permissions
+	/bin/cp .maildelivery .maildelivery-
+	egrep -v "$expression" .maildelivery- > .maildelivery
+	echo "Immediate mail notification is now off."
+    else
+	echo "Immediate mail notification was already off."
+    fi
+    ;;
+status)
+    if status; then
+	echo "on"
+    else
+	echo "off"
+    fi
+    ;;
+"")
+    if status; then
+	echo "Immediate mail notification is on."
+    else
+	echo "Immediate mail notification is off."
+    fi
+    ;;
+*)
+    help
+    ;;
+esac

@@ -1,0 +1,254 @@
+#!/usr/lib/oa/utilbin/oash
+# @(#) uusel.oash 1.0 96/01/20
+# 92/09/21 John H. DuBois III (john@armory.com)
+# 92/09/24 run uujobs outside of curses so that error messages will be
+#          printed correctly; truncate uujobs
+# 92/10/26 Made ViewData and MoveJobs work
+# 92/11/23 Made uucp_kill work; deal with X.* files; added EditControl
+# 93/11/23 Note in selection header that only 5 jobs can be selected.
+#          Let system names be given on command line.
+#          Remove $TMP before explicit exit
+# 96/01/20 Use tmpdir env vars if set
+
+OALIB=${OALIB-"/usr/lib/oa"}
+PATH=$OALIB/utilbin:$PATH
+
+# run ourself thru oash 
+oadeinit 2>/dev/null || exec oash $0 "$@"
+
+. `findfile shell_strs`
+
+: ${TMP:=$TMPDIR}
+: ${TMP:=/tmp}
+TmpPref=$TMP/#uusel.$$
+ActionTmp=$TmpPref.p
+ViewFileWin=3
+[ -z "$LINES" ] && LINES=`tput lines`
+LINES2=`expr $LINES - 2`
+
+CloseWindow() {
+    wmove 0
+    wmclose $1
+}
+
+# Print a message centered on the screen.
+# Usage: WinMessage "message" ["title"]
+# If no title is given, the window has no title.
+# WinMessage wait for the use to press <esc>,
+# then closes the window and returns.
+WinMessage() {
+    Message=$1
+    Title=$2
+    Length=`expr length "$Message" + 2`
+    [ $Length -lt 30 ] && Length=30
+    Clean_wmopen 38 3 $Length 10
+    [ $# -gt 1 ] && wmtitle "$Title"
+    wmmessage -r "press <return> to continue"
+    echo "$Message"
+    wrefresh 38
+    read garbage
+    CloseWindow 38
+}
+
+# Usage: Centered_wmopen num lines cols top_row
+# Creates a window centered on column 38/39
+Centered_wmopen() {
+    wmopen $1 $2 $3 $4 `expr 39 - $3 / 2`
+}
+
+# Usage: Clean_wmopen num lines cols top_row
+# Creates a window centered on column 38/39 and clears a border around it.
+# Uses window #30 to clear.
+Clean_wmopen() {
+    N=$1 L=$2 C=$3 X=$4
+    set `ksh -c "echo $(($L+2)) $(($C+2)) $(($X-1)) $((38-$C/2)) $((39-$C/2))"`
+    newwin 30 $1 $2 $3 $4
+    wmclose 30
+    wmopen $N $L $C $X $5
+}
+
+# Usage: ViewFile filename
+# Sets LAST_KEY
+ViewFile() {
+    ViewFileFile=$1
+    wmopen $ViewFileWin $LINES2 78 0 0
+    if [ -d "$ViewFileFile" ]; then
+	wmtitle "Viewing directory: $ViewFileFile"
+	l -RA "$ViewFileFile" > $DirList
+	ViewF=$DirList
+    else
+	wmtitle "Viewing file: $ViewFileFile"
+	ViewF=$ViewFileFile
+    fi
+    wmmessage -r "Use arrow keys, <esc> when done"
+    scan -e"$EOFMSG" "$ViewF"
+    CloseWindow $ViewFileWin
+}
+
+uucp_kill() {
+    oadeinit
+    for job
+    do
+	uustat -k "$job"
+    done
+}
+
+ControlFiles() {
+    # Do this with a separate sh to avoid output-expensive oainit
+    sh -c '
+    NoLine=-n
+    for job in "$@"
+    do
+	echo $NoLine ""
+	unset NoLine
+	set -- */[CX].$job
+	if [ -f $1 ]; then
+	    echo $1:
+	    cat $1
+	else 
+	    echo "Could not find control file C.$job or X.$job."
+	fi
+    done > '" $ActionTmp" "$@"
+    wmopen 3 $LINES2 78 0 0
+    wmtitle "Control Files"
+    wmmessage -r "Use arrow keys, <esc> when done"
+    scan -e"$EOFMSG" $ActionTmp
+    CloseWindow 3
+}
+
+EditControl() {
+    # "edit" cmd fails miserably, so use $VISUAL etc.
+    if [ -z "$VISUAL" ]; then
+	if [ -n "$EDITOR" ]; then
+	    VISUAL=$EDITOR
+	else
+	    VISUAL=vi
+	fi
+    fi
+    EdList=
+    for job
+    do
+	set -- */[CX].$job
+	EdList="$EdList $*"
+    done
+    oadeinit
+    $VISUAL $EdList
+    oainit
+}
+
+ViewData() {
+    set -- `uujobs +dj "$@"`
+    for file
+    do
+	case "$file" in
+	D.*)
+	    if [ -r */$file ]; then
+		ViewFile */$file
+	    else
+		WinMessage "Cannot open $file"
+	    fi;;
+	esac
+    done
+}
+
+MoveJobs() {
+    oadeinit
+    OFS=$IFS
+    for job
+    do
+	if [ */[CX].$job = "*/[CX].$job" ]; then
+	    echo "[CX].$job not found." 1>&2
+	    continue
+	fi
+	set -- */[CX].$job
+	IFS=/
+	set -- $1
+	IFS=$OFS
+	echo mv $1/$2 $1/.$2
+	mv $1/$2 $1/.$2
+    done
+    echo "Move control files back to allow processing of the jobs."
+}
+
+Action() {
+    while :; do
+	Clean_wmopen 2 8 30 8
+	wmtitle "Select Action"
+	wmmessage -r "<esc> to return"
+	pp Kill  "View Data Files" \
+	"View Control Files" "Move Control Files" "Edit Control Files" Quit
+	[ $PP_NUM -lt 0 ] && return 1
+	case $PP_ITEM in
+	Kill) 
+	    uucp_kill $Jobs; return 0;;
+	Move*)
+	    MoveJobs $Jobs; return 0;;
+	"View Data"*)
+	    ViewData $Jobs;;
+	"View Control"*)
+	    ControlFiles $Jobs;;
+	Edit*)
+	    EditControl $Jobs;;
+	Quit)
+	    return 0;;
+	esac
+    done
+}
+
+# Add a non-visible character to the end of each line so that multiple
+# selected lines can be distinguished.
+# First replace any of the chars with spaces to prevent confusion.
+# Tab and various other chars cause various problems so use backspace.
+# Truncate lines because pp fails on long lines.
+Sep=""
+# oash does not seem to like "$@"... expands to "" even when $# is 0???
+uujobs +w80 +s ++ $* | sed "s/$Sep/ /g;s/$/ $Sep/" > $TmpPref
+
+{
+    read header
+    read line
+    if [ -z "$line" ]; then
+	echo "No UUCP jobs queued."
+	rm -f "$TmpPref"
+	exit 1
+    fi
+} < $TmpPref || exit 0
+
+# start of main code
+
+oainit
+
+cd /usr/spool/uucp
+
+while :; do
+    wmopen 1 $LINES2 78 0 0
+    wmtitle "Select up to five UUCP Jobs"
+    wmmessage -r \
+"Use arrow keys; <space> selects; <Return> when done selecting; <esc> to quit"
+    pp -m -f $TmpPref
+    [ -z "$PP_ITEM" ] && break
+	
+    set -f
+
+    OIFS=$IFS
+    IFS="$Sep"
+    set -- $PP_ITEM
+    IFS=$OIFS
+    unset Jobs
+
+    for line
+    do
+	if [ -n "$line" ]; then
+	    set -- $line
+	    # Ignore header if it was selected for some silly reason
+	    [ -n "$line" -a "$line" != " " -a "$1" != Job ] && Jobs="$Jobs $1"
+	fi
+    done
+
+    set +f
+
+    Action && break
+done
+
+oadeinit
+rm -f $TmpPref $ActionTmp

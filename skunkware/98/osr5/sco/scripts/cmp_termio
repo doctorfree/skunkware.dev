@@ -1,0 +1,89 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# @(#) cmp_termio.gawk 2.0 92/06/29
+# 91/10/15 john h. dubois iii (john@armory.com)
+# 92/02/16 added help option
+# 92/03/14 changed incorrect continue to next
+# 92/05/01 changed to #!awk script
+# 92/06/29 Fixed assorted problems; improved format
+
+# todo: compare more than two sets of termio output.
+
+BEGIN {
+    Name = "cmp_termio"
+    if (ARGC != 3) {
+	print \
+Name ": Compare two lists of stty output.\n" \
+"Usage: " Name " file1 file2\n" \
+"file1 and file2 are stty output.\n" \
+"Lines must be either fields delimited by semicolons, with each field\n" \
+"consisting of a name followed by whitespace and then a value (with '='\n" \
+"considered whitespace), or a list of whitespace-separated names with the\n" \
+"value indicated by the presence or lack of the name or the presence or\n" \
+"lack of a '-' somewhere in the name.  Two names separated by an '=' on\n" \
+"this type of line will also be recognized as name-value pairs.\n"
+    print \
+"Example data:\n" \
+"speed 38400 baud;   ispeed 38400 baud;   ospeed 38400 baud;\n" \
+"line = 0; intr = ^C; quit = ^\; erase = ^H; kill = ^U; eof = ^D; eol = ^@;\n" \
+"swtch <undef>;susp <undef>;start = ^Q;stop = ^S;\n"\
+"-parenb -parodd cs8 -cstopb -hupcl cread -clocal -loblk -ctsflow -rtsflow\n" \
+"-ignbrk brkint ignpar -parmrk -inpck istrip -inlcr -igncr icrnl -iuclc\n" \
+"ixon ixany -ixoff\n" \
+"isig icanon -xcase echo echoe echok -echonl -noflsh iexten -tostop\n" \
+"opost -olcuc onlcr -ocrnl -onocr -onlret -ofill -ofdel"
+
+	ExitNow = 1
+	exit(0)
+    }
+
+    file = 0
+}
+
+FNR == 1 {
+    file++
+}
+
+function value_param(param,  comp) {
+    split(param,comp," +")	# get parameter name into comp[1]
+    # Get rid of parameter name and any spaces and = that follow
+    sub("^ *[^ ]+[ =]+","",param)
+    list[file,comp[1]] = param
+    params[comp[1]]
+}
+
+/;/ {
+    split($0,args,"; *")
+    for (a in args)
+	value_param(args[a])
+    next
+}
+
+{
+    for (i = 1; i <= NF; i++) {
+	param = $i
+	# min and time are on a line with switches
+	if ($(i+1) == "=") {
+	    value_param(param " = " $(i+2))
+	    i += 2
+	}
+	else {
+	    sub("-","",param)
+	    list[file,param] = $i
+	    params[param]
+	}
+    }
+}
+
+END {
+    if (ExitNow)
+	exit(0)
+    format = "%-15s %-15s %s"
+    line = sprintf(format,"Parameter",ARGV[1],ARGV[2])
+    print line
+    gsub(".","-",line)
+    print line
+    for (param in params)
+	if (list[1,param] != list[2,param])
+	    printf format "\n",param,list[1,param],list[2,param]
+}

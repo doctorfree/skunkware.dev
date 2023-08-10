@@ -1,0 +1,1457 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# @(#) userprocs.gawk 2.0 97/05/21
+# 94/01/20 john h. dubois iii (john@armory.com)
+# 94/02/11 Added all options.
+# 95/05/03 Added a and n options.
+# 96/05/09 2.0  Largely rewritten.  Made <minprocs> be given with -M.
+#          Let users be named on command line.
+# 96/10/09 Added r option.
+# 97/05/21 Added s option.
+# 97/05/31 Added xH options.
+
+BEGIN {
+    Name = "userprocs"
+    Usage = \
+    "Usage:\n"\
+Name " [-ahHrs] [-n<num>] [-t<topusers>] [-c<cols>] [-M<minprocs>] [user ...]"
+    ARGC = Opts(Name,Usage,"ahHrt<c<n>M>sx",0)
+    if ("h" in Options) {
+	printf \
+"%s: show how many processes each user is running.\n"\
+"%s \n"\
+"One line is printed for each user who is running any processes, telling\n"\
+"how many processes the user is running along with a summary of what they\n"\
+"are.  Output is sorted by the total number of processes each user is\n"\
+"running.  The output is truncated to COLUMNS-1 columns, and only the top\n"\
+"LINES-2 lines are printed, where COLUMNS and LINES are taken from the\n"\
+"environment if set.  If not, the values for the terminal type in use are\n"\
+"used; if it has none, they default to 80 and 24 respectively.\n"\
+"Options:\n"\
+"-h: Print this help.\n"\
+"-H: Print a header.\n"\
+"-a: Instead of a per-user report, print a single report for all processes,\n"\
+"    listing the number of instances of each process.  The output line is\n"\
+"    not truncated.  This option also makes <num> as described for the -n\n"\
+"    option default to two.\n"\
+"-M<minprocs>: Report only on those users who are running at least\n"\
+"    <minprocs> processes.  If all users running at least <minprocs>\n"\
+"    processes should be reported on, regardless of how many such users\n"\
+"    there are, -t0 should also be given.\n"\
+"-n<num>: For each user, report only on processes that the user is running\n"\
+"    at least <num> times.  If -a is given, report only on processes that\n"\
+"    are running at least <num> times total.\n"\
+"-r: Generate report based on real user IDs rather than effective user IDs.\n"\
+"-s: Report only on users who have a shell listed in /etc/shells.\n"\
+"-t<top>: Show information for the top <top> users running the most\n"\
+"    processes.  If 0 is given, information is shown for all users running\n"\
+"    processes.\n"\
+"-c<columns>: Truncate the display to <columns> columns.  If 0 is given,\n"\
+"    the display is not truncated.\n",Name,Usage,minUID
+	exit(0)
+    }
+
+    Debug = "x" in Options
+    if ((chkShell = ("s" in Options)) && !makeShellUser(ShellUser)) {
+	print "Error reading /etc/shells or /etc/passwd" > "/dev/stderr"
+	exit 1
+    }
+    Lines = Cols = 0
+    LineGap = 2
+    ColGap = 1
+    if ("a" in Options) {
+	AllRept = 1
+	Lines = -1
+	Cols = -1
+	minProcInstances = 2
+    }
+    else
+	minProcInstances = 1
+    if ("n" in Options)
+	minProcInstances = Options["n"]
+
+    if ("t" in Options) {
+	Lines = Options["t"]
+	LineGap = 0
+    }
+    if ("c" in Options) {
+	Cols = Options["c"]
+	ColGap = 0
+	if (!Cols)
+	    Cols = -1
+    }
+    HeadTailInit(Lines,Cols,LineGap,ColGap)
+
+    if ("M" in Options)
+	minUserProcs = Options["M"]
+    if (ARGC > 1)
+	for (i = 1; i < ARGC; i++)
+	    Users[ARGV[i]]
+
+    # Gather process information
+    if ((nprocs = getPS(PIDs,Data,
+    ("r" in Options ? "RUSER" : "UID") ",COMM",Children,Debug,"")) < 0) {
+	printf "%s: ps failed.\n",Name > "/dev/stderr"
+	exit 1
+    }
+    delete PIDs["ps"]
+
+    countProcs(PIDs,Data,AllRept,Users,chkShell,NProc,Procs)
+
+    Format = "%-8s %3s  %s"
+    if ("H" in Options)
+	printf Format "\n","User","#","Processes"
+    nus = Report(NProc,Procs,minUserProcs,minProcInstances,Format)
+    if (!AllRept)
+	# Print values before descriptions, so it will be obvious if
+	# column truncation is occuring.
+	ColPrint(\
+	sprintf("%d user(s) reported on;  %d total process(es) on system.",
+	nus,nprocs))
+}
+
+# AllRept: true if a summary for all users should be printed instead of a
+# per-user report.
+# Globals used: ShellUser[]
+# Output vars:
+# NProc[u] is set to the number of processes user u is running.
+# Procs[u] is a string consisting of the process accounting name of all of the
+# processes user u is running, separated by whitespace.
+function countProcs(PIDs,Data,AllRept,Users,chkShell,NProc,Procs,
+pid,u,uListGiven) {
+    uListGiven = !IsEmpty(Users)
+    # Count processes by user
+    if (AllRept)
+	u = "All"
+    for (pid in PIDs) {
+	if (!AllRept || uListGiven)
+	    u = Data[pid,"UID"]
+	# Skip processes we are not interested in
+	if (uListGiven && !(u in Users) || chkShell && !(ShellUser[u]))
+	    continue
+	if (!((pid,"COMM") in Data)) {
+	    printf "Error: pid %d not found in Data[]\n",pid > "/dev/stderr"
+	    continue
+	}
+	NProc[u]++
+	Procs[u] = Procs[u] " " Data[pid,"COMM"]
+    }
+}
+
+function Report(NProc,Procs,minUserProcs,minProcInstances,Format,
+nRep,u,nus,i,k) {
+    nus = qsortArbIndByValue(NProc,k)
+    for (i = nus; i; i--) {
+	u = k[i]
+	if (minUserProcs && NProc[u] < minUserProcs+0)
+	    break
+	PList = MakeProcList(Procs[u],minProcInstances)
+	if (PList != "") {
+	    nRep++
+	    if (HeadPrint(sprintf(Format,u,NProc[u],PList)) != 1)
+		break
+	}
+    }
+    return nRep
+}
+
+# Sort processes by the number of times they are being run.
+# Build a process count list.  Skip those being run less then Min times.
+function MakeProcList(PList,Min,  Arr,NProcs,ProcCount,Num,Proc,Out,i,k) {
+    NProcs = split(PList,Arr)
+    for (i = 1; i <= NProcs; i++)
+	ProcCount[Arr[i]]++
+    qsortArbIndByValue(ProcCount,k)
+    for (i = NProcs; i > 0; i--) {
+	Proc = k[i]
+	if (Proc == "")
+	    continue
+	Num = ProcCount[Proc]
+	if (Num < Min)
+	    break
+	if (Out == "")
+	    Out = Proc
+	else
+	    Out = Out " " Proc
+	if (Num > 1)
+	    Out = Out "*" Num
+    }
+    return Out
+}
+### end of main program
+
+### Start of ProcArgs library
+# @(#) ProcArgs 1.11 96/12/08
+# 92/02/29 john h. dubois iii (john@armory.com)
+# 93/07/18 Added "#" arg type
+# 93/09/26 Do not count -h against MinArgs
+# 94/01/01 Stop scanning at first non-option arg.  Added ">" option type.
+#          Removed meaning of "+" or "-" by itself.
+# 94/03/08 Added & option and *()< option types.
+# 94/04/02 Added NoRCopt to Opts()
+# 94/06/11 Mark numeric variables as such.
+# 94/07/08 Opts(): Do not require any args if h option is given.
+# 95/01/22 Record options given more than once.  Record option num in argv.
+# 95/06/08 Added ExclusiveOptions().
+# 96/01/20 Let rcfiles be a colon-separated list of filenames.
+#          Expand $VARNAME at the start of its filenames.
+#          Let varname=0 and -option- turn off an option.
+# 96/05/05 Changed meaning of 7th arg to Opts; now can specify exactly how many
+#          of the vars should be searched for in the environment.
+#          Check for duplicate rcfiles.
+# 96/05/13 Return more specific error values.  Note: ProcArgs() and InitOpts()
+#          now return various negatives values on error, not just -1, and
+#          Opts() may set Err to various positive values, not just 1.
+#          Added AllowUnrecOpt.
+# 96/05/23 Check type given for & option
+# 96/06/15 Re-port to awk
+# 96/10/01 Moved file-reading code into ReadConfFile(), so that it can be
+#          used by other functions.
+# 96/10/15 Added OptChars
+# 96/11/01 Added exOpts arg to Opts()
+# 96/11/16 Added ; type
+# 96/12/08 Added Opt2Set() & Opt2Sets()
+# 96/12/27 Added CmdLineOpt()
+
+# optlist is a string which contains all of the possible command line options.
+# A character followed by certain characters indicates that the option takes
+# an argument, with type as follows:
+# :	String argument
+# ;	Non-empty string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# The only difference the type of argument makes is in the runtime argument
+# error checking that is done.
+
+# The & option is a special case used to get numeric options without the
+# user having to give an option character.  It is shorthand for [-+.0-9].
+# If & is included in optlist and an option string that begins with one of
+# these characters is seen, the value given to "&" will include the first
+# char of the option.  & must be followed by a type character other than ":"
+# or ";".
+# Note that if e.g. &> is given, an option of -.5 will produce an error.
+
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-"
+# or "+" is taken to be a non-option string; like other non-option strings,
+# it stops the scanning of argv and is left in argv[].
+# An argument of "--" or "++" also stops the scanning of argv[] but is removed.
+# If an option takes an argument, the argument may either immediately
+# follow it or be given separately.
+# "-" and "+" options are treated the same.  "+" is allowed because most awks
+# take any -options to be arguments to themselves.  gawk 2.15 was enhanced to
+# stop scanning when it encounters an unrecognized option, though until 2.15.5
+# this feature had a flaw that caused problems in some cases.  See the OptChars
+# parameter to explicitly set the option-specifier characters.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in Options and its value is set to the
+# number of times it occurs in argv[].
+
+# If an option that does take an argument is given, an index with its name is
+# created in Options and its value is set to the value of the argument given
+# for it, and Options[option-name,"count"] is (initially) set to the 1.
+# If an option that takes an argument is given more than once,
+# Options[option-name,"count"] is incremented, and the value is assigned to
+# the index (option-name,instance) where instance is 2 for the second occurance
+# of the option, etc.
+# In other words, the first time an option with a value is encountered, the
+# value is assigned to an index consisting only of its name; for any further
+# occurances of the option, the value index has an extra (count) dimension.
+
+# The sequence number for each option found in argv[] is stored in
+# Options[option-name,"num",instance], where instance is 1 for the first
+# occurance of the option, etc.  The sequence number starts at 1 and is
+# incremented for each option, both those that have a value and those that
+# do not.  Options set from a config file have a value of 0 assigned to this.
+
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps left in the indices of argv[].
+# If compress is nonzero, argv[] is packed by moving its elements so that
+# they have contiguous integer indices starting with 0.
+# Option processing will stop with the first unrecognized option, just as
+# though -- was given except that unlike -- the unrecognized option will not be
+# removed from ARGV[].  Normally, an error value is returned in this case.
+# If AllowUnrecOpt is true, it is not an error for an unrecognized option to
+# be found, so the number of remaining arguments is returned instead.
+# If OptChars is not a null string, it is the set of characters that indicate
+# that an argument is an option string if the string begins with one of the
+# characters.  A string consisting solely of two of the same option-indicator
+# characters stops the scanning of argv[].  The default is "-+".
+# argv[0] is not examined.
+# The number of arguments left in argc is returned.
+# If an error occurs, the global string OptErr is set to an error message
+# and a negative value is returned.
+# Current error values:
+# -1: option that required an argument did not get it.
+# -2: argument of incorrect type supplied for an option.
+# -3: unrecognized (invalid) option.
+function ProcArgs(argc,argv,OptList,Options,compress,AllowUnrecOpt,OptChars,
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos,NumOpt,Value,HadValue,specGiven,
+NeedNextOpt,GotValue,OptionNum,Escape,dest,src,count,c,OptTerm,OptCharSet)
+{
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in OptList of the option being processed.
+# NumOpt is true if a numeric option may be given.
+    ArgsLeft = argc
+    NumOpt = index(OptList,"&")
+    OptionNum = 0
+    if (OptChars == "")
+	OptChars = "-+"
+    while (OptChars != "") {
+	c = substr(OptChars,1,1)
+	OptChars = substr(OptChars,2)
+	OptCharSet[c]
+	OptTerm[c c]
+    }
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	Arg = argv[ArgNum]
+	if (length(Arg) < 2 || !((specGiven = substr(Arg,1,1)) in OptCharSet))
+	    break	# Not an option; quit
+	if (Arg in OptTerm) {
+	    delete argv[ArgNum]
+	    ArgsLeft--
+	    break
+	}
+	ArgLen = length(Arg)
+	for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+	    Option = substr(Arg,ArgInd,1)
+	    if (NumOpt && Option ~ /[-+.0-9]/) {
+		# If this option is a numeric option, make its flag be & and
+		# its option string flag position be the position of & in
+		# the option string.
+		Option = "&"
+		Pos = NumOpt
+		# Prefix Arg with a char so that ArgInd will point to the
+		# first char of the numeric option.
+		Arg = "&" Arg
+		ArgLen++
+	    }
+	    # Find position of flag in option string, to get its type (if any).
+	    # Disallow & as literal flag.
+	    else if (!(Pos = index(OptList,Option)) || Option == "&") {
+		if (AllowUnrecOpt) {
+		    Escape = 1
+		    break
+		}
+		else {
+		    OptErr = "Invalid option: " specGiven Option
+		    return -3
+		}
+	    }
+
+	    # Find what the value of the option will be if it takes one.
+	    # NeedNextOpt is true if the option specifier is the last char of
+	    # this arg, which means that if the option requires a value it is
+	    # the next arg.
+	    if (NeedNextOpt = (ArgInd >= ArgLen)) { # Value is the next arg
+		if (GotValue = ArgNum + 1 < argc)
+		    Value = argv[ArgNum+1]
+	    }
+	    else {	# Value is included with option
+		Value = substr(Arg,ArgInd + 1)
+		GotValue = 1
+	    }
+
+	    if (HadValue = AssignVal(Option,Value,Options,
+	    substr(OptList,Pos + 1,1),GotValue,"",++OptionNum,!NeedNextOpt,
+	    specGiven)) {
+		if (HadValue < 0)	# error occured
+		    return HadValue
+		if (HadValue == 2)
+		    ArgInd++	# Account for the single-char value we used.
+		else {
+		    if (NeedNextOpt) {	# option took next arg as value
+			delete argv[++ArgNum]
+			ArgsLeft--
+		    }
+		    break	# This option has been used up
+		}
+	    }
+	}
+	if (Escape)
+	    break
+	# Do not delete arg until after processing of it, so that if it is not
+	# recognized it can be left in ARGV[].
+	delete argv[ArgNum]
+	ArgsLeft--
+    }
+    if (compress != 0) {
+	dest = 1
+	src = argc - ArgsLeft + 1
+	for (count = ArgsLeft - 1; count; count--) {
+	    ARGV[dest] = ARGV[src]
+	    dest++
+	    src++
+	}
+    }
+    return ArgsLeft
+}
+
+# Assignment to values in Options[] occurs only in this function.
+# Option: Option specifier character.
+# Value: Value to be assigned to option, if it takes a value.
+# Options[]: Options array to return values in.
+# ArgType: Argument type specifier character.
+# GotValue: Whether any value is available to be assigned to this option.
+# Name: Name of option being processed.
+# OptionNum: Number of this option (starting with 1) if set in argv[],
+#     or 0 if it was given in a config file or in the environment.
+# SingleOpt: true if the value (if any) that is available for this option was
+#     given as part of the same command line arg as the option.  Used only for
+#     options from the command line.
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Global variables: OptErr
+# Return value: negative value on error, 0 if option did not require an
+# argument, 1 if it did & used the whole arg, 2 if it required just one char of
+# the arg.
+# Current error values:
+# -1: Option that required an argument did not get it.
+# -2: Value of incorrect type supplied for option.
+# -3: Bad type given for option &
+function AssignVal(Option,Value,Options,ArgType,GotValue,Name,OptionNum,
+SingleOpt,specGiven,  UsedValue,Err,NumTypes) {
+    # If option takes a value...    [
+    NumTypes = "*()#<>]"
+    if (Option == "&" && ArgType !~ "[" NumTypes) {	# ]
+	OptErr = "Bad type given for & option"
+	return -3
+    }
+
+    if (UsedValue = (ArgType ~ "[:;" NumTypes)) {	# ]
+	if (!GotValue) {
+	    if (Name != "")
+		OptErr = "Variable requires a value -- " Name
+	    else
+		OptErr = "option requires an argument -- " Option
+	    return -1
+	}
+	if ((Err = CheckType(ArgType,Value,Option,Name,specGiven)) != "") {
+	    OptErr = Err
+	    return -2
+	}
+	# Mark this as a numeric variable; will be propogated to Options[] val.
+	if (ArgType != ":" && ArgType != ";")
+	    Value += 0
+	if ((Instance = ++Options[Option,"count"]) > 1)
+	    Options[Option,Instance] = Value
+	else
+	    Options[Option] = Value
+    }
+    # If this is an environ or rcfile assignment & it was given a value...
+    else if (!OptionNum && Value != "") {
+	UsedValue = 1
+	# If the value is "0" or "-" and this is the first instance of it,
+	# do not set Options[Option]; this allows an assignment in an rcfile to
+	# turn off an option (for the simple "Option in Options" test) in such
+	# a way that it cannot be turned on in a later file.
+	if (!(Option in Options) && (Value == "0" || Value == "-"))
+	    Instance = 1
+	else
+	    Instance = ++Options[Option]
+	# Save the value even though this is a flag
+	Options[Option,Instance] = Value
+    }
+    # If this is a command line flag and has a - following it in the same arg,
+    # it is being turned off.
+    else if (OptionNum && SingleOpt && substr(Value,1,1) == "-") {
+	UsedValue = 2
+	if (Option in Options)
+	    Instance = ++Options[Option]
+	else
+	    Instance = 1
+	Options[Option,Instance]
+    }
+    # If this is a flag assignment without a value, increment the count for the
+    # flag unless it was turned off.  The indicator for a flag being turned off
+    # is that the flag index has not been set in Options[] but it has an
+    # instance count.
+    else if (Option in Options || !((Option,1) in Options))
+	# Increment number of times this flag seen; will inc null value to 1
+	Instance = ++Options[Option]
+    Options[Option,"num",Instance] = OptionNum
+    return UsedValue
+}
+
+# Option is the option letter
+# Value is the value being assigned
+# Name is the var name of the option, if any
+# ArgType is one of:
+# :	String argument
+# ;	Non-null string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Returns null on success, err string on error
+function CheckType(ArgType,Value,Option,Name,specGiven,  Err,ErrStr) {
+    if (ArgType == ":")
+	return ""
+    if (ArgType == ";") {
+	if (Value == "")
+	    Err = "must be a non-empty string"
+    }
+    # A number begins with optional + or -, and is followed by a string of
+    # digits or a decimal with digits before it, after it, or both
+    else if (Value !~ /^[-+]?([0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)$/)
+	Err = "must be a number"
+    else if (ArgType ~ "[#<>]" && Value ~ /\./)
+	Err = "may not include a fraction"
+    else if (ArgType ~ "[()<>]" && Value < 0)
+	Err = "may not be negative"
+    # (
+    else if (ArgType ~ "[)>]" && Value == 0)
+	Err = "must be a positive number"
+    if (Err != "") {
+	ErrStr = "Bad value \"" Value "\".  Value assigned to "
+	if (Name != "")
+	    return ErrStr "variable " substr(Name,1,1) " " Err
+	else {
+	    if (Option == "&")
+		Option = Value
+	    return ErrStr "option " specGiven substr(Option,1,1) " " Err
+	}
+    }
+    else
+	return ""
+}
+
+# Note: only the above functions are needed by ProcArgs.
+# The rest of these functions call ProcArgs() and also do other
+# option-processing stuff.
+
+# Opts: Process command line arguments.
+# Opts processes command line arguments using ProcArgs()
+# and checks for errors.  If an error occurs, a message is printed
+# and the program is exited.
+#
+# Input variables:
+# Name is the name of the program, for error messages.
+# Usage is a usage message, for error messages.
+# OptList the option description string, as used by ProcArgs().
+# MinArgs is the minimum number of non-option arguments that this
+# program should have, non including ARGV[0] and +h.
+# If the program does not require any non-option arguments,
+# MinArgs should be omitted or given as 0.
+# rcFiles, if given, is a colon-seprated list of filenames to read for
+# variable initialization.  If a filename begins with ~/, the ~ is replaced
+# by the value of the environment variable HOME.  If a filename begins with
+# $, the part from the character after the $ up until (but not including)
+# the first character not in [a-zA-Z0-9_] will be searched for in the
+# environment; if found its value will be substituted, if not the filename will
+# be discarded.
+# rcfiles are read in the order given.
+# Values given in them will not override values given on the command line,
+# and values given in later files will not override those set in earlier
+# files, because AssignVal() will store each with a different instance index.
+# The first instance of each variable, either on the command line or in an
+# rcfile, will be stored with no instance index, and this is the value
+# normally used by programs that call this function.
+# VarNames is a comma-separated list of variable names to map to options,
+# in the same order as the options are given in OptList.
+# If EnvSearch is given and nonzero, the first EnvSearch variables will also be
+# searched for in the environment.  If set to -1, all values will be searched
+# for in the environment.  Values given in the environment will override
+# those given in the rcfiles but not those given on the command line.
+# NoRCopt, if given, is an additional letter option that if given on the
+# command line prevents the rcfiles from being read.
+# See ProcArgs() for a description of AllowUnRecOpt and optChars, and
+# ExclusiveOptions() for a description of exOpts.
+# Special options:
+# If x is made an option and is given, some debugging info is output.
+# h is assumed to be the help option.
+
+# Global variables:
+# The command line arguments are taken from ARGV[].
+# The arguments that are option specifiers and values are removed from
+# ARGV[], leaving only ARGV[0] and the non-option arguments.
+# The number of elements in ARGV[] should be in ARGC.
+# After processing, ARGC is set to the number of elements left in ARGV[].
+# The option values are put in Options[].
+# On error, Err is set to a positive integer value so it can be checked for in
+# an END block.
+# Return value: The number of elements left in ARGV is returned.
+# Must keep OptErr global since it may be set by InitOpts().
+function Opts(Name,Usage,OptList,MinArgs,rcFiles,VarNames,EnvSearch,NoRCopt,
+AllowUnrecOpt,optChars,exOpts,  ArgsLeft,e) {
+    if (MinArgs == "")
+	MinArgs = 0
+    ArgsLeft = ProcArgs(ARGC,ARGV,OptList NoRCopt,Options,1,AllowUnrecOpt,
+    optChars)
+    if (ArgsLeft < (MinArgs+1) && !("h" in Options)) {
+	if (ArgsLeft >= 0) {
+	    OptErr = "Not enough arguments"
+	    Err = 4
+	}
+	else
+	    Err = -ArgsLeft
+	printf "%s: %s.\nUse -h for help.\n%s\n",
+	Name,OptErr,Usage > "/dev/stderr"
+	exit 1
+    }
+    if (rcFiles != "" && (NoRCopt == "" || !(NoRCopt in Options)) &&
+    (e = InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch)) < 0)
+    {
+	print Name ": " OptErr ".\nUse -h for help." > "/dev/stderr"
+	Err = -e
+	exit 1
+    }
+    if ((exOpts != "") && ((OptErr = ExclusiveOptions(exOpts,Options)) != ""))
+    {
+	printf "%s: Error: %s\n",Name,OptErr > "/dev/stderr"
+	Err = 1
+	exit 1
+    }
+    return ArgsLeft
+}
+
+# ReadConfFile(): Read a file containing var/value assignments, in the form
+# <variable-name><assignment-char><value>.
+# Whitespace (spaces and tabs) around a variable (leading whitespace on the
+# line and whitespace between the variable name and the assignment character) 
+# is stripped.  Lines that do not contain an assignment operator or which
+# contain a null variable name are ignored, other than possibly being noted in
+# the return value.  If more than one assignment is made to a variable, the
+# first assignment is used.
+# Input variables:
+# File is the file to read.
+# Comment is the line-comment character.  If it is found as the first non-
+#     whitespace character on a line, the line is ignored.
+# Assign is the assignment string.  The first instance of Assign on a line
+#     separates the variable name from its value.
+# If StripWhite is true, whitespace around the value (whitespace between the
+#     assignment char and trailing whitespace on the line) is stripped.
+# VarPat is a pattern that variable names must match.  
+#     Example: "^[a-zA-Z][a-zA-Z0-9]+$"
+# If FlagsOK is true, variables are allowed to be "set" by being put alone on
+#     a line; no assignment operator is needed.  These variables are set in
+#     the output array with a null value.  Lines containing nothing but
+#     whitespace are still ignored.
+# Output variables:
+# Values[] contains the assignments, with the indexes being the variable names
+#     and the values being the assigned values.
+# Lines[] contains the line number that each variable occured on.  A flag set
+#     is record by giving it an index in Lines[] but not in Values[].
+# Return value:
+# If any errors occur, a string consisting of descriptions of the errors
+# separated by newlines is returned.  In no case will the string start with a
+# numeric value.  If no errors occur,  the number of lines read is returned.
+function ReadConfigFile(Values,Lines,File,Comment,Assign,StripWhite,VarPat,
+FlagsOK,
+Line,Status,Errs,AssignLen,LineNum,Var,Val) {
+    if (Comment != "")
+	Comment = "^" Comment
+    AssignLen = length(Assign)
+    if (VarPat == "")
+	VarPat = "."	# null varname not allowed
+    while ((Status = (getline Line < File)) == 1) {
+	LineNum++
+	sub("^[ \t]+","",Line)
+	if (Line == "")		# blank line
+	    continue
+	if (Comment != "" && Line ~ Comment)
+	    continue
+	if (Pos = index(Line,Assign)) {
+	    Var = substr(Line,1,Pos-1)
+	    Val = substr(Line,Pos+AssignLen)
+	    if (StripWhite) {
+		sub("^[ \t]+","",Val)
+		sub("[ \t]+$","",Val)
+	    }
+	}
+	else {
+	    Var = Line	# If no value, var is entire line
+	    Val = ""
+	}
+	if (!FlagsOK && Val == "") {
+	    Errs = Errs \
+	    sprintf("\nBad assignment on line %d of file %s: %s",
+	    LineNum,File,Line)
+	    continue
+	}
+	sub("[ \t]+$","",Var)
+	if (Var !~ VarPat) {
+	    Errs = Errs sprintf("\nBad variable name on line %d of file %s: %s",
+	    LineNum,File,Var)
+	    continue
+	}
+	if (!(Var in Lines)) {
+	    Lines[Var] = LineNum
+	    if (Pos)
+		Values[Var] = Val
+	}
+    }
+    if (Status)
+	Errs = Errs "\nCould not read file " File
+    close(File)
+    return Errs == "" ? LineNum : substr(Errs,2)	# Skip first newline
+}
+
+# Variables:
+# Data is stored in Options[].
+# rcFiles, OptList, VarNames, and EnvSearch are as as described for Opts().
+# Global vars:
+# Sets OptErr.  Uses ENVIRON[].
+# If anything is read from any of the rcfiles, sets READ_RCFILE to 1.
+function InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch,
+Line,Var,Pos,Vars,Map,CharOpt,NumVars,TypesInd,Types,Type,Ret,i,rcFile,
+fNames,numrcFiles,filesRead,Err,Values,retStr) {
+    split("",filesRead,"")	# make awk know this is an array
+    NumVars = split(VarNames,Vars,",")
+    TypesInd = Ret = 0
+    if (EnvSearch == -1)
+	EnvSearch = NumVars
+    for (i = 1; i <= NumVars; i++) {
+	Var = Vars[i]
+	CharOpt = substr(OptList,++TypesInd,1)
+	if (CharOpt ~ "^[:;*()#<>&]$")
+	    CharOpt = substr(OptList,++TypesInd,1)
+	Map[Var] = CharOpt
+	Types[Var] = Type = substr(OptList,TypesInd+1,1)
+	# Do not overwrite entries from environment
+	if (i <= EnvSearch && Var in ENVIRON &&
+	(Err = AssignVal(CharOpt,ENVIRON[Var],Options,Type,1,Var,0)) < 0)
+	    return Err
+    }
+
+    numrcFiles = split(rcFiles,fNames,":")
+    for (i = 1; i <= numrcFiles; i++) {
+	rcFile = fNames[i]
+	if (rcFile ~ "^~/")
+	    rcFile = ENVIRON["HOME"] substr(rcFile,2)
+	else if (rcFile ~ /^\$/) {
+	    rcFile = substr(rcFile,2)
+	    match(rcFile,"^[a-zA-Z0-9_]*")
+	    envvar = substr(rcFile,1,RLENGTH)
+	    if (envvar in ENVIRON)
+		rcFile = ENVIRON[envvar] substr(rcFile,RLENGTH+1)
+	    else
+		continue
+	}
+	if (rcFile in filesRead)
+	    continue
+	# rcfiles are liable to be given more than once, e.g. UHOME and HOME
+	# may be the same
+	filesRead[rcFile]
+	if ("x" in Options)
+	    printf "Reading configuration file %s\n",rcFile > "/dev/stderr"
+	retStr = ReadConfigFile(Values,Lines,rcFile,"#","=",0,"",1)
+	if (retStr > 0)
+	    READ_RCFILE = 1
+	else if (ret != "") {
+	    OptErr = retStr
+	    Ret = -1
+	}
+	for (Var in Lines)
+	    if (Var in Map) {
+		if ((Err = AssignVal(Map[Var],
+		Var in Values ? Values[Var] : "",Options,Types[Var],
+		Var in Values,Var,0)) < 0)
+		    return Err
+	    }
+	    else {
+		OptErr = sprintf(\
+		"Unknown var \"%s\" assigned to on line %d\nof file %s",Var,
+		Lines[Var],rcFile)
+		Ret = -1
+	    }
+    }
+
+    if ("x" in Options)
+	for (Var in Map)
+	    if (Map[Var] in Options)
+		printf "(%s) %s=%s\n",Map[Var],Var,Options[Map[Var]] > \
+		"/dev/stderr"
+	    else
+		printf "(%s) %s not set\n",Map[Var],Var > "/dev/stderr"
+    return Ret
+}
+
+# OptSets is a semicolon-separated list of sets of option sets.
+# Within a list of option sets, the option sets are separated by commas.  For
+# each set of sets, if any option in one of the sets is in Options[] AND any
+# option in one of the other sets is in Options[], an error string is returned.
+# If no conflicts are found, nothing is returned.
+# Example: if OptSets = "ab,def,g;i,j", an error will be returned due to
+# the exclusions presented by the first set of sets (ab,def,g) if:
+# (a or b is in Options[]) AND (d, e, or f is in Options[]) OR
+# (a or b is in Options[]) AND (g is in Options) OR
+# (d, e, or f is in Options[]) AND (g is in Options)
+# An error will be returned due to the exclusions presented by the second set
+# of sets (i,j) if: (i is in Options[]) AND (j is in Options[]).
+# todo: make options given on command line unset options given in config file
+# todo: that they conflict with.
+function ExclusiveOptions(OptSets,Options,
+Sets,SetSet,NumSets,Pos1,Pos2,Len,s1,s2,c1,c2,ErrStr,L1,L2,SetSets,NumSetSets,
+SetNum,OSetNum) {
+    NumSetSets = split(OptSets,SetSets,";")
+    # For each set of sets...
+    for (SetSet = 1; SetSet <= NumSetSets; SetSet++) {
+	# NumSets is the number of sets in this set of sets.
+	NumSets = split(SetSets[SetSet],Sets,",")
+	# For each set in a set of sets except the last...
+	for (SetNum = 1; SetNum < NumSets; SetNum++) {
+	    s1 = Sets[SetNum]
+	    L1 = length(s1)
+	    for (Pos1 = 1; Pos1 <= L1; Pos1++)
+		# If any of the options in this set was given, check whether
+		# any of the options in the other sets was given.  Only check
+		# later sets since earlier sets will have already been checked
+		# against this set.
+		if ((c1 = substr(s1,Pos1,1)) in Options)
+		    for (OSetNum = SetNum+1; OSetNum <= NumSets; OSetNum++) {
+			s2 = Sets[OSetNum]
+			L2 = length(s2)
+			for (Pos2 = 1; Pos2 <= L2; Pos2++)
+			    if ((c2 = substr(s2,Pos2,1)) in Options)
+				ErrStr = ErrStr "\n"\
+				sprintf("Cannot give both %s and %s options.",
+				c1,c2)
+		    }
+	}
+    }
+    if (ErrStr != "")
+	return substr(ErrStr,2)
+    return ""
+}
+
+# The value of each instance of option Opt that occurs in Options[] is made an
+# index of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Set(Options,Opt,Set,  count) {
+    if (!(Opt in Options))
+	return 0
+    Set[Options[Opt]]
+    count = Options[Opt,"count"]
+    for (; count > 1; count--)
+	Set[Options[Opt,count]]
+    return count
+}
+
+# The value of each instance of option Opt that occurs in Options[] that
+# begins with "!" is made an index of nSet[] (with the ! stripped from it).
+# Other values are made indexes of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Sets(Options,Opt,Set,nSet,  count,aSet,ret) {
+    ret = Opt2Set(Options,Opt,aSet)
+    for (value in aSet)
+	if (substr(value,1,1) == "!")
+	    nSet[substr(value,2)]
+	else
+	    Set[value]
+    return ret
+}
+
+# Returns true if option Opt was given on the command line.
+function CmdLineOpt(Options,Opt,  i) {
+    for (i = 1; (Opt,"num",i) in Options; i++)
+	if (Options[Opt,"num",i] != 0)
+	    return 1
+    return 0
+}
+### End of ProcArgs library
+### Begin head-tail routines
+
+# @(#) HeadTail.awk 96/05/09
+# 95/04/28 Added tail routines.
+# 96/05/09 Added all args to HeadTailInit()
+
+# Turn on screen-bounded printing.
+# Current implementation sets global vars LINES, COLUMNS, LINEGAP, and COLGAP.
+# Sets the number of screen lines and rows to Lines and Rows.
+# If -1 is passed for either, turns off bounding in that dimension.
+# If either is not set or 0 is passed for it, its value is taken from the
+# environment, or if not set there, from terminfo, or if not set there, from
+# the defaults (24 and 80).
+# By default, the other functions in this library leave a "grace space" of
+# 1 column and 1 line.  If LineGap or ColGap is passed and is a non-negative
+# value, the line gap is set to it.
+function HeadTailInit(Lines,Cols,LineGap,ColGap,  Cmd) {
+    # tput will use values in environment, but we want to avoid running
+    # it if possible.
+    if (Cols > 0)
+	COLUMNS = Cols
+    else if (!Cols)
+	if ("COLUMNS" in ENVIRON)
+	    COLUMNS = ENVIRON["COLUMNS"]
+	else {
+	    Cmd = "exec tput cols"
+	    Cmd | getline COLUMNS
+	    close(Cmd)
+	    if (COLUMNS == "")
+		COLUMNS = 80
+	}
+    if (Lines > 0)
+	LINES = Lines
+    else if (!Lines)
+	if ("LINES" in ENVIRON)
+	    LINES = ENVIRON["LINES"]
+	else {
+	    Cmd = "exec tput lines"
+	    Cmd | getline LINES
+	    close(Cmd)
+	    if (LINES == "")
+		LINES = 24
+	}
+    LINEGAP = (LineGap != "" && LineGap >= 0) ? LineGap : 1
+    COLGAP = (ColGap != "" && ColGap >= 0) ? ColGap : 1
+}
+
+# Do screen-bound printing.  
+# If LINES  is >0, the last LINES-LINEGAP lines are kept in a circular buffer.  
+# When TailFlush() is called, they are printed.
+# If LINES = 0, all lines are printed immediately.
+# If COLUMNS is >0, truncates Line to COLUMNS-COLGAP characters before printing
+# it.
+# Global vars: uses LINES & COLUMNS; sets/uses TailPtr;
+# saves lines in TailLines[] from 1..LINES-LINEGAP
+# Embedded newlines split the line into multiple lines; trailing newlines are
+# stripped.  Tabs are expanded to spaces.
+function TailPrint(Line) {
+    if (!LINES)
+	print Line
+    else {
+	if (++TailPtr > (LINES-LINEGAP))
+	    TailPtr = 1
+	TailLines[TailPtr] = Line
+    }
+}
+
+function TailFlush(  NumPrinted,Lines,Line,i,Buffer,PrintLines) {
+    if (!LINES)
+	return
+    NumPrinted = 0
+    PrintLines = LINES-LINEGAP
+    # Since lines may contain multiple lines, we must create a buffer to be
+    # printed by reading line buffer backwards.
+    # Stop when we have copied enough lines, or if we wrap around to the end
+    # and find that the entire line buffer was not used.
+    while (NumPrinted < PrintLines && TailPtr in TailLines) {
+	# Split line into individual lines, then process them last to first
+	Num = split(TailLines[TailPtr],Lines,"\n")
+	for (i = Num; i >= 1; i--) {
+	    Line = Lines[i]
+	    if (i == Num && Line == "")	# discard trailing newline
+		continue
+	    # Put this line at the front of the print buffer
+	    if (COLUMNS)
+		Buffer = substr(TabEx(Line),1,COLUMNS - COLGAP) "\n" Buffer
+	    else
+		Buffer = Line "\n" Buffer
+	    if (++NumPrinted == PrintLines)
+		break
+	}
+	if (!--TailPtr)	# Wrap pointer if neccessary
+	    TailPtr = PrintLines
+    }
+    printf "%s",Buffer
+}
+
+# Do screen-bound printing.  
+# If LINES >0, returns 0 when LINES-LINEGAP lines have been printed by
+# HeadPrint().  Otherwise returns 1.
+# If COLUMNS is >0, truncates Line to COLUMNS-COLGAP characters before printing
+# it.
+# Global vars: uses LINES, COLUMNS, LINEGAP, COLGAP; sets/uses LinesPrinted.
+# Line should not include newlines.
+function HeadPrint(Line) {
+    # Check first, in case some calls of this function to not check return
+    # value, and in case LINES is 1.
+    if (LINES && LinesPrinted >= (LINES-LINEGAP))
+	return 0
+    if (COLUMNS)
+	print substr(Line,1,COLUMNS - COLGAP)
+    else
+	print Line
+    if (LINES && ++LinesPrinted >= (LINES-LINEGAP))
+	return 0
+    return 1
+}
+
+function ColPrint(Line) {
+    if (COLUMNS)
+	print substr(Line,1,COLUMNS - COLGAP)
+    else
+	print Line
+    return 1
+}
+
+### End head-tail routines
+### Begin qsort routines
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k[] are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its elements.
+# The return value is the number of elements in the arrays (n).
+function qsortArbIndByValue(Arr,k,  ArrInd,ElNum) {
+    ElNum = 0
+    for (ArrInd in Arr)
+	k[++ElNum] = ArrInd
+    qsortSegment(Arr,k,1,ElNum)
+    return ElNum
+}
+
+# Sort a segment of an array.
+# Arr[] contains data with arbitrary indices.
+# k[] has indices 1..nelem, with the indices of arr[] as values.
+# This function sorts the elements of arr that are pointed to by
+# k[start..end], swapping the values of elements of k[] so that
+# when this function returns arr[k[start..end]] will be in order.
+function qsortSegment(Arr,k,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((end - start) == 1) {
+	if (Arr[tmps = k[start]] > Arr[tmpe = k[end]]) {
+	    k[start] = tmpe
+	    k[end] = tmps
+	}
+	return
+    }
+    # Make sure comparisons act on these as numbers
+    left = start+0
+    right = end+0
+    sepval = Arr[k[int((left + right) / 2)]]
+    # Make every element <= sepval be to the left of every element > sepval
+    while (left < right) {
+	while (Arr[k[left]] < sepval)
+	    left++
+	while (Arr[k[right]] > sepval)
+	    right--
+	if (left < right) {
+	    tmp = k[left]
+	    k[left++] = k[right]
+	    k[right--] = tmp
+	}
+    }
+    if (left == right)
+	if (Arr[k[left]] < sepval)
+	    left++
+	else
+	    right--
+    if (start < right)
+	qsortSegment(Arr,k,start,right)
+    if (left < end)
+	qsortSegment(Arr,k,left,end)
+}
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its indices.
+# The return value is the number of elements in the arrays (n).
+# If the indexes are numeric, Numeric should be true, so that they can be
+# compared as such rather than as strings.  Numeric indexes do not have to be
+# contiguous.
+function qsortByArbIndex(Arr,k,Numeric,  ArrInd,ElNum) {
+    ElNum = 0
+    if (Numeric)
+	# Indexes do not preserve numeric type, so must be forced
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd+0
+    else
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd
+    qsortNumIndByValue(k,1,ElNum)
+    return ElNum
+}
+
+# Arr is an array of elements with contiguous numeric indexes to be sorted
+# by value.
+# start and end are the starting and ending indexes of the range to be sorted.
+function qsortNumIndByValue(Arr,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((start - end) == 1) {
+	if ((tmps = Arr[start]) > (tmpe = Arr[end])) {
+	    Arr[start] = tmpe
+	    Arr[end] = tmps
+	}
+	return
+    }
+    left = start+0
+    right = end+0
+    sepval = Arr[int((left + right) / 2)]
+    while (left < right) {
+	while (Arr[left] < sepval)
+	    left++
+	while (Arr[right] > sepval)
+	    right--
+	if (left <= right) {
+	    tmp = Arr[left]
+	    Arr[left++] = Arr[right]
+	    Arr[right--] = tmp
+	}
+    }
+    if (start < right)
+	qsortNumIndByValue(Arr,start,right)
+    if (left < end)
+	qsortNumIndByValue(Arr,left,end)
+}
+
+### End qsort routines
+
+# Put a list of login shells (from /etc/shells) into set LoginShells[].
+# Returns -1 if /etc/shells could not be read, else the number of shells found.
+function ReadShells(LoginShells,  ret,Num,Line) {
+    while (ret = ((getline Line < "/etc/shells") == 1))
+	if (Line ~ "^/") {
+	    Num++
+	    sub(/[ \t]+/,"",Line)
+	    LoginShells[Line]
+	}
+    close("/etc/shells")
+    _DidReadShells = 1
+    return ret ? -1 : Num
+}
+
+# Makes array shellUser[], indexed by user name, tell whether that each user
+# has a shell in /etc/shells.
+# Returns 1 on success, 0 if there is a problem reading /etc/shells or
+# /etc/passwd.
+function makeShellUser(shellUser,  LoginShells,ret,oFS) {
+    if (ReadShells(LoginShells) < 0)
+	return 0
+    oFS = FS
+    FS = ":"
+    while (ret = ((getline < "/etc/passwd") == 1))
+	shellUser[$1] = ($7 in LoginShells)
+    close("/etc/passwd")
+    FS = oFS
+    return !ret
+}
+### Begin ps lib
+# getPS 1.1	
+# 96/10/09	john h. dubois iii (john@armory.com)
+# 96/02/11	Added Debug flag.
+# 96/05/09	Added COMM field.
+# 96/05/23	Added selection args, and saving of "ps" PID.
+# 96/05/25	Added makePSline()
+# 96/10/09	Added RUSER field.
+# 96/12/14	Added CMDT field.
+
+# Note: makePSline() needs assign() from array lib.
+# to do: generalize based on -o args to 5.0 ps
+
+# Do a ps -f and save the output into an array, indexed by pid and field name.
+# Input vars:
+# Fields: Comma-separated list of fields to put in Procs.
+# If Debug is true, debugging info is output.
+# selectionArgs may be set to ps options that will report on selected processes
+# (e.g. -usomeone -ttty01)
+# The default for selectionArgs is -e, which causes information on all
+# processes to be recorded.
+#
+# Output vars:
+# PIDs[]: the set of all PIDs seen.
+# Also, the element with index "ps" is set to the PID for the ps process.
+# Procs[pid,fieldname]: output by field.
+#
+# Possible fields are:
+# UID: User ID; name if available, else number.
+# RUSER: Real user ID; name if available, else number.  Only available under
+#       5.0, and cannot be requested along with UID.
+# PPID: Parent process ID.
+# C: CPU scheduling.
+# STIME: Start time.  If the start time in the ps output contains a space,
+# it is replaced with a "-".  "-" is returned for a defunct process.
+# TTY: tty name; may or may not have leading "tty" part.  "-" for defunct proc;
+# "?" for proc with no controlling tty.
+# TIME: CPU time used.
+# CMD: First element of arg vector.
+# CMDT: Like CMD, but just the tail (leading path components removed), unless
+#       the path ends with /, in which case it is identical to CMD.
+# ARGS: Entire (truncated) arg vector (command + args).
+# LINE: Entire ps output line.
+# COMM: Process accounting name of process: the name of the executable file,
+#       without path.  This is only available under 5.0, and cannot be
+#       requested along with CMD/CMDT or ARGS.
+#
+# The header line read is also put in Procs with the index "Header".
+# The PIDs of the children of each process are put in a comma-separated list
+# in Children[pid].
+# Return value: the number of processes found, or -2 if an invalid field name
+# is passed, or -1 if an error occurs reading from ps.
+# Globals: FS is set to " "
+#
+# ps -f produces output in these forms, under various conditions & releases:
+#     UID   PID  PPID  C    STIME     TTY        TIME CMD
+#    root 10118 10107  2   Jan-03   ttyp0    00:00:05 -ksh
+#    root 10118 10107  2   Jan 03   ttyp0    00:00:05 -ksh
+#    root 18197     1  0 08:02:56   ttyp0    00:00:03 /usr/bin/X11/scoterm -geo
+function getPS(PIDs,Procs,Fields,Children,Debug,selectionArgs,
+stimeI,pidI,ttyI,ppidI,WantLine,psArgs,psSet,newPS,
+FieldNames,Wanted,Cmd,getI,Field2Ind,i,Name,Lines,WantArgs,Header,CmdIndex,fn,
+wantCmdt) {
+    FS = " "	# magic pattern to reset FS to its default special behaviour
+    split("UID,PID,PPID,C,STIME,TTY,TIME,CMD",FieldNames,",")
+    # psSet[] maps field number to field name
+    split("user,pid,ppid,c,stime,tty,time,args",psSet,",")
+    # Alt[] maps new ps field names to field numbers
+    Alt["RUSER"] = 1
+    Alt["COMM"] = 8
+    FieldNames[0] = "LINE"
+    for (i in FieldNames)	# Field2Ind[] maps field names to field numbers
+	Field2Ind[FieldNames[i]] = i
+    split(Fields,Wanted,",")
+    pidI = Field2Ind["PID"]
+    ppidI = Field2Ind["PPID"]
+    stimeI = Field2Ind["STIME"]
+    ttyI = Field2Ind["TTY"]
+    timeI = Field2Ind["TIME"]
+    cmdI = Field2Ind["CMD"]
+    psArgs = "-f"
+    for (i in Wanted) {
+	Name = Wanted[i]
+	if (Debug)
+	    printf "Asked for %s\n",Name > "/dev/stderr"
+	# getI[] is made to contain the indices of fields to record
+	if (Name == "ARGS")
+	    WantArgs = 1
+	else if (Name == "LINE")
+	    WantLine = 1
+	else if (Name == "CMDT")
+	    wantCmdt = 1
+	else if (Name in Alt) {		# New ps fields
+	    newPS = 1
+	    # Change the name of this field to that of the alternate requested
+	    psSet[Alt[Name]] = tolower(Name)
+	    fn = Field2Ind[Name] = Alt[Name] # Map this name to its field number
+	    getI[fn]
+	    FieldNames[fn] = Name
+	}
+	else if (Name in Field2Ind)
+	    getI[Field2Ind[Name]]
+	else
+	    return -2
+    }
+    if (newPS) {
+	psArgs = ""
+	for (i = 1; i in psSet; i++)
+	    psArgs = psArgs " -o" psSet[i]
+    }
+    Lines = 0
+    if (selectionArgs == "")
+	selectionArgs = "-e"
+    Cmd = "echo $$; exec /bin/ps " selectionArgs " " psArgs " < /dev/null"
+    if ((Cmd | getline PIDs["ps"]) != 1)
+	return -1
+    if ((Cmd | getline Header) != 1)
+	return -1
+    Procs["Header"] = Header
+    if (!(CmdIndex = index(Header,"CMD")) &&
+    !(CmdIndex = index(Header,"COMMAND")))
+	return -1
+    while ((Cmd | getline) == 1) {
+	PIDs[pid = $pidI]
+	if (Debug)
+	    printf "Process %d (%d fields): %s\n",pid,NF,$0 > "/dev/stderr"
+	ppid = $ppidI
+	if (ppid in Children)
+	    Children[ppid] = Children[ppid] "," pid
+	else
+	    Children[ppid] = pid
+	if (WantArgs)
+	    Procs[pid,"ARGS"] = substr($0,CmdIndex)
+	# Handle this as a special case so that it can be set before the
+	# line is (possibly) modified
+	if (WantLine)
+	    Procs[pid,"LINE"] = $0
+	# Time field with either contain a : (time), a - (new date format),
+	# or neither, in which case it occupies 2 fields (old date format).
+	if (NF == 6) {	# old ps defunct proc
+	    # Assign new values to fields, from right to left to avoid
+	    # overwriting fields before value is moved
+	    $cmdI = $ttyI
+	    $timeI = $stimeI
+	    $ttyI = "-"
+	    $stimeI = "-"
+	}
+	if ($stimeI !~ "[-:]") {
+	    if (!timePos)
+		timePos = index($0,$stimeI)
+	    # Replace space in stime field with "-"
+	    $0 = substr($0,1,timePos+2) "-" substr($0,timePos+5)
+	}
+	if (wantCmdt) {
+	    Procs[pid,"CMDT"] = $cmdI
+	    if ($cmdI !~ "/$")
+		sub(".*/","",Procs[pid,"CMDT"])
+	}
+	for (i in getI) {
+	    Procs[pid,FieldNames[i]] = $i
+	    if (Debug)
+		printf "%s=%s ",FieldNames[i],$i > "/dev/stderr"
+	}
+	if (Debug)
+	    print "" > "/dev/stderr"
+	Lines++
+    }
+    close(Cmd)
+    return Lines
+}
+
+# makePSline: generate a line containing desired fields from ps data.
+# pid is the ID of the process to generate a line for.
+# If a pid of -1 is passed, a header line is returned.
+# Procs[] is the ps data, as generated by getPS().
+# Fields[] is the set of fields desired in the output, with indexes starting
+#    at 1.  The values are field names as e.g. passed to getPS().
+# Sep is the separator to put between fields.  If null, a single space is used.
+# Return value: a line consisting of the fields requested, in the order of
+# their indices in Fields[].
+# Example:
+# split("UID,PID,PPID,C,STIME,TTY,TIME,CMD",FieldNames,",")
+# makePSline(pid,psOut,FieldNames)
+function makePSline(pid,Procs,Fields,Sep,  i,fieldName,line,width,value) {
+    if (Sep == "")
+	Sep = " "
+    if (!("PID" in _makePSlineWidths))
+	# Make TIME before right-adjusted; some versions of ps drop leading
+	# 0 fields from it.
+	Assign(_makePSlineWidths,
+	"UID=-8 PID=5 PPID=5 C=1 STIME=-8 TTY=-4 TIME=8 COMM=-8"," ","=")
+    for (i = 1; i in Fields; i++) {
+	fieldName = Fields[i]
+	if (fieldName in _makePSlineWidths)
+	    width = _makePSlineWidths[fieldName]
+	else
+	    width = ""
+	if (pid == -1)
+	    value = fieldName
+	else if (fieldName == "PID")
+	    value = pid
+	else
+	    value = Procs[pid,fieldName]
+	if (fieldName == "TTY")
+	    sub("^tty","",value)
+	line = line Sep sprintf("%" width "s",value)
+    }
+    return substr(line,length(Sep)+1)
+}
+
+### End ps lib
+### Begin set library
+# 96/05/23 added return values  jhdiii
+# 96/05/25 added set2list()
+# 97/01/26 Added AOnly(), Exclusive()
+
+# Return value: the number of new elements added to Inter
+function Intersection(A,B,Inter,  Elem,Count) {
+    for (Elem in A)
+	if (Elem in B && !(Elem in Inter)) {
+	    Inter[Elem]
+	    Count++
+	}
+    return Count
+}
+
+# Any element that is in A or B but not both and which is not already in
+# Excl is added to Excl.
+# Return value: the number of new elements added to Excl
+function Exclusive(A,B,Excl) {
+    return AOnly(A,B,Excl) + AOnly(B,A,Excl)
+}
+
+# Any element that is in A and not in B or aOnly is added to aOnly.
+# Return value: the number of new elements added to aOnly.
+function AOnly(A,B,aOnly,  Elem,Count) {
+    for (Elem in A)
+	if (!(Elem in B) && !(Elem in aOnly)) {
+	    aOnly[Elem]
+	    Count++
+	}
+    return Count
+}
+
+# Return value: the number of new elements added to Both
+function Union(A,B,Both) {
+    return CopySet(A,Both) + CopySet(B,Both)
+}
+
+# Deletes any elements that are in both Minuend and Subtrahend from Minuend.
+# Return value: the number of elements deleted.
+function SubtractSet(Minuend,Subtrahend,  Elem,nDel) {
+    for (Elem in Subtrahend)
+	if (Elem in Minuend) {
+	    delete Minuend[Elem]
+	    nDel++
+	}
+    return nDel
+}
+
+# Return value: the number of new elements added to To
+function CopySet(From,To,  Elem,n) {
+    for (Elem in From)
+	if (!(Elem in To)) {
+	    To[Elem]
+	    n++
+	}
+    return n
+}
+
+# Returns 1 if Set is empty, 0 if not.
+function IsEmpty(Set,  i) {
+    for (i in Set)
+	return 0
+    return 1
+}
+
+# MakeSet: make a set from a list.
+# An index with the name of each element of the list is created in the given
+# array.
+# Input variables:
+# Elements is a string containing the list of elements.
+# Sep is the character that separates the elements of the list.
+# Output variables:
+# Set is the array.
+# Return value: the number of new elements added to the set.
+function MakeSet(Set,Elements,Sep,  i,Num,Names,nFound,ind) {
+    nFound = 0
+    Num = split(Elements,Names,Sep)
+    for (i = 1; i <= Num; i++) {
+	ind = Names[i]
+	if (!(ind in Set)) {
+	    Set[ind]
+	    nFound++
+	}
+    }
+    return nFound
+}
+
+# Returns the number of elements in set Set
+function NumElem(Set,  elem,Num) {
+    for (elem in Set)
+	Num++
+    return Num
+}
+
+# Remove all elements from Set
+function DeleteAll(Set,  i) {
+    split("",Set,",")
+}
+
+# Returns a list of all of the elements in Set[], with each pair of elements
+# separated by Sep.
+function set2list(Set,Sep,  list,elem) {
+    for (elem in Set)
+	list = list Sep elem
+    return substr(list,2)	# skip 1st separator
+}
+### End set library

@@ -1,0 +1,41 @@
+:
+# @(#) lensort.sh 1.0 94/06/13
+# 94/06/13 john h. dubois iii (john@armory.com)
+# Sort file by line length
+
+Usage="Usage: $0 [-hr] [-g<minlen>] [-l<maxlen>] [filename] ..."
+Reverse=
+MaxLen=0
+MinLen=0
+
+while getopts :hrg:l: opt; do
+    case $opt in
+    h) echo \
+"$0: Sort files by line length.
+$0 sorts files, placing the shortest lines first.
+$Usage
+Options:
+-h: Print this help.
+-g<minlen>: Print only lines with length greater than or equal to <minlen>.
+-l<maxlen>: Print only lines with length less than or equal to <maxlen>.
+-r: Reverse sort; place longest lines first."
+       exit 0;;
+    r) Reverse=r;;
+    g) MinLen=$OPTARG;;
+    l) MaxLen=$OPTARG;;
+    +?) echo "$0: options should not be preceded by a '+'."; exit 1;;
+    ?) echo "$0: $OPTARG: bad option.  Use -h for help."; exit 1;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+awk '
+{
+    Len = length($0)
+    if ((MaxLen == 0 || Len <= MaxLen) && (MinLen == 0 || Len >= MinLen))
+	printf "%04d %s\n",Len,$0
+}
+' MaxLen=$MaxLen MinLen=$MinLen "$@" | sort -n$Reverse | cut -c6-

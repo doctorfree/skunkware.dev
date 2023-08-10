@@ -1,0 +1,58 @@
+#!/bin/ksh
+# @(#) corename.ksh 1.2 96/05/21
+# 92/11/11 john h. dubois iii (john@armory.com)
+# 92/02/16 Added help option.
+# 92/02/22 Added cd to origdir to fix prob w/multiple relative paths.
+# 93/04/01 Added check for whether file exists.
+# 94/09/20 Use _fst if adb not available.
+# 96/01/20 Print 'empty' for 0-size corefiles.
+# 96/05/21 Let dir names be given.
+
+# inspired by belal's equivalent utility
+
+name=${0##*/}
+if [ "$1" = -h ]; then
+    print -- \
+"$name: print the names of executables that dumped core.
+Usage: $name [filename ...]
+If no filename is given, \"core\" is assumed.  If a directory name is given,
+the file \"core\" in that directory is searched for."
+    exit 0
+fi
+
+type adb > /dev/null && adb=adb || adb=/etc/_fst
+type $adb > /dev/null || {
+    print -u2 "adb is not available."
+    exit 1
+}
+
+[ $# = 0 ] && set core
+origdir=$PWD
+for i; do
+    cd $origdir
+    if [ -d "$i" ]; then
+	file=core
+	dir=$i/
+	i=$dir$file
+    else
+	file=${i##*/}
+	dir=${i%$file}
+    fi
+    [ -z "$dir" ] && dir=$origdir/
+    if [ ! -f $dir$file ]; then
+	print -u2 -- "$dir$file: No such file."
+	continue
+    fi
+    if [ ! -r $dir$file ]; then
+	print -u2 -- "$dir$file: Cannot open."
+	continue
+    fi
+    if [ ! -s $dir$file ]; then
+	print -u2 -- "$dir$file: (empty)"
+	continue
+    fi
+    cd $dir
+    set $($adb $file < /dev/null)
+    name=${4#??}
+    print -- "$i: ${name%??}"
+done

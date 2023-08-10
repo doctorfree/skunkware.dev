@@ -1,0 +1,27 @@
+#!/usr/bin/awk -f
+# @(#) mk_hexkeys.awk 1.0 91/10/14
+# 91/06/25 john h. dubois iii
+
+# This program produces as its output a mapchan file which lets you configure
+# any tty (console/serial/whatever) to translate the sequence
+# control-B x x
+# where x is a hex-char 0-9a-f into the character whose 8-bit value is xx.
+# Because you can only map 255 compose-key/dead-key sequences, it only works
+# with the hex chars given in lower case.  Also, ^B00 is not mapped because you
+# cannot map to a null char.  I mapped hex sequences rather than decimal
+# sequences because you can only have one compose character and it can only be
+# followed by 2 characters.  Change the "2" after compose to some other value
+# to set the compose character to something other than ^B.  Note that this uses
+# up the compose character/dead key mapping space, so if you are currently
+# using mapchan for input with a compose character or dead key you cannot use
+# this unless you reduce the number of sequences mapped.  You might change the
+# loop to
+# (i = 128; ...
+# to only map the high-bit characters.
+
+BEGIN { 
+    print("input\ncompose 2")
+    for (i = 1; i < 256; i++)
+	printf("'%x' '%x' 0x%x\n",i / 16,i % 16,i)
+    print("output")
+}
