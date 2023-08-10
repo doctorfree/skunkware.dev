@@ -1,0 +1,303 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:  This is a UNIXWARE FAX document
+TITLE:  Printing with UnixWare
+DOCUMENT ID:  TID015300
+DOCUMENT REVISION:  A
+DATE:  04MAR94
+AUTHOR:  BAMUNDSO
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Printing
+
+ABSTRACT:
+
+This document explains printing with UnixWare, including set up and troubleshooting.  Both local and network printing is discussed.
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+ISSUE
+
+Printing on UnixWare has been made very simple.  You can do most printer maintenance through the System Setup menu under the Printer Setup facility in the graphical desktop.
+
+This document discusses Local printing, Remote printing, NetWare printing, and printing through Merge.  All printing is set up through the Graphical Desktop (GUI), using the System Setup menu and Printer Setup facility.
+
+
+Local Printing
+
+þ	Parallel Printing
+
+	UnixWare has been shipped with a default LPT1 I/O address of 378-37f.  Some popular machines as well as clones are being shipped with an alternative I/O address for their LPT ports.  This results in not being able to "enable" a printer connected to the local LPT port on the UnixWare machine.
+
+	If you have trouble enabling your local parallel printer, try modifying the port address for your LPT1 port as follows:
+
+	Type the following command and press <enter>.
+
+		vi /etc/conf/sdevice.d/lp
+
+	Replace the 378 with 3bc, and 37f with 3be, so the line will look as shown in the following example:
+
+		lp  Y  1  3  1  7  3bc  3be  0  0  -1
+
+	Then rebuild your kernel and reboot by typing the following command and pressing <enter>:
+
+		/etc/conf/bin/idbuild -B
+
+	After the machine comes up, you will be able to enable your printer through the graphical utility:
+
+	1.	Select the "System Setup" option.
+	2.	Select the "Printer Setup" option.
+	3.	Highlight a printer
+	4.	Select the "Actions" option.
+	5.	Select the "Control Printer" option.
+
+þ	Serial printing
+	If you are having flow control problems on serial printers manifesting itself by disabling the printer after a few pages or by the print job restarting after a few pages, you need to do the following:
+
+	If you are printing from the GUI, do the following:
+
+	1.	Type the following command and press <enter>:
+
+			vi /usr/X/desktop/PrintMgr/Printers
+
+	2.	Search for your printer type, such as HP LaserJet
+
+	3.	Change the "stty: -onlcr" entry to the following:
+
+			stty: clocal -onlcr
+
+		Doing this will affect all currently created printers and any printers created in the future.
+
+	If you are printing from the command line, do the following:
+
+	1.	Type the following command and press <enter>:
+
+			lpadmin -p printername -o stty="'clocal -onlcr'"
+
+		where printername is the name of the printer.
+
+	2.	Issue this command for each printer that is having problems.
+
+
+Remote Printing
+
+Remote Unix printing is defined as printing to a printer on another Unix machine through TCP/IP.  Remote NetWare printing is defined as printing to a printer on a NetWare server, just like a DOS workstation would print through IPX.
+
+þ	Setting Up to Print to a Remote Printer
+
+	To set a UnixWare machine up as a remote printer client, do the following:
+
+	1.	Make sure the printer host is in your /etc/hosts file by running the following utilities:
+
+			System Setup, then Internet Setup
+
+		Note:	If you are setting up a remote NetWare printer you do not need to do this step.
+
+	2.	Set up a Remote printer as normal using the utility: "System Setup" then "Printer Setup"
+
+	3.	Make sure the remote host is enabled properly in Printer Setup:
+
+		a.	Select the Actions option.
+
+		b.	Set the Remote Access value.
+
+		c.	Click on the remote host name and enable it for BSD, System V or NetWare.
+
+	You should now be able to print to the remote printer, given that the remote host with the printer is set up properly.  Every remote Unix system requires some kind of configuration to allow other machines to print to them.  If you are printing to a NetWare printer, no configuration on the NetWare server is required.
+
+þ	Setting Up UnixWare as a Printing Host
+
+	To setup UnixWare as a printer host, do the following steps:
+
+	1.	Make sure the printer client is in your /etc/hosts file by running the System Setup then Internet Setup utilities.
+
+	2.	Create a printer in the System Setup then the Printer Setup utilities.  Make sure to click on the Allow Remote Access button.
+
+	3.	Make sure the remote system is enabled in the: Actions, Set Remote Access option.
+
+	4.	Be sure a banner is not required for this printer by going into the Printer option, then Properties, then the Configuration option.
+
+	Remote clients will now be able to print.
+
+NetWare Printing:
+
+When printing to a NetWare printer, doing some additional configuration for your desired results is possible.  All configuration is done in the following file called:
+
+	 /etc/lp/printers/printername/configuration
+
+Note:	These options are case sensitive.
+
+þ	Controlling the Banner
+
+	Banner: on		*	This option will print a banner page unless instructed not to do so by the lp command.
+
+	Banner: off		*	This option will not print a banner unless instructed to do so by the lp command.
+
+	Banner: off:Always	*	This option will never print a banner page.
+
+	Banner: on:Always	*	This option will always print a banner page.
+
+þ	Controlling the form feed
+
+	Form feed: on		*	This option will send a FF at the end of the job.
+
+	Form feed: off		*	This option will not send a FF at the end of the job.
+
+þ	Controlling authentication to the NetWare server
+
+	User: UnixWare_username
+
+	When printing to a NetWare server, you will receive an authenticator box to log in to the NetWare server, which will allow you to print.
+
+	The User option makes it possible so that only one UnixWare user will need to authenticate to the NetWare server.
+
+	After this is done, all other users may print to NetWare without authenticating.  Normally, you would use root as the UnixWare User; however, any user will do.
+
+
+Troubleshooting Remote Printing
+
+About 99 percent of the time is spent on troubleshooting.  The following is a description of some files you can access to help in the remote printing troubleshooting process.
+
+þ	lpNet
+
+	The lpNet file is the program that initiates the connection request to the remote Unix machine and answers the remote requests from other machines.
+
+	There is a log file that can help determine what is going on behind the scenes.  The best way to view this file is with the following tail command:
+
+		tail /etc/lp/logs/lpNet
+
+	If you want to get more lines displayed you can, type the following command and press <enter>:
+
+		tail -100 /etc/lp/logs/lpNet
+
+	This command will display the last 100 lines of the file.
+
+	To display in real time when the file is updated, type the following command and press <enter>:
+
+		tail -f /etc/lp/logs/lpNet
+
+		To terminate this command, you must press <Del>.
+
+		This file contains information about the connection to the remote machine, as well as which requests have been made to UnixWare.
+
+		Basically, what you are looking for is if lpNet is attempting to make a connection to the remote machine or if it receives requests from the remote machine.  You should expect to see something similar to one of the following phrases:
+
+			"Connected to remote child"
+			"Started child for remotehost, pid = nnnn"
+			"remotehost requests recvjob printername"
+
+þ	Connection Server  (cs)
+
+	The connection server (cs) is the actual program that makes the connection between the two machines.  The connection server can be started in debug mode so you can get further information on problems.
+
+	To start this process, type the following command and press <enter>:
+
+			ps -ef |grep cs
+
+	To find the process id of cs then kill it, type the following command and press <enter>:
+
+		kill cs_pid
+
+	Start it in debug mode by typing the following command and press <enter>:
+
+		/usr/sbin/cs -d
+
+	Now you can view other information about connections in /usr/adm/log/cs.debug file.
+
+	To view the file, use the tail command as previously mentioned.
+
+	Information from this file is sometimes alarming, giving many errors that do not even apply.  These errors state that getbyname failed.  You can ignore these errors for the most part.  The main error to look for is whether the connection to the remote machine failed or succeeded.
+
+þ	MAIL
+
+	Check your mail on the client to see if any messages have been returned regarding printing.
+
+	For example, if you have setup a printer on UnixWare that requires a banner and the client is trying to print specifying no banner, the job will fail.  These kinds of messages will be sent in the mail.
+
+
+General Information:
+
+þ	Printer Configuration Files
+
+	All printer configuration files are stored in /etc/lp/printers/printername directories.  If you look into these directories, you can see what the characteristics of the printer are.
+
+	The Set Remote Access window, gets its information from /etc/lp/Systems file.  This file indicates what systems to which you are set up to print
+
+þ	Printing From Merge
+
+	Advanced Merge comes standard with UnixWare 1.1.  It allows you to run both DOS and Windows applications in UnixWare.  Printing from Merge can be done in three ways:
+
+	þ	Direct to the lp port
+	þ	Sent to the unix spooler
+	þ	Sent to NetWare with CAPTURE as is done with standard DOS machines.
+
+	1.	Direct to the lp port
+
+		This method is the least used of all methods because of its lack of flexibility.  It only allows you to print to local LPT ports; whereas, the other methods allow you to print to any printer: Remote Unix, Remote NetWare, or local serial.
+
+		To use this method, access the DOS Options menu as described below and choose DOS (Direct):lpn in the LPT Ports section.  All printing will then go directly to the lpt port.
+
+	2.	Sent to the unix spooler
+
+		This is the recommend, most versatile way to print.
+
+		a.	Access the DOS Options menu and choose UNIX (spooled) in the LPT Ports section.  (This is the default setting)
+
+		b.	In the AUTOEXEC.BAT file in your home directory or the root (/) directory, add the following line:
+
+				printer LPT1 unix "lp -d printername"
+
+			This works like the capture command in DOS that redirects all output going to lpt1 to the Unix Spooler with the specified lp command.  The lp command must be within quotes as shown in the example and can contain any valid lp options, such as -o nobanner, and so forth.
+
+	3.	Sent to NetWare with CAPTURE as is done with standard DOS machines.
+
+		When DOS merge is started, it executes the AUTOEXEC.BAT file at the root as well as the AUTOEXEC.BAT file in your home directory.  The AUTOEXEC.BAT file at the root contains lines to start /usr/bin/ipxtli and /usr/bin/netx.  You may then go to drive O: and login as normal.
+
+		After you are logged into a NetWare server, you can do a CAPTURE as normal and print as you would from a standard DOS machine.  This method will work even if method 2 is used; the NetWare capture command will override the Merge "printer" command.
+
+þ	Printing from Microsoft Windows
+
+	Printing from Microsoft Windows is no different than printing from DOS.  Either you print to a Unix printer (method 2) or print to a NetWare printer like from a standard DOS/Windows machine (method 3).  When using method 3, it is best to log in to your NetWare network before running Windows through your AUTOEXEC.BAT file.
+
+	One warning with Windows printing has been discovered.  If you are using method 2, you must instruct Windows to print to the port LPT1.DOS in the following menu:
+
+	Select Main.
+	Select Control Panel.
+	Select Printers.
+	Select Connect.
+
+	If you are printing using method 3, then Windows must be setup for a Novell NetWare network Shell version 3.26 or above, in the following menu:
+
+	Select Main.
+	Select Window Setup.
+	Select Network.
+
+þ	Accessing the DOS icon Menu
+
+	To bring up the DOS icon menu, click on the right button of a three button mouse, or highlight the DOS icon and press F4.  Then choose the Options menu option.
+
+
+
+
+
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+

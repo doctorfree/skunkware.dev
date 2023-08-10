@@ -1,0 +1,2311 @@
+<HTML>
+<HEAD>
+<TITLE>TclX</TITLE>
+</HEAD>
+<!--
+Light Blue Background
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+New Midnight Blue Background
+<BODY BGCOLOR=#00009C LINK=#00FFFF VLINK=#00C8C8 TEXT=#23D8FF ALINK=#00FF00>
+White Background
+<BODY BGCOLOR=#FFFFFF TEXT=#000000 LINK=#0000FF VLINK=#00009C ALINK=#00FF00>
+Black Background
+<BODY BGCOLOR=#000000  TEXT=#FFFFFF LINK=#0077FF VLINK=#FF3EE4 ALINK=#00FF00>
+-->
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+<H1>TclX</H1>
+<HR>
+<PRE>
+     <STRONG>NAME</STRONG>
+          TclX - Extended Tcl: Extended command set for Tcl
+
+     <STRONG>INTRODUCTION</STRONG>
+          This man page contains the  documentation  for  all  of  the
+          extensions  that  are added to Tcl 7.4 by Extended Tcl (TclX
+          7.4a).  These extensions provide extend  Tcl's  capabilities
+          by adding new commands to it, without changing the syntax of
+          standard Tcl.  Extended Tcl is a superset  of  standard  Tcl
+          and  is  built alongside the standard Tcl sources.  Extended
+          Tcl has three basic functional areas: A set of new commands,
+          a  Tcl  shell  (i.e.  a  Unix  shell-style  command line and
+          interactive environment),  and a user-extensible library  of
+          useful  Tcl  procedures,  any  of which can be automatically
+          loaded on the first attempt to execute it.
+
+          The  command  descriptions  are   separated   into   several
+          sections:
+
+               o General Commands
+
+               o Debugging and Development Commands
+
+               o Unix Access Commands
+
+               o File Commands
+
+               o Network Programming Support
+
+               o File Scanning Commands
+
+               o Math Commands
+
+               o List Manipulation Commands
+
+               o Keyed Lists
+
+               o String and Character Manipulation Commands
+
+               o XPG/3 Message Catalog Commands
+
+               o Extended Tcl Shell
+
+               o Help Facility
+
+               o Tcl Loadable Libraries and Packages
+
+     <STRONG>GENERAL</STRONG> <STRONG>COMMANDS</STRONG>
+          A set of general, useful Tcl commands, includes a command to
+          begin  an  interactive  session  with  Tcl,  a  facility for
+          tracing execution, and a looping command.
+
+          <STRONG>dirs</STRONG> This procedure lists the directories in  the  directory
+               stack.
+
+          <STRONG>commandloop</STRONG> <STRONG>?-async</STRONG>? ?<STRONG>-interactive</STRONG> <STRONG>on|off|tty</STRONG>? ?<STRONG>-</STRONG>
+               <STRONG>prompt1</STRONG> <EM>cmd</EM>?
+               Create an interactive  command  loop  reading  commands
+               from  stdin  and  writing  results  to stdout.  Command
+               loops are maybe either be blocking or  event  oriented.
+               This  command  is  useful  for  Tcl scripts that do not
+               normally converse interactively with a user  through  a
+               Tcl  command  interpreter,  but which sometimes want to
+               enter  this  mode,  perhaps  for  debugging   or   user
+               configuration.  The command loop terminates on EOF.
+
+               The following options are available:
+
+               <STRONG>-async</STRONG>
+                    A command handler will be associated  with  stdin.
+                    When  input is available on stdin, it will be read
+                    and accumulated until a full command is available.
+                    That  command  will  then  be evaluated.  An event
+                    loop must be entered  to  make  for  input  to  be
+                    processed.
+
+               <STRONG>-interactive</STRONG> <STRONG>on|off|tty</STRONG>
+                    Enable or disable interactive  command  mode.   In
+                    interactive  mode,  commands  are prompted for and
+                    the results of comments are  printed.   The  value
+                    maybe  any  boolean value or <STRONG>tty</STRONG>.  If <STRONG>tty</STRONG> is used,
+                    interactive mode is enabled if stdin is associated
+                    with a terminal or terminal emulator.  The default
+                    is <STRONG>tty</STRONG>.
+
+               <STRONG>-prompt1</STRONG> <EM>cmd</EM>
+                    If specified, <EM>cmd</EM>  is used  is  evaluate  and  its
+                    result  used  for the main command prompt.  If not
+                    specified, the command in <STRONG>tcl_prompt1</STRONG> is evaluated
+                    to  output  the  prompt.   Note  the difference in
+                    behavior, <EM>cmd</EM> results is used,  while  <STRONG>tcl_prompt1</STRONG>
+                    outputs.  This is to allow for future expansion to
+                    command loops that write to other than stdout.
+
+               <STRONG>-prompt2</STRONG> <EM>cmd</EM>
+                    If specified, <EM>cmd</EM> is  used  is  evaluate  and  its
+                    result   used  for  the  secondary  (continuation)
+                    command prompt.  If not specified, the command  in
+                    <STRONG>tcl_prompt2</STRONG> is evaluated to output the prompt.
+
+               <STRONG>-endcommand</STRONG> <EM>cmd</EM>
+                    If specified, <EM>cmd</EM> is evaluated  when  the  command
+                    loop terminates.
+
+          In interactive mode, the results of set  commands  with  two
+          arguments are not printed.
+
+          If <STRONG>SIGINT</STRONG> is configured to generate a Tcl error, it  can  be
+          used  to  delete  the  current  command  being  type without
+          aborting the program in progress.
+
+          <STRONG>echo</STRONG> <STRONG>?</STRONG><EM>str</EM> ...?
+               Writes  zero  or  more  strings  to  standard   output,
+               followed by a newline.
+
+          <STRONG>infox</STRONG> <EM>option</EM>
+               Return information about Extended Tcl, or  the  current
+               application.  The  following  <STRONG>infox</STRONG> command options are
+               available:
+
+               <STRONG>version</STRONG>
+                    Return the version number of  Extended  Tcl.   The
+                    version  number  for  Extended Tcl is generated by
+                    combining the base version  of  the  standard  Tcl
+                    code  with  a  letter  indicating  the  version of
+                    Extended   Tcl   being   used.    This   is    the
+                    documentation for version <STRONG>7.4a</STRONG>.
+
+               <STRONG>patchlevel</STRONG>
+                    Return the patchlevel for Extended Tcl.
+
+               <STRONG>have_fchown</STRONG>
+                    Return <STRONG>1</STRONG> if the <STRONG>fchown</STRONG> system call  is  available.
+                    This  supports the <STRONG>-fileid</STRONG> option on the <STRONG>chown</STRONG> and
+                    <STRONG>chgrp</STRONG> commands.
+
+               <STRONG>have_fchmod</STRONG>
+                    Return <STRONG>1</STRONG> if the <STRONG>fchmod</STRONG> system call  is  available.
+                    This  supports  the  <STRONG>-fileid</STRONG>  option  on the <STRONG>chmod</STRONG>
+                    command.
+
+               <STRONG>have_flock</STRONG>
+                    Return <STRONG>1</STRONG> if the <STRONG>flock</STRONG> command defined,  <STRONG>0</STRONG> if it is
+                    not available.
+
+               <STRONG>have_fsync</STRONG>
+                    Return <STRONG>1</STRONG> if the <STRONG>fsync</STRONG> system call is available and
+                    the <STRONG>sync</STRONG> command will sync individual files.  <STRONG>0</STRONG> if
+                    it is not available  and  the  <STRONG>sync</STRONG>  command  will
+                    always sync all file buffers.
+
+               <STRONG>have_ftruncate</STRONG>
+                    Return <STRONG>1</STRONG> if the <STRONG>ftruncate</STRONG> or <STRONG>chsize</STRONG> system call is
+                    available.    If  it  is,  the  <STRONG>ftruncate</STRONG>  command
+                    <STRONG>-fileid</STRONG> option maybe used.
+
+               <STRONG>have_msgcats</STRONG>
+                    Return <STRONG>1</STRONG> if XPG message catalogs are available,  <STRONG>0</STRONG>
+                    if  they  are  not.   The  <STRONG>catgets</STRONG>  is designed to
+                    continue to  function  without  message  catalogs,
+                    always returning the default string.
+
+               <STRONG>have_posix_signals</STRONG>
+                    Return <STRONG>1</STRONG> if Posix signals are available (<STRONG>block</STRONG> and
+                    <STRONG>unblock</STRONG> options available for the signal command).
+                    <STRONG>0</STRONG> is returned if Posix signals are not available.
+
+               <STRONG>have_truncate</STRONG>
+                    Return <STRONG>1</STRONG> if the <STRONG>truncate</STRONG> system call is available.
+                    If  it  is,  the <STRONG>ftruncate</STRONG> command may truncate by
+                    file path.
+
+               <STRONG>have_waitpid</STRONG>
+                    Return <STRONG>1</STRONG> if the <STRONG>waitpid</STRONG> system call  is  available
+                    and the <STRONG>wait</STRONG> command has full functionality.  <STRONG>0</STRONG> if
+                    the <STRONG>wait</STRONG> command has limited functionality.
+
+               <STRONG>appname</STRONG>
+                    Return  the  symbolic  application  name  of   the
+                    current  application  linked with the Extended Tcl
+                    library.  The C variable <STRONG>tclAppName</STRONG> must be set by
+                    the  application to return an application specific
+                    value for this variable.
+
+               <STRONG>applongname</STRONG>
+                    Return a natural language  name  for  the  current
+                    application. The C variable <STRONG>tclLongAppName</STRONG> must be
+                    set by the application to  return  an  application
+                    specific value for this variable.
+
+               <STRONG>appversion</STRONG>
+                    Return  the  version  number   for   the   current
+                    application.  The C variable <STRONG>tclAppVersion</STRONG> must be
+                    set by the application to return  an  application-
+                    specific value for this variable.
+
+               <STRONG>apppatchlevel</STRONG>
+                    Return the patchlevel for the current application.
+                    The C variable <STRONG>tclAppPatchlevel</STRONG> must be set by the
+                    application  to  return  an   application-specific
+                    value for this variable.
+
+          <STRONG>for_array_keys</STRONG> <EM>var</EM> <EM>array_name</EM> <EM>code</EM>
+               This procedure performs a foreach-style loop  for  each
+               key  in  the  named  array.   The  <STRONG>break</STRONG>  and  <STRONG>continue</STRONG>
+               statements work as with <STRONG>foreach</STRONG>.
+
+          <STRONG>for_recursive_glob</STRONG> <EM>var</EM> <EM>dirlist</EM> <EM>globlist</EM> <EM>code</EM>
+               This  procedure  performs  a  foreach-style  loop  over
+               recursively  matched files.  All directories in <EM>dirlist</EM>
+               are  recursively  searched  (breadth-first),  comparing
+               each  file  found  against  the  file  glob patterns in
+               <STRONG>globlist</STRONG>.  For each matched file, the variable  <EM>var</EM>  is
+               set  to  the file path and <EM>code</EM> is evaluated.  Symbolic
+               links are not followed.
+
+          <STRONG>loop</STRONG> <EM>var</EM> <EM>first</EM> <EM>limit</EM> ?<EM>increment</EM>? <EM>body</EM>
+               <STRONG>Loop</STRONG> is a looping command, similar in behavior  to  the
+               Tcl  <STRONG>for</STRONG>  statement,  except  that  the  <STRONG>loop</STRONG> statement
+               achieves substantially higher performance and is easier
+               to  code when the beginning and ending values of a loop
+               are known, and the loop variable is to  be  incremented
+               by a known, fixed amount every time through the loop.
+
+                The <EM>var</EM> argument is the name of a  Tcl  variable  that
+               will  contain the loop index.  The loop index is set to
+               the value specified by <EM>first</EM>.  The Tcl  interpreter  is
+               invoked  upon  <EM>body</EM>  zero  or  more times, where <EM>var</EM> is
+               incremented by <EM>increment</EM> every time through  the  loop,
+               or by one if <EM>increment</EM> is not specified.  <EM>Increment</EM> can
+               be  negative  in  which  case  the  loop   will   count
+               downwards.
+
+               When <EM>var</EM> reaches <EM>limit</EM>, the loop terminates  without  a
+               subsequent  execution  of  <EM>body</EM>.   For instance, if the
+               original <STRONG>loop</STRONG> parameters would cause <STRONG>loop</STRONG> to terminate,
+               say <EM>first</EM> was one, <EM>limit</EM> was zero and <EM>increment</EM> was not
+               specified or was non-negative, <EM>body</EM> is not executed  at
+               all and <STRONG>loop</STRONG> returns.
+
+               The <EM>first</EM>, <EM>limit</EM> and <EM>increment</EM> are integer expressions.
+               They  are  only  evaluated once at the beginning of the
+               loop.
+
+               If a <STRONG>continue</STRONG> command is invoked within <EM>body</EM>  then  any
+               remaining commands in the current execution of <EM>body</EM> are
+               skipped, as in the <STRONG>for</STRONG> command.  If a <STRONG>break</STRONG> command  is
+               invoked  within  <EM>body</EM> then the <STRONG>loop</STRONG> command will return
+               immediately.  <STRONG>Loop</STRONG> returns an empty string.
+
+          <STRONG>popd</STRONG>
+               This procedure pops the top directory  entry  from  the
+               directory stack and make it the current directory.
+
+          <STRONG>pushd</STRONG> <STRONG>?</STRONG><EM>dir</EM>?
+               This procedure pushs the  current  directory  onto  the
+               directory  stack and <STRONG>cd</STRONG> to the specified directory.  If
+               the  directory  is  not  specified,  then  the  current
+               directory is pushed, but remains unchanged.
+
+          <STRONG>recursive_glob</STRONG> <EM>dirlist</EM> <EM>globlist</EM>
+               This procedure returns a list  of  recursively  matches
+               files.   All  directories  in  <EM>dirlist</EM>  are recursively
+               searched (breadth-first),  comparing  each  file  found
+               against  the  file glob patterns in <STRONG>globlist</STRONG>.  Symbolic
+               links are not followed.
+
+          <STRONG>showproc</STRONG> ?<EM>procname</EM> ...?
+               This  procedure  lists  the  definition  of  the  named
+               procedures.   Loading them if it is not already loaded.
+               If no procedure names are supplied, the definitions  of
+               all currently loaded procedures are returned.
+
+          This section contains information on commands and procedures
+          that are useful for developing and debugging Tcl scripts.
+
+
+          <STRONG>cmdtrace</STRONG> <EM>level</EM>|<STRONG>on</STRONG> ?<STRONG>noeval</STRONG>? ?<STRONG>notruncate</STRONG>? ?<EM>procs</EM>? ?<EM>fileid</EM>?
+               Print a trace statement for all  commands  executed  at
+               depth of <EM>level</EM> or below (1 is the top level).  If <STRONG>on</STRONG> is
+               specified, all commands at any level are  traced.   The
+               following options are available:
+
+               <STRONG>noeval</STRONG>
+                    Causes arguments to be  printed  unevaluated.   If
+                    <STRONG>noeval</STRONG>  is  specified,  the  arguments are printed
+                    before evaluation.  Otherwise,  they  are  printed
+                    afterwards.
+
+                    If the command line is longer than 60  characters,
+                    it is truncated to 60 and a "..." is postpended to
+                    indicate that  there  was  more  output  than  was
+                    displayed.   If  an  evaluated argument contains a
+                    space, the entire argument will be enclosed inside
+                    of  braces  (`{}') to allow the reader to visually
+                    separate the arguments from each other.
+
+               <STRONG>notruncate</STRONG>
+                    Disables the truncation of commands and  evaluated
+                    arguments.
+
+               <STRONG>procs</STRONG>
+                    Enables  the  tracing  of  procedure  calls  only.
+                    Commands  that  aren't procedure calls (i.e. calls
+                    to commands that are written in  C,  C++  or  some
+                    object-compatible  language) are not traced if the
+                    <STRONG>procs</STRONG>  option  is  specified.   This   option   is
+                    particularly   useful  for  greatly  reducing  the
+                    output of <STRONG>cmdtrace</STRONG> while debugging.
+
+               <STRONG>fileid</STRONG>
+                    This is a file id as returned by the <STRONG>open</STRONG> command.
+                    If  specified,  then  the  trace  output  will  be
+                    written to the file rather than stdout.   A  stdio
+                    buffer  flush  is done after every line is written
+                    so that the trace may be monitored  externally  or
+                    provide  useful information for debugging problems
+                    that cause core dumps.
+
+               <STRONG>command</STRONG> <EM>cmd</EM>
+                    Call  the  specified  command  <EM>cmd</EM>  on  when  each
+                    command  is executed instead of tracing to a file.
+                    See the description  of  the  functionally  below.
+                    This option may not be specified with a <STRONG>fileid</STRONG>.
+
+          The most common use of this command is to enable tracing  to
+          a file during the development.  If a failure occurs, a trace
+          is then available when needed.  Command  tracing  will  slow
+          down  the  execution  of  code, so it should be removed when
+          code is debugged.  The following command will enable tracing
+          to a file for the remainder of the program:
+
+                 cmdtrace on [open cmd.log w]
+
+          The <STRONG>command</STRONG> option causes a user specified trace command  to
+          be  called for each command executed.  The command will have
+          the following arguments appended to it before evaluation:
+
+
+               1)  <EM>command</EM>  -A  string  containing  the  text  of  the
+               command, before any argument substitution.
+
+               2) <EM>argv</EM> - A list of the final argument information that
+               will  be passed to the command after command, variable,
+               and backslash substitution.
+
+               3) <EM>evalLevel</EM> - The <STRONG>Tcl_Eval</STRONG> call level.
+
+               4) <EM>procLevel</EM> - The procedure call level.
+
+          The command should be constructed in such a manner  that  it
+          will  work  if additional arguments are added in the future.
+          It is suggested that the command be a <STRONG>proc</STRONG>  with  the  final
+          argument being <STRONG>args</STRONG>.
+
+          Tracing will be  turned  off  while  the  command  is  being
+          executed.    The  values  of  the  <STRONG>errorInfo</STRONG>  and  <STRONG>errorCode</STRONG>
+          variables will be saved and  restored  on  return  from  the
+          command.  It is the command's responsibility to preserve all
+          other state.
+
+          If an error occurs during the execution of <STRONG>command</STRONG>, an error
+          message  is  dumped  to  stderr and the tracing is disabled.
+          The underlying mechanism that this functionality is built on
+          does not support returning an error to the interpreter.
+
+          <STRONG>cmdtrace</STRONG> <STRONG>off</STRONG>
+               Turn off all tracing.
+
+          <STRONG>cmdtrace</STRONG> <STRONG>depth</STRONG>
+               Returns the current maximum trace  level,  or  zero  if
+               trace is disabled.
+
+          <STRONG>edprocs</STRONG> <STRONG>?</STRONG><EM>proc</EM>...?
+               This procedure writes  the  named  procedures,  or  all
+               currently defined procedures, to a temporary file, then
+               calls an editor on  it  (as  specified  by  the  <STRONG>EDITOR</STRONG>
+               environment variable, or <STRONG>vi</STRONG> if none is specified), then
+               sources the file back in if it was changed.
+
+          <STRONG>profile</STRONG> <STRONG>?-commands?</STRONG> <STRONG>on</STRONG>
+
+          <STRONG>profile</STRONG> <STRONG>off</STRONG> <EM>arrayVar</EM>
+               This command is used to collect a  performance  profile
+               of a Tcl script.  It collects data at the Tcl procedure
+               level. The number of calls  to  a  procedure,  and  the
+               amount  of real and CPU time is collected. Time is also
+               collected for the global context.  The  procedure  data
+               is  collected  by  bucketing  it based on the procedure
+               call stack, this allows determination of how much  time
+               is  spent  in  a  particular  procedure in each of it's
+               calling contexts.
+
+               The <STRONG>on</STRONG> option enables profile data collection.  If  the
+               <STRONG>-commands</STRONG>  option  is  specified,  data on all commands
+               within a procedure is collected as well  a  procedures.
+               Multiple  occurrences  of  a command within a procedure
+               are not distinguished,  but  this  data  may  still  be
+               useful for analysis.
+
+               The <STRONG>off</STRONG> option turns off profiling and moves  the  data
+               collected  to the array <EM>arrayVar</EM>.  The array is address
+               by a list containing the procedure call stack.  Element
+               zero  is  the  top of the stack, the procedure that the
+               data is  for.   The  data  in  each  entry  is  a  list
+               consisting  of  the  procedure  call count and the real
+               time  and  CPU  time  in  milliseconds  spent  in   the
+               procedure  (and  all procedures it called). The list is
+               in the form {<EM>count</EM> <EM>real</EM> <EM>cpu</EM>}.  A Tcl procedure  <STRONG>profrep</STRONG>
+               is  supplied  for  reducing  the  data  and producing a
+               report
+
+          <STRONG>profrep</STRONG> <EM>profDataVar</EM> <EM>sortKey</EM> ?<EM>outFile</EM>? ?<EM>userTitle</EM>?
+               This procedure generates a  report  from  data  collect
+               from  the  profile command.  <STRONG>ProfDataVar</STRONG> is the name of
+               the array containing the data returned by  the  <STRONG>profile</STRONG>
+               command. <STRONG>SortKey</STRONG> indicates which data value to sort by.
+               It should be one of "<STRONG>calls</STRONG>", "<STRONG>cpu</STRONG>" or "<STRONG>real</STRONG>".   <STRONG>OutFile</STRONG>
+               is  the  name  of  file  to  write  the  report to.  If
+               omitted, stdout is assumed.  <STRONG>UserTitle</STRONG> is  an  optional
+               title line to add to output.
+
+          <STRONG>saveprocs</STRONG> <EM>fileName</EM> ?<EM>proc</EM>...?
+               This  procedure  saves  the  definition  of  the  named
+               procedure,  or all currently defined procedures if none
+               is specified, to the named file.
+
+     <STRONG>UNIX</STRONG> <STRONG>ACCESS</STRONG> <STRONG>COMMANDS</STRONG>
+          These commands provide access to many basic Unix facilities,
+          including process handling, date and time processing, signal
+          handling and the executing commands via the shell.
+
+          <STRONG>alarm</STRONG> <EM>seconds</EM>
+               Instructs the system to send a SIGALRM  signal  in  the
+               specified  number of seconds.  This is a floating point
+               number, so fractions of a section may be specified.  If
+               <EM>seconds</EM> is 0.0, any previous alarm request is canceled.
+               Only one alarm at a time may  be  active;  the  command
+               returns  the  number  of  seconds  left in the previous
+               alarm.  On systems without the <STRONG>setitimer</STRONG>  system  call,
+               <EM>seconds</EM> is rounded up to an integer number of seconds.
+
+          <STRONG>execl</STRONG> ?<STRONG>-argv0</STRONG> argv0? <EM>prog</EM> ?<EM>arglist</EM>?
+               Do an execl,  replacing  the  current  program  (either
+               Extended  Tcl  or  an  application  with  Extended  Tcl
+               embedded into it) with <EM>prog</EM> and passing  the  arguments
+               in the list <EM>arglist</EM>.
+
+               The <STRONG>-argv0</STRONG> options specifies that <EM>argv0</EM> is to be passed
+               to the program as argv [0] rather than <EM>prog</EM>.
+
+               Note: If you are using <STRONG>execl</STRONG> in a Tk application and it
+               fails,  you  may  not  do  anything that accesses the X
+               server or you will receive a <STRONG>BadWindow</STRONG> error from the X
+               server.   This includes executing the Tk version of the
+               <STRONG>exit</STRONG> command.  We suggest using the  following  command
+               to abort Tk applications after an <STRONG>execl</STRONG> failure:
+
+                   kill [id process]
+
+          <STRONG>chroot</STRONG> <EM>dirname</EM>
+               Change root directory to <EM>dirname</EM>, by invoking the POSIX
+               <STRONG>chroot(2)</STRONG>  system  call.  This command only succeeds if
+               running as root.
+
+          <STRONG>fork</STRONG>
+               Fork the current Tcl process.  Fork returns zero to the
+               child  process  and  the process number of the child to
+               the parent process. If the fork fails, a Tcl  error  is
+               generated.
+
+               If an <STRONG>execl</STRONG> is not going to  be  performed  before  the
+               child  process  does  output,  or  if  a  <STRONG>close</STRONG> and <STRONG>dup</STRONG>
+               sequence is going to be performed on <STRONG>stdout</STRONG> or  <STRONG>stderr</STRONG>,
+               then  a  <STRONG>flush</STRONG>  should be issued against <STRONG>stdout</STRONG>, <STRONG>stderr</STRONG>
+               and any other open output file before doing  the  <STRONG>fork</STRONG>.
+               Otherwise characters from the parent process pending in
+               the buffers will be output by both the parent and child
+               processes.
+
+               Note: If you are <STRONG>fork</STRONG>ing in a Tk based apllication  you
+               must  <STRONG>execl</STRONG>  before  doing any window operations in the
+               child or you will receive a <STRONG>BadWindow</STRONG> error from the  X
+               server.
+
+          <STRONG>id</STRONG> <STRONG>options</STRONG>
+               This command provides a means of getting,  setting  and
+               converting user, group and process ids.  The <STRONG>id</STRONG> command
+               has the following options:
+
+               <STRONG>id</STRONG> <STRONG>user</STRONG> ?<EM>name</EM>?
+
+               <STRONG>id</STRONG> <STRONG>userid</STRONG> ?<EM>uid</EM>?
+                    Set the real and effective user ID to <EM>name</EM> or <EM>uid</EM>,
+                    if  the  name  (or  uid)  is valid and permissions
+                    allow it.  If the name (or uid) is not  specified,
+                    the current name (or uid) is returned.
+
+               <STRONG>id</STRONG> <STRONG>convert</STRONG> <STRONG>userid</STRONG> <EM>uid</EM>
+
+               <STRONG>id</STRONG> <STRONG>convert</STRONG> <STRONG>user</STRONG> <EM>name</EM>
+                    Convert a user ID number to a user name,  or  vice
+                    versa.
+
+               <STRONG>id</STRONG> <STRONG>group</STRONG> ?<EM>name</EM>?
+
+               <STRONG>id</STRONG> <STRONG>groupid</STRONG> ?<EM>gid</EM>?
+                    Set the real and effective group  ID  to  <EM>name</EM>  or
+                    <EM>gid</EM>, if the name (or gid) is valid and permissions
+                    allow it.  If the  group  name  (or  gid)  is  not
+                    specified,  the  current  group  name  (or gid) is
+                    returned.
+
+               <STRONG>id</STRONG> <STRONG>groups</STRONG>
+
+               <STRONG>id</STRONG> <STRONG>groupids</STRONG>
+                    Return  the  current  group  access  list  of  the
+                    process.   The  option  <STRONG>groups</STRONG> returns group names
+                    and <STRONG>groupids</STRONG> returns id numbers.
+
+               <STRONG>id</STRONG> <STRONG>convert</STRONG> <STRONG>groupid</STRONG> <EM>gid</EM>
+
+               <STRONG>id</STRONG> <STRONG>convert</STRONG> <STRONG>group</STRONG> <EM>name</EM>
+                    Convert a group ID number to a group name, or vice
+                    versa.
+
+               <STRONG>id</STRONG> <STRONG>effective</STRONG> <STRONG>user</STRONG>
+
+               <STRONG>id</STRONG> <STRONG>effective</STRONG> <STRONG>userid</STRONG>
+                    Return the effective user name, or effective  user
+                    ID number, respectively.
+
+               <STRONG>id</STRONG> <STRONG>effective</STRONG> <STRONG>group</STRONG>
+
+               <STRONG>id</STRONG> <STRONG>effective</STRONG> <STRONG>groupid</STRONG>
+                    Return the  effective  group  name,  or  effective
+                    group ID number, respectively.
+
+               <STRONG>id</STRONG> <STRONG>effective</STRONG> <STRONG>groupids</STRONG>
+                    Return all of the groupids the user  is  a  member
+                    of.
+
+               <STRONG>id</STRONG> <STRONG>host</STRONG>
+                    Return the hostname of the system the  program  is
+                    running on.
+
+               <STRONG>id</STRONG> <STRONG>process</STRONG>
+                    Return the process ID of the current process.
+
+               <STRONG>id</STRONG> <STRONG>process</STRONG> <STRONG>parent</STRONG>
+                    Return the process ID of the parent of the current
+                    process.
+
+               <STRONG>id</STRONG> <STRONG>process</STRONG> <STRONG>group</STRONG>
+                    Return  the  process  group  ID  of  the   current
+                    process.
+
+               <STRONG>id</STRONG> <STRONG>process</STRONG> <STRONG>group</STRONG> <STRONG>set</STRONG>
+                    Set the process group ID of the current process to
+                    its process ID.
+
+               <STRONG>id</STRONG> <STRONG>host</STRONG>
+                    Returns the standard host name of the machine  the
+                    process is executing on.
+
+          <STRONG>kill</STRONG> <STRONG>?-pgroup</STRONG> ?<EM>signal</EM>? <EM>idlist</EM>
+               Send a signal to the each process in the  list  <EM>idlist</EM>,
+               if permitted.  <EM>Signal</EM>, if present, is the signal number
+               or the symbolic name of  the  signal,  see  the  signal
+               system  call  manual  page.   The  leading  ``SIG''  is
+               optional when the signal is specified by  its  symbolic
+               name.  The default for <EM>signo</EM> is 15, SIGTERM.
+               If <STRONG>-pgroup</STRONG> is specified, the numbers in <EM>idlist</EM> are take
+               as  process  group ids and the signal is sent to all of
+               the process in that process group.  A process group  id
+               of <STRONG>0</STRONG> specifies the current process group.
+
+          <STRONG>link</STRONG> <STRONG>?-sym</STRONG>? <EM>srcpath</EM> <EM>destpath</EM>
+               Create a directory entry, <EM>destpath</EM>, linking it  to  the
+               existing  file,  <EM>srcpath</EM>.   If  <STRONG>-sym</STRONG>  is  specified,  a
+               symbolic link, rather than a  hard  link,  is  created.
+               (The  <STRONG>-sym</STRONG>  option  is  only  available on systems that
+               support symbolic links.)
+
+          <STRONG>mkdir</STRONG> <STRONG>?-path?</STRONG> <EM>dirList</EM>
+               Create each of the directories  in  the  list  <EM>dirList</EM>.
+               The mode on the new directories is 777, modified by the
+               umask.  If <STRONG>-path</STRONG> is specified,  then  any  non-existent
+               directories in the specified path(s) are created.
+
+          <STRONG>nice</STRONG> ?<EM>priorityincr</EM>?
+               Change or return the process priority.  If <EM>priorityincr</EM>
+               is  omitted,  the  current  priority  is  returned.  If
+               <EM>priorityincr</EM> is positive, it is added  to  the  current
+               <EM>priority</EM>   level,   up  to  a  system  defined  maximum
+               (normally <STRONG>19</STRONG>),
+
+               Negative <EM>priorityincr</EM> values cumulatively increase  the
+               program's  priority  down  to  a system defined minimum
+               (normally  <STRONG>-19</STRONG>);  increasing  priority  with   negative
+               niceness values will only work for the superuser.
+
+               The new priority is returned.
+
+          <STRONG>readdir</STRONG> <STRONG>?-hidden?</STRONG> <EM>dirPath</EM>
+               Returns a list containing the contents of the directory
+               <EM>dirPath</EM>.   The  directory  entries "." and ".." are not
+               returned.
+               On MS Windows systems, <STRONG>-hidden</STRONG> maybe specified  include
+               hidden  files  in  the result.  This flag is ignored on
+               Unix systems.
+
+          <STRONG>rmdir</STRONG> <STRONG>?-nocomplain</STRONG>? <EM>dirList</EM>
+               Remove each of the directories in the list <EM>dirList</EM>.  If
+               <STRONG>-nocomplain</STRONG> is specified, then errors will be ignored.
+
+          <STRONG>signal</STRONG> <EM>action</EM> <EM>siglist</EM> ?<EM>command</EM>?
+               Specify the action  to  take  when  a  Unix  signal  is
+               received  by Extended Tcl, or a program that embeds it.
+               <EM>Siglist</EM> is a list of either  the  symbolic  or  numeric
+               Unix  signal  (the  SIG prefix is optional).  <EM>Action</EM> is
+               one of the following actions to be performed on receipt
+               of  the signal.  To specify all modifiable signals, use
+               `*' (this will not include SIGKILL and SIGSTOP, as they
+               can not be modified).
+
+               <STRONG>default</STRONG> - Perform system default action when signal  is
+               received (see <STRONG>signal</STRONG> system call documentation).
+
+               <STRONG>ignore</STRONG> - Ignore the signal.
+
+               <STRONG>error</STRONG> - Generate a catchable Tcl error.  It will be  as
+               if the command that was running returned an error.  The
+               error code will be in the form:
+                   <STRONG>POSIX</STRONG> <STRONG>SIG</STRONG> <EM>signame</EM>
+               For the death of child signal, <EM>signame</EM> will  always  be
+               SIGCHLD,  rather than SIGCLD, to allow writing portable
+               code.
+
+               <STRONG>trap</STRONG> - When the  signal  occurs,  execute  <EM>command</EM>  and
+               continue  execution  if  an  error  is  not returned by
+               <EM>command</EM>.  The command will be executed  in  the  global
+               context.   The command will be edited before execution,
+               replacing occurrences of "%S"  with  the  signal  name.
+               Occurrences  of  "%%"  result  in  a  single "%".  This
+               editing  occurs  just  before  the  trap   command   is
+               evaluated.  If  an  error  is returned, then follow the
+               standard Tcl error mechanism.  Often <EM>command</EM> will  just
+               do an <STRONG>exit</STRONG>.
+
+               <STRONG>get</STRONG> - Retrieve the current settings  of  the  specified
+               signals.   A  keyed list will be returned were the keys
+               are one of the specified signals and the values  are  a
+               list  consisting  of  the  action  associated  with the
+               signal, a <STRONG>0</STRONG> if the signal may be delivered (not  block)
+               and  a  <STRONG>1</STRONG>  if  it  is blocked. The actions maybe one of
+               `<STRONG>default</STRONG>',`<STRONG>ignore</STRONG>', `<STRONG>error</STRONG>' or `<STRONG>trap</STRONG>.  If the action is
+               trap,  the third element is the command associated with
+               the action.  The action  `<STRONG>unknown</STRONG>'  is  returned  if  a
+               non-Tcl  signal  handler  has  been associated with the
+               signal.
+
+               <STRONG>set</STRONG> - Set signals from  a  keyed  list  in  the  format
+               returned  by  the <STRONG>get</STRONG>.  For this action, <EM>siglist</EM> is the
+               keyed list of signal state.  Signals with an action  of
+               `<STRONG>unknown</STRONG>' are not modified.
+
+               <STRONG>block</STRONG>  -  Block  the  specified  signals   from   being
+               received. (Posix systems only).
+
+               <STRONG>unblock</STRONG> - Allow the specified signal  to  be  received.
+               Pending signals will not occur. (Posix systems only).
+
+               The  signal  action  will  remain  enabled  after   the
+               specified  signal  has occurred.  The exception to this
+               is <STRONG>SIGCHLD</STRONG> on systems without Posix signals.  For these
+               systems,  <STRONG>SIGCHLD</STRONG>  is  not  be automatically reenabled.
+               After a <STRONG>SIGCHLD</STRONG> signal is received, a call to <STRONG>wait</STRONG> must
+               be  performed  to retrieve the exit status of the child
+               process  before  issuing  another  <STRONG>signal</STRONG>  <STRONG>SIGCHLD</STRONG>  ...
+               command.   For code that is to be portable between both
+               types of systems, use this approach.
+
+               Signals are not processed until after the completion of
+               the  Tcl  command  that is executing when the signal is
+               received.  If an interactive Tcl shell is running, then
+               the  <STRONG>SIGINT</STRONG>  will  be set to <STRONG>error</STRONG>, non-interactive Tcl
+               sessions leave <STRONG>SIGINT</STRONG> unchanged from when  the  process
+               started  (normally <STRONG>default</STRONG> for foreground processes and
+               <STRONG>ignore</STRONG> for processes in the background).
+
+          <STRONG>sleep</STRONG> <EM>seconds</EM>
+               Sleep the Extended Tcl process for <EM>seconds</EM> seconds.
+
+          <STRONG>system</STRONG> <EM>command</EM>
+               Executes <EM>command</EM> via the <EM>system</EM>(3) call.  Differs  from
+               <STRONG>exec</STRONG>   in  that  <STRONG>system</STRONG>  doesn't  return  the  executed
+               command's standard output as  the  result  string,  and
+               <STRONG>system</STRONG>  goes through the Unix shell to provide wildcard
+               expansion, redirection, etc, as is normal  from  an  <STRONG>sh</STRONG>
+               command   line.   The  exit  code  of  the  command  is
+               returned.
+
+          <STRONG>sync</STRONG> <STRONG>?</STRONG><EM>fileId</EM>?
+               If <EM>fileId</EM> is not specified, or if it is and this system
+               does  not  support the <EM>fsync</EM> system call, issues a <EM>sync</EM>
+               system call to  flush  all  pending  disk  output.   If
+               <EM>fileId</EM>  is  specified  and  the system does support the
+               <EM>fsync</EM>  system  call,  issues  an  <EM>fsync</EM>  on  the   file
+               corresponding  to the specified Tcl <EM>fileId</EM> to force all
+               pending output to that file out to the disk.
+
+               If <EM>fileId</EM> is specified, the file must be  writable.   A
+               <STRONG>flush</STRONG>  will  be  issued  against  the <EM>fileId</EM> before the
+               sync.
+
+               The <EM>infox</EM> <EM>have_fsync</EM> command can be used  to  determine
+               if "<STRONG>sync</STRONG> <EM>fileId</EM>" will do a <EM>sync</EM> or a <EM>fsync</EM>.
+
+          <STRONG>times</STRONG>
+               Return  a  list  containing  the  process   and   child
+               execution times in the form:
+                   <EM>utime</EM> <EM>stime</EM> <EM>cutime</EM> <EM>cstime</EM>
+               Also see the <EM>times</EM>(2) system  call  manual  page.   The
+               values are in milliseconds.
+
+          <STRONG>umask</STRONG> <STRONG>?</STRONG><EM>octalmask</EM>?
+               Sets file-creation mode mask  to  the  octal  value  of
+               <EM>octalmask</EM>.   If  <EM>octalmask</EM> is omitted, the current mask
+               is returned.
+
+          <STRONG>unlink</STRONG> <STRONG>?-nocomplain</STRONG>? <EM>filelist</EM>
+               Delete (unlink) the files whose names are in  the  list
+               <EM>filelist</EM>.   If  <STRONG>-nocomplain</STRONG>  is  specified, then errors
+               will be ignored.
+
+          <STRONG>wait</STRONG> ?<STRONG>-nohang</STRONG>? ?<STRONG>-untraced</STRONG>? ?<STRONG>-pgroup</STRONG>? ?<EM>pid</EM>?
+               Waits for a process created with the <STRONG>execl</STRONG>  command  to
+               terminate, either due to an untrapped signal or call to
+               <EM>exit</EM> system call.  If the process id <EM>pid</EM> is  specified,
+               they  wait on that process, otherwise wait on any child
+               process to terminate.
+
+               If <STRONG>-nohang</STRONG> is specified, then don't block waiting on  a
+               process  to  terminate.   If  no process is immediately
+               available, return  an  empty  list.   If  <STRONG>-untraced</STRONG>  is
+               specified  then  the status of child processes that are
+               stopped, and whose status has  not  yet  been  reported
+               since  they  stopped, are also returned.  If <STRONG>-pgroup</STRONG> is
+               specified and <EM>pid</EM> is not specified, then  wait  on  any
+               child  process  whose process groupd ID is they same as
+               the calling process. If <EM>pid</EM> is specified with  <STRONG>-pgroup</STRONG>,
+               then  it  is take as a process group ID, waiting on any
+               process in that process group to terminate.
+
+               <STRONG>Wait</STRONG> returns a  list  containing  three  elements:  The
+               first  element  is  the  process id of the process that
+               terminated.  If the process exited normally, the second
+               element  is  `EXIT', and the third contains the numeric
+               exit code.  If the process terminated due to a  signal,
+               the second element is `SIG', and the third contains the
+               signal name.  If the process is currently  stopped  (on
+               systems  that  support  SIGSTP),  the second element is
+               `STOP', followed by the signal name.
+
+               Note that it  is  possible  to  wait  on  processes  to
+               terminate  that  were create in the background with the
+               <STRONG>exec</STRONG> command.  However, if any other  <STRONG>exec</STRONG>  command  is
+               executed after the process terminates, then the process
+               status will be reaped by the <STRONG>exec</STRONG> command and will  not
+               be available to the <STRONG>wait</STRONG> command.
+
+               On  systems  without  the  <STRONG>waitpid</STRONG>  system  call,   the
+               <STRONG>-nohang</STRONG>,   <STRONG>-untraced</STRONG>   and   <STRONG>-pgroup</STRONG>  options  are  not
+               available.  The <STRONG>infox</STRONG> <STRONG>have_waitpid</STRONG> command maybe use to
+               determine if this functionality is available.
+
+     <STRONG>FILE</STRONG> <STRONG>COMMANDS</STRONG>
+          These   commands   provide   extended   file   access    and
+          manipulation.   This  includes  searching  ASCII-sorted data
+          files, copying files, duplicating file descriptors,  control
+          of  file  access  options,  retrieving open file status, and
+          creating pipes with the <STRONG>pipe</STRONG> system call.  Also linking  and
+          unlinking  files, setting file, process, and user attributes
+          and truncating files.  An interface  to  the  <STRONG>select</STRONG>  system
+          call is available on Unix systems that support it.
+
+          It should be noted that Tcl file I/O is implemented  on  top
+          of  the  stdio  library.   By default, the file is buffered.
+          When communicating to a process  through  a  pipe,  a  <STRONG>flush</STRONG>
+          command   should   be   issued   to   force  the  data  out.
+          Alternatively, the <STRONG>fcntl</STRONG> command may  be  used  to  set  the
+          buffering mode of a file to line-buffered or unbuffered.
+
+          <STRONG>bsearch</STRONG> <EM>fileId</EM> <EM>key</EM> ?<EM>retvar</EM>? ?<EM>compare_proc</EM>?
+               Search an opened file <EM>fileId</EM> containing lines  of  text
+               sorted  into ascending order for a match.  <EM>Key</EM> contains
+               the string to match.  If <EM>retvar</EM> is specified, then  the
+               line  from  the  file  is  returned  in <EM>retvar</EM>, and the
+               command returns <STRONG>1</STRONG> if <EM>key</EM> was found, and <STRONG>0</STRONG> if it wasn't.
+               If  <EM>retvar</EM> is not specified or is a null name, then the
+               command returns the line that was found,  or  an  empty
+               string if <EM>key</EM> wasn't found.
+
+               By default,  the  key  is  matched  against  the  first
+               white-space separated field in each line.  The field is
+               treated  as  an  ASCII  string.   If  <EM>compare_proc</EM>   is
+               specified,  then it defines the name of a Tcl procedure
+               to evaluate against each line read from the sorted file
+               during   the   execution   of   the   <STRONG>bsearch</STRONG>  command.
+               <EM>Compare_proc</EM> takes two arguments, the key  and  a  line
+               extracted  from  the  file.  The compare routine should
+               return a number less than zero if the key is less  than
+               the  line, zero if the key matches the line, or greater
+               than zero if the key is greater  than  the  line.   The
+               file must be sorted in ascending order according to the
+               same criteria <EM>compare_proc</EM> uses to compare the key with
+               the line, or erroneous results will occur.
+
+          <STRONG>copyfile</STRONG> ?<STRONG>-bytes</STRONG> <EM>num</EM>|<STRONG>-maxbytes</STRONG> <EM>num</EM>? ?-<EM>translate</EM>? <EM>fromFileId</EM>
+               Copies the rest of the file  specified  by  <EM>fromFileId</EM>,
+               starting   from  its  current  position,  to  the  file
+               specified  by  <EM>toFileId</EM>,  starting  from  its   current
+               position.   By default, newline translation is disabled
+               for the duration of the copy.
+
+               If <STRONG>-bytes</STRONG> is specified, then <EM>num</EM> bytes are copied.   If
+               less   than  <EM>num</EM>  bytes  are  available,  an  error  is
+               returned.  If <STRONG>-maxbytes</STRONG> is specified,  then  <EM>num</EM>  bytes
+               are  copied  but  no  error  is  returned  if  less are
+               available.
+
+               If <STRONG>-translate</STRONG> is specified,  then  newline  translation
+               will not be disabled for the copy.
+
+               The command returns  the  number  of  bytes  that  were
+               copied.
+
+               The <STRONG>-bytes</STRONG> option is  particularly  useful  for  mixing
+               binary  data  in  with ASCII commands or data in a data
+               stream.
+
+          <STRONG>chmod</STRONG> [<STRONG>-fileid</STRONG>] <EM>mode</EM> <EM>filelist</EM>
+               Set permissions of  each  of  the  files  in  the  list
+               <EM>filelist</EM>  to  <EM>mode</EM>,  where  <EM>mode</EM> is an absolute numeric
+               mode or symbolic permissions as in  the  UNIX  <STRONG>chmod(1)</STRONG>
+               command.   To  specify  a  mode  as octal, it should be
+               prefixed with a "0" (e.g. 0622).
+
+               If the option <STRONG>-fileid</STRONG> is specified, <EM>filelist</EM> is a  list
+               of  open  file  identifiers  rather than a list of file
+               names.  This  option  is  not  available  on  all  Unix
+               systems.    Use   the   <STRONG>infox</STRONG>  <STRONG>have_fchmod</STRONG>  command  to
+               determine if this functionality is available.
+
+          <STRONG>chown</STRONG> [<STRONG>-fileid</STRONG>] <EM>owner</EM>|{<EM>owner</EM> <EM>group</EM>} <EM>filelist</EM>
+               Set owner of each file in the list <EM>filelist</EM>  to  <EM>owner</EM>,
+               which  can  be  a user name or numeric user id.  If the
+               first parameter is a list, then the owner is set to the
+               first  element  of the list and the group is set to the
+               second element.  <EM>Group</EM> can be a group name  or  numeric
+               group  id.  If <EM>group</EM> is {}, then the file group will be
+               set to the login group of the specified user.
+
+               If the option <STRONG>-fileid</STRONG> is specified, <EM>filelist</EM> is a  list
+               of  open  file  identifiers  rather than a list of file
+               names.  This  option  is  not  available  on  all  Unix
+               systems.    Use   the   <STRONG>infox</STRONG>  <STRONG>have_fchown</STRONG>  command  to
+               determine if this functionality is available.
+
+          <STRONG>chgrp</STRONG> [<STRONG>-fileid</STRONG>] <EM>group</EM> <EM>filelist</EM>
+               Set the group id of each file in the list  <EM>filelist</EM>  to
+               <EM>group</EM>,  which  can  be either a group name or a numeric
+               group id.
+
+               If the option <STRONG>-fileid</STRONG> is specified, <EM>filelist</EM> is a  list
+               of  open  file  identifiers  rather than a list of file
+               names.  This  option  is  not  available  on  all  Unix
+               systems.    Use   the   <STRONG>infox</STRONG>  <STRONG>have_fchown</STRONG>  command  to
+               determine if this functionality is available.
+
+          <STRONG>dup</STRONG> <EM>fileId</EM> ?<EM>targetFileId</EM>?
+               Duplicate an open file.  A new file id is  opened  that
+               addresses the same file as <EM>fileId</EM>.
+               If <EM>targetFileId</EM> is specified, the the file  is  dup  to
+               this  specified  file  id.   Normally  this  is  <STRONG>stdin</STRONG>,
+               <STRONG>stdout</STRONG>,  or  <STRONG>stderr</STRONG>.   The  dup  command  will   handle
+               flushing  output  and  closing this file.  The new file
+               will be buffered, if its needs to  be  unbuffered,  use
+               the <STRONG>fcntl</STRONG> command to set it unbuffered.
+
+               If <EM>fileId</EM> is a number rather than a Tcl file  id,  then
+               the  <STRONG>dup</STRONG>  command will bind that file to a Tcl file id.
+               This is usedful for accessing  files  that  are  passed
+               from  the  parent process.  The argument ?<EM>targetFileId</EM>?
+               is not valid with this operation.
+
+          <STRONG>fcntl</STRONG> <EM>fileId</EM> <EM>attribute</EM> ?<EM>value</EM>?
+               This command either sets or clears  a  file  option  or
+               returns its current value.  If <EM>value</EM> are not specified,
+               then the current value of <STRONG>attribute</STRONG>  is  returned.  The
+               following attributes may be specified:
+
+               <STRONG>RDONLY</STRONG> - The file is  opened  for  reading  only.  (Get
+               only)
+
+               <STRONG>WRONLY</STRONG> - The file is opened  for  writing  only.   (Get
+               only)
+
+               <STRONG>RDWR</STRONG> - The file is  opened  for  reading  and  writing.
+               (Get only)
+
+               <STRONG>READ</STRONG> - If the file is readable. (Get only).
+
+               <STRONG>WRITE</STRONG> - If the file is writable. (Get only).
+
+               <STRONG>APPEND</STRONG> - The file is  opened  for  append-only  writes.
+               All writes will be forced to the end of the file.
+
+               <STRONG>NONBLOCK</STRONG> - The file is to be accessed with non-blocking
+               I/O.  See the <STRONG>read</STRONG> system call for a description of how
+               it affects the behavior of file reads.
+
+               <STRONG>CLOEXEC</STRONG> - Close the file on an process  exec.   If  the
+               <STRONG>execl</STRONG>  command  or  some  other  mechanism  causes  the
+               process to do an exec, the file will be closed if  this
+               option is set.
+
+               <STRONG>NOBUF</STRONG> - The file is not buffered. If set, then there no
+               buffering for the file.
+
+               <STRONG>LINEBUF</STRONG> - Output the file will be  line  buffered.  The
+               buffer  will be flushed when a newline is written, when
+               the buffer is full, or when input is requested.
+
+               <STRONG>KEEPALIVE</STRONG> - Keep a socket connection alive.  If SIGPIPE
+               is enabled, then it is sent if connection is broken and
+               data is written to the socket.  Note  that  SIGPIPE  is
+               set  to  be ignored by the Tcl library to support pipes
+               to processes in the <STRONG>exec</STRONG> and <STRONG>open</STRONG> commands.  If SIGPIPE
+               is  ignored,  an  error is returned on the write.  This
+               attribute is valid only on sockets.
+
+               The <STRONG>APPEND</STRONG>, <STRONG>NONBLOCK</STRONG>, and <STRONG>CLOEXEC</STRONG> attributes may be set
+               or cleared by specifying the attribute name and a value
+               <STRONG>1</STRONG> to set the attribute and <STRONG>0</STRONG> to clear it.
+
+          <STRONG>flock</STRONG> <EM>options</EM> <EM>fileId</EM> ?<EM>start</EM>? ?<EM>length</EM>? ?<EM>origin</EM>?
+               This command places a lock on all or part of  the  file
+               specified  by  <EM>fileId</EM>.   The lock is either advisory or
+               mandatory, depending on the mode bits of the file.  The
+               lock  is placed beginning at relative byte offset <EM>start</EM>
+               for <EM>length</EM> bytes.  If <EM>start</EM> or  <EM>length</EM>  is  omitted  or
+               empty,  zero  is  assumed.  If <EM>length</EM> is zero, then the
+               lock always extents to end of file, even  if  the  file
+               grows.   If  <EM>origin</EM>  is  "<STRONG>start</STRONG>",  then  the  offset is
+               relative to  the  beginning  of  the  file.  If  it  is
+               "<STRONG>current</STRONG>",   it  is  relative  to  the  current  access
+               position in the file.  If  it  is  "<STRONG>end</STRONG>",  then  it  is
+               relative  to  the end-of-file (a negative is before the
+               EOF, positive is after).  If <EM>origin</EM> is  omitted,  <STRONG>start</STRONG>
+               is assumed.
+
+               The following <EM>options</EM> are recognized:
+
+               <STRONG>-read</STRONG> - Place  a  read  lock  on  the  file.   Multiple
+               processes may be accessing the file with read-locks.
+
+               <STRONG>-write</STRONG> - Place a write lock  on  the  file.   Only  one
+               process  may  be  accessing  a file if there is a write
+               lock.
+
+               <STRONG>-nowait</STRONG> - If specified, then the process will not block
+               if the lock can not be obtained.  With this option, the
+               command returns 1 if the lock is obtained and 0  if  it
+               is not.
+
+               See your system's <STRONG>fcntl</STRONG> system call  documentation  for
+               full  details  of  the  behavior  of  file locking.  If
+               locking is being done on ranges of a file, it  is  best
+               to use unbuffered file access (see the <STRONG>fcntl</STRONG> command).
+
+          <STRONG>for_file</STRONG> <EM>var</EM> <EM>filename</EM> { <EM>code</EM> }
+               This procedure implements a loop over the contents of a
+               file.   For  each  line in <EM>filename</EM>, it sets <EM>var</EM> to the
+               line and executes <EM>code</EM>.
+
+               The <STRONG>break</STRONG> and <STRONG>continue</STRONG> commands work as with foreach.
+               For example, the command
+
+                    <STRONG>for_file</STRONG> <STRONG>line</STRONG> <STRONG>/etc/passwd</STRONG> <STRONG>{echo</STRONG> <STRONG>$line}</STRONG>
+
+               would echo all the lines in the password file.
+
+          <STRONG>funlock</STRONG> <EM>fileId</EM> ?<EM>start</EM>? ?<EM>length</EM>? ?<EM>origin</EM>?
+               Remove a locked from a file that was previously  placed
+               with  the <EM>flock</EM> command.  The arguments are the same as
+               for the  <EM>flock</EM>  command,  see  that  command  for  more
+               details.
+
+          <STRONG>fstat</STRONG> <EM>fileId</EM> ?<EM>item</EM>?|?<STRONG>stat</STRONG> <EM>arrayvar</EM>?
+               Obtain status information about an open file.
+
+               The following keys are used to identify data items:
+
+               o <STRONG>atime</STRONG> - The time of last access.
+
+               o <STRONG>ctime</STRONG> - The time of last file status change
+
+               o <STRONG>dev</STRONG> - The device containing a directory for the file.
+               This  value  uniquely  identifies  the file system that
+               contains the file.
+
+               o <STRONG>gid</STRONG> - The group ID of the file's group.
+
+               o <STRONG>ino</STRONG>  -  The  inode  number.   This   field   uniquely
+               identifies the file in a given file system.
+
+               o <STRONG>mode</STRONG> - The mode of the file  (see  the  <STRONG>mknod</STRONG>  system
+               call).
+
+               o <STRONG>mtime</STRONG> - Time when the  data  in  the  file  was  last
+               modified.
+
+               o <STRONG>nlink</STRONG> - The number of links to the file.
+
+               o <STRONG>size</STRONG> - The file size in bytes.
+
+               o <STRONG>tty</STRONG> - If the file is associated with a terminal, then
+               1 otherwise 0.
+
+               o <STRONG>type</STRONG> - The type of the file in symbolic  form,  which
+               is  one  of  the  following  values:  <STRONG>file</STRONG>,  <STRONG>directory</STRONG>,
+               <STRONG>characterSpecial</STRONG>, <STRONG>blockSpecial</STRONG>, <STRONG>fifo</STRONG>, <STRONG>link</STRONG>, or <STRONG>socket</STRONG>.
+
+               o <STRONG>uid</STRONG> - The user ID of the file's owner.
+
+               If one of these keys is specified as  <EM>item</EM>,  then  that
+               data item is returned.
+
+               If <STRONG>stat</STRONG> <EM>arrayvar</EM> is specified, then the information  is
+               returned in the array <EM>arrayvar</EM>.  Each of the above keys
+               indexes an element of the array containing the data.
+
+               If only <EM>fileId</EM> is specified, the  command  returns  the
+               data as a keyed list.
+
+               The following values may be returned only if explicitly
+               asked  for,  it  will not be returned with the array or
+               keyed list forms:
+
+               o <STRONG>remotehost</STRONG> - If <EM>fileId</EM> is a TCP/IP socket connection,
+               then  a  list  is returned with the first element being
+               the remote host IP address.  If the  remote  host  name
+               can  be  found, it is returned as the second element of
+               the list.  The remote host IP port number is the  third
+               element.
+
+               o <STRONG>localhost</STRONG> - If <EM>fileId</EM> is a TCP/IP socket  connection,
+               then  a  list  is returned with the first element being
+               the local host IP address.  If the local host name  can
+               be  found,  it is returned as the second element of the
+               list.  The local host  IP  port  number  is  the  third
+               element.
+
+          <STRONG>ftruncate</STRONG> [<STRONG>-fileid</STRONG>] <EM>file</EM> <EM>newsize</EM>
+               Truncate a file to have a length  of  at  most  <EM>newsize</EM>
+               bytes.
+
+               If the option <STRONG>-fileid</STRONG> is specified,  <EM>file</EM>  is  an  open
+               file identifier, otherwise it is a file path.
+
+               This command is not available or not  fully  functional
+               if  the  underlying  operating  system  support  is not
+               available.   The  command  <STRONG>infox</STRONG>   <STRONG>have_truncate</STRONG>   will
+               indicate  if  this  command  may truncate by file path.
+               The command <STRONG>infox</STRONG> <STRONG>have_ftruncate</STRONG> will indicate if  this
+               command may truncate by file id.
+
+          <STRONG>lgets</STRONG> <EM>fileId</EM> ?<EM>varName</EM>?
+               Reads the next Tcl list from the file given  by  <EM>fileId</EM>
+               and  discards  the terminating newline character.  This
+               command differs from the <STRONG>gets</STRONG> command, in that it reads
+               Tcl  lists  rather  than lines.  If the list contains a
+               newline, then that newline will be returned as part  of
+               the  result.   Only a newline not quoted as part of the
+               list indicates the  end  of  the  list.   There  is  no
+               corresponding  command  for  outputting  lists, as <STRONG>puts</STRONG>
+               will do this correctly.
+
+               If <EM>varName</EM> is specified, then the line is placed in the
+               variable  by  that name and the return value is a count
+               of the number of characters  read  (not  including  the
+               newline).   If  the  end  of the file is reached before
+               reading any characters then -1 is returned and  <EM>varName</EM>
+               is set to an empty string.  If <EM>varName</EM> is specified and
+               an error occurs,  what  ever  data  was  read  will  be
+               returned  in the variable, however the resulting string
+               may not be a valid list.
+
+               If <EM>varName</EM> is not specified then the return value  will
+               be  the  line (minus the newline character) or an empty
+               string if the end of the file is reached before reading
+               any  characters.  An empty string will also be returned
+               if a line contains no characters except the newline, so
+               <STRONG>eof</STRONG>  may  have  to  be  used  to  determine what really
+               happened.
+
+               If <STRONG>lgets</STRONG> is used on a non-blocking file, blocking  will
+               be  temporarily  enabled  for the duration of the <STRONG>lgets</STRONG>
+               command.    This   is   required   by    the    current
+               implementation  of  the  underlying Tcl I/O system.  In
+               most cases, this will not cause any  problems,  as  the
+               process writing the file should be writing entire lists
+               in one write  operation.    The  only  difficulty  that
+               might  arise  is  if non-blocking I/O was being used to
+               keep two processes from  deadlocking  while  exchanging
+               large amounts of data.
+
+          <STRONG>frename</STRONG> <EM>oldPath</EM> <EM>newPath</EM>
+               Renames <EM>oldPath</EM> to  <EM>newPath</EM>.   This  command  does  not
+               support renaming across file systems.
+
+          <STRONG>pipe</STRONG> <STRONG>?</STRONG><EM>fileId_var</EM>_<STRONG>r</STRONG> <EM>fileId_var</EM>_<STRONG>w</STRONG>?
+               Create a pipe.  If <EM>fileId_var</EM>_<STRONG>r</STRONG>  and  <EM>fileId_var</EM>_<STRONG>r</STRONG>  are
+               specified,  then  <STRONG>pipe</STRONG>  will  set  the a variable named
+               <EM>fileId_var</EM>_<STRONG>r</STRONG> to contain the fileId of the side  of  the
+               pipe that was opened for reading, and <EM>fileId_var</EM>_<STRONG>w</STRONG> will
+               contain the fileId of the side of  the  pipe  that  was
+               opened for writing.
+
+               If the fileId variables are not specified, then a  list
+               containing  the  read  and write fileIdw is returned as
+               the result of the command.
+
+          <STRONG>read_file</STRONG> <STRONG>?-nonewline</STRONG>? <EM>fileName</EM>
+               <STRONG>read_file</STRONG> <EM>fileName</EM> <EM>numBytes</EM>
+               This proecure reads the file <EM>fileName</EM> and  returns  the
+               contents as a string.  If <STRONG>-nonewline</STRONG> is specified, then
+               the last character of the file is discarded if it is  a
+               newline.   The  second  form specifies exactly how many
+               bytes will be read and returned, unless there are fewer
+               than <EM>numBytes</EM> bytes left in the file; in this case, all
+               the remaining bytes are returned.
+
+          <STRONG>select</STRONG> <EM>readfileIds</EM> ?<EM>writefileIds</EM>? ?<EM>exceptfileIds</EM>? ?<EM>timeout</EM>?
+               This command allows an Extended Tcl program to wait  on
+               zero  or  more  files  being  ready  for  for  reading,
+               writing, have an exceptional condition pending, or  for
+               a timeout period to expire.  <EM>readFileIds</EM>, <EM>writeFileIds</EM>,
+               <EM>exceptFileIds</EM> are each lists of  fileIds,  as  returned
+               from  <STRONG>open</STRONG>,  to  query.   An  empty  list  ({})  may be
+               specified if a category is not used.
+
+               The files specified by the <EM>readFileIds</EM> list are checked
+               to   see   if   data  is  available  for  reading.  The
+               <EM>writeFileIds</EM> are checked if  the  specified  files  are
+               clear  for  writing.   The <EM>exceptFileIds</EM> are checked to
+               see  if   an   exceptional   condition   has   occurred
+               (typically,   an   error).   The  write  and  exception
+               checking is most useful on devices, however,  the  read
+               checking   is   very  useful  when  communicating  with
+               multiple processes  through  pipes.   Select  considers
+               data  pending  in the stdio input buffer for read files
+               as being ready for reading, the files do.  not have  to
+               be unbuffered.
+
+               <EM>Timeout</EM> is a floating point timeout value, in  seconds.
+               If  an  empty  list  is  supplied  (or the parameter is
+               omitted), then no timeout is  set.   If  the  value  is
+               zero,  then  the  <STRONG>select</STRONG> command functions as a poll of
+               the files,  returning  immediately  even  if  none  are
+               ready.
+
+               If the <EM>timeout</EM> period expires with none  of  the  files
+               becoming ready, then the command returns an empty list.
+               Otherwise the command returns a list of three elements,
+               each  of  those  elements is a list of the fileIds that
+               are ready in the read, write and exception classes.  If
+               none  are  ready  in a class, then that element will be
+               the null list.  For example:
+
+                       select {file3 file4 file5} {file6 file7} {} 10.5
+
+               could return
+
+                       {file3 file4} {file6} {}
+
+               or perhaps
+
+                       file3 {} {}
+
+
+          <STRONG>write_file</STRONG> <EM>fileName</EM> <EM>string</EM> ?<EM>string</EM>...?
+               This procedure writes  the  specified  strings  to  the
+               named file.
+
+     <STRONG>NETWORK</STRONG> <STRONG>PROGRAMMING</STRONG> <STRONG>SUPPORT</STRONG>
+          TclX provides functionality to  complement  the  Tcl  <STRONG>socket</STRONG>
+          command.   The  <STRONG>host_info</STRONG> command is used to get information
+          about a host by name or IP address.  In addition, the  <STRONG>fstat</STRONG>
+          and   <STRONG>fcntl</STRONG>   commands   provide  options  of  querying  and
+          controlling connected sockets.  To obtain the host  name  of
+          the system the local system, use the <STRONG>id</STRONG> <STRONG>host</STRONG> command.
+
+          <STRONG>host_info</STRONG> <STRONG>addresses</STRONG> <EM>host</EM>
+               <STRONG>host_info</STRONG> <STRONG>official_name</STRONG> <EM>host</EM>
+               <STRONG>host_info</STRONG> <STRONG>aliases</STRONG> <EM>host</EM>
+               Obtain information about a internet host. The  argument
+               <STRONG>host</STRONG> can be either a host name or an IP address.
+
+               The following subcommands are recognized:
+
+               o <STRONG>addresses</STRONG> - Return the list of IP addresses for <EM>host</EM>.
+
+               o <STRONG>official_name</STRONG> - Return official name for <EM>host</EM>.
+
+               o <STRONG>aliases</STRONG> - Return the list of aliases for <EM>host</EM>.  (Note
+               that  these  are  IP  number  aliases,  not  DNS  <EM>CNAME</EM>
+               aliases. See <EM>ifconfig(2)</EM>.)
+
+     <STRONG>FILE</STRONG> <STRONG>SCANNING</STRONG> <STRONG>COMMANDS</STRONG>
+          These commands provide a facility to  scan  files,  matching
+          lines  of the file against regular expressions and executing
+          Tcl code on a match.  With this facility you can use Tcl  to
+          do  the  sort  of file processing that is traditionally done
+          with <EM>awk</EM>.  And since Tcl's  approach  is  more  declarative,
+          some of the scripts that can be rather difficult to write in
+          awk are simple to code in Tcl.
+
+          File scanning in Tcl centers around the concept  of  a  <EM>scan</EM>
+          <EM>context</EM>.    A  scan  context  contains  one  or  more  match
+          statements, which associate regular expressions to scan  for
+          with  Tcl  code  to  be  executed  when  the expressions are
+          matched.
+
+          <STRONG>scancontext</STRONG> <STRONG>?</STRONG><EM>option</EM>?
+               This  command  manages  file  scan  contexts.   A  scan
+               context  is  a  collection  of  regular expressions and
+               commands  to  execute  when  that  regular   expression
+               matches  a line of the file.  A context may also have a
+               single default match, to be applied against lines  that
+               do  not match any of the regular expressions.  Multiple
+               scan contexts may be defined and they may be reused  on
+               multiple  files.   A  scan  context  is identified by a
+               context handle.   The  <STRONG>scancontext</STRONG>  command  takes  the
+               following forms:
+
+          <STRONG>scancontext</STRONG> <STRONG>create</STRONG>
+               Create a new scan context.  The  <STRONG>scanmatch</STRONG>  command  is
+               used   to   define   patterns   in   the   context.   A
+               contexthandle is returned,  which  the  Tcl  programmer
+               uses  to  refer  to  the  newly created scan context in
+               calls to the Tcl file scanning commands.
+
+          <STRONG>scancontext</STRONG> <STRONG>delete</STRONG> <EM>contexthandle</EM>
+               Delete the scan context  identified  by  <EM>contexthandle</EM>,
+               and  free  all  of  the  match  statements and compiled
+               regular  expressions  associated  with  the   specified
+               context.
+
+          <STRONG>scancontext</STRONG> <STRONG>copyfile</STRONG> <EM>contexthandle</EM> ?<EM>filehandle</EM>?
+               Set or return the file handle that unmatched lines  are
+               copied  to.  (See <STRONG>scanfile</STRONG>).  If <EM>filehandle</EM> is omitted,
+               the copy file handle is returned.  If no copy  file  is
+               associated with the context, {} is returned.  If a file
+               handle is specified, it becomes the copy file for  this
+               context.  If <EM>filehandle</EM> is {}, then it removes any copy
+               file specification for the context.
+
+          <STRONG>scanfile</STRONG> <STRONG>?</STRONG>-<EM>copyfile</EM> <EM>copyFileId</EM>? <EM>contexthandle</EM> <EM>fileId</EM>
+               Scan the file specified by <EM>fileId</EM>,  starting  from  the
+               current  file position.  Check all patterns in the scan
+               context  specified   by   <EM>contexthandle</EM>   against   it,
+               executing  the match commands corresponding to patterns
+               matched.
+
+               If the optional -<EM>copyfile</EM> argument  is  specified,  the
+               next  argument  is  a  file  ID  to which all lines not
+               matched by any pattern (excluding the default  pattern)
+               are  to be written.  If the copy file is specified with
+               this flag, instead of using  the  <STRONG>scancontext</STRONG>  <STRONG>copyfile</STRONG>
+               command,  the  file  is  disassociated  from  the  scan
+               context at the end of the scan.
+
+          <STRONG>scanmatch</STRONG> <STRONG>?-nocase</STRONG>? <EM>contexthandle</EM> ?<EM>regexp</EM>? <EM>commands</EM>
+               Specify Tcl <EM>commands</EM>, to be evaluated  when  <EM>regexp</EM>  is
+               matched  by  a <STRONG>scanfile</STRONG> command.  The match is added to
+               the  scan  context  specified  by  <EM>contexthandle</EM>.   Any
+               number  of match statements may be specified for a give
+               context.  <EM>Regexp</EM>  is  a  regular  expression  (see  the
+               <STRONG>regexp</STRONG>  command).  If <STRONG>-nocase</STRONG> is specified as the first
+               argument,  the  pattern  is   matched   regardless   of
+               alphabetic case.
+
+               If <EM>regexp</EM> is not specified, then  a  default  match  is
+               specified for the scan context.  The default match will
+               be executed when a line of the file does not match  any
+               of the regular expressions in the current scancontext.
+
+               The array <STRONG>matchInfo</STRONG> is available to the Tcl  code  that
+               is  executed  when an expression matches (or defaults).
+               It contains information about the  file  being  scanned
+               and where within it the expression was matched.
+
+               <STRONG>matchInfo</STRONG> is local  to  the  top  level  of  the  match
+               command unless declared global at that level by the Tcl
+               <STRONG>global</STRONG> command.  If it is to be used as  a  global,  it
+               <EM>must</EM>  be  declared  global  before  <STRONG>scanfile</STRONG>  is called
+               (since <STRONG>scanfile</STRONG> sets the  <STRONG>matchInfo</STRONG>  before  the  match
+               code is executed, a subsequent <STRONG>global</STRONG> will override the
+               local  variable).   The  following  array  entries  are
+               available:
+
+               <STRONG>matchInfo(line)</STRONG>
+                    Contains the text of the line of the file that was
+                    matched.
+
+               <STRONG>matchInfo(offset)</STRONG>
+                    The  byte  offset  into  the  file  of  the  first
+                    character of the line that was matched.
+
+               <STRONG>matchInfo(linenum)</STRONG>
+                    The line number of the line that was matched. This
+                    is  relative  to  the first line scanned, which is
+                    usually, but not necessarily, the  first  line  of
+                    the file.  The first line is line number one.
+
+               <STRONG>matchInfo(context)</STRONG>
+                    The context handle of the context that  this  scan
+                    is associated with.
+
+               <STRONG>matchInfo(handle)</STRONG>
+                    The file id (handle) of the file  currently  being
+                    scanned.
+
+               <STRONG>matchInfo(copyHandle)</STRONG>
+                    The file id (handle) of the file specified by  the
+                    <STRONG>-copyfile</STRONG>  option.   The element does not exist if
+                    <STRONG>-copyfile</STRONG> was not specified.
+
+               <STRONG>matchInfo(submatch0)</STRONG>
+                    Will contain the  characters  matching  the  first
+                    parenthesized  subexpression.   The second will be
+                    contained in <STRONG>submatch1</STRONG>, etc.
+
+               <STRONG>matchInfo(subindex0)</STRONG>
+                    Will contain the a list of the starting and ending
+                    indices   of   the   string   matching  the  first
+                    parenthesized subexpression.  The second  will  be
+                    contained in <STRONG>subindex1</STRONG>, etc.
+
+          All <STRONG>scanmatch</STRONG> patterns that match a line will  be  processed
+          in the order in which their specifications were added to the
+          scan context.   The  remainder  of  the  <STRONG>scanmatch</STRONG>  pattern-
+          command  pairs  may be skipped for a file line if a <STRONG>continue</STRONG>
+          is executed by the Tcl code of a preceding, matched pattern.
+
+          If a <STRONG>return</STRONG> is executed in the body of  the  match  command,
+          the <STRONG>scanfile</STRONG> command currently in progress returns, with the
+          value passed to <STRONG>return</STRONG> as its return value.
+
+     <STRONG>MATH</STRONG> <STRONG>COMMANDS</STRONG>
+          Several extended math commands commands make many additional
+          math  functions  available  in  TclX.  In addition, a set of
+          procedures provide command  access  to  the  math  functions
+          supported by the <STRONG>expr</STRONG> command.
+
+
+          The following procedures provide command interfaces  to  the
+          expr  math  functions.  They  take the same arguments as the
+          <STRONG>expr</STRONG> functions and may take expressions as arguments.
+
+               <STRONG>abs</STRONG>         <STRONG>acos</STRONG>        <STRONG>asin</STRONG>       <STRONG>atan2</STRONG>
+               <STRONG>atan</STRONG>        <STRONG>ceil</STRONG>        <STRONG>cos</STRONG>        <STRONG>cosh</STRONG>
+               <STRONG>double</STRONG>      <STRONG>exp</STRONG>         <STRONG>floor</STRONG>      <STRONG>fmod</STRONG>
+               <STRONG>hypot</STRONG>       <STRONG>int</STRONG>         <STRONG>log10</STRONG>      <STRONG>log</STRONG>
+               <STRONG>pow</STRONG>         <STRONG>round</STRONG>       <STRONG>sin</STRONG>        <STRONG>sinh</STRONG>
+               <STRONG>sqrt</STRONG>        <STRONG>tan</STRONG>         <STRONG>tanh</STRONG>
+
+          <STRONG>max</STRONG> <EM>num1</EM> ?..<EM>numN</EM>?
+
+          <STRONG>expr</STRONG> <STRONG>max(num1,</STRONG> <STRONG>num2)</STRONG>
+               Returns the  argument  that  has  the  highest  numeric
+               value.  Each  argument  may  be any integer or floating
+               point value.
+
+               This functionality is also available as a math function
+               <STRONG>max</STRONG> in the Tcl <STRONG>expr</STRONG> command.
+
+          <STRONG>min</STRONG> <EM>num1</EM> ?..<EM>numN</EM>?
+
+          <STRONG>expr</STRONG> <STRONG>min(num1,</STRONG> <STRONG>num2)</STRONG>
+               Returns the argument that has the lowest numeric value.
+               Each  argument  may  be  any  integer or floating point
+               value.
+
+               This functionality is also available as a math function
+               <STRONG>min</STRONG> in the Tcl <STRONG>expr</STRONG> command.
+
+          <STRONG>random</STRONG> <EM>limit</EM> | <STRONG>seed</STRONG> ?<EM>seedval</EM>?
+               Generate a pseudorandom integer number greater than  or
+               equal  to  zero  and  less  than  <EM>limit</EM>.   If  <STRONG>seed</STRONG>  is
+               specified, then the command resets  the  random  number
+               generator to a starting point derived from the <STRONG>seedval</STRONG>.
+               This  allows  one  to  reproduce  pseudorandom   number
+               sequences for testing purposes.  If <EM>seedval</EM> is omitted,
+               then the seed is set to a value based on current system
+               state  and  the  current  time,  providing a reasonably
+               interesting and ever-changing seed.
+
+     <STRONG>LIST</STRONG> <STRONG>MANIPULATION</STRONG> <STRONG>COMMANDS</STRONG>
+          Extended Tcl provides additional list manipulation  commands
+          and procedures.
+
+          <STRONG>intersect</STRONG> <EM>lista</EM> <EM>listb</EM>
+               Procedure to return the  logical  intersection  of  two
+               lists.  The returned list will be sorted.
+
+          <STRONG>intersect3</STRONG> <EM>lista</EM> <EM>listb</EM>
+               Procedure to intersects two  lists,  returning  a  list
+               containing  three  lists:   The  first list returned is
+               everything in <EM>lista</EM> that wasn't in <EM>listb</EM>.   The  second
+               list  contains  the  intersection of the two lists, and
+               the third list contains all the elements that  were  in
+               <EM>listb</EM> but weren't in <EM>lista</EM>.  The returned lists will be
+               sorted.
+
+          <STRONG>lassign</STRONG> <EM>list</EM> <EM>var</EM> ?<EM>var</EM>...?
+               Assign successive  elements  of  a  list  to  specified
+               variables.   If  there  are  more  variable  names than
+               fields, the remaining variables are set  to  the  empty
+               string.   If  there are more elements than variables, a
+               list of the unassigned elements is returned.
+
+               For example,
+
+                  lassign {dave 100 200 {Dave Foo}} name uid gid longName
+
+               Assigns <EM>name</EM>  to  ``dave'',  <EM>uid</EM>  to  ``100'',  <EM>gid</EM>  to
+               ``200'', and <EM>longName</EM> to ``Dave Foo''.
+
+          <STRONG>lempty</STRONG> <EM>list</EM>
+               Determine if the specified list is empty.  If empty,  1
+               is returned, otherwise, 0 is returned.  This command is
+               an alternative to comparing a list to an empty string.
+
+          <STRONG>lmatch</STRONG> ?<EM>mode</EM>? <EM>list</EM> <EM>pattern</EM>
+               Search the elements of <EM>list</EM>, returning a  list  of  all
+               elements  matching  <EM>pattern</EM>.   If  none match, an empty
+               list is returned.
+
+               The <EM>mode</EM> argument indicates how  the  elements  of  the
+               list are to be matched against <EM>pattern</EM> and it must have
+               one of the following values:
+
+               <STRONG>-exact</STRONG> The list element must contain exactly  the  same
+               string as <EM>pattern</EM>.
+
+               <STRONG>-glob</STRONG> <EM>Pattern</EM> is a glob-style pattern which is  matched
+               against  each  list element using the same rules as the
+               <STRONG>string</STRONG> <STRONG>match</STRONG> command.
+
+               <STRONG>-regexp</STRONG> <EM>Pattern</EM> is treated as a regular expression  and
+               matched  against each list element using the same rules
+               as the <STRONG>regexp</STRONG> command.
+
+               If <EM>mode</EM> is omitted then it defaults to <STRONG>-glob</STRONG>.
+
+          <STRONG>lrmdups</STRONG> <EM>list</EM>
+               Procedure to remove duplicate  elements  from  a  list.
+               The returned list will be sorted.
+
+          <STRONG>lvarcat</STRONG> <EM>var</EM> <EM>string</EM> ?<EM>string</EM>...?
+               This command treats each <EM>string</EM> argument as a list  and
+               concatenates  them  to  the end of the contents of <EM>var</EM>,
+               forming a a single list.  The list is stored back  into
+               <EM>var</EM>  and  also returned as the result.  if <EM>var</EM> does not
+               exist, it is created.
+
+          <STRONG>lvarpop</STRONG> <EM>var</EM> ?<EM>indexExpr</EM>? ?<EM>string</EM>?
+               The <STRONG>lvarpop</STRONG> command pops (deletes) the element  indexed
+               by  the expression <EM>indexExpr</EM> from the list contained in
+               the variable <EM>var</EM>.  If  <EM>index</EM>  is  omitted,  then  0  is
+               assumed.   If  <EM>string</EM>,  is  specified, then the deleted
+               element is replaced by <EM>string</EM>. The replaced or  deleted
+               element  is  returned.  Thus ``lvarpop argv 0'' returns
+               the first element of argv, setting argv to contain  the
+               remainder of the string.
+
+               If the expression <EM>indexExpr</EM> starts with the string <STRONG>end</STRONG>,
+               then <STRONG>end</STRONG> is replaced with the index of the last element
+               in the list.  If the expression starts with  <STRONG>len</STRONG>,  then
+               <STRONG>len</STRONG> is replaced with the length of the list.
+
+          <STRONG>lvarpush</STRONG> <EM>var</EM> <EM>string</EM> ?<EM>indexExpr</EM>?
+               The <STRONG>lvarpush</STRONG> command  pushes  (inserts)  <EM>string</EM>  as  an
+               element in the list contained in the variable <EM>var</EM>.  The
+               element is inserted before position  <EM>indexExpr</EM>  in  the
+               list.  If  <EM>index</EM> is omitted, then 0 is assumed.  If <EM>var</EM>
+               does not exists, it is created.
+
+               If the expression <EM>indexExpr</EM> starts with the string <STRONG>end</STRONG>,
+               then <STRONG>end</STRONG> is replaced with the index of the last element
+               in the list.  If the expression starts with  <STRONG>len</STRONG>,  then
+               <STRONG>len</STRONG>  is replaced with the length of the list.  Note the
+               a value of <STRONG>end</STRONG> means insert the string before the  last
+               element.
+
+          <STRONG>union</STRONG> <EM>lista</EM> <EM>listb</EM>
+               Procedure to  return  the  logical  union  of  the  two
+               specified lists.  Any duplicate elements are removed.
+
+     <STRONG>KEYED</STRONG> <STRONG>LISTS</STRONG>
+          Extended Tcl defines a special type of list referred  to  as
+          <EM>keyed</EM>  <EM>lists</EM>.   These  lists provided a structured data type
+          built  upon   standard   Tcl   lists.    This   provides   a
+          functionality  similar  to  <EM>struct</EM>s  in  the  C  programming
+          language.
+
+          A keyed list is a list in which each element contains a  key
+          and  value  pair.   These  element pairs are stored as lists
+          themselves, where the key is the first element of the  list,
+          and  the  value  is  the  second.   The  key-value pairs are
+          referred to as <EM>fields</EM>.  This is an example of a keyed list:
+
+                    {{NAME   {Frank   Zappa}}   {JOB   {musician   and
+               composer}}}
+
+          If the  variable  <STRONG>person</STRONG>  contained  the  above  list,  then
+          <STRONG>keylget</STRONG>  <STRONG>person</STRONG>  <STRONG>NAME</STRONG> would return <STRONG>{Frank</STRONG> <STRONG>Zappa}</STRONG>.  Executing
+          the command:
+
+               <STRONG>keylset</STRONG> <STRONG>person</STRONG> <STRONG>ID</STRONG> <STRONG>106</STRONG>
+
+          would make <STRONG>person</STRONG> contain
+
+                   {{ID 106} {NAME {Frank Zappa}} {JOB  {musician  and
+               composer}}
+
+          Fields  may  contain  subfields;  `.'   is   the   separator
+          character.  Subfields are actually fields where the value is
+          another keyed list.  Thus the following  list  has  the  top
+          level  fields  <EM>ID</EM>  and  <EM>NAME</EM>,  and  subfields <EM>NAME.FIRST</EM> and
+          <EM>NAME.LAST</EM>:
+
+                   {ID 106} {NAME {{FIRST Frank} {LAST Zappa}}}
+
+          There is no limit  to  the  recursive  depth  of  subfields,
+          allowing one to build complex data structures.
+
+          Keyed lists are constructed and accessed  via  a  number  of
+          commands.   All keyed list management commands take the name
+          of the variable containing the keyed  list  as  an  argument
+          (i.e.  passed  by  reference),  rather than passing the list
+          directly.
+
+          <STRONG>keyldel</STRONG> <EM>listvar</EM> <EM>key</EM>
+               Delete the field specified by <EM>key</EM> from the  keyed  list
+               in the variable <EM>listvar</EM>.  This removes both the key and
+               the value from the keyed list.
+
+          <STRONG>keylget</STRONG> <EM>listvar</EM> ?<EM>key</EM>? ?<EM>retvar</EM> | {}?
+               Return the value associated with  <EM>key</EM>  from  the  keyed
+               list  in  the  variable  <EM>listvar</EM>.   If  <EM>retvar</EM>  is  not
+               specified, then the  value  will  be  returned  as  the
+               result  of  the  command.  In  this case, if <EM>key</EM> is not
+               found in the list, an error will result.
+
+               If <EM>retvar</EM> is specified and <EM>key</EM> is in the list, then the
+               value  is  returned  in  the  variable  <EM>retvar</EM>  and the
+               command returns <STRONG>1</STRONG> if the key  was  present  within  the
+               list.   If  <EM>key</EM>  isn't  in  the  list, the command will
+               return <STRONG>0</STRONG>, and <EM>retvar</EM> will be left unchanged.  If <STRONG>{}</STRONG>  is
+               specified  for  <EM>retvar</EM>,  the  value  is  not  returned,
+               allowing the Tcl programmer to determine if  a  key  is
+               present in a keyed list without setting a variable as a
+               side-effect.
+
+               If <EM>key</EM> is omitted, then a list of all the keys  in  the
+               keyed list is returned.
+
+          <STRONG>keylkeys</STRONG> <EM>listvar</EM> ?<EM>key</EM>?
+               Return the a list of the keys in the keyed list in  the
+               variable <EM>listvar</EM>.  If <EM>keys</EM> is specified, then it is the
+               name of a key field  who's  subfield  keys  are  to  be
+               retrieve.
+
+          <STRONG>keylset</STRONG> <EM>listvar</EM> <EM>key</EM> <EM>value</EM> ?<EM>key2</EM> <EM>value2</EM> ...?
+               Set the value associated with <EM>key</EM>, in  the  keyed  list
+               contained  in  the  variable  <EM>listvar</EM>,  to  <EM>value</EM>.   If
+               listvar does not exists, it is created.  If <EM>key</EM> is  not
+               currently in the list, it will be added.  If it already
+               exists, <EM>value</EM> replaces the  existing  value.   Multiple
+               keywords and values may be specified, if desired.
+
+     <STRONG>STRING</STRONG> <STRONG>AND</STRONG> <STRONG>CHARACTER</STRONG> <STRONG>MANIPULATION</STRONG> <STRONG>COMMANDS</STRONG>
+          The commands provide additional  functionality  to  classify
+          characters, convert characters between character and numeric
+          values, index into a  string,  determine  the  length  of  a
+          string,   extract  a  range  of  character  from  a  string,
+          replicate a string a number of times,  and  transliterate  a
+          string (similar to the Unix <EM>tr</EM> program).
+
+          <STRONG>ccollate</STRONG> <STRONG>?-local?</STRONG> <EM>string1</EM> <EM>string2</EM>
+               This command compares two strings.  If  returns  <STRONG>-1</STRONG>  if
+               <EM>string1</EM> is less than <EM>string2</EM>, <STRONG>0</STRONG> if they are equal amd <STRONG>1</STRONG>
+               if <EM>string1</EM> is greater than <EM>string2</EM>.
+
+               If  <STRONG>-local</STRONG>  is  specified,  the  strings  are  compared
+               according  to  the collation environment of the current
+               locale.
+
+          <STRONG>cequal</STRONG> <EM>string1</EM> <EM>string2</EM>
+               This command compares two  strings  for  equality.   It
+               returns  <STRONG>1</STRONG> if <EM>string1</EM> and <EM>string2</EM> are the identical and
+               <STRONG>0</STRONG> if they are not.  This command  is  a  short-cut  for
+               <STRONG>string</STRONG>  <STRONG>compare</STRONG>  and  avoids  the  problems with string
+               expressions being treated unintentionally as numbers.
+
+          <STRONG>cindex</STRONG> <EM>string</EM> <EM>indexExpr</EM>
+               Returns  the  character  indexed  by   the   expression
+               <EM>indexExpr</EM> (zero based) from <EM>string</EM>.
+
+               If the expression <EM>indexExpr</EM> starts with the string <STRONG>end</STRONG>,
+               then  <STRONG>end</STRONG>  is  replaced  with  the  index  of  the last
+               character in the string.  If the expression starts with
+               <STRONG>len</STRONG>,  then  <STRONG>len</STRONG>  is  replaced  with  the  length of the
+               string.
+
+          <STRONG>clength</STRONG> <EM>string</EM>
+               Returns  the  length  of  <EM>string</EM>  in  characters.  This
+               command is a shortcut for:
+
+                   <STRONG>string</STRONG> <STRONG>length</STRONG> <EM>string</EM>
+
+          <STRONG>crange</STRONG> <EM>string</EM> <EM>firstExpr</EM> <EM>lastExpr</EM>
+               Returns a range of characters from <EM>string</EM>  starting  at
+               the  character  indexed  by  the  expression  <EM>firstExpr</EM>
+               (zero-based)  until  the  character  indexed   by   the
+               expression <EM>lastExpr</EM>.
+
+               If the expression <EM>firstExpr</EM> or <STRONG>lastExpr</STRONG> starts with the
+               string  <STRONG>end</STRONG>, then <STRONG>end</STRONG> is replaced with the index of the
+               last character in the string.  If the expression starts
+               with  <STRONG>len</STRONG>,  then <STRONG>len</STRONG> is replaced with the length of the
+               string.
+
+          <STRONG>csubstr</STRONG> <EM>string</EM> <EM>firstExpr</EM> <EM>lengthExpr</EM>
+               Returns a range of characters from <EM>string</EM>  starting  at
+               the  character  indexed  by  the  expression  <EM>firstExpr</EM>
+               (zero-based) for <EM>lengthExpr</EM> characters.
+
+               If the expression <EM>firstExpr</EM> or <STRONG>lengthExpr</STRONG>  starts  with
+               the  string <STRONG>end</STRONG>, then <STRONG>end</STRONG> is replaced with the index of
+               the last character in the string.   If  the  expression
+               starts  with  <STRONG>len</STRONG>, then <STRONG>len</STRONG> is replaced with the length
+               of the string.
+
+          <STRONG>ctoken</STRONG> <EM>strvar</EM> <EM>separators</EM>
+               Parse a token out of a character string.  The string to
+               parse  is  contained in the variable named <EM>strvar</EM>.  The
+               string <EM>separators</EM> contains all of the  valid  separator
+               characters  for  tokens  in  the  string.   All leading
+               separators are skipped and the first token is returned.
+               The  variable  <EM>strvar</EM>  will  be modified to contain the
+               remainder of the string following the token.
+
+          <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>class</EM> <EM>string</EM>
+               <STRONG>ctype</STRONG> determines whether all characters in  <EM>string</EM>  are
+               of  the  specified <EM>class</EM>.  It returns <STRONG>1</STRONG> if they are all
+               of <EM>class</EM>, and <STRONG>0</STRONG> if they are not, or if  the  string  is
+               empty.   This  command  also  provides  another  method
+               (besides <STRONG>format</STRONG> and  <STRONG>scan</STRONG>)  of  converting  between  an
+               ASCII  character  and its numeric value.  The following
+               <STRONG>ctype</STRONG> commands are available:
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>alnum</EM> <EM>string</EM>
+                    Tests  that  all  characters  are  alphabetic   or
+                    numeric  characters  as  defined  by the character
+                    set.
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>alpha</EM> <EM>string</EM>
+                    Tests   that   all   characters   are   alphabetic
+                    characters as defined by the character set.
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>ascii</EM> <EM>string</EM>
+                    Tests that all characters are an  ASCII  character
+                    (a non-negative number less than 0200).
+
+               <STRONG>ctype</STRONG> <STRONG>char</STRONG> <EM>number</EM>
+                    Converts the numeric value, <EM>string</EM>,  to  an  ASCII
+                    character.   Number must be in the range 0 through
+                    255.
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>cntrl</EM> <EM>string</EM>
+                    Tests   that   all   characters   are    ``control
+                    characters'' as defined by the character set.
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>digit</EM> <EM>string</EM>
+                    Tests  that  all  characters  are  valid   decimal
+                    digits, i.e. 0 through 9.
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>graph</EM> <EM>string</EM>
+                    Tests that all characters within are any character
+                    for  which  <EM>ctype</EM>  <EM>print</EM> is true, except for space
+                    characters.
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>lower</EM> <EM>string</EM>
+                    Tests that all characters are lowercase letters as
+                    defined by the character set.
+
+               <STRONG>ctype</STRONG> <STRONG>ord</STRONG> <EM>character</EM>
+                    Convert  a  character  into  its  decimal  numeric
+                    value.   The  first  character  of  the  string is
+                    converted.
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>space</EM> <EM>string</EM>
+                    Tests that all  characters  are  either  a  space,
+                    horizontal-tab,    carriage    return,    newline,
+                    vertical-tab, or form-feed.
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>print</EM> <EM>string</EM>
+                    Tests that all  characters  are  a  space  or  any
+                    character  for which <EM>ctype</EM> <EM>alnum</EM> or <EM>ctype</EM> <EM>punct</EM> is
+                    true or other ``printing character'' as defined by
+                    the character set.
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>punct</EM> <EM>string</EM>
+                    Tests that all characters are made up  of  any  of
+                    the  characters  other  than  the  ones  for which
+                    <STRONG>alnum</STRONG>, <STRONG>cntrl</STRONG>, or <STRONG>space</STRONG> is true.
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>upper</EM> <EM>string</EM>
+                    Tests that all characters are uppercase letters as
+                    defined by the character set.
+
+               <STRONG>ctype</STRONG> ?-<EM>failindex</EM> <EM>var</EM>? <EM>xdigit</EM> <EM>string</EM>
+                    Tests that all characters  are  valid  hexadecimal
+                    digits,  that  is  <STRONG>0</STRONG>  through  <STRONG>9</STRONG>, a through <STRONG>f</STRONG> or <STRONG>A</STRONG>
+                    through <STRONG>F</STRONG>.
+
+               If -<EM>failindex</EM> is specified, then the index into  <EM>string</EM>
+               of  the first character that did not match the class is
+               returned in <EM>var</EM>.
+
+          <STRONG>replicate</STRONG> <EM>string</EM> <EM>countExpr</EM>
+               Returns  <EM>string</EM>,  replicated  the   number   of   times
+               indicated by the expression <EM>countExpr</EM>.
+
+          <STRONG>translit</STRONG> <EM>inrange</EM> <EM>outrange</EM> <EM>string</EM>
+               Translate characters  in  <EM>string</EM>,  changing  characters
+               occurring  in <EM>inrange</EM> to the corresponding character in
+               <EM>outrange</EM>.  <EM>Inrange</EM>  and  <EM>outrange</EM>  may   be   list   of
+               characters or a range in the form `A-M'.  For example:
+                       translit a-z A-Z foobar
+
+               returns "FOOBAR".
+
+     <STRONG>XPG/3</STRONG> <STRONG>MESSAGE</STRONG> <STRONG>CATALOG</STRONG> <STRONG>COMMANDS</STRONG>
+          These commands provide a Tcl interface to  message  catalogs
+          that  are  compliant  with  the  X/Open  Portability  Guide,
+          Version 3 (XPG/3).
+
+          Tcl  programmers  can  use  message   catalogs   to   create
+          applications that are language-independent.  Through the use
+          of message catalogs, prompts, messages, menus and  so  forth
+          can exist for any number of languages, and they can altered,
+          and new languages added,  without affecting  any  Tcl  or  C
+          source  code,  greatly  easing  the maintenance difficulties
+          incurred by supporting multiple languages.
+
+          A default text message is passed to the command that fetches
+          entries   from   message  catalogs.   This  allows  the  Tcl
+          programmer to create message catalogs containing messages in
+          various  languages, but still have a set of default messages
+          available  regardless  of  the  presence  of   any   message
+          catalogs,  and  allow  the  programs  to  press  on  without
+          difficulty when no catalogs are present.
+
+          Thus, the normal approach to using message  catalogs  is  to
+          ignore  errors on <STRONG>catopen</STRONG>, in which case <STRONG>catgets</STRONG> will return
+          the default message that was specified in the call.
+
+          The  Tcl  message  catalog  commands  normally  ignore  most
+          errors.   If  it  is  desirable  to detect errors, a special
+          option is provided.   This  is  normally  used  only  during
+          debugging,  to  insure that message catalogs are being used.
+          If your Unix implementation  does  not  have  XPG/3  message
+          catalog  support, stubs will be compiled in that will create
+          a version of <STRONG>catgets</STRONG> that always returns the default string.
+          This  allows  for  easy  porting of software to environments
+          that don't have support for message catalogs.
+
+          Message catalogs are global to the process,  an  application
+          with  multiple  Tcl interpreters within the same process may
+          pass and share message catalog handles.
+
+          <STRONG>catopen</STRONG> ?<STRONG>-fail</STRONG>|<STRONG>-nofail</STRONG>? <EM>catname</EM>
+               Open the  message  catalog  <EM>catname</EM>.   This  may  be  a
+               relative   path   name,   in  which  case  the  <STRONG>NLSPATH</STRONG>
+               environment variable is searched to  find  an  absolute
+               path  to  the  message  catalog.   A handle in the form
+               <STRONG>msgcatN</STRONG> is returned.  Normally, errors are ignored, and
+               in  the  case  of a failed call to <STRONG>catopen</STRONG>, a handle is
+               returned to an unopened message catalog.  (This  handle
+               may  still  be  passed to <STRONG>catgets</STRONG> and <STRONG>catclose</STRONG>, causing
+               <STRONG>catgets</STRONG>  to  simply  return  the  default  string,   as
+               described  above.  If the <STRONG>-fail</STRONG> option is specified, an
+               error is  returned  if  the  open  fails.   The  option
+               <STRONG>-nofail</STRONG> specifies the default behavior of not returning
+               an error when <STRONG>catopen</STRONG> fails to open a specified message
+               catalog.  If the handle from a failed <STRONG>catopen</STRONG> is passed
+               to <STRONG>catgets</STRONG>, the default string is returned.
+
+          <STRONG>catgets</STRONG> <EM>catHandle</EM> <EM>setnum</EM> <EM>msgnum</EM> <EM>defaultstr</EM>
+               Retrieve a message form a  message  catalog.  <EM>CatHandle</EM>
+               should  be  a  Tcl  message  catalog  handle  that  was
+               returned by <STRONG>catopen</STRONG>.  <EM>Setnum</EM> is the message set number,
+               and  <EM>msgnum</EM>  is  the  message  number.  If  the message
+               catalog was not opened, or the message set  or  message
+               number  cannot  be  found,  then  the  default  string,
+               <EM>defaultstr</EM>, is returned.
+
+          <STRONG>catclose</STRONG> ?<STRONG>-fail</STRONG>|<STRONG>-nofail</STRONG>? <EM>cathandle</EM>
+               Close  the  message  catalog  specified  by  <EM>cathandle</EM>.
+               Normally,  errors  are ignored.  If <STRONG>-fail</STRONG> is specified,
+               any  errors  closing  the  message  catalog  file   are
+               returned.   The  option  <STRONG>-nofail</STRONG>  specifies the default
+               behavior of not returning an error.  The use  of  <STRONG>-fail</STRONG>
+               only  makes  sense if it was also specified in the call
+               to <STRONG>catopen</STRONG>.
+
+     <STRONG>EXTENDED</STRONG> <STRONG>TCL</STRONG> <STRONG>SHELL</STRONG>
+          <STRONG>tcl</STRONG> <STRONG>?-qn?</STRONG> <STRONG>?-f?</STRONG> <EM>script</EM><STRONG>?|?-c</STRONG> <EM>command</EM><STRONG>?</STRONG> <STRONG>?</STRONG><EM>args</EM>?
+
+          The <STRONG>tcl</STRONG> starts the  interactive  TclX  command  interpreter.
+          The   TclX   shell  provides  an  environment  for  writing,
+          debugging and executing Tcl scripts.  The  functionality  of
+          the  TclX  shell  can  be easily obtained by any application
+          that includes TclX.
+
+          The <STRONG>tcl</STRONG> command, issued without any  arguments,  invokes  an
+          interactive   Tcl  shell,  allowing  the  user  to  interact
+          directly with Tcl, executing any Tcl commands  at  will  and
+          viewing their results.
+
+          If <EM>script</EM> is specified, then the  script  is  executed  non-
+          interactively  with  any  additional  arguments, <EM>args</EM>, being
+          supplied in the global Tcl variable `<STRONG>argv</STRONG>'.  If  <EM>command</EM>  is
+          supplied,  then  this command (or semicolon-separated series
+          of commands) is executed, with `<STRONG>argv</STRONG>' containing any <EM>args</EM>.
+
+          The TclX shell is intended as an environment for Tcl program
+          development  and execution.  While it is not a full-featured
+          interactive shell, it provides a comfortable environment for
+          the interactive development of Tcl code.
+
+          The following command line flags are recognized by  the  Tcl
+          shell command line parser:
+
+          <STRONG>-q</STRONG>   Quick initialization flag.  The Tcl initiaization  file
+               is not evaluated and the <STRONG>auto_path</STRONG> variable is not set.
+               Tcl auto-load libraries will not be available.
+
+          <STRONG>-n</STRONG>   No procedure call stack dump.  The procedure call stack
+               will  not  be  displayed when an error occurs, only the
+               error message.   Useful  in  the  #!  line  of  already
+               debugged scripts.
+
+          <STRONG>-f</STRONG>   Takes the next argument as a script for Tcl to  source,
+               rather  than entering interactive mode.  The <STRONG>-f</STRONG> flag is
+               optional.  Normally the first argument  that  does  not
+               start  with  a  `-'  is  taken as the script to execute
+               unless the `-c' option  is  specified.   Any  following
+               arguments  are  passed to the script via <STRONG>argv</STRONG>, thus any
+               other Tcl shell command-line flags  must  precede  this
+               option.
+
+          <STRONG>-c</STRONG>   Take the next argument as a Tcl command to execute.  It
+               may contain series of commands to execute, separated by
+               `;'.  Any following arguments are passed in <STRONG>argv</STRONG>, thus,
+               as with <STRONG>-f</STRONG>, any other Tcl shell flags must precede this
+               option.
+
+          <STRONG>--</STRONG>   Mark the end of the arguments to  the  Tcl  shell.  All
+               arguments following this are passed in the Tcl variable
+               <STRONG>argv</STRONG>.   This  is  useful  to  pass  arguments   without
+               attempting to execute a Tcl script.
+
+          The result string returned by a command  executed  from  the
+          Tcl  shell command line is normally echoed back to the user.
+          If an error occurs, then the  string  result  is  displayed,
+          along  with  the  error  message.  The error message will be
+          preceded by the string ``Error:''.
+
+          The <STRONG>set</STRONG> command is a special case.  If the command is called
+          to set a variable (i.e. with two arguments), then the result
+          will not be echoed.  If only one argument,  the  name  of  a
+          variable,  is  supplied  to  <STRONG>set</STRONG>,  then  the  result will be
+          echoed.
+
+          If an unknown Tcl command is entered from the command  line,
+          then  the  Unix  command  path, specified in the environment
+          variable <STRONG>PATH</STRONG>, will be searched for a command  of  the  same
+          name.  If the command is found, it will be executed with any
+          arguments remaining on the Tcl command line being passed  as
+          arguments  to  the  command.   This  feature  is provided to
+          enhance  the  interactive  environment  for  developing  Tcl
+          scripts.
+
+          Automatic execution of  programs  in  this  manner  is  only
+          supported  from  the command line, not in script files or in
+          procedures,  to  reduce   confusion   and   mistakes   while
+          programming  in  Tcl.   Scripts  should  use the Tcl <STRONG>exec</STRONG> or
+          <STRONG>system</STRONG> commands to run Unix commands.
+
+          The following variables are  set  and/or  used  by  the  Tcl
+          shell.
+
+          <STRONG>argv0</STRONG>
+               Contains the name of the Tcl program specified  on  the
+               command line or the name that the Tcl shell was invoked
+               under if no program was  specified.   <STRONG>argc</STRONG>  Contains  a
+               count  of  the  number  of  <EM>argv</EM> arguments (0 if none).
+               <STRONG>argv</STRONG> A list containing the arguments passed in from the
+               command  line,  excluding  arguments  used  by  the Tcl
+               shell.  The first element is the first passed argument,
+               not the program name.
+
+          <STRONG>tcl_interactive</STRONG>
+               Set to <STRONG>1</STRONG> if Tcl shell is invoked interactively, or <STRONG>0</STRONG> if
+               the Tcl shell is directly executing a script.  Normally
+               checked by scripts so  that  they  can  function  as  a
+               standalone  application  if  specified  on  the command
+               line, but merely load in  and  not  execute  if  loaded
+               during an interactive invocation of Tcl.
+
+          <STRONG>auto_path</STRONG>
+               Path to search to locate  Tcl  scripts.   Used  by  the
+               <STRONG>auto_load</STRONG> command and the TclX unknown command handler.
+               The path is a Tcl list of directory names.
+
+          <STRONG>tclx_library</STRONG>
+               Path to the TclX runtime library.  If your running  the
+               TclX  shell or an application based on it (like wishx).
+               The TclX initialization file normally adds this to  the
+               <STRONG>auto_path</STRONG>.
+
+          <STRONG>tclx_library_env</STRONG>
+               Name  of  the  environment  variable  the  is  used  to
+               override  the  default  value  for  <STRONG>tclx_library</STRONG>.  This
+               value is normally not set and the  default  environment
+               variable,  <STRONG>TCLX_LIBRARY</STRONG>,  is  used.  If the variable is
+               set to an empty string, no environment override will be
+               allowed.   This  value  must be set before <STRONG>Tclx_Init</STRONG> is
+               called.
+
+          <STRONG>tclx_init</STRONG>
+               Path to the initialization  file  that  <STRONG>Tclx_Init</STRONG>  will
+               evaluate.  This value is normally not set, resulting in
+               the standard init file being evaluated.   If  the  path
+               starts  with  a  "<STRONG>/</STRONG>", its is taken as an absolute path.
+               If it does not start with a "<STRONG>/</STRONG>", its is taken as a path
+               relative to <STRONG>tclx_library</STRONG>.
+
+          <STRONG>tkx_library</STRONG>
+               Path to the TkX runtime library.  This is set  only  if
+               your   application  has  called  <STRONG>Tkx_InitfR.</STRONG>   <STRONG>The</STRONG>  <STRONG>TkX</STRONG>
+               <STRONG>initialization</STRONG>  <STRONG>file</STRONG>  <STRONG>normally</STRONG>   <STRONG>adds</STRONG>   <STRONG>this</STRONG>   <STRONG>to</STRONG>   <STRONG>the</STRONG>
+               <STRONG>auto_path.</STRONG>
+
+          <STRONG>tkx_library_env</STRONG>
+               Name  of  the  environment  variable  the  is  used  to
+               override the default value for <STRONG>tkx_library</STRONG>.  This value
+               is  normally  not  set  and  the  default   environment
+               variable, <STRONG>TKX_LIBRARY</STRONG>, is used.  If the variable is set
+               to an empty string, no  environment  override  will  be
+               allowed.   This  value  must  be set before <STRONG>Tkx_Init</STRONG> is
+               called.
+
+          <STRONG>tkx_init</STRONG>
+               Path to the  initialization  file  that  <STRONG>Tkx_Init</STRONG>  will
+               evaluate.  This value is normally not set, resulting in
+               the standard init file being evaluated.   If  the  path
+               starts  with  a  "<STRONG>/</STRONG>", its is taken as an absolute path.
+               If it does not start with a "<STRONG>/</STRONG>", its is taken as a path
+               relative to <STRONG>tkx_library</STRONG>.
+
+          <STRONG>tcl_prompt1</STRONG>
+               Contains code to run to output  the  prompt  used  when
+               interactively prompting for commands.
+
+          <STRONG>tcl_prompt2</STRONG>
+               Contains code to run to output  the  prompt  used  when
+               interactively   prompting   for   continuation   of  an
+               incomplete command.
+
+          <STRONG>TCLXENV</STRONG>
+               Array that  contains  information  used  internally  by
+               various Tcl procedures that are part of the TclX shell.
+               Don't change this  array  unless  you  know  what  your
+               doing.  <STRONG>tclx_errorHandler</STRONG> <EM>message</EM>
+               The <STRONG>tclx_errorHandler</STRONG> command doesn't exist as built-in
+               part  of  TclX.   Instead,  individual  applications or
+               users  can  define  a <STRONG>tclx_errorHandler</STRONG>  command  (e.g.
+               as  a  Tcl  procedure)  if they wish to handle uncaught
+               errors.  The procedure will be passed a single argument
+               of  the  error  <EM>message</EM>,  with  <STRONG>errorCode</STRONG> and <STRONG>errorInfo</STRONG>
+               having values reflecting the error that occurred.
+
+               The <STRONG>tclx_errorHandler</STRONG> command is called when  an  error
+               that  is  not  caught  returns to the top level command
+               evaluation in the TclX shell or <STRONG>wishx</STRONG>.  The  difference
+               between   <STRONG>tclx_errorHandler</STRONG>   and   <STRONG>bgerror</STRONG>   is   that
+               <STRONG>tclx_errorHandler</STRONG>  is  called  during  the  synchronous
+               execution  of  a  script  while  <STRONG>bgerror</STRONG> is called as a
+               result of an uncaught error in an event handler.  In  a
+               non-event oriented Tcl script <STRONG>tclx_errorHandler</STRONG> will be
+               called on all errors that are not caught and <STRONG>bgerror</STRONG> is
+               not  used.   In a <STRONG>wishx</STRONG> script or event oriented script
+               executed with the TclX shell, <STRONG>tclx_errorHandler</STRONG> will be
+               called  on  uncaught errors during the execution of the
+               main script that set up  the  event  oriented  program.
+               Once  the event loop is entered, <STRONG>bgerror</STRONG> will be called
+               on uncaught errors.
+
+               This procedure is not called in  response  to  commands
+               entered  via an interactive command loop, only from the
+               evaluation of scripts or Tcl commands  passed  via  the
+               command  line.   If the procedure returns normally, the
+               program will just exit without any error  being  issued
+               by the shell.  Generally the procedure should exit with
+               a non-zero exit code once the error has been processed.
+               It  is  not  possible to continue executing the code in
+               which the error occurred.  This is useful  for  logging
+               <STRONG>errorInfo</STRONG> or e-mailing it to the maintainer.
+
+          <STRONG>mainloop</STRONG>
+               This procedure sets up a top-level event loop.   Events
+               are  processed  until  there  are  no more active event
+               sources, at which time the process exits.  It  is  used
+               to  build  event oriented programs using the TclX shell
+               in a style similar to that  used  with  <STRONG>wish</STRONG>.   If  the
+               global  variable  <STRONG>tcl_interactive</STRONG> exists and has a true
+               value an interactive  command  handler  is  started  as
+               well.   If the command handler is terminated by an EOF,
+               the process will be exited.
+
+               This  commands  is  not  useful   in   <STRONG>wishx</STRONG>,   as   it
+               automatically  enters  an event loop after processing a
+               script.
+
+     <STRONG>HELP</STRONG> <STRONG>FACILITY</STRONG>
+          The help facility allows one to look  up  help  pages  which
+          where  extracted  from the standard Tcl manual pages and Tcl
+          scripts during Tcl installation.  Help files are  structured
+          as a multilevel tree of subjects and help pages.  Help files
+          are  found  by  searching  directories  named  <STRONG>help</STRONG>  in  the
+          directories  listed  in  the <STRONG>auto_path</STRONG> variable.  All of the
+          files in the list of help directories form a virtual root of
+          the  help tree.  This method allows multiple applications to
+          provide help trees without having the files  reside  in  the
+          same directory.
+
+          The  help  facility  can  be  accessed  in  two   ways,   as
+          interactive  commands  in  the  Extended  Tcl shell or as an
+          interactive Tk-based program (if you have built Extended Tcl
+          with Tk).
+
+          To run the Tk-based interactive help program:
+
+              tclhelp ?addpaths?
+          Where <EM>addpaths</EM> are  additional  paths  to  search  for  help
+          directories.  By default, only the <EM>auto_path</EM> used by <STRONG>tclhelp</STRONG>
+          is search.  This will result in help on  Tcl,  Extended  Tcl
+          and Tk.
+
+          The following  interactive  Tcl  commands  and  options  are
+          provided with the help package:
+
+          <STRONG>help</STRONG>
+               Help, without arguments, lists of all the help subjects
+               and pages under the current help subject.
+
+          <STRONG>help</STRONG> <EM>subject</EM>
+               Displays all of help pages and lower level subjects (if
+               any exist) under the subject <EM>subject</EM>.
+
+          <STRONG>help</STRONG> <EM>subject</EM>/<EM>helppage</EM>
+               Display the specified help page.  The  help  output  is
+               passed  through  a  simple  pager  if output exceeds 23
+               lines, pausing waiting for a return to be entered.   If
+               any   other   character   is  entered,  the  output  is
+               terminated.
+
+          <STRONG>helpcd</STRONG> <STRONG>?</STRONG><EM>subject</EM>?
+               Change the current subject, which is much like the Unix
+               current directory.  If <EM>subject</EM> is not specified, return
+               to the top-level of the help tree.  Help  subject  path
+               names may also include ``..'' elements.
+
+          <STRONG>helppwd</STRONG>
+               Displays the current help subject.
+
+          <STRONG>help</STRONG> <STRONG>help</STRONG> <STRONG>|</STRONG> <STRONG>?</STRONG>
+               Displays help on the help  facility  at  any  directory
+               level.
+
+          <STRONG>apropos</STRONG> <EM>pattern</EM>
+               This command locates subjects by searching  their  one-
+               line  descriptions  for  a  pattern.  Apropos is useful
+               when you can remember part of the name  or  description
+               of  a  command, and want to search through the one-line
+               summaries for matching lines.  Full regular expressions
+               may be specified (see the <STRONG>regexp</STRONG> command).
+
+     <STRONG>TCL</STRONG> <STRONG>LOADABLE</STRONG> <STRONG>LIBRARIES</STRONG> <STRONG>AND</STRONG> <STRONG>PACKAGES</STRONG>
+          Extended Tcl supports standard Tcl  <STRONG>tclIndex</STRONG>  libraries  and
+          package  libraries.  A  package  library  file  can  contain
+          multiple independent Tcl packages.  A  package  is  a  named
+          collection  of  related  Tcl  procedures  and initialization
+          code.
+
+          The package library file is just a regular Unix  text  file,
+          editable with your favorite text editor, containing packages
+          of Tcl source code. The package library file name must  have
+          the  suffix  <STRONG>.tlib</STRONG>.   An  index  file with the suffix <STRONG>.tndx</STRONG>,
+          corresponding to the package library.   The  <STRONG>.tndx</STRONG>  will  be
+          automatically  created  by Tcl whenever it is out of date or
+          missing (provided there is write access to the directory.
+
+          The variable <STRONG>auto_path</STRONG> contains a list of  directories  that
+          are  searched  for  libraries.   The  first  time an unknown
+          command trap is take, the  indexes  for  the  libraries  are
+          loaded  into  memory.  If  the <STRONG>auto_path</STRONG> variable is changed
+          during execution of a program, it will be re-searched.  Only
+          the first package of a given name found during the execution
+          of a  program  is  loaded.   This  can  be  overridden  with
+          <STRONG>loadlibindex</STRONG> command.
+
+          The start of a package is delimited by:
+
+               <STRONG>#@package:</STRONG> <EM>package_name</EM> <EM>proc1</EM> ?..<EM>procN</EM>?
+
+          These lines must start in column  one.   Everything  between
+          the  <STRONG>#@package:</STRONG> keyword and the next <STRONG>#@package:</STRONG> keyword or a
+          <STRONG>#@packend</STRONG> keyword, or the end of the file, becomes  part  of
+          the  named package.  The specified procedures, <EM>proc1</EM>..<EM>procN</EM>,
+          are the entry points of the package.  When a  command  named
+          in  a  package  specification is executed and detected as an
+          unknown command, all code in the specified package  will  be
+          sourced.   This  package should define all of the procedures
+          named on the package line,  define  any  support  procedures
+          required   by   the  package  and  do  any  package-specific
+          initialization.  Packages declarations  maybe  continued  on
+          subsequent   lines   using   standard   Tcl  backslash  line
+          continuations.  The <STRONG>#@packend</STRONG> keyword is useful to make sure
+          only  the minimum required section of code is sourced.  Thus
+          for example a large comment block at the  beginning  of  the
+          next file won't be loaded.
+
+          Care should be taken in defining <EM>package_name</EM>, as the  first
+          package  found  in  the path by with a given name is loaded.
+          This can be useful in developing  new  version  of  packages
+          installed on the system.
+
+          For example, in a package source file, the presence  of  the
+          following line:
+
+               <STRONG>#@package:</STRONG> <STRONG>directory_stack</STRONG> <STRONG>pushd</STRONG> <STRONG>popd</STRONG> <STRONG>dirs</STRONG>
+
+          says that the text lines following that line in the  package
+          file up to the next <EM>package</EM> line or the end of the file is a
+          package named <STRONG>directory_stack</STRONG> and that an attempt to execute
+          either  <EM>pushd</EM>,  <EM>popd</EM> or <EM>dirs</EM> when the routine is not already
+          defined  will  cause  the  <STRONG>directory_stack</STRONG>  portion  of  the
+          package file to be loaded.
+
+     <STRONG>PACKAGE</STRONG> <STRONG>LIBRARY</STRONG> <STRONG>MANAGEMENT</STRONG> <STRONG>COMMANDS</STRONG>
+          Several commands are available  for  building  and  managing
+          package  libraries.   Commands that are extended versions of
+          the standard Tcl library commands are listed here.   All  of
+          the  standard  Tcl library management commands and variables
+          are also supported.
+
+          <STRONG>auto_commands</STRONG> ?<STRONG>-loaders</STRONG>?
+               Lists the names of all known  loadable  procedures  and
+               commands  procedures.   If  <STRONG>-loaders</STRONG>  is specified, the
+               command that will be executed to load the command  will
+               also be returned.
+
+          <STRONG>buildpackageindex</STRONG> <EM>libfilelist</EM>
+               Build index files for package libraries.  The  argument
+               <EM>libfilelist</EM>  is a list of package libraries.  Each name
+               must end with the suffix <STRONG>.tlib</STRONG>.  A corresponding  <STRONG>.tndx</STRONG>
+               file will be built.  The user must have write access to
+               the directory containing each library.
+
+          <STRONG>convert_lib</STRONG> <EM>tclIndex</EM> <EM>packagelib</EM> ?<EM>ignore</EM>?
+               Convert a Ousterhout  style  <EM>tclIndex</EM>  index  file  and
+               associate   source   files   into   a  package  library
+               <STRONG>packagelib</STRONG>.   If  <STRONG>packagelib</STRONG>  does  not  have  a  <STRONG>.tlib</STRONG>
+               extension,  one  will be added.  Any files specified in
+               <EM>tclIndex</EM> that are in the list <EM>ignore</EM> will  be  skipped.
+               Files  listed  in  <EM>ignore</EM>  should just be the base file
+               names, not full paths.
+
+          <STRONG>auto_load</STRONG> ?<EM>command</EM>?
+               Attempt to load the specified <EM>command</EM> from  a  loadable
+               library.  loading the package containing the procedure.
+               If the package indexes have not  been  loaded  for  all
+               package  libraries  in  <STRONG>auto_path</STRONG>, they will be loaded.
+               Out-of-date library indexes will be rebuilt if they are
+               writable.   The  procedure returns <STRONG>1</STRONG> if the command was
+               successfully loaded, or <STRONG>0</STRONG> if it was not.
+
+               Duplicated package names are skipped, the first package
+               of  a  given  name found in the path is loaded.  If the
+               <STRONG>auto_path</STRONG> has changed since the last load, indexes will
+               be reloaded (duplicate packages will not be redefined).
+
+               If <EM>command</EM>  is  not  specified,  the  indexes  will  be
+               loaded,  if they have not already been loaded or if the
+               <STRONG>auto_path</STRONG> variable has changed, but no command will  be
+               loaded.
+
+          This command overrides the standard  Tcl  procedure  of  the
+          same name.
+
+          <STRONG>loadlibindex</STRONG> <EM>libfile.tlib</EM>
+               Load the package library  index  of  the  library  file
+               <STRONG>libfile</STRONG>  (which  must  have the suffix .<EM>tlib)</EM>.  Package
+               library  indexes  along  the   <STRONG>auto_path</STRONG>   are   loaded
+               automatically on the first <STRONG>demand_load</STRONG>; this command is
+               provided to explicitly load libraries that are  not  in
+               the path.  If the index file (with a .<EM>tndx</EM> suffix) does
+               not exists or is out of date, it will be rebuilt if the
+               user  has  directory  permissions  to  create  it. If a
+               package with the same name as a package in <EM>libfile.tlib</EM>
+               has   already  been  loaded,  its  definition  will  be
+               overridden  by  the  new  package.   However,  if   any
+               procedure  has  actually  been used from the previously
+               defined package, the procedures from <EM>libfile.tlib</EM>  will
+               not be loaded.
+
+               This  command  will  also  load  an  index   built   by
+               <STRONG>mkindex.tcl</STRONG>  program  supplied with standard Tcl.  This
+               file must be named "<STRONG>tclIndex</STRONG>".
+
+          <STRONG>auto_packages</STRONG> <STRONG>?</STRONG>-<EM>location</EM>?
+               Returns a list of the names of all defined packages. If
+               -<EM>location</EM> is specified, a list of pairs of package name
+               and the <STRONG>.tlib</STRONG> path  name,  offset  and  length  of  the
+               package within the library.
+
+          <STRONG>auto_load_file</STRONG> <EM>file</EM>
+               Source a file,  as  with  the  <STRONG>source</STRONG>  command,  except
+               search <STRONG>auto_path</STRONG> for the file.
+
+          <STRONG>searchpath</STRONG> <EM>path</EM> <EM>file</EM>
+               Search all directories in the specified path, which  is
+               a  Tcl  list, for the specified file.  Returns the full
+               path name of the  file,  or  an  empty  string  if  the
+               requested file could not be found.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

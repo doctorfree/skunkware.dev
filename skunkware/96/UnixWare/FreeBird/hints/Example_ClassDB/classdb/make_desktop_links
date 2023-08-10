@@ -1,0 +1,64 @@
+#
+#	Wade thru a .cdb file, and create the symlinks on the
+#	desktop that the user needs.  Note: this script
+#	depends on there being a #SYMLINK comment in each
+#	rule - I use the #SYMLINK comment to determine
+#	where on the desktop the link should be created.
+#
+#	Note that if a program isn't in your path when
+#	this script is executed, then no link will be
+#	created.  If you later install the program, then
+#	rerun this script.
+#
+for cdb in $*
+do
+	inrule=0
+	while read a b
+	do
+		case "$a" in
+		"BEGIN")
+			from=; to=; inrule=1
+			;;
+		"#SYMLINK")
+			to=`echo "$b" | sed -e 's/[;"]//g' -e "s/'//g"`
+			;;
+		"_LPATTERN")
+			from=`echo "$b" | sed -e 's/[;"]//g' -e "s/'//g"`
+			;;
+		"END")
+			if [ $inrule = 1 -a "$to" != "" -a "$from" != "" ]; then
+				type "$from" | while read a b realfrom
+				do
+					case "$b" in
+					is)
+						dir=$HOME/`dirname "$to"`
+						[ -d $dir ] || mkdir -p $dir
+						rm -f "$HOME/$to"
+						ln -s "$realfrom" "$HOME/$to"
+						echo ln -s "$realfrom" "$HOME/$to"
+						;;
+					*)
+						echo "You don't have $from: no symlink was made"
+						;;
+					esac
+				done
+			fi
+			inrule=0
+			;;
+		esac
+	done < $cdb
+done
+
+exit
+
+#
+#	Typical rule entry, for reference
+#
+CLASS Spider
+BEGIN
+	#SYMLINK	"Games/Spider";
+	_LPATTERN	"spider";
+	_FILETYPE	EXEC;
+	_ICONFILE	"/usr/local/X/lib/pixmaps/spider.xpm";
+	MENU _Open	"exec %F &";
+END

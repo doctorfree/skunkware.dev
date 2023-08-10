@@ -1,0 +1,54 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:
+TITLE:  Multiple Logical Drives Not Seen in Merge
+DOCUMENT ID:  TID021191
+DOCUMENT REVISION:  A
+DATE:  22OCT93
+AUTHOR:  TEGBERT
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Symptom Solution
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Merge
+Drivers
+
+ABSTRACT:
+
+More than one logical drive in an extended DOS partition can be read but cannot be written to.
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+SYMPTOM
+
+When I have more than one logical drive in an extended DOS partition, Merge will recognize the partitions ok and read from them but will not allow me to write to them.
+
+SOLUTION
+
+When deciding which devices it can use, merge checks to see if there are more than one device with the same name.  In an extended DOS partition with multiple logical drives, the devices use are usually /dev/dsk/0se,1  /dev/dsk/0se,2 , and so on for as many logical drives as you have.  Because they all refer to /dev/dsk/0se, Merge interprets them as the same device and does not allow you to use them.
+
+The way to workaround this is to set up hard links for each logical drive.  As root cd to /dev/dsk and do an "ln -f 0se 0se1" command.  The 0se1 is just a name and can be called something else if desired.  Make a 0se2 and 0se3 for each logical drive.  Then edit the /etc/dosdev file, and change the definitions for dosd, dose, and so on from /dev/dsk/0se,1 to /dev/dsk/0se1,1  ... and /dev/dsk/0se,2 to /dev/dsk/0se2,2  ... and so on for all the logical drives.  After this is done, start up your DOS or Windows session and you should be able to write to the logical drives.
+
+REFERENCE: ldrv1022.tf, Merge
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+
+
+
+

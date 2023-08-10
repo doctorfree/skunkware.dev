@@ -1,0 +1,96 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from install.texi on 26 October 1995 -->
+
+<TITLE>Installation Notes - Why fixincludes</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="install_1.html">first</A>, <A HREF="install_9.html">previous</A>, <A HREF="install_11.html">next</A>, <A HREF="install_37.html">last</A> section, <A HREF="install_toc.html">table of contents</A>.
+<HR>
+<H3><A NAME="SEC10" HREF="install_toc.html#TOC10">Why convert system header files?</A></H3>
+<P>
+<BLOCKQUOTE>
+The <SAMP>`fixincludes'</SAMP> installation step described here <EM>applies
+only to the native configuration</EM> of the Developer's Kit---that is, only
+if your tape is configured to develop software for the same <DFN>host</DFN>
+on which it runs.  If you have a cross-development tape, configured to
+develop software for another machine (the <DFN>target</DFN>), the system
+header files from your <DFN>host</DFN> are not needed for the GNU
+compilers.  Cross-development tapes have <SAMP>`target = <VAR>target</VAR>'</SAMP> on
+the tape label.
+</BLOCKQUOTE>
+<P>
+For the native configuration, it is very important to run <SAMP>`Install
+fixincludes'</SAMP> (on <EM>each host</EM> where you install the compiler
+binaries).
+<P>
+When the ANSI X3J11 committee finished developing a standard for
+the C language, a few things that had worked one way in many traditional
+C compilers ended up working differently in ANSI C.  Most of these
+changes are improvements.  But some Unix header files still rely on the
+old C meanings, in cases where the Unix vendor has not yet converted to
+using an ANSI C compiler for the operating system itself.
+<SAMP>`Install fixincludes'</SAMP> does a mechanical translation that writes
+ANSI C versions of some system header files into a new,
+GCC-specific include directory---<EM>your system's original
+header files are not affected.</EM>
+<P>
+The C header files supplied with SVr4 versions of Unix depend on a
+questionable interpretation of the ANSI C standard: they test for a
+non-ANSI environment by checking whether <CODE>__STDC__</CODE> is
+defined as zero.  The ANSI standard actually only specifies that
+<CODE>__STDC__</CODE> be defined to 1; if it is defined to any other value,
+the environment is not ANSI C compatible, and ANSI C says
+nothing about what that value might be.
+<P>
+GCC defines <CODE>__STDC__</CODE> to 1 when running with <SAMP>`-ansi'</SAMP>,
+when it functions as an "ANSI C superset" compiler.  (It also
+sets <CODE>__STRICT_ANSI__</CODE> when it runs with the <SAMP>`-pedantic'</SAMP>
+option.)  However, GCC leaves <CODE>__STDC__</CODE> undefined when it is
+not running as an ANSI C compiler.
+<P>
+Unfortunately for Solaris users, Solaris header files follow the SVr4
+choice.  Since GCC never defines <CODE>__STDC__</CODE> as 0, the
+distributed header files can leave out some declarations.  (Look in
+<TT>`/usr/include/time.h'</TT>, for example.)
+<P>
+Part of the installation process of the native compiler release is to
+"fix" the header files, such as <TT>`stdio.h'</TT>, on the host system to
+remove ANSI incompatibilities.  <SAMP>`Install fixincludes'</SAMP> makes
+copies of the system <TT>`include'</TT> files which have these nonstandard
+features removed, so that GCC can process them.  These copies are
+placed in a new, GCC-specific <TT>`include'</TT> directory---<EM>your
+system's original header files are not affected.</EM> Once these fixed
+header files are created, GCC finds and uses them automatically.
+<P>
+Likewise, C++ programmers require C++-ready, ANSI-compatible
+versions of the standard C header files.  These used to be provided with
+<CODE>libg++</CODE>, but were difficult to maintain due to the design
+compromises (and outright "kludges") that were necessary to make these
+work on all the systems we support.
+<P>
+We have recently introduced what we believe to be a better solution in
+the form of a new shell script, <CODE>fixproto</CODE>.  <CODE>fixproto</CODE>
+analyzes all the header files in <TT>`/usr/include'</TT>, and adds any
+missing standard ANSI and Posix.2 prototypes.  The <SAMP>`extern
+"C"'</SAMP> braces needed to specify that these are C (not C++) functions are
+also added as needed.  It is run as part of the installation and/or
+build of a native compiler.  The resulting header files are also used
+for C, with the result that the <SAMP>`-Wimplicit'</SAMP> option for <CODE>gcc</CODE>
+is much more useful.
+<P>
+The most obvious drawback to this solution is that the process of
+"fixing" the <TT>`include'</TT> files takes longer to run, so any
+installation of a native compiler is noticeably slower than in previous
+releases.  Performance improvements will be made as part of a future
+release.
+<P>
+If you don't run <CODE>fixincludes</CODE>, the GNU C compiler can only
+use the original system header files when you compile new C programs.
+<EM>In some cases, the resulting programs will fail at run-time.</EM>
+<P>
+<HR>
+Go to the <A HREF="install_1.html">first</A>, <A HREF="install_9.html">previous</A>, <A HREF="install_11.html">next</A>, <A HREF="install_37.html">last</A> section, <A HREF="install_toc.html">table of contents</A>.
+</BODY>
+</HTML>

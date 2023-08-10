@@ -1,0 +1,59 @@
+
+	How to tune various kernel resource limits
+
+
+	The following resource limits can be tuned.
+
+		To increase file limit size (equivalent to
+		ulimit):
+
+			SFSZLIM - Soft file size limit.
+			HFSZLIM - Hard file size limit.
+
+		To increase user data (process heap and
+		brk(2)) area:
+
+			SDATLIM - Soft data limit.
+			HDATLIM - Hard data limit.
+
+		To increase user stack (stack segment) area:
+
+			SSTKLIM - Soft stack limit.
+			HSTKLIM - Hard stack limit.
+
+		To increase address space (brk(2) area) for
+		process:
+
+			SVMMLIM - Soft Virtual Memory limit.
+			HVMMLIM - Hard Virtual Memory limit.
+
+The procedure to change these tunable parameters is documented
+in the UnixWare System Administration - System Performance
+Administration manual, Chapter 3.  To change these parameters,
+login or su to root and:
+
+	# cd /etc/conf/bin
+
+	# ./idtune SFSZLIM 0x7FFFFFFF
+
+Change all the parameters that affect you.  The idtune command
+changes SFSZLIM to the unlimited setting.  You also may specify
+a lower value than this if you do not want it set to unlimited.  
+You can also see each tunable parameter's current setting by
+doing the following (using SFSZLIM for example):
+
+	# ./idtune -g SFSZLIM
+	0x1000000       0x1000000       0x2000  0x7FFFFFFF
+
+The first value is the current setting, the second is the
+default setting, the third is the minimum value, and the last is
+the maximum value.
+
+After all tunable paramters have been changed, you need to
+rebuild the kernel and shutdown the system:
+
+	# ./idbuild -B
+
+	# cd / ; shutdown -g0 -y
+
+

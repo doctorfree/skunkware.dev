@@ -1,0 +1,152 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Type Attributes</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_86.html">previous</A>, <A HREF="usegcc_88.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX372"></A>
+<A NAME="IDX373"></A>
+<H2><A NAME="SEC90" HREF="usegcc_toc.html#TOC90">Specifying Attributes of Types</A></H2>
+<P>
+The keyword <CODE>__attribute__</CODE> allows you to specify special
+attributes of <CODE>struct</CODE> and <CODE>union</CODE> types when you define such
+types.  This keyword is followed by an attribute specification inside
+double parentheses.  Three attributes are currently defined for types:
+<CODE>aligned</CODE>, <CODE>packed</CODE>, and <CODE>transparent_union</CODE>.  Other
+attributes are defined for functions (see section <A HREF="usegcc_79.html#SEC82">Declaring Attributes of Functions</A>) and
+for variables (see section <A HREF="usegcc_86.html#SEC89">Specifying Attributes of Variables</A>).
+<P>
+You may also specify any one of these attributes with <SAMP>`__'</SAMP>
+preceding and following its keyword.  This allows you to use these
+attributes in header files without being concerned about a possible
+macro of the same name.  For example, you may use <CODE>__aligned__</CODE>
+instead of <CODE>aligned</CODE>.
+<P>
+You may specify the <CODE>aligned</CODE> and <CODE>transparent_union</CODE>
+attributes either in a <CODE>typedef</CODE> declaration or just past the
+closing curly brace of a complete enum, struct or union type
+<EM>definition</EM> and the <CODE>packed</CODE> attribute only past the closing
+brace of a definition.
+<P>
+<A NAME="IDX374"></A>
+<DL COMPACT>
+<DT><CODE>aligned (<VAR>alignment</VAR>)</CODE>
+<DD>This attribute specifies a minimum alignment (in bytes) for variables
+of the specified type.  For example, the declarations:
+
+<PRE>
+struct S { short f[3]; } __attribute__
+                          ((aligned (8));
+typedef int more_aligned_int __attribute__
+                          ((aligned (8));
+</PRE>
+
+force the compiler to insure (as fas as it can) that each variable whose
+type is <CODE>struct S</CODE> or <CODE>more_aligned_int</CODE> will be allocated and
+aligned <EM>at least</EM> on a 8-byte boundary.  On a Sparc, having all
+variables of type <CODE>struct S</CODE> aligned to 8-byte boundaries allows
+the compiler to use the <CODE>ldd</CODE> and <CODE>std</CODE> (doubleword load and
+store) instructions when copying one variable of type <CODE>struct S</CODE> to
+another, thus improving run-time efficiency.
+
+Note that the alignment of any given <CODE>struct</CODE> or <CODE>union</CODE> type
+is required by the ANSI C standard to be at least a perfect multiple of
+the lowest common multiple of the alignments of all of the members of
+the <CODE>struct</CODE> or <CODE>union</CODE> in question.  This means that you <EM>can</EM>
+effectively adjust the alignment of a <CODE>struct</CODE> or <CODE>union</CODE>
+type by attaching an <CODE>aligned</CODE> attribute to any one of the members
+of such a type, but the notation illustrated in the example above is a
+more obvious, intuitive, and readable way to request the compiler to
+adjust the alignment of an entire <CODE>struct</CODE> or <CODE>union</CODE> type.
+
+As in the preceding example, you can explicitly specify the alignment
+(in bytes) that you wish the compiler to use for a given <CODE>struct</CODE>
+or <CODE>union</CODE> type.  Alternatively, you can leave out the alignment factor
+and just ask the compiler to align a type to the maximum
+useful alignment for the target machine you are compiling for.  For
+example, you could write:
+
+<PRE>
+struct S { short f[3]; } __attribute__ ((aligned));
+</PRE>
+
+Whenever you leave out the alignment factor in an <CODE>aligned</CODE>
+attribute specification, the compiler automatically sets the alignment
+for the type to the largest alignment which is ever used for any data
+type on the target machine you are compiling for.  Doing this can often
+make copy operations more efficient, because the compiler can use
+whatever instructions copy the biggest chunks of memory when performing
+copies to or from the variables which have types that you have aligned
+this way.
+
+In the example above, if the size of each <CODE>short</CODE> is 2 bytes, then
+the size of the entire <CODE>struct S</CODE> type is 6 bytes.  The smallest
+power of two which is greater than or equal to that is 8, so the
+compiler sets the alignment for the entire <CODE>struct S</CODE> type to 8
+bytes.
+
+Note that although you can ask the compiler to select a time-efficient
+alignment for a given type and then declare only individual stand-alone
+objects of that type, the compiler's ability to select a time-efficient
+alignment is primarily useful only when you plan to create arrays of
+variables having the relevant (efficiently aligned) type.  If you
+declare or use arrays of variables of an efficiently-aligned type, then
+it is likely that your program will also be doing pointer arithmetic (or
+subscripting, which amounts to the same thing) on pointers to the
+relevant type, and the code that the compiler generates for these
+pointer arithmetic operations will often be more efficient for
+efficiently-aligned types than for other types.
+
+The <CODE>aligned</CODE> attribute can only increase the alignment; but you
+can decrease it by specifying <CODE>packed</CODE> as well.  See below.
+
+Note that the effectiveness of <CODE>aligned</CODE> attributes may be limited
+by inherent limitations in your linker.  On many systems, the linker is
+only able to arrange for variables to be aligned up to a certain maximum
+alignment.  (For some linkers, the maximum supported alignment may
+be very very small.)  If your linker is only able to align variables
+up to a maximum of 8 byte alignment, then specifying <CODE>aligned(16)</CODE>
+in an <CODE>__attribute__</CODE> will still only provide you with 8 byte
+alignment.  See your linker documentation for further information.
+
+<DT><CODE>packed</CODE>
+<DD>This attribute, attached to an <CODE>enum</CODE>, <CODE>struct</CODE>, or
+<CODE>union</CODE> type definition, specified that the minimum required memory
+be used to represent the type.
+
+Specifying this attribute for <CODE>struct</CODE> and <CODE>union</CODE> types is
+equivalent to specifying the <CODE>packed</CODE> attribute on each of the
+structure or union members.  Specifying the <SAMP>`-fshort-enums'</SAMP>
+flag on the line is equivalent to specifying the <CODE>packed</CODE>
+attribute on all <CODE>enum</CODE> definitions.
+
+You may only specify this attribute after a closing curly brace on an
+<CODE>enum</CODE> definition, not in a <CODE>typedef</CODE> declaration.
+
+<DT><CODE>transparent_union</CODE>
+<DD>This attribute, attached to a <CODE>union</CODE> type definition, indicates
+that any variable having that union type should, if passed to a
+function, be passed in the same way that the first union member would be
+passed.  For example:
+
+<PRE>
+union foo
+{
+  char a;
+  int x[2];
+} __attribute__ ((transparent_union));
+</PRE>
+</DL>
+<P>
+To specify multiple attributes, separate them by commas within the
+double parentheses: for example, <SAMP>`__attribute__ ((aligned (16),
+packed))'</SAMP>.
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_86.html">previous</A>, <A HREF="usegcc_88.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

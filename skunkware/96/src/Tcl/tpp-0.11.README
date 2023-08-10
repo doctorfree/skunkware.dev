@@ -1,0 +1,202 @@
+		     A Tcl Preprocessor, version 0.11
+		   Ken Edwards <edwards@xon.cuug.ab.ca>
+
+In Brief
+--------
+Tpp is a slight modification to cpp to allow preprocessing of Tcl/Tk
+source files.  In addition to providing define constructs, tpp allows
+conditional statements to be included in tcl source files, and strips
+comments and extraneous white space from tcl sources to yield some
+speed improvements.
+
+Of course this has the *VERY NEGATIVE* side effect of having to preprocess
+all your source files. One of the neat things about Tcl/Tk is the ease
+in changing things because of no compile.  I find that a simple Makefile
+suffices, and this runs fast enough to be acceptable to me.
+
+For those who do not want to do this, a small hack in Tcl_EvalFile to 
+pipe the source in though tpp will work.  I do not use this myself as
+I have some programs that should work with a standard wish.
+
+Changes from version 0.10
+-------------------------
+
+* added -P flag to preserve whitespace in processed files
+* added #%protect and #%unprotect directives to preserve whitespace 
+    and defines in protected regions
+* added -L flag to produce #line directives, now off by default
+* added example.tcl to illustrate the new options
+
+Thanks to saunier@simtoul.fr for suggesting these changes.
+
+Why DECUS cpp?
+--------------
+I used decus cpp because it is public domain, available in comp.sources.unix,
+and small and easy to modify.  Well, easier for me 'cause I am better at
+'C' than lex and yacc.
+
+I looked at GNU cpp, but it looked like you needed the entire gcc source tree
+and a good understanding of lex and yacc to make it work.
+If anyone wants to prove me wrong, please upload your modified version.
+
+Why not m4?
+-----------
+I guess mostly from mental inertia, ( one of the most powerful forces in 
+the universe ).  I am primarily a 'C' or 'Tcl/Tk' programmer, so what I 
+wanted was something that would be easy for me to adapt to, cpp seemed
+a natural since I already use it all the time.
+
+Differences between cpp and tpp
+-------------------------------
+The # char is  already in use as the comment char in Tcl/Tk. Therefore
+tpp uses #% as command prefix.  #define in cpp would be #%define in tpp.
+This has the added benefit that #%define appears as a comment if you
+run tcl/wish on an unprocessed source file.
+
+eg: this will run through wish without modification,
+int the first case, running wish normally, in the second producing a
+single processed file from the three source files.
+
+#%ifndef XTAL
+source "$xl_Path(Library)/xl_bind.tk"
+source "$xl_Path(Library)/xtal/xl_batch.tk"
+#%else
+#%include <xl_bind.tk>
+#%include <xl_batch.tk>
+#%endif
+
+In 'C' strings are protected by the preprocessor so #defines do substite in
+them.  In Tcl/Tk, you are never sure if you should substitute in a string
+or not, so tpp substitutes *ALL* occurances of defines, even in quoted strings.
+This may be dangerous, but if care is taken in choosing uniq names
+for defined strings, problems should not arise.
+
+In version 0.11 there is a -P flag to modify this behaviour.
+
+eg: do this
+#%define XYZZY testing
+bind Text <1> "puts XYZZY"
+
+#line 1 "jj"
+bind Text <1> "puts testing"
+
+eg: dont do this
+#%define canvas testing
+canvas .c
+.c text 0 0 -text "this is a canvas"
+
+#line 1 "jj"
+testing .c
+.c create text 0 0 -text "this is a testing"
+
+Tpp strips white space from ALL lines in the file, this is *good* most of
+the time, but if you have a formatted string, you will find that it is 
+messed up.
+
+eg:
+puts "   Hello
+    World"
+
+turns to
+puts " Hello
+World"
+
+In version 0.11 this behavior can be modified using the -P flag, or by
+inserting #%protect directives in the source.
+
+eg:
+#%protect
+puts "   Hello
+    World"
+#%unprotect
+
+turns to
+puts " Hello
+    World"
+
+An Example
+----------
+#% define GIZMO 10
+#% define TRUE  1
+#% define FALSE 0
+
+set x TRUE
+set i 1
+while { x == TRUE} {
+        incr x
+        if { i == GIZMO } {
+                set x FALSE
+#%ifdef DEBUG
+        puts "x has been set to FALSE"
+#%endif
+        }
+}
+
+tpp test.tk > test.t
+#line 1 "test.tk"
+set x 1
+set i 1
+while { x == 1} {
+incr x
+if { i == 10 } {
+set x 0
+}
+}
+
+or 
+tpp -DDEBUG test.tk > test.t
+#line 1 "test.tk"
+set x 1
+set i 1
+while { x == 1} {
+incr x
+if { i == 10 } {
+set x 0
+puts "x has been set to 0"
+}
+}
+
+How do I use it?
+----------------
+Preprocess your source files with tpp, use Make or a tcl script:
+
+in tcl:
+foreach file [glob -nocomplain *.tcl] {
+  set base [file rootname $file]
+  tpp $file > $base.t
+}
+auto_mkindex . *.t
+
+in Make
+%.t: %.tk
+        tpp $(TFLAGS) $< > $@
+
+tfiles: xxx.t yyy.t
+        tcl -f rebuild.tcl
+
+Where do I get it?
+------------------
+I have uploaded the current version of the software to
+harbor.ecn.purdue.edu.
+
+Caveat:
+-------
+Works for me, if it doesn't work for you too bad, if it erases your disk,
+crashes your system, or kills your cat, I am sorry but not responsible.
+
+I only use a very small subset of the preprocessor, mostly #%ifdef
+#%include and #%define, other commands may or may not work.
+
+Read the file COPYING for details.
+
+Copyright:
+----------
+Decus cpp is public-domain.  Changes are copyright Ken Edwards for no
+other reason than I like the Berkeley disclaimer.
+Read the file COPYING for details.
+
+Where are the man pages?
+------------------------
+Sorry, you just read all the documentation available.
+Read the file cpp.mem, and the differences above.
+

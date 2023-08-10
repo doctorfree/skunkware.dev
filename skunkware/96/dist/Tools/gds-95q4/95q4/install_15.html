@@ -1,0 +1,110 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from install.texi on 26 October 1995 -->
+
+<TITLE>Installation Notes - Installing with a remote tape drive</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="install_1.html">first</A>, <A HREF="install_14.html">previous</A>, <A HREF="install_16.html">next</A>, <A HREF="install_37.html">last</A> section, <A HREF="install_toc.html">table of contents</A>.
+<HR>
+<H4><A NAME="SEC15" HREF="install_toc.html#TOC15">Installing with a remote tape drive</A></H4>
+<P>
+If your host doesn't have an appropriate tape drive, you may still be
+able to install your software.  Check with your system administrator to
+see if another machine at your site has a tape drive you can use.  If
+so:
+<P>
+<DL COMPACT>
+<DT><EM>If a shared filesystem is available</EM>
+<DD>between the two machines, and it has enough space, create
+<SAMP>`/usr/cygnus'</SAMP> on your host (the one where you want to install this
+Progressive Release) as a symbolic link to a directory where the other
+machine (the one with a tape drive) can write:
+
+<PRE>
+ln -s <VAR>shared</VAR> /usr/cygnus
+</PRE>
+
+Run <CODE>Install</CODE> from the machine with a tape drive, using the
+<SAMP>`extract'</SAMP> argument and the <SAMP>`-installdir'</SAMP> option:
+
+<PRE>
+Install extract -installdir=<VAR>shared</VAR>
+</PRE>
+
+You still have to finish the installation, but the last
+two steps (<CODE>fixincludes</CODE> and <CODE>test</CODE>)
+must be run on your host.  (If you forget, there's no great harm done:
+<CODE>Install</CODE> notices that it can't carry out a full installation on
+the wrong machine, and stops with an error message--then you can go
+back and try again.  When <CODE>Install</CODE> notices a problem like this, it
+doesn't carry out <EM>any</EM> action other than giving a helpful error
+message).
+
+Unless you are installing a cross-development tape (the tape label says
+<SAMP>`target = <VAR>target</VAR>'</SAMP> for cross configurations), the
+<SAMP>`fixincludes'</SAMP> part of the installation is essential.  Please see
+the full explanation (see section <A HREF="install_10.html#SEC10">Why convert system header files?</A>), if you're curious.
+
+<PRE>
+<EM>On a machine on your network with a tape drive:</EM>
+./Install extract -installdir=<VAR>shared</VAR>/cygnus ...
+
+<EM>On your host</EM>
+ln -s <VAR>shared</VAR>/cygnus /usr/cygnus
+cd /usr/cygnus/progressive-95q4
+</PRE>
+
+If your copy of the Developer's Kit is configured <DFN>native</DFN> (to
+develop software for the same type of machine where the Developer's Kit
+itself runs), you'll have to run <SAMP>`Install fixincludes'</SAMP> and
+<SAMP>`Install test'</SAMP> from your host afterwards.
+
+<PRE>
+<I>Native configurations only:</I>
+./Install fixincludes test
+</PRE>
+
+
+<DT><EM>If some form of filetransfer is available</EM>
+<DD>(such as <CODE>uucp</CODE>), read the second file on the tape using a system
+utility (for instance, <CODE>dd</CODE> on Unix systems; see the system
+documentation for the machine with a tape drive).  There are two files
+on the distribution tape; the first contains just the <CODE>Install</CODE>
+script in uncompressed <CODE>tar</CODE> format, and the second is a compressed
+<CODE>tar</CODE> format file containing the rest of the release.
+
+Read both of these files separately, using something like the following:
+
+<PRE>
+eg$ tar xvf <VAR>non-rewinding-tape-device</VAR> Install
+Install
+eg$ dd if=<VAR>non-rewinding-tape-device</VAR> of=tarfile1 bs=62k
+<EM>messages from dd...</EM>
+eg$ ls
+Install
+tarfile1
+</PRE>
+
+and then transfer them to your own machine using <CODE>uucp</CODE>,
+<CODE>ftp</CODE>, or another appropriate file transfer tool.  (The blocksize
+is set to 62k in this example simply to speed up the process; the tape
+is written with a blocksize of 62k, but <CODE>dd</CODE> should be able to cope
+with the task using its default blocksize.)
+
+Then run <CODE>Install</CODE>, but use <SAMP>`-tape=<VAR>tarfile</VAR>'</SAMP> to specify
+the name of the installation file, instead of
+<SAMP>`-tape=<VAR>device</VAR>'</SAMP> as shown in the examples.  In the simplest
+case, for example (starting after you've transferred <CODE>Install</CODE> and
+the tar file to your system):
+
+<PRE>
+eg$ ./Install -tape=tarfile1
+</PRE>
+</DL>
+<P>
+<HR>
+Go to the <A HREF="install_1.html">first</A>, <A HREF="install_14.html">previous</A>, <A HREF="install_16.html">next</A>, <A HREF="install_37.html">last</A> section, <A HREF="install_toc.html">table of contents</A>.
+</BODY>
+</HTML>

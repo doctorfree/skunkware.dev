@@ -1,0 +1,134 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from install.texi on 26 October 1995 -->
+
+<TITLE>Installation Notes - Xdev</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="install_1.html">first</A>, <A HREF="install_36.html">previous</A>, next, last section, <A HREF="install_toc.html">table of contents</A>.
+<HR>
+<H1><A NAME="SEC37" HREF="install_toc.html#TOC37">Cross-development environment</A></H1>
+<P>
+Using the Developer's Kit in one of the cross-development configurations
+usually requires some attention to setting up the target environment.
+(A cross-development configuration is used for developing software to
+run on a different machine (the <DFN>target</DFN>) from the development tools
+themselves (which run on the <DFN>host</DFN>)---for example, you might use a
+SPARCstation to generate and debug code for an AMD 29K-based
+board.)
+<P>
+To allow our tools to work with your target environment (except for
+real-time operating systems, which provide full operating system
+support), you need to set up:
+<P>
+<UL>
+<LI>
+the C run-time environment (described below).
+
+<LI>
+<DFN>stubs</DFN>, or minimal versions of operating system subroutines for the
+C subroutine library.  See section `System Calls' in <CITE>The Cygnus C Support Library</CITE>.
+
+<LI>
+a connection to the debugger.  See section `Remote Debugging' in <CITE>Debugging with GDB</CITE>.
+</UL>
+<P>
+<H3>The C Run-Time Environment (<CODE>crt0</CODE>)</H3>
+<P>
+To link and run C or C++ programs, you need to define a small module
+(usually written in assembler as <TT>`crt0.s'</TT>) that makes sure the
+hardware is initialized for C conventions before calling <CODE>main</CODE>.
+<P>
+There are some examples of <TT>`crt0.s'</TT> code (along with examples of
+system call stub code) available in the source code for your Developer's
+Kit.  Look in the directories under:
+<P>
+<PRE>
+<VAR>installdir</VAR>/progressive-95q4/src/newlib/libc/sys
+</PRE>
+<P>
+(<VAR>installdir</VAR> refers to your installation directory, by default
+<TT>`/usr/cygnus'</TT>.)  For example, look in <TT>`.../sys/h8300hms'</TT>
+for Hitachi H8/300 bare boards, or in <TT>`.../sys/sparclite'</TT>
+for the Fujitsu SPARClite board.  More examples are available under
+the directory:
+<P>
+<PRE>
+<VAR>installdir</VAR>/progressive-95q4/src/newlib/stub
+</PRE>
+<P>
+To write your own <TT>`crt0.s'</TT>, you need this information about
+your target:
+<P>
+<UL>
+<LI>
+A memory map.  What memory is available, and where?
+
+<LI>
+Which way does the stack grow?
+
+<LI>
+What output format do you use?
+</UL>
+<P>
+At a minimum, your <TT>`crt0.s'</TT> must do these things:
+<P>
+<OL>
+<LI>
+Define the symbol <CODE>start</CODE> (<SAMP>`_start'</SAMP> in assembler code).
+Execution begins at this symbol.
+
+<LI>
+Set up the stack pointer <SAMP>`sp'</SAMP>.  It is largely up to you to choose
+where to store your stack within the constraints of your target's memory
+map.  Perhaps the simplest choice is to choose a fixed-size area
+somewhere in the uninitialized-data section (often called <SAMP>`bss'</SAMP>).
+Remember that whether you choose the low address or the high address in
+this area depends on the direction your stack grows.
+
+<LI>
+Initialize all memory in the uninitialized-data (<SAMP>`bss'</SAMP>) section to
+zero.  The easiest way to do this is with the help of a linker script
+(see section `Command Language' in <CITE>Using LD; the GNU linker</CITE>).
+Use a linker script to define symbols such as <SAMP>`bss_start'</SAMP> and
+<SAMP>`bss_end'</SAMP> to record the boundaries of this section; then you can
+use a <SAMP>`for'</SAMP> loop to initialize all memory between them in
+<TT>`crt0.s'</TT>.
+
+<LI>
+Call <CODE>main</CODE>.  Nothing else will!
+</OL>
+<P>
+A more complete <TT>`crt0.s'</TT> might also do the following:
+<P>
+<OL>
+<LI>
+Define an <SAMP>`_exit'</SAMP> subroutine (this is the C name; in your assembler
+code, use the label <SAMP>`__exit'</SAMP>, with two leading underbars).  Its
+precise behavior depends on the details of your system, and on your
+choice.  Possibilities include trapping back to the boot monitor, if
+there is one; or to the loader, if there is no monitor; or even back to
+the symbol <CODE>start</CODE>.
+
+<LI>
+If your target has no monitor to mediate communications with the
+debugger, you must set up the hardware exception handler in
+<TT>`crt0.s'</TT>.  See section `The GDB remote serial protocol' in <CITE>Debugging with GDB</CITE>, for details on how to use the
+GDB generic remote-target facilities for this purpose.
+
+<LI>
+Perform other hardware-dependent initialization; for example,
+initializing an MMU or an auxiliary floating-point chip.
+
+
+<LI>
+Define low-level input and output subroutines.  For example, <TT>`crt0.s'</TT>
+is a convenient place to define the minimal assembly-level routines
+described in section `System Calls' in <CITE>The Cygnus C Support Library</CITE>.
+</OL>
+<P>
+<HR>
+Go to the <A HREF="install_1.html">first</A>, <A HREF="install_36.html">previous</A>, next, last section, <A HREF="install_toc.html">table of contents</A>.
+</BODY>
+</HTML>

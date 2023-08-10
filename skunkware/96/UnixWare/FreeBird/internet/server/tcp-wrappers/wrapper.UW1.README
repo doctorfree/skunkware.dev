@@ -1,0 +1,1407 @@
+README - tcpwrap for UnixWare 1.1
+-----------------------------------
+For 2.x use the wrapper package - for TCP and SPX 
+
+tcp_wrapper version 6.0.1
+
+Copyright 1993 by Wietse Venema.  All rights reserved.  Some individual
+files may be covered by other copyrights.
+
+This has only been tested on UnixWare 1.1 and 1.1.x.
+It may or may not work on other derivatives of SVR4.2.
+
+PLEASE READ ALL THE ACCOMPANYING DOCUMENTATION WITH THIS
+PACKAGE PRIOR TO INSTALLATION !!!!
+
+DISCLAIMER
+=============
+This software is provided "as is" and without any expressed or implied
+warranties, including, without limitation, the implied warranties of
+merchantibility and fitness for any particular purpose.        
+=============
+
+This package was obtained from an ftp archive server.
+Please observe the copyright notice displayed upon installation.
+
+To install the package the simplest way follows:
+
+1. Extract the tar archive. 
+
+$ cd /tmp
+$ su
+# tar xvf wrapper.UW1.pkg.tar
+
+2. Installing the package
+
+
+	pkgadd -d `pwd`
+
+
+3. Removing the package
+
+# pkgrm tcpwrap
+
+---
+This package contains ident/wrappers for TCP on UnixWare.
+The files installed/overlaid/edited by this package are:
+
+/usr/lib/newsyslog	- a shell script to clean up logfiles nightly
+                                 in /var/adm/log, run from the adm crontab
+/usr/sbin/wrapd	- the wrapper daemon run by inetd to do
+		checking prior to invoking the real service
+
+/usr/sbin/syslogd        - an updated syslogd that handles network logging
+/usr/sbin/in.identd	- an identification daemon that tries to contact
+		an identd on the remote machine
+/etc/inet/hosts.allow	 - control file for allowed hosts for inet services
+		(there's also a symlink in /etc to this file)
+/etc/inet/hosts.deny	- control file for denied hosts for inet services
+/etc/inet/services	- an updated services file
+/etc/inet/inetd.conf    - an updated inetd.conf file
+/etc/inet/rc.inet	- an updated rc.inet file - now starts syslogd
+/etc/inet/syslog.conf    - config file for syslog 
+/etc/syslog.conf	- symlink to /etc/inet/syslog.conf
+/var/spool/cron/crontabs/adm - updated to call newsyslog script to clean logs
+
+Things to watch for:
+
+Any additional lines in configuration files which will have to be weaved
+together into the overlaid config files. All files overlaid 
+are backup and can be restored by removing the package, also
+key files in /etc/inet and copies to /etc/inet with a postfix
+.orig to facilitate easier diffing.
+additional things in /etc/inetd.conf might need wrapping as well.
+
+---
+Once installed /etc/hosts.allow needs to be configured for the services,
+users and hosts that will access this host. 
+
+Test the installation!  try to access services from allowed users/hosts and
+others.  user/host combinations that are not allowed should simply be
+dropped.  
+
+To make inetd pick up the new configuration
+
+	ps -ef|grep inetd
+	kill -HUP {process id of inetd}
+
+To start syslogd by hand
+
+	/usr/sbin/syslogd
+
+Once you're happy reboot the machine.
+
+
+If you plan to use domain addresses in /etc/hosts.allow, 
+i.e. ukb.novell.com, edit /etc/netconfig and change the
+line beginning tcp to have the resolv.so library line before
+the 
+
+tcp	tpi_cots_ord	v	inet	tcp	/dev/tcp	/usr/lib/resolv.so,/usr/lib/tcpip.so
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+@(#) README 1.18 93/12/13 22:22:59
+
+Table of contents
+-----------------
+
+    1 - Introduction
+    2 - Disclaimer
+    3 - Tutorials
+		3.1 - How it works
+		3.2 - Where the logging information goes
+    4 - Features
+		4.1 - Access control
+		4.2 - Host name spoofing
+		4.3 - Host address spoofing
+		4.4 - Remote username lookups
+		4.5 - Language extensions
+    5 - Other works
+		5.1 - Related documents
+		5.2 - Related software
+    6 - Limitations
+		6.1 - Known wrapper limitations
+		6.2 - Known system software bugs
+    7 - Configuration and installation
+		7.1 - Easy configuration and installation
+		7.2 - Advanced configuration and installation
+		7.3 - Daemons with arbitrary path names
+		7.4 - Building and testing the access control rules
+		7.5 - Other applications
+    8 - Acknowledgements
+
+1 - Introduction
+----------------
+
+With this package you can monitor and filter incoming requests for the
+SYSTAT, FINGER, FTP, TELNET, RLOGIN, RSH, EXEC, TFTP, TALK, and other
+network services.
+
+It supports both 4.3BSD-style sockets and System V.4-style TLI. Praise
+yourself lucky if you don't know what that means.
+
+The package provides tiny daemon wrapper programs that can be installed
+without any changes to existing software or to existing configuration
+files.  The wrappers report the name of the remote host and of the
+requested service; the wrappers do not exchange information with the
+remote client process, and impose no overhead on the actual
+communication between the client and server applications.
+
+Optional features are: access control to restrict what systems can
+connect to your network daemons; remote user name lookups with the RFC
+931 protocol; additional protection against hosts that pretend to have
+someone elses host name; additional protection against hosts that
+pretend to have someone elses host address.
+
+Early versions of the programs were tested with Ultrix >= 2.2, with
+SunOS >= 3.4 and ISC 2.2. Later versions have been installed on a wide
+variety of platforms such as SunOS 4.x and 5.x, Ultrix 3.x and 4.x, DEC
+OSF/1 T1.2-2, HP-UX 8.x, AIX 3.1.5 up to 3.2.4, Apollo SR10.3.5, Sony,
+NeXT, SCO UNIX, DG/UX, Cray, Dynix, and an unknown number of other ones.
+
+Requirements are that the network daemons are spawned by a super server
+such as the inetd; a 4.3BSD-style socket programming interface and/or
+System V.4-style TLI programming interface; and the availability of a
+syslog(3) library and of a syslogd(8) daemon.  The wrappers should run
+without modification on any system that satisfies these requirements.
+Workarounds have been implemented for several common bugs in systems
+software.
+
+What to do if this is your first encounter with the wrapper programs:
+1) read the tutorial sections for an introduction to the relevant
+concepts and terminology; 2) glance over the security feature sections
+in this document; 3) follow the installation instructions (easy or
+advanced). I recommend that you first use the default security feature
+settings.  Run the wrappers for a few days to become familiar with
+their logs, before doing anything drastic such as cutting off access or
+installing booby traps.
+
+2 - Disclaimer
+--------------
+
+The wrapper programs rely on source address information obtained from
+network packets. Such information is not 100 percent reliable, although
+the wrappers do their best to expose forgeries.
+
+In the absence of cryptographic protection of message contents, and of
+cryptographic authentication of message originators, all data from the
+network should be treated with sound scepticism.
+
+THIS RESTRICTION IS BY NO MEANS SPECIFIC TO THE TCP/IP PROTOCOLS.
+
+3 - Tutorials
+-------------
+
+The tutorial sections give a gentle introduction to the operation of
+the wrapper programs, and introduce some of the terminology that is
+used in the remainder of the document: client, server, the inetd and
+syslogd daemons, and their configuration files.
+
+3.1 - How it works
+------------------
+
+Almost every application of the TCP/IP protocols is based on a client-
+server model. For example, when a user invokes the telnet command to
+connect to one of your systems, a telnet server process is executed on
+the target host. The telnet server process connects the user to a login
+process. A few examples of client and server programs are shown in the
+table below:
+
+              client   server    application
+              --------------------------------
+              telnet   telnetd   remote login
+              ftp      ftpd      file transfer
+              finger   fingerd   show users
+
+The usual approach is to run one single daemon process that waits for
+all kinds of incoming network connections. Whenever a connection is
+established, this daemon (usually called inetd) runs the appropriate
+server program and goes back to sleep, waiting for other connections.
+
+The wrapper programs rely on a simple, but powerful mechanism.  Instead
+of directly running the desired server program, the inetd is tricked
+into running a small wrapper program. The wrapper logs the remote host
+name or address and performs some additional checks.  When all is well,
+the wrapper executes the desired server program and goes away.
+
+The wrapper programs have no interaction with the remote user (or
+client process).  This has two major advantages: 1) the wrappers are
+application-independent, so that the same program can protect many
+kinds of network services; 2) no interaction also means that the
+wrappers are invisible from outside (at least for authorized users).
+
+Another important property is that the wrapper programs are active only
+when the initial contact between client and server is established. Once
+a wrapper has done its work there is no overhead on the client-server
+communication.
+
+The simple mechanism has one major drawback: since the wrappers go away
+after the initial contact between client and server processes, the
+wrappers are of little use with network daemons that service more than
+one client.  The wrappers would only see the first client attempt to
+contact such a server. The NFS mount daemon is a typical example of a
+daemon that services requests from multiple clients. See the section on
+related software for ways to deal with such programs.
+
+There are two ways to use the wrapper programs:
+
+1) The easy way: move network daemons to some other directory and fill
+   the resulting holes with copies of the wrapper programs.  This
+   approach involves no changes to system configuration files, so there
+   is very little risk of breaking things.
+
+2) The advanced way: leave the network daemons alone and modify the
+   inetd configuration file.  For example, an entry such as:
+
+     tftp  dgram  udp  wait  root  /usr/etc/tcpd  in.tftpd -s /tftpboot
+
+   When a tftp request arrives, inetd will run the wrapper program
+   (tcpd) with a process name `in.tftpd'.  This is the name that the
+   wrapper will use when logging the request and when scanning the
+   optional access control tables.  `in.tftpd' is also the name of the
+   server program that the wrapper will attempt to run when all is
+   well.  Any arguments (`-s /tftpboot' in this particular example) are
+   transparently passed on to the server program.
+
+For an account of the history of the wrapper programs, with real-life
+examples, see the section below on related documents.
+
+3.2 - Where the logging information goes
+----------------------------------------
+
+The wrapper programs send their logging information to the syslog
+daemon (syslogd). The disposition of the wrapper logs is determined by
+the syslog configuration file (usually /etc/syslog.conf). Messages are
+written to files, to the console, or are forwarded to a @loghost.
+
+Older syslog implementations (still found on Ultrix systems) only
+support priority levels ranging from 9 (debug-level messages) to 0
+(alerts). All logging information of the same priority level (or more
+urgent) is written to the same destination.  In the syslog.conf file,
+priority levels are specified in numerical form.  For example,
+
+    8/usr/spool/mqueue/syslog
+
+causes all messages with priority 8 (informational messages), and
+anything that is more urgent, to be appended to the file
+/usr/spool/mqueue/syslog.
+
+Newer syslog implementations support message classes in addition to
+priority levels.  Examples of message classes are: mail, daemon, auth
+and news. In the syslog.conf file, priority levels are specified with
+symbolic names: debug, info, notice, ..., emerg. For example,
+
+    mail.debug			/var/log/syslog
+
+causes all messages of class mail with priority debug (or more urgent)
+to be appended to the /var/log/syslog file.
+
+By default, the wrapper logs go to the same place as the transaction
+logs of the sendmail daemon. The disposition can be changed by editing
+the Makefile and/or the syslog.conf file. Send a `kill -HUP' to the
+syslogd after changing its configuration file. Remember that syslogd,
+just like sendmail, insists on one or more TABs between the left-hand
+side and the right-hand side expressions in its configuration file.
+
+4 - Features
+------------
+
+4.1 - Access control
+--------------------
+
+When compiled with -DHOSTS_ACCESS, the wrapper programs support a
+simple form of access control.  Access can be controlled per host, per
+service, or combinations thereof. The software provides hooks for the
+execution of shell commands when an access control rule fires; this
+feature may be used to install "booby traps".  For details, see the
+hosts_access.5 manual page, which is in `nroff -man' format. A later
+section describes how you can test your access control rules. The
+hosts_options.5 manual page describes additional features that
+are turned off by default.
+
+Access control is enabled by default. It can be turned off by editing
+the Makefile, or by providing no access control tables. The install
+instructions below describe the Makefile editing process.
+
+When TCP/IP or UDP/IP is used underneath TLI, the wrapper programs
+provide the same functions as with socket-based applications. When some
+other protocol is used underneath TLI, the host address will be some
+universal magic cookie that may not be usable for access control
+purposes.
+
+4.2 - Host name spoofing
+------------------------
+
+With some network applications, such as RSH or RLOGIN, the remote host
+name plays an important role in the authentication process. Host name
+information can be reliable when lookups are done from a _local_ hosts
+table, provided that the client IP address can be trusted.
+
+With _distributed_ name services, authentication schemes that rely on
+host names become more problematic. The security of your system now may
+depend on some far-away DNS (domain name server) outside your own
+control. 
+
+The wrapper programs verify the remote host name that is returned by
+the address->name DNS server, by asking for a second opinion.  To this
+end, the programs look at the name and addresses that are returned by
+the name->address DNS server. 
+
+If any name or address discrepancies are found, or if the second DNS
+opinion is not available, the wrappers assume that one of the two name
+servers is lying, and assume that the client host pretends to have
+someone elses host name.
+
+When the sources are compiled with -DPARANOID, the wrappers will drop
+the connection in case of a host name/address discrepancy. 
+
+When the sources are not compiled with -DPARANOID, the wrappers just
+pretend that an offending host name is unknown.
+
+Paranoid mode is enabled by default. It can be turned off by editing
+the Makefile. The configuration and installation below describes the
+Makefile editing process.
+
+4.3 - Host address spoofing
+---------------------------
+
+While host name spoofing can be found out by asking a second opinion,
+it is much harder to find out that a host claims to have someone elses
+network address. And since host names are deduced from network
+addresses, address spoofing is at least as effective as name spoofing.
+
+The wrapper programs can give additional protection against hosts that
+claim to have an address that lies outside their own network.  For
+example, some far-away host that claims to be a trusted host within
+your own network. Such things are possible even while the impersonated
+system is up and running.
+
+This additional protection is not an invention of my own; it has been
+present for at least five years in the BSD rsh and rlogin daemons.
+Unfortunately, that feature was added *after* 4.3 BSD came out, so that
+very few, if any, UNIX vendors have adopted it.  Our site, and many
+other ones, has been running these enhanced daemons for several years,
+and without any ill effects.
+
+When the programs are compiled with -DKILL_IP_OPTIONS, source routing
+will be disabled for all TCP connections that are handled by the
+wrapper programs.
+
+All this cannot be used with SunOS 4.x because of a kernel bug in the
+implementation of the getsockopt() system call. Kernel panics have been
+observed for SunOS 4.1.1 up to SunOS 4.1.3. The symptoms are "BAD TRAP"
+and "Data fault" while executing the tcp_ctloutput() kernel function.
+
+The feature is disabled by default. It can be turned on by editing the
+Makefile.  The configuration and installation section below describes
+the Makefile editing process.
+
+UDP services do not benefit from this additional protection. With UDP,
+all you can be certain of is the network packet's destination address.
+
+4.4 - Remote username lookups
+-----------------------------
+
+The protocol proposed in RFC 931 provides a means to get the remote
+user name from the client host.  The requirement is that the client
+host runs an RFC 931-compliant daemon. The information provided by such
+a daemon is not intended to be used for authentication purposes, but it
+can provide additional information about the owner of a TCP connection.
+
+There are some limitations: the number of hosts that run an RFC 931 (or
+compatible) daemon is small (but growing); remote user name lookups do
+not work for datagram (UDP) connections. More seriously, remote user
+name lookups can cause noticeable delays with connections from non-UNIX
+PCs. The wrappers use a 10-second timeout for RFC931 lookups, to
+accommodate slow networks and slow hosts.
+
+By default, the wrappers will do username lookup only when the access
+control rules require them to do so.  The wrappers can be configured to
+always perform remote username lookups by editing the Makefile.  The
+remote username lookup timeout period (10 seconds default) can also be
+changed by editing the Makefile. The installation sections below
+describe the Makefile editing process.
+
+The RFC 931 protocol has diverged into different directions (IDENT and
+TAP). To add to the confusion, both protocols use the same network
+port.  The daemon wrappers implement a common subset of the protocols.
+
+With TLI-based network services, remote username lookups will be
+possible only when TCP/IP is the underlying network protocol.
+
+4.5 - Language extensions
+-------------------------
+
+The wrappers sport only a limited number of features. This is for a
+good reason: programs that run at high privilege levels must be easy to
+verify. And the smaller a program, the easier to verify. There is,
+however, a provision to add features.
+
+The options.c module provides a framework for language extensions.
+Quite a few extensions have already been implemented; they are
+documented in the hosts_options.5 document, which is in `nroff -man'
+format. Examples: changing the severity level at which a request for
+service is logged; "allow" and "deny" keywords; running a customized
+server instead of the standard one; many others.
+
+The language extensions are not enabled by default because they
+introduce an incompatible change to the access control language
+syntax.  Instructions to enable the extensions are given in the
+Makefile.
+
+5 - Other works
+---------------
+
+5.1 - Related documents
+-----------------------
+
+The war story behind the wrapper tools is described in:
+
+    W.Z. Venema, "TCP WRAPPER, network monitoring, access control and
+    booby traps", UNIX Security Symposium III Proceedings (Baltimore),
+    September 1992. 
+
+    ftp.win.tue.nl:/pub/security/tcp_wrapper.ps.Z (postscript)
+    ftp.win.tue.nl:/pub/security/tcp_wrapper.txt.Z (flat text)
+
+The same cracker is also described in:
+
+    W.R. Cheswick, "An Evening with Berferd, In Which a Cracker is
+    Lured, Endured, and Studied", Proceedings of the Winter USENIX
+    Conference (San Francisco), January 1992.
+
+    research.att.com:/dist/internet_security/berferd.ps
+
+5.2 - Related software
+----------------------
+
+Network daemons etc. with enhanced logging capabilities can generate
+massive amounts of information: our 100+ workstations generate several
+hundred kbytes each day. egrep-based filters can help to suppress some
+of the noise.  A more powerful tool is the Swatch monitoring system by
+Stephen E. Hansen and E. Todd Atkins. Swatch can process log files in
+real time and can associate arbitrary actions with patterns; its
+applications are by no means restricted to security.  Swatch is
+available from sierra.stanford.edu, directory /pub/sources.
+
+Socks, described in the UNIX Security III proceedings, can be used to
+control network traffic from hosts on an internal network, through a
+firewall host, to the outer world. Socks consists of a daemon that is
+run on the firewall host, and of a library with routines that redirect
+application socket calls through the firewall daemon.  Socks is
+available from s1.gov in /pub/socks.tar.Z.
+
+Tcpr is a set of perl scripts by Paul Ziemba that enable you to run ftp
+and telnet commands across a firewall. Unlike socks it can be used with
+unmodified client software. Available from ftp.alantec.com, pub/tcpr.
+
+Versions of rshd and rlogind, modified to report the remote user name
+in addition to the remote host name, are available for anonymous ftp
+(ftp.win.tue.nl:/pub/security/logdaemon-3.tar.Z).  These programs are
+drop-in replacements for SunOS 4.x, Ultrix 4.x, and SunOS 5.x.
+
+The securelib shared library by William LeFebvre can be used to control
+access to network daemons that are not run under control of the inetd
+or that serve more than one client, such as the NFS mount daemon that
+runs until the machine goes down.  Available from eecs.nwu.edu, file
+/pub/securelib.tar.
+
+xinetd (posted to comp.sources.unix) is an inetd replacement program
+that provides, among others, logging, username lookup and access
+control. However, it does not support TLI services, and it is only six
+times as much source code as the daemon wrapper programs.
+
+Where shared libraries or router-based packet filtering are not an
+option, an alternative portmap daemon can help to improve RPC security,
+in particular that of NFS and of the NIS (YP) information service.
+ftp.win.tue.nl:/pub/security/portmap.shar.Z was tested with SunOS 4.1.1
+... 4.1.3, Ultrix 3.0 and Ultrix 4.x, HP-UX 8.x and AIX. The protection
+is less effective than that of the securelib library because portmap is
+mostly a dictionary service.  SunOS 4.x users should install the latest
+revision of the portmap and NIS daemons instead, or adopt NIS+ which
+has access control built in.
+
+Source for a portable RFC 931 (TAP, IDENT)-compatible daemon by Peter
+Eriksson is available from ftp.lysator.liu.se:/pub/ident/servers.
+
+Some TCP/IP implementations come without syslog library. Some come with
+the library but have no syslog daemon. A replacement can be found in
+ftp.win.tue.nl:/pub/security/surrogate-syslog.tar.Z.  The fakesyslog
+library that comes with the nntp sources reportedly works well, too.
+
+6 - Limitations
+---------------
+
+6.1 - Known wrapper limitations
+-------------------------------
+
+Some UDP (and rpc/udp) daemons linger around for a while after they
+have serviced a request, just in case another request comes in.  In the
+inetd configuration file these daemons are registered with the `wait'
+option. Only the request that started such a daemon will be seen by the
+wrappers.  Such daemons are better protected with the securelib shared
+library (see: Related software).
+
+The wrappers do not work with RPC services over TCP. These services are
+registered as rpc/tcp in the inetd configuration file. The only non-
+trivial service that is affected by this limitation is rexd, which is
+used by the on(1) command. This is no great loss.  On most systems,
+rexd is less secure than a wildcard in /etc/hosts.equiv.
+
+Some RPC requests (for example: rwall, rup, rusers) appear to come from
+the responding host. What happens is that the client sends its request
+to all portmap daemons on its network; each portmap daemon forwards the
+request to its own system. As far as the rwall etc.  daemons know, the
+request comes from the local host.
+
+Portmap and RPC (e.g. NIS and NFS) (in)security is a topic in itself.
+See the section in this document on related software.
+
+6.2 - Known system software bugs
+--------------------------------
+
+Workarounds have been implemented for several bugs in system software.
+They are described in the Makefile. Unfortunately, some system software
+bugs cannot be worked around. The result is loss of functionality.
+
+Older ConvexOS versions come with a broken recvfrom(2) implementation.
+This makes it impossible for the daemon wrappers to look up the
+remote host address (and hence, the name) in case of UDP requests.
+A patch is available for ConvexOS 10.1; later releases should be OK.
+
+With early Solaris (SunOS 5) versions, the syslog daemon will leave
+behind zombie process when writing to logged-in users.  Workaround:
+increase the syslogd threshold for logging to users, or reduce the
+wrapper's logging severity.
+
+On some systems, the optional RFC 931 remote username lookups may
+trigger a kernel bug.  When a client host connects to your system, and
+the RFC 931 connection from your system to that client is rejected by a
+router, your kernel may drop all connections with that client.  This is
+not a bug in the wrapper programs: complain to your vendor, and don't
+enable remote user name lookups until the bug has been fixed.
+
+Reportedly, SunOS 4.1.1, Next 2.0a, ISC 3.0 with TCP 1.3, and AIX 3.2.2
+and later are OK.
+
+Sony News/OS 4.51, HP-UX 8-something and Ultrix 4.3 still have the bug.
+Reportedly, a fix for Ultrix is available ((CXO-8919).
+
+The following procedure can be used (from outside the tue.nl domain) to
+find out if your kernel has the bug. From the system under test, do:
+
+	% ftp 131.155.70.100
+
+This command attempts to make an ftp connection to our anonymous ftp
+server (ftp.win.tue.nl).  When the connection has been established, run
+the following command from the same system under test, while keeping
+the ftp connection open:
+
+	% telnet 131.155.70.100 111
+
+Do not forget the `111' at the end of the command. This telnet command
+attempts to connect to our portmap process.  The telnet command should
+fail with:  "host not reachable", or something like that. If your ftp
+connection gets messed up, you have the bug. If the telnet command does
+not fail, please let me know a.s.a.p.!
+
+For those who care, the bug is that the BSD kernel code was not careful
+enough with incoming ICMP UNREACHABLE control messages (it ignored the
+local and remote port numbers, and therefore zapped *all* connections
+with the remote system). The bug is still present in the BSD NET/1
+source release (1989) but apparently has been fixed in BSD NET/2 (1991). 
+
+7 - Configuration and installation
+----------------------------------
+
+7.1 - Easy configuration and installation
+-----------------------------------------
+
+The "easy" recipe requires no changes to existing software or
+configuration files.  Basically, you move the daemons that you want to
+protect to a different directory and plug the resulting holes with
+copies of the wrapper programs.
+
+If you don't run Ultrix, you won't need the miscd wrapper program.  The
+miscd daemon implements among others the SYSTAT service, which produces
+the same output as the the WHO command.
+
+Type `make' and follow the instructions.  The Makefile comes with
+ready-to-use templates for many common UNIX implementations (sun,
+ultrix, hp-ux, irix, ...).
+
+When the `make' succeeds the result is four executables (five in
+case of Ultrix).
+
+The `try' program can be used to play with host access control tables
+and is described in a later section.
+
+The `safe_finger' command should be used when you implement booby
+traps:  it gives better protection against nasty stuff that hosts may
+send in response to finger probes.
+
+The `try-from' program tests the host and username lookup code.  Run it
+from a remote shell command (`rsh host /some/where/try-from') and it
+should be able to figure out from what system it is being called.
+
+The tcpd program can be used to monitor the telnet, finger, ftp, exec,
+rsh, rlogin, tftp, talk, comsat and other tcp or udp services that have
+a one-to-one mapping onto executable files.
+
+The tcpd program can also be used for services that are marked as
+rpc/udp in the inetd configuration file, but not for rpc/tcp services
+such as rexd.  You probably do not want to run rexd anyway. On most
+systems it is even less secure than a wildcard in /etc/hosts.equiv.
+
+With System V.4-style systems, the tcpd program can also handle TLI
+services. When TCP/IP or UDP/IP is used underneath TLI, the wrappers
+provide the same functions as with socket-based applications. When some
+other protocol is used underneath TLI, functionality will be limited
+(no remote username lookups, weird network address formats).
+
+Decide which services you want to monitor. Move the corresponding
+vendor-provided daemon programs to the location specified by the
+REAL_DAEMON_DIR constant in the Makefile, and fill the holes with
+copies of the tcpd wrapper. That is, one copy of (or link to) the tcpd
+program for each service that you want to monitor. For example, to
+monitor the use of your finger service:
+
+    # mkdir REAL_DAEMON_DIR
+    # mv /usr/etc/in.fingerd REAL_DAEMON_DIR
+    # cp tcpd /usr/etc/in.fingerd
+
+The example applies to SunOS 4. With other UNIX implementations the
+network daemons live in /usr/libexec, /usr/sbin or in /etc, or have no
+"in." prefix to their names, but you get the idea.
+
+File protections: the wrapper, all files used by the wrapper, and all
+directories in the path leading to those files, should be accessible
+but not writable for unprivileged users (mode 755 or mode 555). Do not
+install the wrapper set-uid.
+
+Ultrix only:  If you want to monitor the SYSTAT service, move the
+vendor-provided miscd daemon to the location specified by the
+REAL_DAEMON_DIR macro in the Makefile, and install the miscd wrapper
+at the original miscd location.
+
+In the absence of any access-control tables, the daemon wrappers
+will just maintain a record of network connections made to your system.
+
+7.2 - Advanced configuration and installation
+---------------------------------------------
+
+The advanced recipe leaves your daemon executables alone, but involves
+simple modifications to the inetd configuration file.
+
+Type `make' and follow the instructions.  The Makefile comes with
+ready-to-use templates for many common UNIX implementations (sun,
+ultrix, hp-ux, irix, ...).
+
+When the `make' succeeds the result is four executables (five in
+case of Ultrix).
+
+The `try' program can be used to play with host access control tables
+and is described in a later section.
+
+The `try-from' program tests the host and username lookup code.  Run it
+from a remote shell command (`rsh host /some/where/try-from') and it
+should be able to figure out from what system it is being called.
+
+The `safe_finger' command should be used when you implement a booby
+trap:  it gives better protection against nasty stuff that hosts may
+send in response to finger probes.
+
+The tcpd program can be used to monitor the telnet, finger, ftp, exec,
+rsh, rlogin, tftp, talk, comsat and other tcp or udp services that have
+a one-to-one mapping onto executable files.
+
+With System V.4-style systems, the tcpd program can also handle TLI
+services. When TCP/IP or UDP/IP is used underneath TLI, the wrappers
+provide the same functions as with socket-based applications. When some
+other protocol is used underneath TLI, functionality will be limited
+(no remote username lookups, weird network address formats).
+
+The tcpd program can also be used for services that are marked as
+rpc/udp in the inetd configuration file, but not for rpc/tcp services
+such as rexd.  You probably do not want to run rexd anyway. On most
+systems it is even less secure than a wildcard in /etc/hosts.equiv.
+
+Install the tcpd command in a suitable place. Apollo UNIX users will
+want to install it under a different name because the name "tcpd" is
+already taken; a suitable name would be "frontd".  
+
+File protections: the wrapper, all files used by the wrapper, and all
+directories in the path leading to those files, should be accessible
+but not writable for unprivileged users (mode 755 or mode 555). Do not
+install the wrapper set-uid.
+
+Then perform the following edits on the inetd configuration file
+(usually /etc/inetd.conf or /etc/inet/inetd.conf):
+
+    finger  stream  tcp     nowait  nobody  /usr/etc/in.fingerd     in.fingerd
+                                            ^^^^^^^^^^^^^^^^^^^
+becomes:
+
+    finger  stream  tcp     nowait  nobody  /usr/etc/tcpd in.fingerd
+					    ^^^^^^^^^^^^^
+Send a `kill -HUP' to the inetd process to make the change effective.
+Some inetd implementations require that you first disable the finger
+service (comment out the finger service and `kill -HUP' the inetd)
+before you can turn on the modified version.
+
+The example applies to SunOS 4. With other UNIX implementations the
+network daemons live in /usr/libexec, /usr/sbin, or /etc, the network
+daemons have no "in." prefix to their names, or the username field in
+the inetd configuration file may be missing.
+
+When the finger service works as expected you can perform similar
+changes for other network services. Do not forget the `kill -HUP'.
+
+The miscd daemon that comes with Ultrix implements several network
+services. It decides what to do by looking at its process name. One of
+the services is systat, which is a kind of limited finger service.  If
+you want to monitor the systat service, install the miscd wrapper in a
+suitable place and update the inetd configuration file:
+
+    systat  stream  tcp     nowait  /suitable/place/miscd      systatd
+
+Ultrix 4.3 allows you to specify a user id under which the daemon will
+be executed. This feature is not documented in the manual pages.  Thus,
+the example would become:
+
+    systat  stream  tcp     nowait  nobody /suitable/place/miscd    systatd
+
+Older Ultrix systems still run all their network daemons as root.
+
+In the absence of any access-control tables, the daemon wrappers
+will just maintain a record of network connections made to your system.
+
+7.3 - Daemons with arbitrary path names
+---------------------------------------
+
+The above tcpd examples work fine with network daemons that live in a
+common directory, but sometimes that is not practical. Having soft
+links all over your file system is not a clean solution, either.
+
+Instead you can specify, in the inetd configuration file, an absolute
+path name for the daemon process name.  For example,
+
+    ntalk   dgram   udp     wait    root    /usr/etc/tcpd /usr/local/lib/ntalkd
+
+When the daemon process name is an absolute path name, tcpd ignores the
+value of the REAL_DAEMON_DIR constant, and uses the last path component
+of the daemon process name for logging and for access control.
+
+7.4 - Building and testing the access control rules
+---------------------------------------------------
+
+In order to support access control the wrappers must be compiled with
+the -DHOSTS_ACCESS option. The access control policy is given in the
+form of two tables (default: /etc/hosts.allow and /etc/hosts.deny).
+Access control is disabled when there are no access control tables, or
+when the tables are empty.
+
+If you haven't used the wrappers before I recommend that you first run
+them a couple of days without any access control restrictions. The
+logfile records should give you an idea of the process names and of the
+host names that you will have to build into your access control rules.
+
+The syntax of the access control rules is documented in the file
+hosts_access.5, which is in `nroff -man' format. This is a lengthy
+document, and no-one expects you to read it right away from beginning
+to end.  Instead, after reading the introductory section, skip to the
+examples at the end so that you get a general idea of the language.
+Then you can appreciate the detailed reference sections near the
+beginning of the document.
+
+The examples in the hosts_access.5 document (`nroff -man' format) show
+two specific types of access control policy:  1) mostly closed (only
+permitting access from a limited number of systems) and 2) mostly open
+(permitting access from everyone except a limited number of trouble
+makers). You will have to choose what model suits your situation best.
+Implementing a mixed policy should not be overly difficult either.
+
+Optional extensions to the access control language are described in the
+hosts_options.5 document (`nroff -man' format).
+
+The `try' command can be used to try out your local access control
+files.  The command syntax is:
+
+    ./try process_name hostname	(e.g.: ./try in.tftpd localhost)
+
+    ./try process_name address	(e.g.: ./try in.tftpd 127.0.0.1)
+
+This way you can simulate what decisions will be made, and what actions
+will be taken, when hosts connect to your own system.
+
+Note 1: `try -d' will look for hosts.{allow,deny} tables in the
+current working directory. This is useful for testing new rules
+without bothering your users.
+
+Note 2: you cannot use the `try' command to simulate what happens when
+the local system connects to other hosts.
+
+In order to find out what process name to use, just use the service and
+watch the process name that shows up in the logfile.  Alternatively,
+you can look up the name from the inetd configuration file. Coming back
+to the tftp example in the tutorial section above:
+
+    tftp  dgram  udp  wait  root  /usr/etc/tcpd  in.tftpd -s /tftpboot
+
+This entry causes the inetd to run the wrapper program (tcpd) with a
+process name `in.tftpd'.  This is the name that the wrapper will use
+when scanning the access control tables. Therefore, `in.tftpd' is the
+process name that should be given to the `try' command. On your system
+the actual inetd.conf entry may differ (tftpd instead of in.tftpd, and
+no `root' field), but you get the idea.
+
+When you specify a host name, the `try' program will use both the host
+name and address. This way you can simulate the most common case where
+the wrappers know both the host address and the host name.  The `try'
+program will iterate over all addresses that it can find for the given
+host name.
+
+When you specify a host address instead of a host name, the `try'
+program will pretend that the host name is unknown, so that you can
+simulate what happens when the wrapper is unable to look up the remote
+host name.
+
+The `try' command will report serious errors to the standard error
+stream (no need to tail the syslog file anymore).
+
+7.5 - Other applications
+------------------------
+
+The access control routines can easily be integrated with other
+programs.  The hosts_access.3 manual page (`nroff -man' format)
+describes the external interface of the libwrap.a library.
+
+The tcpd wrapper can even be used to control access to the smtp port.
+In that case, sendmail should not be run as a stand-alone daemon, but
+it should be registered in the inetd configuration file. For example:
+
+    smtp    stream  tcp     nowait  root    /usr/etc/tcpd /usr/lib/sendmail -bs
+
+You will periodically want to run sendmail to process queued-up
+messages. A crontab entry like:
+
+    0,15,30,45 * * * * /usr/lib/sendmail -q
+
+should take care of that. When you are going to "protect" your sendmail
+daemon this way, you should realize that there are many "unprotected"
+sendmail daemons all over the network that can still be abused.
+
+8 - Acknowledgements
+--------------------
+
+Many people contributed to the evolution of the programs, by asking
+inspiring questions, by suggesting features or bugfixes, or by
+submitting source code.  Nevertheless, all mistakes and bugs in the
+wrappers are my own.
+
+Thanks to Brendan Kehoe (brendan@cs.widener.edu), Heimir Sverrisson
+(heimir@hafro.is) and Dan Bernstein (brnstnd@kramden.acf.nyu.edu) for
+feedback on an early release of this product.  The host name/address
+check was suggested by John Kimball (jkimball@src.honeywell.com).
+Apollo's UNIX environment has some peculiar quirks: Willem-Jan Withagen
+(wjw@eb.ele.tue.nl), Pieter Schoenmakers (tiggr@es.ele.tue.nl) and
+Charles S. Fuller (fuller@wccs.psc.edu) provided assistance.  Hal R.
+Brand (BRAND@addvax.llnl.gov) told me how to get the remote IP address
+in case of datagram-oriented services, and suggested the optional shell
+command feature.  Shabbir Safdar (shabby@mentor.cc.purdue.edu) provided
+a first version of a much-needed manual page.  Granville Boman Goza, IV
+(gbg@sei.cmu.edu) suggested to use the remote IP address even when the
+host name is available.  Casper H.S. Dik (casper@fwi.uva.nl) provided
+additional insight into DNS spoofing techniques.  The bogus daemon
+feature was inspired by code from Andrew Macpherson (BNR Europe Ltd).
+Steve Bellovin (smb@research.att.com) confirmed some of my suspicions
+about the darker sides of TCP/IP insecurity. Risks of automated fingers
+were pointed out by Borja Marcos (borjam@we.lc.ehu.es). Brad Plecs
+(mbp@jhuspo.ca.jhu.edu) was kind enough to try my early TLI code and
+to work out how DG/UX differs from Solaris.
+
+John P.  Rouillard (rouilj@cs.umb.edu) deserves special mention for his
+persistent, but constructive, nagging about wrong or missing things,
+and for trying out and discussing embryonic code or ideas.
+
+Lat but not least, Howard Chu (hyc@hanauma.jpl.nasa.gov), Darren Reed
+(avalon@coombs.anu.edu.au), Icarus Sparry (I.Sparry@gdr.bath.ac.uk),
+Scott Schwartz (schwartz@ cs.psu.edu), John A. Kunze
+(jak@violet.berkeley.edu), Daniel Len Schales (dan@engr.latech.edu),
+Chris Turbeville <turbo@cse.uta.edu>, Paul Kranenburg
+<pk@cs.few.eur.nl>, Marc Boucher <marc@cam.org>, Dave Mitchell
+<D.Mitchell@dcs.shef.ac.uk>, and many, many others provided fixes, code
+fragments, or other improvements to the wrappers.
+
+	Wietse Venema (wietse@wzv.win.tue.nl)
+	Department of Mathematics and Computing Science
+	Eindhoven University of Technology
+	P.O. Box 513
+	5600 MB Eindhoven
+	The Netherlands
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+NAME
+     hosts_access - format of host access control files
+
+DESCRIPTION
+     This manual page describes	a simple access	control	 language
+     that  is  based on	client (host name/address, user	name) and
+     server (process name) patterns.  Examples are given  at  the
+     end.  The	impatient reader can skip to the EXAMPLES section
+     for a quick introduction.
+
+     In	the following text, daemon is the the process name  of	a
+     network  daemon  process,	and  client  is	 the  name and/or
+     address of	a host requesting service. Network daemon process
+     names are specified in the	inetd configuration file.
+
+ACCESS CONTROL FILES
+     The access	control	software consults two files.  The  search
+     stops at the first	match:
+
+     o	  Access will be  granted  when	 a  (daemon,client)  pair
+	  matches an entry in the /etc/hosts.allow file.
+
+     o	  Otherwise, access will be denied when	a (daemon,client)
+	  pair matches an entry	in the /etc/hosts.deny file.
+
+     o	  Otherwise, access will be granted.
+
+     A non-existing access control file	is treated as if it  were
+     an	 empty	file.  Thus,  access control can be turned off by
+     providing no access control files.
+
+ACCESS CONTROL RULES
+     Each access control file consists of zero or more	lines  of
+     text.  These lines	are processed in order of appearance. The
+     search terminates when a match is found.
+
+     o	  A newline character is ignored when it is preceded by	a
+	  backslash character.
+
+     o	  Blank	lines or lines that begin with	a  `#'	character
+	  are ignored.
+
+     o	  All other lines should satisfy  the  following  format,
+	  things between [] being optional:
+
+	     daemon_list : client_list [ : shell_command ]
+
+     daemon_list is a list of one or more  daemon  process  names
+     (argv[0] values) or wildcards (see	below).
+
+     client_list is a list  of	one  or	 more  host  names,  host
+     addresses,	 patterns  or  wildcards (see below) that will be
+
+
+
+AT&T Bell Laboratories	  Last change:				1
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+     matched against the remote	host name or address.
+
+     List elements should be separated by blanks and/or	commas.
+
+     With the exception	of NIS (YP) netgroup lookups, all  access
+     control checks are	case insensitive.
+
+PATTERNS
+     The access	control	language implements  the  following  pat-
+     terns:
+
+     o	  A string that	begins with a `.'  character.	A  client
+	  name or address is matched if	its last components match
+	  the  specified  pattern.   For  example,  the	  pattern
+	  `.tue.nl' matches the	host name `wzv.win.tue.nl'.
+
+     o	  A string that	ends with a `.'	character.  A client name
+	  or  address  is  matched  if its first fields	match the
+	  given	string.	  For  example,	 the  pattern  `131.155.'
+	  matches the address of (almost) every	host on	the Eind-
+	  hoven	University network (131.155.x.x).
+
+     o	  A string that	begins with a `@' character is treated as
+	  a  netgroup  name.   Netgroups are usually supported on
+	  systems with NIS (formerly YP)  data	bases.	A  client
+	  host	name  is  matched if it	is a (host) member of the
+	  specified netgroup.
+
+     o	  An expression	of the form `n.n.n.n/m.m.m.m'  is  inter-
+	  preted  as  a	 `net/mask'  pair.  A  client  address is
+	  matched if `net' is equal to the  bitwise  AND  of  the
+	  address  and the `mask'. For example,	the net/mask pat-
+	  tern `131.155.72.0/255.255.254.0' matches every address
+	  in the range `131.155.72.0' through `131.155.73.255'.
+
+WILDCARDS
+     The access	control	language supports explicit wildcards:
+
+     ALL  If this token	appears	in a daemon_list, it matches  all
+	  network daemon process names.	 If the	ALL token appears
+	  in a client_list,  it	 matches  all  client  names  and
+	  addresses.
+
+     LOCAL
+	  Matches any string that does not contain a dot  charac-
+	  ter.	Typical	use is in client_lists.
+
+     UNKNOWN
+	  Matches any host whose name  or  address  are	 unknown.
+	  Should be used with care: host names may be unavailable
+	  due  to  temporary  name  server  problems.  A  network
+	  address  will	 be  unavailable when the software cannot
+
+
+
+AT&T Bell Laboratories	  Last change:				2
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+	  figure out what type of network it is	talking	to.
+
+     KNOWN
+	  Matches any host whose  name	and  address  are  known.
+	  Should be used with care: host names may be unavailable
+	  due to  temporary  name  server  problems.   A  network
+	  address  will	 be  unavailable when the software cannot
+	  figure out what type of network it is	talking	to.
+
+     FAIL Like the ALL wildcard, but causes the	software to  pre-
+	  tend	that the scan of the current access control table
+	  fails. FAIL is being phased  out;  it	 will  become  an
+	  undocumented	feature.  The EXCEPT operator (see below)
+	  is a much cleaner alternative.
+
+OPERATORS
+     EXCEPT
+	  Intended use is of the form:	`list_1	 EXCEPT	 list_2';
+	  this	construct  matches  anything  that matches list_1
+	  unless it matches list_2.  This construct can	 be  used
+	  in  daemon_lists and in client_lists.	The EXCEPT opera-
+	  tor can be nested: if	the control language would permit
+	  the  use  of	parentheses,  `a EXCEPT	b EXCEPT c' would
+	  parse	as `(a EXCEPT (b EXCEPT	c))'.
+
+SHELL COMMANDS
+     If	the first-matched access control rule  contains	 a  shell
+     command,  that command is subjected to the	following substi-
+     tutions:
+
+     %a	  expands to the remote	host address.
+
+     %c	  expands to client information: user@host, user@address,
+	  a  host name,	or just	an address, depending on how much
+	  information is available.
+
+     %h	  expands to the remote	host name  (or	address,  if  the
+	  host name is unavailable).
+
+     %d	  expands to the daemon	process	name (argv[0] value).
+
+     %p	  expands to the daemon	process	id.
+
+     %u	  expands to the remote	user name (or "unknown").
+
+     %%	  expands to a single `%' character.
+
+     Characters	in % expansions	that may confuse  the  shell  are
+     replaced  by  underscores.	  The  result  is  executed  by	a
+     /bin/sh child process with	standard input,	output and  error
+     connected	to  /dev/null.	 Specify an `&'	at the end of the
+     command if	you do not want	to wait	until it has completed.
+
+
+
+AT&T Bell Laboratories	  Last change:				3
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+     Shell commands should not rely on the PATH	 setting  of  the
+     inetd.   Instead,	they  should  use absolute path	names, or
+     they should begin with an explicit	PATH=whatever statement.
+
+REMOTE USERNAME	LOOKUP
+     When the client host supports the RFC 931 protocol	or one of
+     its  descendants  (TAP,  IDENT)  the  wrapper  programs  can
+     retrieve additional information about the owner of	a connec-
+     tion. Remote username information,	when available,	is logged
+     together with the client host name, and can be used to match
+     patterns like:
+
+	daemon_list : ... user_pattern@host_pattern ...
+
+     The daemon	wrappers can be	configured  at	compile	 time  to
+     perform  rule-driven username lookups (default) or	to always
+     interrogate the client host.  In  the  case  of  rule-driven
+     username lookups, the above rule would cause username lookup
+     only when both the	daemon_list and	the host_pattern match.
+
+     A user pattern has	the same syntax	as a daemon process name,
+     host  name	 or  host  address pattern, so the same	wildcards
+     etc. apply	(but netgroup membership of  users  is	not  sup-
+     ported). One should not get carried away with username look-
+     ups, though.
+
+     o	  The remote username information cannot be trusted  when
+	  it is	needed most, i.e. when the remote system has been
+	  compromised.	In general, ALL	 and  (UN)KNOWN	 are  the
+	  only user name patterns that make sense.
+
+     o	  Username lookups are possible	only with TCP-based  ser-
+	  vices,  and  only  when the client host runs a suitable
+	  daemon; in all other cases the result	is "unknown".
+
+     o	  A well-known UNIX kernel bug may cause loss of  service
+	  when	username  lookups  are blocked by a firewall. The
+	  wrapper README document describes a procedure	 to  find
+	  out if your kernel has this bug.
+
+     o	  Username lookups cause noticeable delays for PC  users.
+	  The default timeout for username lookups is 10 seconds:
+	  too short to cope with slow networks,	but  long  enough
+	  to irritate PC users.
+
+     Selective username	lookups	can alleviate the  last	 problem.
+     For example, a rule like:
+
+	daemon_list : @pcnetgroup ALL@ALL
+
+     would match members of the	pc netgroup without  doing  user-
+     name  lookups,  but  would	perform	username lookups with all
+
+
+
+AT&T Bell Laboratories	  Last change:				4
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+     other systems.
+
+EXAMPLES
+     The language is flexible  enough  that  different	types  of
+     access  control  policy  can  be expressed	with a minimum of
+     fuss. Although the	language uses two access control  tables,
+     the  most common policies can be implemented with one of the
+     tables being trivial or even empty.
+
+     When reading the examples below it	is important  to  realize
+     that  the allow table is scanned before the deny table, that
+     the search	terminates when	a match	is found, and that access
+     is	granted	when no	match is found at all.
+
+     The examples use host and domain names. They can be improved
+     by	 including address and/or network/netmask information, to
+     reduce the	impact of temporary name server	lookup failures.
+
+MOSTLY CLOSED
+     In	this case, access is denied by default.	 Only  explicitly
+     authorized	hosts are permitted access.
+
+     The default policy	(no access) is implemented with	a trivial
+     deny file:
+
+     /etc/hosts.deny:
+	ALL: ALL
+
+     This denies all service to	all hosts, unless they	are  per-
+     mitted access by entries in the allow file.
+
+     The explicitly authorized hosts  are  listed  in  the  allow
+     file.  For	example:
+
+     /etc/hosts.allow:
+	ALL: LOCAL @some_netgroup
+	ALL: .foobar.edu EXCEPT	terminalserver.foobar.edu
+
+     The first rule permits access to all services from	hosts  in
+     the  local	domain (no `.' in the host name) and from members
+     of	the  some_netgroup  netgroup.  The  second  rule  permits
+     access  to	 all  services	from all hosts in the .foobar.edu
+     domain, with the exception	of terminalserver.foobar.edu.
+
+MOSTLY OPEN
+     Here, access is granted by	default; only  explicitly  speci-
+     fied hosts	are refused service.
+
+     The default policy	(access	granted)  makes	 the  allow  file
+     redundant	so  that  it can be omitted.  The explicitly non-
+     authorized	hosts are listed in the	deny file. For example:
+
+
+
+
+AT&T Bell Laboratories	  Last change:				5
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+     /etc/hosts.deny:
+	ALL: some.host.name, .some.domain
+	ALL EXCEPT in.fingerd: other.host.name,	.other.domain
+
+     The first rule denies some	hosts all  services;  the  second
+     rule still	permits	finger requests	from other hosts.
+
+BOOBY TRAPS
+     The next example permits tftp requests  from  hosts  in  the
+     local  domain.   Requests	from  any other	hosts are denied.
+     Instead of	the requested file, a finger probe is sent to the
+     offending host. The result	is mailed to the superuser.
+
+     /etc/hosts.allow:
+	in.tftpd: LOCAL, .my.domain
+
+     /etc/hosts.deny:
+	in.tftpd: ALL: (/some/where/safe_finger	-l @%h | \
+	     /usr/ucb/mail -s %d-%h root) &
+
+     The safe_finger command comes  with  the  tcpd  wrapper  and
+     should  be	installed in a suitable	place. It limits possible
+     damage from data sent by the remote finger	server.	 It gives
+     better protection than the	standard finger	command.
+
+     The expansion of the %h (remote host) and %d (service  name)
+     sequences is described in the section on shell commands.
+
+     Warning: do not booby-trap	your finger  daemon,  unless  you
+     are prepared for infinite finger loops.
+
+     On	network	firewall systems this trick can	be  carried  even
+     further.	The typical network firewall only provides a lim-
+     ited set of services to the outer world. All other	 services
+     can be "bugged" just like the above tftp example. The result
+     is	an excellent early-warning system.
+
+DIAGNOSTICS
+     An	error is reported when a syntax	error is found in a  host
+     access  control  rule;  when the length of	an access control
+     rule exceeds the capacity of an  internal	buffer;	 when  an
+     access  control  rule is not terminated by	a newline charac-
+     ter; when the result of %<character> expansion  would  over-
+     flow  an  internal	 buffer;  when	a  system call fails that
+     shouldn't.	 All problems are reported via the syslog daemon.
+
+FILES
+     /etc/hosts.allow, (daemon,client) pairs that are granted access.
+     /etc/hosts.deny, (daemon,client) pairs that are denied access.
+
+SEE ALSO
+     tcpd(8) tcp/ip daemon wrapper program.
+
+
+
+AT&T Bell Laboratories	  Last change:				6
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+BUGS
+     If	a name server lookup times out,	the host name will not be
+     available	to  the	 access	control	software, even though the
+     host is registered.
+
+     Domain name server	lookups	are case insensitive; NIS  (form-
+     erly YP) netgroup lookups are case	sensitive.
+
+AUTHOR
+     Wietse Venema (wietse@wzv.win.tue.nl)
+     Department	of Mathematics and Computing Science
+     Eindhoven University of Technology
+     Den Dolech	2, P.O.	Box 513, 5600 MB Eindhoven, The	Netherlands
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+AT&T Bell Laboratories	  Last change:				7
+
+
+

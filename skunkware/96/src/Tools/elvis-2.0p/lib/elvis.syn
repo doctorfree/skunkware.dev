@@ -1,0 +1,160 @@
+# elvis.syn -- stores descriptions of languages for use with ":display syntax"
+
+# ANSI C.  Note that ".h" is not listed as a possible file name extension here
+# since it could also be C++ code.  The differences between the two are small,
+# but if we must guess, then C++ is the better choice because C++ declarations
+# use a lot of keywords which are absent from C.
+language c
+extension .c
+keyword auto break case char const continue default delete do double else
+keyword enum extern far float friend for goto if int long near register
+keyword return short signed sizeof static struct switch typedef union
+keyword unsigned void volatile while
+comment //
+comment /* */
+preprocessor #
+function (
+string "
+character '
+startword _
+inword _
+other allcaps final_t initialpunct
+
+# C++.  In addition to the extra keywords, it also causes mixed-case words
+# which begin with an uppercase letter to be displayed in the "otherfont".
+# This is because those names are typically class names.
+language c++
+extension .C .cxx .cc .cpp .h .H .hxx .hh .hpp
+keyword auto break case char class const continue default delete do
+keyword double else enum extern far float friend for goto if inline
+keyword int long near new operator private protected public register
+keyword return short signed sizeof static struct switch this typedef
+keyword union unsigned virtual void volatile while
+comment //
+comment /* */
+preprocessor #
+function (
+string "
+character '
+startword _
+inword _
+other allcaps initialcaps initialpunct final_t
+
+# Java.  Note that ".jav" is offered as a possible file name extension for
+# folks who're still using MS-DOS or Windows 3.1.  Hopefully nobody will
+# ever type in an uppercase .JAV filename.
+language java
+extension .java .jav
+keyword abstract boolean break byte byvalue case cast catch char class
+keyword const continue default do double else extends false final finally
+keyword float for future generic goto if implements import inner instanceof
+keyword int interface long native new null operator outer package private
+keyword protected public rest return short static super switch synchronized
+keyword this throw throws transient true try var void volatile while
+comment	//
+comment /* */
+function (
+string "
+character '
+startword _
+inword _
+other allcaps initialcaps
+
+# Awk.  This is actually for Thompson Automation's AWK compiler, which is
+# somewhat beefier than the standard AWK interpretter.  One cute trick:
+# '/' is declared as being used for character literals; AWK actually uses it
+# for regular expression literals.  If you try to do division, the remainder
+# of that line will look weird.
+language tawk awk
+extension .awk
+keyword BEGIN BEGINFILE END ENDFILE INIT break continue do else for function
+keyword global if in local next return while
+comment #
+function (
+string "
+character /
+other allcaps
+
+# Imakefiles.  This one is interesting because '#' is both the preprocessor
+# character and the comment character.  A '#' in the first column is displayed
+# as a preprocessor directive, and anywhere else as the start of a comment.
+# The '/' character can't appear at the start of a word because that would
+# interfere with its use in /*...*/ comments.  Note that this language appears
+# before the "make" language, so "Imakefile" # files won't be misrecognized as
+# Makefiles.
+language xmkmf
+extension Imakefile
+preprocessor #
+comment #
+comment /* */
+startword .$
+inword /.$()
+
+# Makefiles.  Note that file names like "Makefile" & "makefile" are recognized.
+# The keywords listed here are actually just common names for pseudo-targets.
+# The word characters include anything that's commonly used in a filename.
+# Any word followed by a : will be displayed in the functionfont.
+language make
+extension akefile
+keyword all clean depend install uninstall
+comment #
+startword /.$
+inword /.$()
+function :
+
+# Microsoft NMAKE-style makefiles.  Microsoft's NMAKE uses ! to introduce
+# preprocessor directives.
+language nmake
+extension .mak
+comment #
+preprocessor !
+startword \.$
+inword \.$()
+function :
+
+# PostScript
+language postscript
+extension .ps .eps
+keyword add aload and arc arcn arcto array ashow awidthshow begin charpath
+keyword clear closepath copy copy copypage def definefont dict div dup end
+keyword eq exch exec exit false fill findfont for forall ge get grestore
+keyword gsave gt idiv if ifelse kshow le length lineto loop lt makefont
+keyword maxlength moveto mul ne neg newpath not or pop put repeat restore
+keyword rlineto rmoveto roll rotate round save scale search setgray
+keyword setlinewidth show showpage keyword string stroke sub translate true
+keyword widthshow xor
+string ( )
+comment %
+
+# Pascal.  Note that Pascal supports two styles of multi-line comments, while
+# elvis only permits one multi-line and one single-line style.  The style
+# supported here uses { } for the multi-line comments, and also pretends that
+# (* markes the start of a single-line comment -- elvis won't detect *)
+language pascal
+extension .p .pas
+keyword and array begin boolean case char const delete div do downto else end
+keyword false file for function get goto if in input insert integer interactive
+keyword keyboard label maxint mod new nil not of or output packed procedure
+keyword program put read readln real record repeat reset rewrite seek set
+keyword string text then to true type until var while with write writeln
+comment { }
+comment (*
+function (
+string '
+ignorecase true
+
+# Korn shell scripts.  It also tries to format other Bourne-like shell scripts.
+# Contributed by zach@igd.fhg.de
+language ksh bash sh shV sh5
+extension .sh
+comment #
+keyword ; & ( ) | < > && || |& ;; { } [[ ]] $ % %% # ## * ? [ ]
+keyword >| >> <> << <<- <& <&- <&p >&p > <
+keyword for in do done select case esac if then elif else fi while until
+keyword $* $@ $# $? $- $$ $! $
+function (
+startword ;&()|<>&|{}[]$%?-$*@!
+inword ;&()|<>&|{}[]$%?-$*@!_
+string `
+character '
+other allcaps

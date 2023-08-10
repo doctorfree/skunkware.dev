@@ -1,0 +1,86 @@
+xloadimage 4.1
+-------------
+(This version contributed to the archive).
+
+xloadimage is a utility that will view several types of images under
+X11, load images onto the root window, or dump processed images into
+one of several image file formats. Formats include GIF (87a and 89a),
+pcx, jpeg, and tiff. And by using an included auxiliary file, the
+program will even display uudecoded text files, such as those found
+on the various USENET "binary" groups (I won't mention which ones).
+Those familiar with "xv" can think of xloadimage as similar to xv
+but command-line driven and a bit faster.
+
+UnixWare 2.0x is distributed with xloadimage version 1 patchlevel 5.
+The program has evolved. The file here is version 4.1 and it has a
+large number of improvements since version 1.05, including support
+for more image formats, 24-bit displays, and (of course) bug fixes.
+
+If you use this on UW2.x, you need to make a change to /usr/X/bin/dtwallpaper.
+The bug is at line 188 of dtwallpaper which reads:
+    xloadimage -identify 1>/dev/null 2>&1
+This line should read:
+    xloadimage -identify $1 1>/dev/null 2>&1
+
+The problem is that dtwallpaper at this point is testing whether the
+image file can be loaded but it doesn't tell xloadimage what file to
+test. The older xloadimage (1.05 that comes with UW 2), however,
+returns success when the file argument is missing. Hence dtwallpaper
+thinks it successfully tested the file, which it didn't, and merrily
+continues and fails later if the file indeed is inappropriate. In
+contrast, the newer xloadimage (version 4.1) more properly returns
+a syntax error and dtwallpaper immediately stops and displays the
+error message intended by the author of dtwallpaper.
+
+The file xloadimage.4.1.src.tar is the complete source code,
+downloaded from ftp.x.org.
+
+The file xloadimage.4.1.bin.tar includes the program binaries,
+manual page, and a (very) simple install script.
+
+!! IMPORTANT !! IMPORTANT !!
+============================
+The simple install script and the "make install" in the full source
+do NOT touch the UnixWare file /usr/X/bin/xloadimage. Depending on
+your path statement, the older program may be executed instead of the
+newer program. You should do one of the following:
+   1) rename or remove /usr/X/bin/xloadimage
+   2) put the directory where the newer xloadimage is installed
+in your path statement BEFORE the directory /usr/X/bin.
+   3) execute xloadimage using the full pathname.
+
+A simple test is enter "xloadimage -version". This reports (surprise!)
+the version number which should be 4.1 for the newer version.
+
+For those too lazy to read the manual, enter:
+	xloadimage file(s)
+to display image files (press the space bar to move from one file
+to the next). Enter
+	xloadimage -help
+to enter the interactive help facility.
+
+For those who want to compile the source: I have AS 2.02 with the
+SDK and had to make only one change: I had to delete lines 104 and
+105 from the Makefile. Those lines read:
+   .c.o: Make.conf xloadimage.h image.h $*.c
+      $(CC) -c $(CFLAGS) $*.c
+(Hate when people try to re-define .c)
+
+xloadimage is very open, basically subject only to "noticeware" and
+a modified MIT X Consortiium copyright. The program README states:
+  Commercial sites are welcome to use the code even without special
+  permission, licensing or royalty fees.
+
+Program praise, suggestions, and bug reports should go to:
+	Jim Frost
+	CenterLine Software
+	10 Fawcett Street
+	Cambridge, MA  02138
+	(617) 498-3000
+	jimf@centerline.com
+
+This README wrapper written by
+	Andy Levinson
+	andyl@netcom.com
+	95-Oct-4
+and should not be blamed on Mr. Frost's fine work.

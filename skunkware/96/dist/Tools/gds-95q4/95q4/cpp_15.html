@@ -1,0 +1,83 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from cpp.texi on 6 October 1995 -->
+
+<TITLE>The C Preprocessor - Stringification</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="cpp_1.html">first</A>, <A HREF="cpp_14.html">previous</A>, <A HREF="cpp_16.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+<HR>
+<H3><A NAME="SEC16" HREF="cpp_toc.html#TOC16">Stringification</A></H3>
+<A NAME="IDX54"></A>
+<P>
+<DFN>Stringification</DFN> means turning a code fragment into a string constant
+whose contents are the text for the code fragment.  For example,
+stringifying <SAMP>`foo (z)'</SAMP> results in <SAMP>`"foo (z)"'</SAMP>.
+<P>
+In the C preprocessor, stringification is an option available when macro
+arguments are substituted into the macro definition.  In the body of the
+definition, when an argument name appears, the character <SAMP>`#'</SAMP> before
+the name specifies stringification of the corresponding actual argument
+when it is substituted at that point in the definition.  The same argument
+may be substituted in other places in the definition without
+stringification if the argument name appears in those places with no
+<SAMP>`#'</SAMP>.
+<P>
+Here is an example of a macro definition that uses stringification:
+<P>
+<PRE>
+#define WARN_IF(EXP) \
+do { if (EXP) \
+        fprintf (stderr, "Warning: " #EXP "\n"); } \
+while (0)
+</PRE>
+<P>
+Here the actual argument for <SAMP>`EXP'</SAMP> is substituted once as given,
+into the <SAMP>`if'</SAMP> statement, and once as stringified, into the
+argument to <SAMP>`fprintf'</SAMP>.  The <SAMP>`do'</SAMP> and <SAMP>`while (0)'</SAMP> are
+a kludge to make it possible to write <SAMP>`WARN_IF (<VAR>arg</VAR>);'</SAMP>,
+which the resemblance of <SAMP>`WARN_IF'</SAMP> to a function would make
+C programmers want to do; see section <A HREF="cpp_22.html#SEC23">Swallowing the Semicolon</A>.
+<P>
+The stringification feature is limited to transforming one macro argument
+into one string constant: there is no way to combine the argument with
+other text and then stringify it all together.  But the example above shows
+how an equivalent result can be obtained in ANSI Standard C using the
+feature that adjacent string constants are concatenated as one string
+constant.  The preprocessor stringifies the actual value of <SAMP>`EXP'</SAMP> 
+into a separate string constant, resulting in text like
+<P>
+<PRE>
+do { if (x == 0) \
+        fprintf (stderr, "Warning: " "x == 0" "\n"); } \
+while (0)
+</PRE>
+<P>
+but the C compiler then sees three consecutive string constants and
+concatenates them into one, producing effectively
+<P>
+<PRE>
+do { if (x == 0) \
+        fprintf (stderr, "Warning: x == 0\n"); } \
+while (0)
+</PRE>
+<P>
+Stringification in C involves more than putting doublequote characters
+around the fragment; it is necessary to put backslashes in front of all
+doublequote characters, and all backslashes in string and character
+constants, in order to get a valid C string constant with the proper
+contents.  Thus, stringifying <SAMP>`p = "foo\n";'</SAMP> results in <SAMP>`"p =
+\"foo\\n\";"'</SAMP>.  However, backslashes that are not inside of string or
+character constants are not duplicated: <SAMP>`\n'</SAMP> by itself stringifies to
+<SAMP>`"\n"'</SAMP>.
+<P>
+Whitespace (including comments) in the text being stringified is handled
+according to precise rules.  All leading and trailing whitespace is ignored.
+Any sequence of whitespace in the middle of the text is converted to
+a single space in the stringified result.
+<P>
+<HR>
+Go to the <A HREF="cpp_1.html">first</A>, <A HREF="cpp_14.html">previous</A>, <A HREF="cpp_16.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+</BODY>
+</HTML>

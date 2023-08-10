@@ -1,0 +1,115 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:  This is a UNIXWARE FAX document
+TITLE:  Installing TCP/IP and NFS on UnixWare 1.1
+DOCUMENT ID:  TID015302
+DOCUMENT REVISION:  A
+DATE:  10MAR94
+AUTHOR:  BAMUNDSO
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Networking
+
+ABSTRACT:
+
+This document discusses installation and configuration of TCP/IP and NFS on UnixWare version 1.1.
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+ISSUE
+
+This document explains what is needed to setup basic TCP/IP and NFS on a typical network.  Even though your networks may vary, the points in this section will still be applicable.
+
+In UnixWare 1.1, TCP/IP, and NFS are broken up into two packages:  TCPSET and NFSSET.  UnixWare Personal Edition includes TCPSET.  NFSSET is an add-on package that is purchased separately.  The Application Server however includes both packages.
+
+1.	TCPSET should be loaded first, followed by NFSSET if applicable.  These packages are loaded the same as any other package.  It can be done by one of the following two methods:
+
+	a.	From the desktop, select System Setup; select Appl-n_Setup; select View; select Uninstalled Apps; then select media.
+
+ 		b.	From the command line, type the following command and press <enter>:
+
+			pkgadd -d cdrom1 or ctape1
+
+	Specify "Custom" at the Internet Utilities option, so you will be asked to input the ip address now.  If you do not specify Custom, you will have to enter the graphical interface and run System Setup then Internet Setup after TCP/IP has been installed.
+
+2.	If your network is using a domain name server, you next want to establish a /etc/resolv.conf file to point to that server.  The format for this file is the following:
+
+		domain domain.name
+		nameserver ipaddress.of.nameserver
+
+	Example:
+
+		domain techsupp.novell.com
+		nameserver 137.68.1.1
+
+3.	By default, UnixWare TCP/IP is set up with a Class B netmask.  To change this you run the utility:
+
+		/etc/confnet.d/configure -i
+
+	This utility will prompt you for the following information:
+
+	a.	What your LAN interface card is.  This is done through a menu, so generally you will just answer: "1."
+
+	b.	Your hostname.  The default for this field is your hostname with a "2" appended to it.  You must retype your hostname without the "2."
+
+	c.	Your IP address.
+
+	d.	Lastly, you are prompted for ifconfig parameters.  If you are on a Class C network, just type the following command and press <enter>:
+
+			classc
+
+	If you are not on a Class C network, then the following table will help you complete this field.
+
+	--------------------------------------------------------
+	IFCONFIG parameters in configure -i
+	Note:	The interface file is:
+
+			/etc/confnet.d/inet/interface.
+
+	The LAN driver name in the following examples are for an NE2000 board; your driver name may vary.
+
+	Choice	Resulting Line in "Interface" File
+
+	YES		ne2k:0::/dev/ne2k_0:-trailers::
+			This will result in a Class B netmask.
+
+	NO		ne2k:0::/dev/ne2k_0:netmask 0xff000000::
+			With NO, You will be prompted for options. It will not error check your entry.  Use this for other classes than B (the default) or C. This example is for a class A (in other words, type in "netmask 0xff000000" when it asks for ifconfig options).
+
+	ClassC	ne2k:0::/dev/ne2k_0:netmask 0xffffff00
+			broadcast 137.65.44.255 -trailers::
+
+	Berkeley	ne2k:0::/dev/ne2k_0:netmask 0xffffff00
+			broadcast 137.65.44.0 -trailers::
+
+	--------------------------------------------------------
+
+	If you need to use a custom netmask, such as ff.ff.fa.00, it is best just to choose ClassC, then modify the netmask manually in the /etc/confnet.d/inet/interface file.  After modifying this file, you will need to restart TCP/IP before the new netmask will take affect.
+
+4.	Simply, reboot your system.  No additional configuration should be needed for basic operation on most network configurations.  UnixWare runs a deamon called: /usr/sbin/in.routed that handles the dynamic building of routing tables.  In most instances, bypassing this deamon and manually use the route command is not necessary.
+
+
+
+
+
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+

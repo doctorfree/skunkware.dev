@@ -1,0 +1,70 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Chained Rules</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_90.html">previous</A>, <A HREF="make_92.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC90" HREF="make_toc.html#TOC90">Chains of Implicit Rules</A></H2>
+<A NAME="IDX750"></A>
+<A NAME="IDX751"></A>
+<P>
+Sometimes a file can be made by a sequence of implicit rules.  For example,
+a file <TT>`<VAR>n</VAR>.o'</TT> could be made from <TT>`<VAR>n</VAR>.y'</TT> by running
+first Yacc and then <CODE>cc</CODE>.  Such a sequence is called a <DFN>chain</DFN>.
+<P>
+If the file <TT>`<VAR>n</VAR>.c'</TT> exists, or is mentioned in the makefile, no
+special searching is required: <CODE>make</CODE> finds that the object file can
+be made by C compilation from <TT>`<VAR>n</VAR>.c'</TT>; later on, when considering
+how to make <TT>`<VAR>n</VAR>.c'</TT>, the rule for running Yacc is
+used.  Ultimately both <TT>`<VAR>n</VAR>.c'</TT> and <TT>`<VAR>n</VAR>.o'</TT> are
+updated.<A NAME="IDX752"></A>
+<A NAME="IDX753"></A>
+<P>
+However, even if <TT>`<VAR>n</VAR>.c'</TT> does not exist and is not mentioned,
+<CODE>make</CODE> knows how to envision it as the missing link between
+<TT>`<VAR>n</VAR>.o'</TT> and <TT>`<VAR>n</VAR>.y'</TT>!  In this case, <TT>`<VAR>n</VAR>.c'</TT> is
+called an <DFN>intermediate file</DFN>.  Once <CODE>make</CODE> has decided to use the
+intermediate file, it is entered in the data base as if it had been
+mentioned in the makefile, along with the implicit rule that says how to
+create it.<P>
+Intermediate files are remade using their rules just like all other
+files.  The difference is that the intermediate file is deleted when
+<CODE>make</CODE> is finished.  Therefore, the intermediate file which did not
+exist before <CODE>make</CODE> also does not exist after <CODE>make</CODE>.  The
+deletion is reported to you by printing a <SAMP>`rm -f'</SAMP> command that
+shows what <CODE>make</CODE> is doing.  (You can list the target pattern of an
+implicit rule (such as <SAMP>`%.o'</SAMP>) as a dependency of the special
+target <CODE>.PRECIOUS</CODE> to preserve intermediate files made by implicit
+rules whose target patterns match that file's name; 
+see section <A HREF="make_48.html#SEC47">Interrupting or Killing <CODE>make</CODE></A>.)<A NAME="IDX755"></A>
+<A NAME="IDX756"></A>
+<A NAME="IDX757"></A>
+<A NAME="IDX754"></A>
+<P>
+A chain can involve more than two implicit rules.  For example, it is
+possible to make a file <TT>`foo'</TT> from <TT>`RCS/foo.y,v'</TT> by running RCS,
+Yacc and <CODE>cc</CODE>.  Then both <TT>`foo.y'</TT> and <TT>`foo.c'</TT> are
+intermediate files that are deleted at the end.<P>
+No single implicit rule can appear more than once in a chain.  This means
+that <CODE>make</CODE> will not even consider such a ridiculous thing as making
+<TT>`foo'</TT> from <TT>`foo.o.o'</TT> by running the linker twice.  This
+constraint has the added benefit of preventing any infinite loop in the
+search for an implicit rule chain.
+<P>
+There are some special implicit rules to optimize certain cases that would
+otherwise be handled by rule chains.  For example, making <TT>`foo'</TT> from
+<TT>`foo.c'</TT> could be handled by compiling and linking with separate
+chained rules, using <TT>`foo.o'</TT> as an intermediate file.  But what
+actually happens is that a special rule for this case does the compilation
+and linking with a single <CODE>cc</CODE> command.  The optimized rule is used in
+preference to the step-by-step chain because it comes earlier in the
+ordering of rules.
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_90.html">previous</A>, <A HREF="make_92.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

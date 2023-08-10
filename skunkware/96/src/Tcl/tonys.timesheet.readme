@@ -1,0 +1,295 @@
+======================================================================
+		     SEARHC Electronic Timesheet
+
+      Copyright 1996 Southeast Alaska Regional Health Consortium
+		    Copyright 1996 Anthony Taylor
+		    Copyright 1996 Valerie Dodson
+======================================================================
+
+----------
+DISCLAIMER
+----------
+
+This document is part of the SEARHC Electronic Timesheet Tcl/Tk
+package.  Neither Southeast Alaska Health Consortium nor the author
+make any guarantees to its suitability for any purpose whatsoever.
+Also, both SEARHC and the author disclaim any liabilities for injury,
+loss of money or life or limb, or any other negative result from the
+use of this package.  (Or, more succinctly, "Use at your own risk.")
+
+Nor would I suggest using this program as a style guide for learning
+Tcl or Tk.  Actually, you could almost use it as an anti-style guide.
+However, I'm fairly proud of the outcome.  It's not bad for a first
+program in the language, really.  And I discovered a couple neat
+tricks, too.  A few good ideas hide underneath the crufty code.
+
+However, this program is merely the front end to the real heart of our
+timesheet system, a FrameMaker document.  We use Unimerge to merge the
+information produced by this program into the Frame document, and then
+have FrameMaker print it out.  However, with the PostScript
+capabilities of Tk, an extension to this program could do virtually
+the same job.
+
+Or tsprint could initiate a Perl program to merge the numbers into a
+prepared TeX document and print it out.  Or (as this distribution
+does) a tcl script can merge the information into a prepared
+postscript template.  Or just about anything that works for the setup
+at your site.
+
+
+-------
+Invoice
+-------
+
+This should come with a whole bunch of files.  Here's the list:
+
+The program:
+------------
+
+	timesheet.tk		The main routine.
+
+  The forms (ts.*.tk):
+
+	ts.timesheet.tk
+	ts.worksheet.tk
+	ts.leave.tk
+	ts.setup.tk
+	ts.print.tk
+	ts.help.tk
+
+  Other routines:
+
+	datestuff.tcl		Various date manipulation routines
+	routines.tk		Miscellaneous routines used by the forms
+	merge.tcl		The merge routines
+	ts.merge.tcl		A wrapper for the merge routines
+
+  Data files:
+
+	timesheet.holidays	A list of observed holidays
+	site.list		A list of company sites, used in setup
+	timesheet.ps.template	The PS skeleton, with embedded merge codes
+
+  Icons and Bitmaps:
+
+	timesheet.icon		The minimized timesheet icon
+	logo.xbm		The company logo on the timesheet form
+	print.xbm		Used in the print dialog
+
+  Shell scripts:
+
+	tsprint			A script called from the print form
+	tsview			A script called from the print form
+	tsprint.unimerge	The unimerge print script
+
+  Frame and Unimerge files:
+
+	SEARHC.Timesheet.ctl	The unimerge control file
+	SEARHC.Timesheet.mif	The FrameMaker timesheet template
+
+  Other Directories:
+
+	help/			On-line help files
+	printer/		Available printer, listed by site
+
+  Files created:
+
+	~/.timesheet.conf
+	~/timesheet.out
+	~/ts.err		Printer errors go here
+	~/.isd.archive/		A directory to hold old timesheets
+	~/timesheet.ps		The finished postscript timesheet
+
+  Documentation:
+
+	ts.doc.Z		An MS-Word document, compressed.
+				(Why Word?  It would have been
+				postscript, but I was testing WABI
+				when I wrote the documentation.  I
+				dislike Word, myself.)
+
+
+------------
+Installation
+------------
+
+Install the tcl/Tk code wherever you want.  I keep mine in 
+/usr/local/bin/timesheet, and I keep the support files in
+/usr/local/bin.  Just keep the tcl/Tk files together.  To run, issue
+this command:
+
+	wish timesheet.tk
+
+Currently, there are two methods of printing the timesheet.  One is
+the method outlined above, using UniMerge and FrameMaker.  (This is
+the method we use here at SEARHC.)  The other is a little cruder, but
+it works, and this is how it works: the print button in the print form
+calls the script tsprint, which in turn calls a tcl script called
+ts.merge.tcl, which is a wrapper for a procedure called merge.  The
+merge procedure uses a template document called timesheet.ps.template
+which merge fills with information from the ~/timesheet.out data file.
+The resulting merged document is saved as ~/timesheet.ps, which is
+then dumped directly to a printer.  This is the default for this
+distribution.
+
+This same techinique could be used to view the finished document with
+ghostview.  I know this will work; I've done it.  Simply modify the
+tsview shell script to use the tcl-based merge, and initiate
+ghostview with the -monochrome option (for best results). 
+
+
+---
+Use
+---
+
+The program should be pretty much self-explanatory.  If the user
+hasn't set up the timesheet before, it will go directly to the setup
+form.  Otherwise, it will go straight to the main timesheet form.
+
+Probably the best coding is in the "datestuff.tcl".  There are some
+good date routines to handle conversion from Julian to Gregorian
+dates, and vice-versa.  There are other routines in there as well, 
+which may or may not prove useful in other projects.  Also, the merge
+routine is kinda nifty, as it uses tcl commands embedded in the
+document template to perform the actual merge. 
+
+
+------------------------
+Using The Merge Function
+------------------------
+
+All merging is done with the function "merge" located in the file
+merge.tcl .  The procedure is called thus:
+
+	merge template.name datafile.name outputfile.name
+
+where the template has the embedded codes to extract information from
+the datafile, and the finished output is saved in outputfile.name .
+
+The datafile is a flat file with code lines like this: (SEE the file
+~/timesheet.out for a more complete example.)
+
+... Begin Example
+
+foo: This is the information for foo.
+
+... End Example
+
+The datafile is read into the array "mrg", with the tag (in this case,
+foo) as the index name.  (So mrg(foo) would contain "This is the
+information for foo.")  This data can be accessed from the merge
+template document using standard tcl syntax.  The merge token is a
+double-tilde (~~), and the merge command must be in braces.  So, to
+merge foo into the template, the embedded merge command would be:
+
+	~~{$mrg(foo)}
+
+The merge function scans the template looking for the merge token ~~.
+When it encounters the token, it extracts the merge command, executes
+it, and replaces the token and command with the results of the
+command.
+
+For instance, if the datafile contains this line:
+
+mon1: Apr 15
+
+and the merge template contains these lines:
+
+3 11 Q
+(~~{[lindex $mrg(mon1) 0]}) 64.98 519.45 T
+0 0 0 1 0 0 0 K
+
+then "~~{[lindex $mrg(mon1) 0]}" would be replaced with "Apr", and that
+section of the output file would look like this:
+
+3 11 Q
+(Apr) 64.98 519.45 T
+0 0 0 1 0 0 0 K
+
+Also, the abilities of the merge function can be extended with tcl
+procedures.  For instance, the merge.tcl file contains the procedure
+mergeadd, which takes a list of numbers and adds them together,
+returning the result.  So, the command
+
+~~{[mergeadd $mrg(hh) $mrg(cht)]}
+
+would add the values of hh and cht from the datafile.  Any tcl
+function that returns a value can be used within the merge function,
+so the abilities of the merge function are completely limitless.
+(In theory, at least.  I personally don't have the hardware to destroy
+the universe, so I can't create a merge function to do so, either.  Oh
+darn.)
+
+In fact, you could embed entire procedures within a merge document.
+For instance, you could hide a procedure behind a comment in a
+PostScript document like this:
+
+... Begin example
+
+% ~~{[uplevel {proc mergeadd {args} {set answer 0; foreach arg $args
+{if {[string compare $arg ""]} { set answer [expr $answer + $arg]}};
+if {$answer} {return $answer} else {return ""}}}]}
+
+... End example
+
+Keep in mind there are !no! linebreaks in this code; what appear to be
+line breaks in the example above are merely figments of your
+imagination.  This should all be one complete, unbroken line for the
+merge procedure to register the merge function.  Also, please note
+this is the mergeadd function already in the merge.tcl code.
+
+Also, keep in mind the "%" in the example above is the PostScript
+comment token.  For other merge documents, the comment symbol will
+most definitely be different.
+
+This is a very powerful idea; wonderfully simple, it still provides
+the ability to add any tcl functions to a document, and embed the
+functions directly into the template.  No additional code needs to be
+shipped around and loaded up.  Or, a seperate file *could* be
+included, and the document can source that file, simplifying the
+coding, and eliminating the need to add extra libraries for every
+document.  Just load up the merge functions that are going to be used
+in the document template.
+
+For examples of a simple working merge template, check out
+timesheet.ps.template, in the timesheet directory.  This is a
+postscript document, relatively simple to understand.  Just load the
+document into your favorite (Emacs) text editor, and search for the
+double-tilde token "~~".
+
+A word of warning: the merge function is not recursive, so it cannot
+substitute more than one token per input line.  However, modifying the
+procedure for recursive operation would be extremely simple.
+
+
+-------
+License
+-------
+
+It seems a bit silly to apply a user license to this code, but I'm
+going to anyway.  Essentially, SEARHC and I reserve all copyright to
+this code, but grant use to use, modify, and distribute this code in
+accordance with the same license that accompanies tcl and Tk.  A
+slightly modified version of that license accompanies this code, in
+the file "license.terms".  Or, alternately, this code may also be
+distributed under the terms outlined in the Gnu General Public
+License.  Take your pick.
+
+Why bother with a license at all?  Well, if I've managed to do
+anything even remotely clever here, I want credit, by God.
+
+
+------------------------------------------------
+What I'd do different, because I know better now
+------------------------------------------------
+
+First, I'd move the form selection button routines from the individual
+forms to the main timesheet program, surrounding the "source ts.*.tk"
+lines.  The idea is to make each form as independent as possible--
+hopefully, completely independent.  They could then be easily reused
+in other code.
+
+I'd probably sell it all for a zillion dollars and retire.
+
+I'd probably re-write the code to simplify turning it into a library,
+especially the date and merge routines.

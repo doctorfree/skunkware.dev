@@ -1,0 +1,229 @@
+
+The key packages here are
+
+cnews.E.pkg.tar.Z
+cnews.README
+cnews.guide.ps.Z
+nntpserv.pkg.tar.Z
+slurp-1.09.pkg.tar.Z
+slurpconfig.README
+slurpconfig.tar.Z
+
+With these you can install a Cnew/nntp/slurp link in approx 15 minutes.
+
+
+(Howto do) Netnews via PPP
+++++++++++++++++++++++++++++
+
+I recently setup my home machine for reaching netnews over PPP,
+attached are some notes on what i did to make this work (my system
+is UW2.03 on a Dell Optiplex XMT590).
+
+You have a couple of choices for reading netnews:
+
+	(1) Either read news directly over nntp from your ISP. The
+advantage here is that you don't have any overhead in administering
+any kind of local news system. The disadvantages are the online
+costs of holding the phone up, and the slow speed of some news
+readers who like to periodically check the 15,000 line active file.
+
+Alternately (2), which is what i do, is to run your own netnews
+system locally. I use Cnews (the news database engine), nntp (for
+accessing the news database locally and for transmitting
+outbound postings via nntpxmit) and slurp (to download the newsgroups
+over nntp from my ISP).
+
+These three pieces of software are all on
+	ftp.abs.net:/unixware/usle/netnews/server
+	ftp.novell.co.uk:/pub/unixware/usle/netnews/server
+(Be sure to read the README's in that directory also.)
+
+In my case I feed the news from news.demon.co.uk (and also pubnews.demon.co.uk
+in case one server is down) - the news protocol is sufficiently smart to
+recognise  duplicates so multiple feeds is not a bad idea.
+After installing the pkgadd software, the following files needed
+tuning for the local installation:
+
+/usr/lib/news/sys
+/usr/lib/news/batchparms
+/usr/lib/news/explist
+/usr/lib/news/slurp.sys
+/usr/lib/news/slurp.news.demon.co.uk
+/usr/lib/news/donews
+/usr/lib/newsbin/inject/pnews
+/var/spool/news/out.going/*
+
+These are discussed below. 
+
+The "sys" file tells the News system what to receive, and what to
+pass on, for receiving local news and sending local postings back
+to news.demon.co.uk the following entries are needed:
+
+# Only the ME line is mandatory; the others are just samples of how to do
+# things.  Virtually everything will need modifying for your local feeds
+# and newsgroups.
+
+# line indicating what we are willing to receive; note local groups near end
+ME:comp,news,sci,rec,misc,soc,talk,alt,can,uk,us,ont,tor,ut,demon,local,to
+
+# send all except for my local.test postings
+news.demon.co.uk:!local/all,all:Ln:
+pubnews.demon.co.uk:!local/all,all:Ln:
+
+The syntax is
+
+site:grouplist[/dist]:flags:
+
+Where site is the sitename,
+grouplist the newsgroups to forward and exclude (if having a
+leading ! mark)
+dist is optional - if omitted it defaults to all
+
+flags for our purposes the key flags are "n" which creates batches
+for use with nntp,  and "L" which tells C news to trasnmit
+only local postings. 
+
+The "batchparms" file tells the News system how to batch things up
+for transmission - i.e. what to do with your local postings, thus
+when sendbatches is called by cron or by the donews script below
+it knows to call usenntpxmit.
+
+# site          class   size    queue   command
+# ----          -----   ----    -----   -------
+# defaults:  cunbatch header, transfer by uux
+/default/       u       500000  20      batcher | compcun | viauux -g low
+news.demon.co.uk        n       40000   -       usenntpxmit news.demon.co.uk 
+pubnews.demon.co.uk        n       40000   -       usenntpxmit pubnews.demon.co.uk 
+
+
+The file "explist" contains the default expiry times file for expiring
+old news. The importance of this depends on how much news you feed
+in - note that unless your machine is on 24 hours a day, the news
+cron's won't get run, so you'll have to expire by hand. To see the
+crons, su - news and then crontab -l.
+
+The file "slurp.sys" is the control file for slurp.
+
+My demon feed is currently as follows:
+
+# Demon feed
+news.demon.co.uk:demon.*.unix.*,demon.announce,demon.news,demon.service,\
+demon.pops,comp.unix.sys5.r4,comp.unix.unixware.*,comp.std.*,sci.med.vision,\
+comp.mail.*,comp.unix.solaris 
+pubnews.demon.co.uk:demon.*.unix.*,demon.announce,demon.news,demon.service,\
+demon.pops,comp.unix.sys5.r4,comp.unix.unixware.*,comp.std.*,sci.med.vision,\
+comp.mail.*,comp.unix.solaris 
+
+The "slurp.news.demon.co.uk" file contains a date and time stamp
+of the last news download, you need one of these files for each newsfeed
+site.
+
+$ cat slurp.news.demon.co.uk
+951119 153112    
+
+
+The "donews" script is a shell script that I run when I want to
+download new news, it also does a sendbatches and a newsrun to
+unload the incoming batches at this time.
+
+
+#!/bin/sh
+# get the news
+
+/usr/sbin/ping news.demon.co.uk
+if [ $? -eq 0 ]
+then
+	# ppp up
+	:
+else
+	/usr/sbin/ping pubnews.demon.co.uk
+	if [ $? -eq 0 ]
+	then
+		:
+	else
+		echo "PPP link not established, no news processing attempted."
+		exit 1
+	fi
+fi
+
+# Transmit any batched articles.
+
+/usr/lib/newsbin/batch/sendbatches &	#Cnews
+
+while : ; do ( ../newsbin/nntp/doslurp  -d news.demon.co.uk ||
+../newsbin/nntp/doslurp  -d pubnews.demon.co.uk ) && break ;
+done
+
+# sometimes news returns 400 busy - so retry 
+/usr/lib/newsbin/batch/sendbatches &	#Cnews
+/usr/lib/newsbin/input/newsrun & 
+
+
+pnews - the pnews script is used to post articles. I like to 
+have the LINES header in my postings so I edit that file
+and select the appropriate section of the shell script - look
+to Plan A and Plan B in the comments.
+
+For outgoing news articles you need to create some subdirectories
+in /var/spool/news/out.going, one for each site and create a
+zero length file called togo in each, for example, on
+my machine, the out.going directories are as follows:
+
+
+total 0
+drwxr-xr-x    2 news     news          96 Dec 29 16:57 news.demon.co.uk
+drwxr-xr-x    2 news     news          96 Dec 31 09:17 pubnews.demon.co.uk
+
+/var/spool/news/out.going/news.demon.co.uk:
+total 0
+-rw-r--r--    1 news     news           0 Dec 29 16:57 togo
+
+/var/spool/news/out.going/pubnews.demon.co.uk:
+total 0
+-rw-r--r--    1 news     news           0 Dec 31 09:17 togo
+
+
+Some tips when you first install the news software: 
+
+You should probably edit the /usr/lib/news/active file to reset all
+the sequence numbers:
+	cp active active.sav
+	sed 's/ [0-9]* [0-9]* / 0000000000 00001 /' active.sav > active
+	rm active.sav
+I've placed a copy of the active file we use here on a full
+feed in active.Z
+
+Create a local.test group
+	cnewsdo addgroup local.test y
+
+Then send a posting to there , using tin , and check the
+posting goes into the /var/spool/news/in.coming directory,
+and that a newsrun puts it into the news database.
+
+Then add the recent unixware newsgroups:
+
+	cnewsdo addgroup comp.unix.unixware.misc y
+	cnewsdo addgroup comp.unix.unixware.announce m
+
+since they are missing from the original newsgroups file in the package.
+
+
+Possible problems:
+
+If your postings are refused by the remote news server, contact their
+news administator its probably that they have to add you
+to the file that permits remote sites to post
+
+If the remote end complains about slurp not being in the right
+mode, use a -r option to doslurp/slurp so that slurp
+issues a "MODE README" command.
+
+
+If you are feeding news to another leaf node and they complain
+that postings are not getting to them, check the sys file,
+it may be that you have the "L" flag in there for local postings
+only and thus they won't receive articles from other sites.
+--
+Andrew Josey, 	#include <std/disclaimer.h>
+Email : andrew@tamarix.demon.co.uk
+

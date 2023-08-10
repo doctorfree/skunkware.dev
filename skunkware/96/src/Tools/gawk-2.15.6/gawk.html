@@ -1,0 +1,1167 @@
+<HTML>
+<HEAD>
+<TITLE>gawk</TITLE>
+</HEAD>
+<!--
+Light Blue Background
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+New Midnight Blue Background
+<BODY BGCOLOR=#00009C LINK=#00FFFF VLINK=#00C8C8 TEXT=#23D8FF ALINK=#00FF00>
+White Background
+<BODY BGCOLOR=#FFFFFF TEXT=#000000 LINK=#0000FF VLINK=#00009C ALINK=#00FF00>
+Black Background
+<BODY BGCOLOR=#000000  TEXT=#FFFFFF LINK=#0077FF VLINK=#FF3EE4 ALINK=#00FF00>
+-->
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+<H1>gawk</H1>
+<HR>
+<PRE>
+<STRONG>NAME</STRONG>
+  gawk - pattern scanning and processing language
+
+<STRONG>SYNOPSIS</STRONG>
+  <STRONG>gawk</STRONG> [ POSIX or GNU style options ] <STRONG>-f</STRONG> <EM>program</EM>-<EM>file</EM> [ <STRONG>--</STRONG> ]
+  file ...
+  <STRONG>gawk</STRONG> [ POSIX or GNU style options ] [ <STRONG>--</STRONG> ] <EM>program</EM>-<EM>text</EM> file
+  ...
+
+<STRONG>DESCRIPTION</STRONG>
+  <EM>Gawk</EM> is the GNU Project's implementation of the AWK
+  programming language.  It conforms to the definition of the
+  language in the POSIX 1003.2 Command Language And Utilities
+  Standard.  This version in turn is based on the description
+  in <EM>The</EM> <EM>AWK</EM> <EM>Programming</EM> <EM>Language</EM>, by Aho, Kernighan, and
+  Weinberger, with the additional features defined in the
+  System V Release 4 version of UNIX <EM>awk</EM>.  <EM>Gawk</EM> also provides
+  some GNU-specific extensions.
+
+  The command line consists of options to <EM>gawk</EM> itself, the AWK
+  program text (if not supplied via the <STRONG>-f</STRONG> or <STRONG>--file</STRONG> options),
+  and values to be made available in the <STRONG>ARGC</STRONG> and <STRONG>ARGV</STRONG> pre-
+  defined AWK variables.
+
+<STRONG>OPTIONS</STRONG>
+  <EM>Gawk</EM> options may be either the traditional POSIX one letter
+  options, or the GNU style long options.  POSIX style options
+  start with a single ``-'', while GNU long options start with
+  ``--''.  GNU style long options are provided for both GNU-
+  specific features and for POSIX mandated features.  Other
+  implementations of the AWK language are likely to only
+  accept the traditional one letter options.
+
+  Following the POSIX standard, <EM>gawk</EM>-specific options are
+  supplied via arguments to the <STRONG>-W</STRONG> option.  Multiple <STRONG>-W</STRONG>
+  options may be supplied, or multiple arguments may be
+  supplied together if they are separated by commas, or
+  enclosed in quotes and separated by white space.  Case is
+  ignored in arguments to the <STRONG>-W</STRONG> option.  Each <STRONG>-W</STRONG> option has a
+  corresponding GNU style long option, as detailed below.
+  Arguments to GNU style long options are either joined with
+  the option by an <STRONG>=</STRONG> sign, with no intervening spaces, or they
+  may be provided in the next command line argument.
+
+  <EM>Gawk</EM> accepts the following options.
+
+  <STRONG>-F</STRONG> <EM>fs</EM>
+  <STRONG>--field-separator=</STRONG><EM>fs</EM>
+	   Use <EM>fs</EM> for the input field separator (the value of the
+	   <STRONG>FS</STRONG> predefined variable).
+
+  <STRONG>-v</STRONG> <EM>var</EM><STRONG>=</STRONG><EM>val</EM>
+  <STRONG>--assign=</STRONG><EM>var</EM><STRONG>=</STRONG><EM>val</EM>
+	   Assign the value <EM>val</EM>, to the variable <EM>var</EM>, before
+	   execution of the program begins.  Such variable values
+	   are available to the <STRONG>BEGIN</STRONG> block of an AWK program.
+
+  <STRONG>-f</STRONG> <EM>program</EM>-<EM>file</EM>
+  <STRONG>--file=</STRONG><EM>program</EM>-<EM>file</EM>
+	   Read the AWK program source from the file <EM>program</EM>-<EM>file</EM>,
+	   instead of from the first command line argument.
+	   Multiple <STRONG>-f</STRONG> (or <STRONG>--file</STRONG>) options may be used.
+
+  <STRONG>-mf=</STRONG><EM>NNN</EM>
+  <STRONG>-mr=</STRONG><EM>NNN</EM>
+	   Set various memory limits to the value <EM>NNN</EM>.  The <STRONG>f</STRONG> flag
+	   sets the maximum number of fields, and the <STRONG>r</STRONG> flag sets
+	   the maximum record size.  These two flags and the <STRONG>-m</STRONG>
+	   option are from the AT&amp;T Bell Labs research version of
+	   UNIX <EM>awk</EM>.  They are ignored by <EM>gawk</EM>, since <EM>gawk</EM> has no
+	   pre-defined limits.
+  <STRONG>-W</STRONG> <STRONG>compat</STRONG>
+  <STRONG>--compat</STRONG>    Run in <EM>compatibility</EM> mode.  In compatibility
+			  mode, <EM>gawk</EM> behaves identically to UNIX <EM>awk</EM>; none
+			  of the GNU-specific extensions are recognized.
+			  See <STRONG>GNU</STRONG> <STRONG>EXTENSIONS</STRONG>, below, for more information.
+
+  <STRONG>-W</STRONG> <STRONG>copyleft</STRONG>
+  <STRONG>-W</STRONG> <STRONG>copyright</STRONG>
+  <STRONG>--copyleft</STRONG>
+  <STRONG>--copyright</STRONG> Print the short version of the GNU copyright
+			  information message on the error output.
+
+  <STRONG>-W</STRONG> <STRONG>help</STRONG>
+  <STRONG>-W</STRONG> <STRONG>usage</STRONG>
+  <STRONG>--help</STRONG>
+  <STRONG>--usage</STRONG>     Print a relatively short summary of the
+			  available options on the error output.  Per the
+			  GNU Coding Standards, these options cause an
+			  immediate, successful exit.
+
+  <STRONG>-W</STRONG> <STRONG>lint</STRONG>
+  <STRONG>--lint</STRONG>      Provide warnings about constructs that are
+			  dubious or non-portable to other AWK
+			  implementations.
+  <STRONG>-W</STRONG> <STRONG>posix</STRONG>
+  <STRONG>--posix</STRONG>     This turns on <EM>compatibility</EM> mode, with the
+			  following additional restrictions:
+
+			  <STRONG>+</STRONG> <STRONG>\x</STRONG> escape sequences are not recognized.
+
+			  <STRONG>+</STRONG> The synonym <STRONG>func</STRONG> for the keyword <STRONG>function</STRONG> is
+				not recognized.
+
+			  <STRONG>+</STRONG> The operators <STRONG>**</STRONG> and <STRONG>**=</STRONG> cannot be used in
+				place of <STRONG>^</STRONG> and <STRONG>^=</STRONG>.
+
+  <STRONG>-W</STRONG> <STRONG>source=</STRONG><EM>program</EM>-<EM>text</EM>
+  <STRONG>--source=</STRONG><EM>program</EM>-<EM>text</EM>
+			  Use <EM>program</EM>-<EM>text</EM> as AWK program source code.
+			  This option allows the easy intermixing of
+			  library functions (used via the <STRONG>-f</STRONG> and <STRONG>--file</STRONG>
+			  options) with source code entered on the command
+			  line.  It is intended primarily for medium to
+			  large size AWK programs used in shell scripts.
+
+</PRE>
+<H2>9                      The -W source= form of this option uses the rest</H2><PRE>
+			  of the command line argument for <EM>program</EM>-<EM>text</EM>;
+			  no other options to <STRONG>-W</STRONG> will be recognized in the
+			  same argument.
+
+  <STRONG>-W</STRONG> <STRONG>version</STRONG>
+  <STRONG>--version</STRONG>   Print version information for this particular
+			  copy of <EM>gawk</EM> on the error output.  This is
+			  useful mainly for knowing if the current copy of
+			  <EM>gawk</EM> on your system is up to date with respect
+			  to whatever the Free Software Foundation is
+			  distributing.  Per the GNU Coding Standards,
+			  these options cause an immediate, successful
+			  exit.
+
+  <STRONG>--</STRONG>          Signal the end of options. This is useful to
+			  allow further arguments to the AWK program
+			  itself to start with a ``-''.  This is mainly
+			  for consistency with the argument parsing
+			  convention used by most other POSIX programs.
+
+  In compatibility mode, any other options are flagged as
+  illegal, but are otherwise ignored.  In normal operation, as
+  long as program text has been supplied, unknown options are
+  passed on to the AWK program in the <STRONG>ARGV</STRONG> array for
+  processing.  This is particularly useful for running AWK
+  programs via the ``#!'' executable interpreter mechanism.
+
+<STRONG>AWK</STRONG> <STRONG>PROGRAM</STRONG> <STRONG>EXECUTION</STRONG>
+  An AWK program consists of a sequence of pattern-action
+  statements and optional function definitions.
+
+	   <EM>pattern</EM>   <STRONG>{</STRONG> <EM>action</EM> <EM>statements</EM> <STRONG>}</STRONG>
+	   <STRONG>function</STRONG> <EM>name</EM><STRONG>(</STRONG><EM>parameter</EM> <EM>list)</EM<STRONG>)</STRONG> <STRONG>{</STRONG> <EM>statements</EM> <STRONG>}</STRONG>
+
+  <EM>Gawk</EM> first reads the program source from the <EM>program</EM>-<EM>file</EM>(s)
+  if specified, from arguments to <STRONG>-W</STRONG> <STRONG>source=</STRONG>, or from the
+  first non-option argument on the command line.  The <STRONG>-f</STRONG> and
+  <STRONG>-W</STRONG> <STRONG>source=</STRONG> options may be used multiple times on the command
+  line.  <EM>Gawk</EM> will read the program text as if all the
+  <EM>program</EM>-<EM>file</EM>s and command line source texts had been
+  libraries of AWK functions, without having to include them
+  in each new AWK program that uses them.  It also provides
+  the ability to mix library functions with command line
+  programs.
+
+  The environment variable <STRONG>AWKPATH</STRONG> specifies a search path to
+  use when finding source files named with the <STRONG>-f</STRONG> option.  If
+  this variable does not exist, the default path is
+  <STRONG>".:/usr/lib/awk:/usr/local/lib/awk"</STRONG>.  If a file name given
+  to the <STRONG>-f</STRONG> option contains a ``/'' character, no path search
+  is performed.
+
+  <EM>Gawk</EM> executes AWK programs in the following order.  First,
+  all variable assignments specified via the <STRONG>-v</STRONG> option are
+  performed.  Next, <EM>gawk</EM> compiles the program into an internal
+  form.  Then, <EM>gawk</EM> executes the code in the <STRONG>BEGIN</STRONG> block(s)
+  (if any), and then proceeds to read each file named in the
+  <STRONG>ARGV</STRONG> array.  If there are no files named on the command
+  line, <EM>gawk</EM> reads the standard input.
+
+  If a filename on the command line has the form <EM>var</EM><STRONG>=</STRONG><EM>val</EM> it is
+  treated as a variable assignment. The variable <EM>var</EM> will be
+  assigned the value <EM>val</EM>.  (This happens after any <STRONG>BEGIN</STRONG>
+  block(s) have been run.) Command line variable assignment is
+  most useful for dynamically assigning values to the
+  variables AWK uses to control how input is broken into
+  fields and records. It is also useful for controlling state
+  if multiple passes are needed over a single data file.
+
+  If the value of a particular element of <STRONG>ARGV</STRONG> is empty (<STRONG>""</STRONG>),
+  <EM>gawk</EM> skips over it.
+
+  For each line in the input, <EM>gawk</EM> tests to see if it matches
+  any <EM>pattern</EM> in the AWK program.  For each pattern that the
+  line matches, the associated <EM>action</EM> is executed.  The
+  patterns are tested in the order they occur in the program.
+
+  Finally, after all the input is exhausted, <EM>gawk</EM> executes the
+  code in the <STRONG>END</STRONG> block(s) (if any).
+
+<STRONG>VARIABLES</STRONG> <STRONG>AND</STRONG> <STRONG>FIELDS</STRONG>
+  AWK variables are dynamic; they come into existence when
+  they are first used. Their values are either floating-point
+  numbers or strings, or both, depending upon how they are
+  used. AWK also has one dimensional arrays; arrays with
+  multiple dimensions may be simulated.  Several pre-defined
+  variables are set as a program runs; these will be described
+  as needed and summarized below.
+
+<STRONG>Fields</STRONG>
+  As each input line is read, <EM>gawk</EM> splits the line into
+
+  separator.  If <STRONG>FS</STRONG> is a single character, fields are
+  separated by that character.  Otherwise, <STRONG>FS</STRONG> is expected to
+  be a full regular expression.  In the special case that <STRONG>FS</STRONG>
+  is a single blank, fields are separated by runs of blanks
+  and/or tabs.  Note that the value of <STRONG>IGNORECASE</STRONG> (see below)
+  will also affect how fields are split when <STRONG>FS</STRONG> is a regular
+  expression.
+
+  If the <STRONG>FIELDWIDTHS</STRONG> variable is set to a space separated list
+  of numbers, each field is expected to have fixed width, and
+  <EM>gawk</EM> will split up the record using the specified widths.
+  The value of <STRONG>FS</STRONG> is ignored.  Assigning a new value to <STRONG>FS</STRONG>
+  overrides the use of <STRONG>FIELDWIDTHS</STRONG>, and restores the default
+  behavior.
+
+  Each field in the input line may be referenced by its
+  position, <STRONG>$1</STRONG>, <STRONG>$2</STRONG>, and so on.  <STRONG>$0</STRONG> is the whole line. The
+  value of a field may be assigned to as well.  Fields need
+  not be referenced by constants:
+
+	   <STRONG>n</STRONG> <STRONG>=</STRONG> <STRONG>5</STRONG>
+	   <STRONG>print</STRONG> <STRONG>$n</STRONG>
+
+  prints the fifth field in the input line.  The variable <STRONG>NF</STRONG>
+  is set to the total number of fields in the input line.
+
+  References to non-existent fields (i.e. fields after <STRONG>$NF</STRONG>)
+  produce the null-string. However, assigning to a non-
+  existent field (e.g., <STRONG>$(NF+2)</STRONG> <STRONG>=</STRONG> <STRONG>5</STRONG>) will increase the value
+  of <STRONG>NF</STRONG>, create any intervening fields with the null string as
+  their value, and cause the value of <STRONG>$0</STRONG> to be recomputed,
+  with the fields being separated by the value of <STRONG>OFS</STRONG>.
+  References to negative numbered fields cause a fatal error.
+
+<STRONG>Built-in</STRONG> <STRONG>Variables</STRONG>
+  AWK's built-in variables are:
+
+  <STRONG>ARGC</STRONG>        The number of command line arguments (does not
+			  include options to <EM>gawk</EM>, or the program source).
+
+  <STRONG>ARGIND</STRONG>      The index in <STRONG>ARGV</STRONG> of the current file being
+			  processed.
+
+  <STRONG>ARGV</STRONG>        Array of command line arguments. The array is
+			  indexed from 0 to <STRONG>ARGC</STRONG> - 1.  Dynamically
+			  changing the contents of <STRONG>ARGV</STRONG> can control the
+			  files used for data.
+
+  <STRONG>CONVFMT</STRONG>     The conversion format for numbers, <STRONG>"%.6g"</STRONG>, by
+			  default.
+
+
+			  environment.  The array is indexed by the
+			  environment variables, each element being the
+			  value of that variable (e.g., <STRONG>ENVIRON["HOME"]</STRONG>
+			  might be <STRONG>/u/arnold</STRONG>).  Changing this array does
+			  not affect the environment seen by programs
+			  which <EM>gawk</EM> spawns via redirection or the
+			  <STRONG>system()</STRONG> function.  (This may change in a future
+			  version of <EM>gawk</EM>.)
+
+  <STRONG>ERRNO</STRONG>       If a system error occurs either doing a
+			  redirection for <STRONG>getline</STRONG>, during a read for
+			  <STRONG>getline</STRONG>, or during a <STRONG>close()</STRONG>, then <STRONG>ERRNO</STRONG> will
+			  contain a string describing the error.
+
+  <STRONG>FIELDWIDTHS</STRONG> A white-space separated list of fieldwidths.
+			  When set, <EM>gawk</EM> parses the input into fields of
+			  fixed width, instead of using the value of the
+			  <STRONG>FS</STRONG> variable as the field separator.  The fixed
+			  field width facility is still experimental;
+			  expect the semantics to change as <EM>gawk</EM> evolves
+			  over time.
+
+  <STRONG>FILENAME</STRONG>    The name of the current input file.  If no files
+			  are specified on the command line, the value of
+			  <STRONG>FILENAME</STRONG> is ``-''.  However, <STRONG>FILENAME</STRONG> is
+			  undefined inside the <STRONG>BEGIN</STRONG> block.
+
+  <STRONG>FNR</STRONG>         The input record number in the current input
+			  file.
+
+  <STRONG>FS</STRONG>          The input field separator, a blank by default.
+
+  <STRONG>IGNORECASE</STRONG>  Controls the case-sensitivity of all regular
+			  expression operations. If <STRONG>IGNORECASE</STRONG> has a non-
+			  zero value, then pattern matching in rules,
+			  field splitting with <STRONG>FS</STRONG>, regular expression
+			  matching with <STRONG>~</STRONG> and <STRONG>!~</STRONG>, and the <STRONG>gsub()</STRONG>, <STRONG>index()</STRONG>,
+			  <STRONG>match()</STRONG>, <STRONG>split()</STRONG>, and <STRONG>sub()</STRONG> pre-defined
+			  functions will all ignore case when doing
+			  regular expression operations.  Thus, if
+			  <STRONG>IGNORECASE</STRONG> is not equal to zero, <STRONG>/aB/</STRONG> matches
+			  all of the strings <STRONG>"ab"</STRONG>, <STRONG>"aB"</STRONG>, <STRONG>"Ab"</STRONG>, and <STRONG>"AB"</STRONG>.
+			  As with all AWK variables, the initial value of
+			  <STRONG>IGNORECASE</STRONG> is zero, so all regular expression
+			  operations are normally case-sensitive.
+
+  <STRONG>NF</STRONG>          The number of fields in the current input
+			  record.
+
+  <STRONG>NR</STRONG>          The total number of input records seen so far.
+
+
+			  default.
+
+  <STRONG>OFS</STRONG>         The output field separator, a blank by default.
+
+  <STRONG>ORS</STRONG>         The output record separator, by default a
+			  newline.
+
+  <STRONG>RS</STRONG>          The input record separator, by default a
+			  newline.  <STRONG>RS</STRONG> is exceptional in that only the
+			  first character of its string value is used for
+			  separating records.  (This will probably change
+			  in a future release of <EM>gawk</EM>.) If <STRONG>RS</STRONG> is set to
+			  the null string, then records are separated by
+			  blank lines.  When <STRONG>RS</STRONG> is set to the null string,
+			  then the newline character always acts as a
+			  field separator, in addition to whatever value
+			  <STRONG>FS</STRONG> may have.
+
+  <STRONG>RSTART</STRONG>      The index of the first character matched by
+			  <STRONG>match()</STRONG>; 0 if no match.
+
+  <STRONG>RLENGTH</STRONG>     The length of the string matched by <STRONG>match()</STRONG>; -1
+			  if no match.
+
+  <STRONG>SUBSEP</STRONG>      The character used to separate multiple
+			  subscripts in array elements, by default <STRONG>"\034"</STRONG>.
+
+<STRONG>Arrays</STRONG>
+  Arrays are subscripted with an expression between square
+  brackets (<STRONG>[</STRONG> and <STRONG>]</STRONG>).  If the expression is an expression list
+  (<EM>expr</EM>, <EM>expr</EM> ...) then the array subscript is a string
+  consisting of the concatenation of the (string) value of
+  each expression, separated by the value of the <STRONG>SUBSEP</STRONG>
+  variable.  This facility is used to simulate multiply
+  dimensioned arrays. For example:
+
+	   <STRONG>i</STRONG> <STRONG>=</STRONG> <STRONG>"A"</STRONG> <STRONG>;</STRONG> <STRONG>j</STRONG> <STRONG>=</STRONG> <STRONG>"B"</STRONG> <STRONG>;</STRONG> <STRONG>k</STRONG> <STRONG>=</STRONG> <STRONG>"C"</STRONG>
+	   <STRONG>x[i,</STRONG> <STRONG>j,</STRONG> <STRONG>k]</STRONG> <STRONG>=</STRONG> <STRONG>"hello,</STRONG> <STRONG>world\n"</STRONG>
+
+  assigns the string <STRONG>"hello,</STRONG> <STRONG>world\n"</STRONG> to the element of the
+  array <STRONG>x</STRONG> which is indexed by the string <STRONG>"A\034B\034C"</STRONG>. All
+  arrays in AWK are associative, i.e. indexed by string
+  values.
+
+  The special operator <STRONG>in</STRONG> may be used in an <STRONG>if</STRONG> or <STRONG>while</STRONG>
+  statement to see if an array has an index consisting of a
+  particular value.
+
+	   <STRONG>if</STRONG> <STRONG>(val</STRONG> <STRONG>in</STRONG> <STRONG>array)</STRONG>
+			<STRONG>print</STRONG> <STRONG>array[val]</STRONG>
+
+
+
+  The <STRONG>in</STRONG> construct may also be used in a <STRONG>for</STRONG> loop to iterate
+  over all the elements of an array.
+
+  An element may be deleted from an array using the <STRONG>delete</STRONG>
+  statement.  The <STRONG>delete</STRONG> statement may also be used to delete
+  the entire contents of an array.
+
+<STRONG>Variable</STRONG> <STRONG>Typing</STRONG> <STRONG>And</STRONG> <STRONG>Conversion</STRONG>
+  Variables and fields may be (floating point) numbers, or
+  strings, or both. How the value of a variable is interpreted
+  depends upon its context. If used in a numeric expression,
+  it will be treated as a number, if used as a string it will
+  be treated as a string.
+
+  To force a variable to be treated as a number, add 0 to it;
+  to force it to be treated as a string, concatenate it with
+  the null string.
+
+  When a string must be converted to a number, the conversion
+  is accomplished using <EM>atof</EM>(3).  A number is converted to a
+  string by using the value of <STRONG>CONVFMT</STRONG> as a format string for
+  <EM>sprintf</EM>(3), with the numeric value of the variable as the
+  argument.  However, even though all numbers in AWK are
+  floating-point, integral values are <EM>always</EM> converted as
+  integers.  Thus, given
+
+	   <STRONG>CONVFMT</STRONG> <STRONG>=</STRONG> <STRONG>"%2.2f"</STRONG>
+	   <STRONG>a</STRONG> <STRONG>=</STRONG> <STRONG>12</STRONG>
+	   <STRONG>b</STRONG> <STRONG>=</STRONG> <STRONG>a</STRONG> <STRONG>""</STRONG>
+
+  the variable <STRONG>b</STRONG> has a string value of <STRONG>"12"</STRONG> and not <STRONG>"12.00"</STRONG>.
+
+  <EM>Gawk</EM> performs comparisons as follows: If two variables are
+  numeric, they are compared numerically.  If one value is
+  numeric and the other has a string value that is a ``numeric
+  string,'' then comparisons are also done numerically.
+  Otherwise, the numeric value is converted to a string and a
+  string comparison is performed.  Two strings are compared,
+  of course, as strings.  According to the POSIX standard,
+  even if two strings are numeric strings, a numeric
+  comparison is performed.  However, this is clearly
+  incorrect, and <EM>gawk</EM> does not do this.
+
+  Uninitialized variables have the numeric value 0 and the
+  string value "" (the null, or empty, string).
+
+<STRONG>PATTERNS</STRONG> <STRONG>AND</STRONG> <STRONG>ACTIONS</STRONG>
+  AWK is a line oriented language. The pattern comes first,
+  and then the action. Action statements are enclosed in <STRONG>{</STRONG> and
+  <STRONG>}</STRONG>.  Either the pattern may be missing, or the action may be
+
+  missing, the action will be executed for every single line
+  of input.  A missing action is equivalent to
+
+	   <STRONG>{</STRONG> <STRONG>print</STRONG> <STRONG>}</STRONG>
+
+  which prints the entire line.
+
+  Comments begin with the ``#'' character, and continue until
+  the end of the line.  Blank lines may be used to separate
+  statements.  Normally, a statement ends with a newline,
+  however, this is not the case for lines ending in a ``,'',
+  ``{'', ``?'', ``:'', ``&amp;&amp;'', or ``||''.  Lines ending in <STRONG>do</STRONG>
+  or <STRONG>else</STRONG> also have their statements automatically continued
+  on the following line.  In other cases, a line can be
+  continued by ending it with a ``\'', in which case the
+  newline will be ignored.
+
+  Multiple statements may be put on one line by separating
+  them with a ``;''.  This applies to both the statements
+  within the action part of a pattern-action pair (the usual
+  case), and to the pattern-action statements themselves.
+
+<STRONG>Patterns</STRONG>
+  AWK patterns may be one of the following:
+
+	   <STRONG>BEGIN</STRONG>
+	   <STRONG>END</STRONG>
+	   <STRONG>/</STRONG><EM>regular</EM> <EM>expression</EM><STRONG>/</STRONG>
+	   <EM>relational</EM> <EM>expression</EM>
+	   <EM>pattern</EM> <STRONG>&amp;&amp;</STRONG> <EM>pattern</EM>
+	   <EM>pattern</EM> <STRONG>||</STRONG> <EM>pattern</EM>
+	   <EM>pattern</EM> <STRONG>?</STRONG> <EM>pattern</EM> <STRONG>:</STRONG> <EM>pattern</EM>
+	   <STRONG>(</STRONG><EM>pattern)</EM<STRONG>)</STRONG>
+	   <STRONG>!</STRONG> <EM>pattern</EM>
+	   <EM>pattern1</EM><STRONG>,</STRONG> <EM>pattern2</EM>
+
+  <STRONG>BEGIN</STRONG> and <STRONG>END</STRONG> are two special kinds of patterns which are
+  not tested against the input.  The action parts of all <STRONG>BEGIN</STRONG>
+  patterns are merged as if all the statements had been
+  written in a single <STRONG>BEGIN</STRONG> block. They are executed before
+  any of the input is read. Similarly, all the <STRONG>END</STRONG> blocks are
+  merged, and executed when all the input is exhausted (or
+  when an <STRONG>exit</STRONG> statement is executed).  <STRONG>BEGIN</STRONG> and <STRONG>END</STRONG> patterns
+  cannot be combined with other patterns in pattern
+  expressions.  <STRONG>BEGIN</STRONG> and <STRONG>END</STRONG> patterns cannot have missing
+  action parts.
+
+  For <STRONG>/</STRONG><EM>regular</EM> <EM>expression</EM><STRONG>/</STRONG> patterns, the associated statement
+  is executed for each input line that matches the regular
+  expression.  Regular expressions are the same as those in
+  <EM>egrep</EM>(1), and are summarized below.
+
+  below in the section on actions.  These generally test
+  whether certain fields match certain regular expressions.
+
+  The <STRONG>&amp;&amp;</STRONG>, <STRONG>||</STRONG>, and <STRONG>!</STRONG> operators are logical AND, logical OR, and
+  logical NOT, respectively, as in C.  They do short-circuit
+  evaluation, also as in C, and are used for combining more
+  primitive pattern expressions. As in most languages,
+  parentheses may be used to change the order of evaluation.
+
+  The <STRONG>?:</STRONG> operator is like the same operator in C. If the first
+  pattern is true then the pattern used for testing is the
+  second pattern, otherwise it is the third. Only one of the
+  second and third patterns is evaluated.
+
+  The <EM>pattern1</EM><STRONG>,</STRONG> <EM>pattern2</EM> form of an expression is called a
+  <EM>range</EM> <EM>pattern</EM>.  It matches all input records starting with a
+  line that matches <EM>pattern1</EM>, and continuing until a record
+  that matches <EM>pattern2</EM>, inclusive. It does not combine with
+  any other sort of pattern expression.
+
+<STRONG>Regular</STRONG> <STRONG>Expressions</STRONG>
+  Regular expressions are the extended kind found in <EM>egrep</EM>.
+  They are composed of characters as follows:
+
+  <STRONG>c</STRONG>          matches the non-metacharacter <STRONG>c</STRONG>.
+
+  <EM>\c</EM>         matches the literal character <STRONG>c</STRONG>.
+
+  <STRONG>.</STRONG>          matches any character except newline.
+
+  <STRONG>^</STRONG>          matches the beginning of a line or a string.
+
+  <STRONG>$</STRONG>          matches the end of a line or a string.
+
+  <STRONG>[</STRONG><EM>abc</EM>...<STRONG>]</STRONG>   character class, matches any of the characters
+			 <EM>abc</EM>....
+
+  <STRONG>[^</STRONG><EM>abc</EM>...<STRONG>]</STRONG>  negated character class, matches any character
+			 except <EM>abc</EM>... and newline.
+
+  <EM>r1</EM><STRONG>|</STRONG><EM>r2</EM>      alternation: matches either <EM>r1</EM> or <EM>r2</EM>.
+
+  <EM>r1r2</EM>       concatenation: matches <EM>r1</EM>, and then <EM>r2</EM>.
+
+  <STRONG>r+</STRONG>         matches one or more <STRONG>r</STRONG>'s.
+
+  <STRONG>r*</STRONG>         matches zero or more <STRONG>r</STRONG>'s.
+
+  <STRONG>r?</STRONG>         matches zero or one <STRONG>r</STRONG>'s.
+
+  <STRONG>(r)</STRONG>        grouping: matches <STRONG>r</STRONG>.
+
+  below) are also legal in regular expressions.
+
+<STRONG>Actions</STRONG>
+  Action statements are enclosed in braces, <STRONG>{</STRONG> and <STRONG>}</STRONG>.  Action
+  statements consist of the usual assignment, conditional, and
+  looping statements found in most languages. The operators,
+  control statements, and input/output statements available
+  are patterned after those in C.
+
+<STRONG>Operators</STRONG>
+  The operators in AWK, in order of increasing precedence, are
+
+  <STRONG>=</STRONG> <STRONG>+=</STRONG> <STRONG>-=</STRONG>
+  <STRONG>*=</STRONG> <STRONG>/=</STRONG> <STRONG>%=</STRONG> <STRONG>^=</STRONG> Assignment. Both absolute assignment <STRONG>(</STRONG><EM>var</EM> <STRONG>=</STRONG>
+			  <EM>value)</EM<STRONG>)</STRONG> and operator-assignment (the other forms)
+			  are supported.
+
+  <STRONG>?:</STRONG>          The C conditional expression. This has the form
+			  <EM>expr1</EM> <STRONG>?</STRONG> <EM>expr2</EM> <STRONG>:</STRONG> <EM>expr3</EM>. If <EM>expr1</EM> is true, the
+			  value of the expression is <EM>expr2</EM>, otherwise it
+			  is <EM>expr3</EM>.  Only one of <EM>expr2</EM> and <EM>expr3</EM> is
+			  evaluated.
+
+  <STRONG>||</STRONG>          Logical OR.
+
+  <STRONG>&amp;&amp;</STRONG>          Logical AND.
+
+  <STRONG>~</STRONG> <STRONG>!~</STRONG>        Regular expression match, negated match.  <STRONG>NOTE:</STRONG>
+			  Do not use a constant regular expression (<STRONG>/foo/</STRONG>)
+			  on the left-hand side of a <STRONG>~</STRONG> or <STRONG>!~</STRONG>.  Only use
+			  one on the right-hand side.  The expression
+			  <STRONG>/foo/</STRONG> <STRONG>~</STRONG> <EM>exp</EM> has the same meaning as <STRONG>(($0</STRONG> <STRONG>~</STRONG>
+			  <STRONG>/foo/)</STRONG> <STRONG>~</STRONG> <EM>exp)</EM<STRONG>)</STRONG>.  This is usually <EM>not</EM> what was
+			  intended.
+
+  <STRONG>&lt;</STRONG> <STRONG>&gt;</STRONG>
+  <STRONG>&lt;=</STRONG> <STRONG>&gt;=</STRONG>
+  <STRONG>!=</STRONG> <STRONG>==</STRONG>       The regular relational operators.
+
+  <EM>blank</EM>       String concatenation.
+
+  <STRONG>+</STRONG> <STRONG>-</STRONG>         Addition and subtraction.
+
+  <STRONG>*</STRONG> <STRONG>/</STRONG> <STRONG>%</STRONG>       Multiplication, division, and modulus.
+
+  <STRONG>+</STRONG> <STRONG>-</STRONG> <STRONG>!</STRONG>       Unary plus, unary minus, and logical negation.
+
+  <STRONG>^</STRONG>           Exponentiation (<STRONG>**</STRONG> may also be used, and <STRONG>**=</STRONG> for
+			  the assignment operator).
+
+  <STRONG>++</STRONG> <STRONG>--</STRONG>       Increment and decrement, both prefix and
+
+
+  <STRONG>$</STRONG>           Field reference.
+
+<STRONG>Control</STRONG> <STRONG>Statements</STRONG>
+  The control statements are as follows:
+
+	   <STRONG>if</STRONG> <STRONG>(</STRONG><EM>condition)</EM<STRONG>)</STRONG> <EM>statement</EM> [ <STRONG>else</STRONG> <EM>statement</EM> ]
+	   <STRONG>while</STRONG> <STRONG>(</STRONG><EM>condition)</EM<STRONG>)</STRONG> <EM>statement</EM>
+	   <STRONG>do</STRONG> <EM>statement</EM> <STRONG>while</STRONG> <STRONG>(</STRONG><EM>condition)</EM<STRONG>)</STRONG>
+	   <STRONG>for</STRONG> <STRONG>(</STRONG><EM>expr1</EM><STRONG>;</STRONG> <EM>expr2</EM><STRONG>;</STRONG> <EM>expr3)</EM<STRONG>)</STRONG> <EM>statement</EM>
+	   <STRONG>for</STRONG> <STRONG>(</STRONG><EM>var</EM> <STRONG>in</STRONG> <EM>array)</EM<STRONG>)</STRONG> <EM>statement</EM>
+	   <STRONG>break</STRONG>
+	   <STRONG>continue</STRONG>
+	   <STRONG>delete</STRONG> <EM>array</EM><STRONG>[</STRONG><EM>index</EM><STRONG>]</STRONG>
+	   <STRONG>delete</STRONG> <EM>array</EM>
+	   <STRONG>exit</STRONG> [ <EM>expression</EM> ]
+	   <STRONG>{</STRONG> <EM>statements</EM> <STRONG>}</STRONG>
+
+<STRONG>I/O</STRONG> <STRONG>Statements</STRONG>
+  The input/output statements are as follows:
+
+  <STRONG>close(</STRONG><EM>filename)</EM<STRONG>)</STRONG>       Close file (or pipe, see below).
+
+  <STRONG>getline</STRONG>               Set <STRONG>$0</STRONG> from next input record; set <STRONG>NF</STRONG>,
+						<STRONG>NR</STRONG>, <STRONG>FNR</STRONG>.
+
+  <STRONG>getline</STRONG> <STRONG>&lt;</STRONG><EM>file</EM>         Set <STRONG>$0</STRONG> from next record of <EM>file</EM>; set
+						<STRONG>NF</STRONG>.
+
+  <STRONG>getline</STRONG> <EM>var</EM>           Set <EM>var</EM> from next input record; set
+						<STRONG>NF</STRONG>, <STRONG>FNR</STRONG>.
+
+  <STRONG>getline</STRONG> <EM>var</EM> <STRONG>&lt;</STRONG><EM>file</EM>     Set <EM>var</EM> from next record of <EM>file</EM>.
+
+  <STRONG>next</STRONG>                  Stop processing the current input
+						record. The next input record is read
+						and processing starts over with the
+						first pattern in the AWK program. If
+						the end of the input data is reached,
+						the <STRONG>END</STRONG> block(s), if any, are
+						executed.
+
+  <STRONG>next</STRONG> <STRONG>file</STRONG>             Stop processing the current input
+						file.  The next input record read
+						comes from the next input file.
+						<STRONG>FILENAME</STRONG> is updated, <STRONG>FNR</STRONG> is reset to
+						1, and processing starts over with the
+						first pattern in the AWK program. If
+						the end of the input data is reached,
+						the <STRONG>END</STRONG> block(s), if any, are
+						executed.
+
+
+  <STRONG>print</STRONG> <EM>expr</EM>-<EM>list</EM>       Prints expressions.  Each expression
+						is separated by the value of the <STRONG>OFS</STRONG>
+						variable. The output record is
+						terminated with the value of the <STRONG>ORS</STRONG>
+						variable.
+
+  <STRONG>print</STRONG> <EM>expr</EM>-<EM>list</EM> <STRONG>&gt;</STRONG><EM>file</EM> Prints expressions on <EM>file</EM>.  Each
+						expression is separated by the value
+						of the <STRONG>OFS</STRONG> variable. The output record
+						is terminated with the value of the
+						<STRONG>ORS</STRONG> variable.
+
+  <STRONG>printf</STRONG> <EM>fmt</EM>, <EM>expr</EM>-<EM>list</EM> Format and print.
+
+  <STRONG>printf</STRONG> <EM>fmt</EM>, <EM>expr</EM>-<EM>list</EM> <STRONG>&gt;</STRONG><EM>file</EM>
+						Format and print on <EM>file</EM>.
+
+  <STRONG>system(</STRONG><EM>cmd</EM>-<EM>line)</EM<STRONG>)</STRONG>      Execute the command <EM>cmd</EM>-<EM>line</EM>, and
+						return the exit status.  (This may not
+						be available on non-POSIX systems.)
+
+  Other input/output redirections are also allowed. For <STRONG>print</STRONG>
+  and <STRONG>printf</STRONG>, <STRONG>&gt;&gt;</STRONG><EM>file</EM> appends output to the <EM>file</EM>, while <STRONG>|</STRONG>
+  <EM>command</EM> writes on a pipe.  In a similar fashion, <EM>command</EM> <STRONG>|</STRONG>
+  <STRONG>getline</STRONG> pipes into <STRONG>getline</STRONG>.  The <STRONG>getline</STRONG> command will return
+  0 on end of file, and -1 on an error.
+
+<STRONG>The</STRONG> <EM>printf</EM> <STRONG>Statement</STRONG>
+  The AWK versions of the <STRONG>printf</STRONG> statement and <STRONG>sprintf()</STRONG>
+  function (see below) accept the following conversion
+  specification formats:
+
+  <STRONG>%c</STRONG>   An ASCII character.  If the argument used for <STRONG>%c</STRONG> is
+	   numeric, it is treated as a character and printed.
+	   Otherwise, the argument is assumed to be a string, and
+	   the only first character of that string is printed.
+
+  <STRONG>%d</STRONG>   A decimal number (the integer part).
+
+  <STRONG>%i</STRONG>   Just like <STRONG>%d</STRONG>.
+
+  <STRONG>%e</STRONG>   A floating point number of the form <STRONG>[-]d.ddddddE[+-]dd</STRONG>.
+
+  <STRONG>%f</STRONG>   A floating point number of the form <STRONG>[-]ddd.dddddd</STRONG>.
+
+  <STRONG>%g</STRONG>   Use <STRONG>e</STRONG> or <STRONG>f</STRONG> conversion, whichever is shorter, with
+	   nonsignificant zeros suppressed.
+
+  <STRONG>%o</STRONG>   An unsigned octal number (again, an integer).
+
+
+
+  <STRONG>%x</STRONG>   An unsigned hexadecimal number (an integer).
+
+  <STRONG>%X</STRONG>   Like <STRONG>%x</STRONG>, but using <STRONG>ABCDEF</STRONG> instead of <STRONG>abcdef</STRONG>.
+
+  <STRONG>%%</STRONG>   A single <STRONG>%</STRONG> character; no argument is converted.
+
+  There are optional, additional parameters that may lie
+  between the <STRONG>%</STRONG> and the control letter:
+
+  <STRONG>-</STRONG>    The expression should be left-justified within its
+	   field.
+
+  <EM>width</EM>
+	   The field should be padded to this width. If the number
+	   has a leading zero, then the field will be padded with
+	   zeros.  Otherwise it is padded with blanks.  This
+	   applies even to the non-numeric output formats.
+
+  <STRONG>.</STRONG><EM>prec</EM>
+	   A number indicating the maximum width of strings or
+	   digits to the right of the decimal point.
+
+  The dynamic <EM>width</EM> and <EM>prec</EM> capabilities of the ANSI C
+  <STRONG>printf()</STRONG> routines are supported.  A <STRONG>*</STRONG> in place of either the
+  <STRONG>width</STRONG> or <STRONG>prec</STRONG> specifications will cause their values to be
+  taken from the argument list to <STRONG>printf</STRONG> or <STRONG>sprintf()</STRONG>.
+
+<STRONG>Special</STRONG> <STRONG>File</STRONG> <STRONG>Names</STRONG>
+  When doing I/O redirection from either <STRONG>print</STRONG> or <STRONG>printf</STRONG> into
+  a file, or via <STRONG>getline</STRONG> from a file, <EM>gawk</EM> recognizes certain
+  special filenames internally.  These filenames allow access
+  to open file descriptors inherited from <EM>gawk</EM>'s parent
+  process (usually the shell).  Other special filenames
+  provide access information about the running <STRONG>gawk</STRONG> process.
+  The filenames are:
+
+  <STRONG>/dev/pid</STRONG>    Reading this file returns the process ID of the
+			  current process, in decimal, terminated with a
+			  newline.
+
+  <STRONG>/dev/ppid</STRONG>   Reading this file returns the parent process ID
+			  of the current process, in decimal, terminated
+			  with a newline.
+
+  <STRONG>/dev/pgrpid</STRONG> Reading this file returns the process group ID
+			  of the current process, in decimal, terminated
+			  with a newline.
+
+  <STRONG>/dev/user</STRONG>   Reading this file returns a single record
+			  terminated with a newline.  The fields are
+
+			  <EM>getuid</EM>(2) system call, <STRONG>$2</STRONG> is the value of the
+			  <EM>geteuid</EM>(2) system call, <STRONG>$3</STRONG> is the value of the
+			  <EM>getgid</EM>(2) system call, and <STRONG>$4</STRONG> is the value of
+			  the <EM>getegid</EM>(2) system call.  If there are any
+			  additional fields, they are the group IDs
+			  returned by <EM>getgroups</EM>(2).  Multiple groups may
+			  not be supported on all systems.
+
+  <STRONG>/dev/stdin</STRONG>  The standard input.
+
+  <STRONG>/dev/stdout</STRONG> The standard output.
+
+  <STRONG>/dev/stderr</STRONG> The standard error output.
+
+  <STRONG>/dev/fd/n</STRONG>   The file associated with the open file
+			  descriptor <STRONG>n</STRONG>.
+
+  These are particularly useful for error messages. For
+  example:
+
+	   <STRONG>print</STRONG> <STRONG>"You</STRONG> <STRONG>blew</STRONG> <STRONG>it!"</STRONG> <STRONG>&gt;</STRONG> <STRONG>"/dev/stderr"</STRONG>
+
+  whereas you would otherwise have to use
+
+	   <STRONG>print</STRONG> <STRONG>"You</STRONG> <STRONG>blew</STRONG> <STRONG>it!"</STRONG> <STRONG>|</STRONG> <STRONG>"cat</STRONG> <STRONG>1&gt;&amp;2"</STRONG>
+
+  These file names may also be used on the command line to
+  name data files.
+
+<STRONG>Numeric</STRONG> <STRONG>Functions</STRONG>
+  AWK has the following pre-defined arithmetic functions:
+
+  <STRONG>atan2(y,</STRONG> <STRONG>x)</STRONG> returns the arctangent of <STRONG>y</STRONG>/<STRONG>x</STRONG> in radians.
+
+  <STRONG>cos(</STRONG><EM>expr)</EM<STRONG>)</STRONG>   returns the cosine in radians.
+
+  <STRONG>exp(</STRONG><EM>expr)</EM<STRONG>)</STRONG>   the exponential function.
+
+  <STRONG>int(</STRONG><EM>expr)</EM<STRONG>)</STRONG>   truncates to integer.
+
+  <STRONG>log(</STRONG><EM>expr)</EM<STRONG>)</STRONG>   the natural logarithm function.
+
+  <STRONG>rand()</STRONG>      returns a random number between 0 and 1.
+
+  <STRONG>sin(</STRONG><EM>expr)</EM<STRONG>)</STRONG>   returns the sine in radians.
+
+  <STRONG>sqrt(</STRONG><EM>expr)</EM<STRONG>)</STRONG>  the square root function.
+
+  <STRONG>srand(</STRONG><EM>expr)</EM<STRONG>)</STRONG> use <EM>expr</EM> as a new seed for the random number
+			  generator. If no <EM>expr</EM> is provided, the time of
+			  day will be used.  The return value is the
+
+
+<STRONG>String</STRONG> <STRONG>Functions</STRONG>
+  AWK has the following pre-defined string functions:
+
+  <STRONG>gsub(r,</STRONG> <STRONG>s,</STRONG> <STRONG>t)</STRONG>           for each substring matching the
+						  regular expression <STRONG>r</STRONG> in the string
+						  <STRONG>t</STRONG>, substitute the string <STRONG>s</STRONG>, and
+						  return the number of substitutions.
+						  If <STRONG>t</STRONG> is not supplied, use <STRONG>$0</STRONG>.
+
+  <STRONG>index(s,</STRONG> <STRONG>t)</STRONG>             returns the index of the string <STRONG>t</STRONG> in
+						  the string <STRONG>s</STRONG>, or 0 if <STRONG>t</STRONG> is not
+						  present.
+
+  <STRONG>length(s)</STRONG>               returns the length of the string <STRONG>s</STRONG>,
+						  or the length of <STRONG>$0</STRONG> if <STRONG>s</STRONG> is not
+						  supplied.
+
+  <STRONG>match(s,</STRONG> <STRONG>r)</STRONG>             returns the position in <STRONG>s</STRONG> where the
+						  regular expression <STRONG>r</STRONG> occurs, or 0 if
+						  <STRONG>r</STRONG> is not present, and sets the
+						  values of <STRONG>RSTART</STRONG> and <STRONG>RLENGTH</STRONG>.
+
+  <STRONG>split(s,</STRONG> <STRONG>a,</STRONG> <STRONG>r)</STRONG>          splits the string <STRONG>s</STRONG> into the array <STRONG>a</STRONG>
+						  on the regular expression <STRONG>r</STRONG>, and
+						  returns the number of fields. If <STRONG>r</STRONG>
+						  is omitted, <STRONG>FS</STRONG> is used instead.  The
+						  array <STRONG>a</STRONG> is cleared first.
+
+  <STRONG>sprintf(</STRONG><EM>fmt</EM><STRONG>,</STRONG> <EM>expr</EM>-<EM>list)</EM<STRONG>)</STRONG> prints <EM>expr</EM>-<EM>list</EM> according to <EM>fmt</EM>,
+						  and returns the resulting string.
+
+  <STRONG>sub(r,</STRONG> <STRONG>s,</STRONG> <STRONG>t)</STRONG>            just like <STRONG>gsub()</STRONG>, but only the first
+						  matching substring is replaced.
+
+  <STRONG>substr(s,</STRONG> <STRONG>i,</STRONG> <STRONG>n)</STRONG>         returns the <STRONG>n</STRONG>-character substring of
+						  <STRONG>s</STRONG> starting at <STRONG>i</STRONG>.  If <STRONG>n</STRONG> is omitted,
+						  the rest of <STRONG>s</STRONG> is used.
+
+  <STRONG>tolower(</STRONG><EM>str)</EM<STRONG>)</STRONG>            returns a copy of the string <EM>str</EM>,
+						  with all the upper-case characters
+						  in <EM>str</EM> translated to their
+						  corresponding lower-case
+						  counterparts.  Non-alphabetic
+						  characters are left unchanged.
+
+  <STRONG>toupper(</STRONG><EM>str)</EM<STRONG>)</STRONG>            returns a copy of the string <EM>str</EM>,
+						  with all the lower-case characters
+						  in <EM>str</EM> translated to their
+						  corresponding upper-case
+						  counterparts.  Non-alphabetic
+
+
+<STRONG>Time</STRONG> <STRONG>Functions</STRONG>
+  Since one of the primary uses of AWK programs is processing
+  log files that contain time stamp information, <EM>gawk</EM> provides
+  the following two functions for obtaining time stamps and
+  formatting them.
+
+  <STRONG>systime()</STRONG> returns the current time of day as the number of
+			seconds since the Epoch (Midnight UTC, January 1,
+			1970 on POSIX systems).
+
+  <STRONG>strftime(</STRONG><EM>format</EM>, <EM>timestamp)</EM<STRONG>)</STRONG>
+			formats <EM>timestamp</EM> according to the specification
+			in <EM>format</EM>.  The <EM>timestamp</EM> should be of the same
+			form as returned by <STRONG>systime()</STRONG>.  If <EM>timestamp</EM> is
+			missing, the current time of day is used.  See the
+			specification for the <STRONG>strftime()</STRONG> function in ANSI
+			C for the format conversions that are guaranteed
+			to be available.  A public-domain version of
+			<EM>strftime</EM>(3) and a man page for it are shipped with
+			<EM>gawk</EM>; if that version was used to build <EM>gawk</EM>, then
+			all of the conversions described in that man page
+			are available to <EM>gawk</EM>.
+
+<STRONG>String</STRONG> <STRONG>Constants</STRONG>
+  String constants in AWK are sequences of characters enclosed
+  between double quotes (<STRONG>"</STRONG>). Within strings, certain <EM>escape</EM>
+  <EM>sequences</EM> are recognized, as in C. These are:
+
+  <STRONG>\\</STRONG>   A literal backslash.
+
+  <STRONG>\a</STRONG>   The ``alert'' character; usually the ASCII BEL
+	   character.
+
+  <STRONG>\b</STRONG>   backspace.
+
+  <STRONG>\f</STRONG>   form-feed.
+
+  <STRONG>\n</STRONG>   new line.
+
+  <STRONG>\r</STRONG>   carriage return.
+
+  <STRONG>\t</STRONG>   horizontal tab.
+
+  <STRONG>\v</STRONG>   vertical tab.
+
+  <STRONG>\x</STRONG><EM>hex</EM> <EM>digits</EM>
+	   The character represented by the string of hexadecimal
+	   digits following the <STRONG>\x</STRONG>.  As in ANSI C, all following
+	   hexadecimal digits are considered part of the escape
+	   sequence.  (This feature should tell us something about
+
+	   ASCII ESC (escape) character.
+
+  <STRONG>\</STRONG><EM>ddd</EM> The character represented by the 1-, 2-, or 3-digit
+	   sequence of octal digits. E.g. <STRONG>"\033"</STRONG> is the ASCII ESC
+	   (escape) character.
+
+  <STRONG>\c</STRONG>   The literal character <STRONG>c</STRONG>.
+
+  The escape sequences may also be used inside constant
+  regular expressions (e.g., <STRONG>/[</STRONG> <STRONG>\t\f\n\r\v]/</STRONG> matches
+  whitespace characters).
+
+<STRONG>FUNCTIONS</STRONG>
+  Functions in AWK are defined as follows:
+
+	   <STRONG>function</STRONG> <EM>name</EM><STRONG>(</STRONG><EM>parameter</EM> <EM>list)</EM<STRONG>)</STRONG> <STRONG>{</STRONG> <EM>statements</EM> <STRONG>}</STRONG>
+
+  Functions are executed when called from within the action
+  parts of regular pattern-action statements. Actual
+  parameters supplied in the function call are used to
+  instantiate the formal parameters declared in the function.
+  Arrays are passed by reference, other variables are passed
+  by value.
+
+  Since functions were not originally part of the AWK
+  language, the provision for local variables is rather
+  clumsy: They are declared as extra parameters in the
+  parameter list. The convention is to separate local
+  variables from real parameters by extra spaces in the
+  parameter list. For example:
+
+	   <STRONG>function</STRONG>  <STRONG>f(p,</STRONG> <STRONG>q,</STRONG>     <STRONG>a,</STRONG> <STRONG>b)</STRONG> <STRONG>{</STRONG> <STRONG>#</STRONG> <STRONG>a</STRONG> <STRONG>&amp;</STRONG> <STRONG>b</STRONG> <STRONG>are</STRONG> <STRONG>local</STRONG>
+					  <STRONG>.....</STRONG> <STRONG>}</STRONG>
+
+	   <STRONG>/abc/</STRONG>     <STRONG>{</STRONG> <STRONG>...</STRONG> <STRONG>;</STRONG> <STRONG>f(1,</STRONG> <STRONG>2)</STRONG> <STRONG>;</STRONG> <STRONG>...</STRONG> <STRONG>}</STRONG>
+
+  The left parenthesis in a function call is required to
+  immediately follow the function name, without any
+  intervening white space.  This is to avoid a syntactic
+  ambiguity with the concatenation operator.  This restriction
+  does not apply to the built-in functions listed above.
+
+  Functions may call each other and may be recursive.
+  Function parameters used as local variables are initialized
+  to the null string and the number zero upon function
+  invocation.
+
+  The word <STRONG>func</STRONG> may be used in place of <STRONG>function</STRONG>.
+
+<STRONG>EXAMPLES</STRONG>
+  Print and sort the login names of all users:
+
+			<STRONG>{</STRONG> <STRONG>print</STRONG> <STRONG>$1</STRONG> <STRONG>|</STRONG> <STRONG>"sort"</STRONG> <STRONG>}</STRONG>
+
+  Count lines in a file:
+
+			<STRONG>{</STRONG> <STRONG>nlines++</STRONG> <STRONG>}</STRONG>
+	   <STRONG>END</STRONG>  <STRONG>{</STRONG> <STRONG>print</STRONG> <STRONG>nlines</STRONG> <STRONG>}</STRONG>
+
+  Precede each line by its number in the file:
+
+	   <STRONG>{</STRONG> <STRONG>print</STRONG> <STRONG>FNR,</STRONG> <STRONG>$0</STRONG> <STRONG>}</STRONG>
+
+  Concatenate and line number (a variation on a theme):
+
+	   <STRONG>{</STRONG> <STRONG>print</STRONG> <STRONG>NR,</STRONG> <STRONG>$0</STRONG> <STRONG>}</STRONG>
+
+<STRONG>SEE</STRONG> <STRONG>ALSO</STRONG>
+  <EM>egrep</EM>(1), <EM>getpid</EM>(2), <EM>getppid</EM>(2), <EM>getpgrp</EM>(2), <EM>getuid</EM>(2),
+  <EM>geteuid</EM>(2), <EM>getgid</EM>(2), <EM>getegid</EM>(2), <EM>getgroups</EM>(2)
+
+  <EM>The</EM> <EM>AWK</EM> <EM>Programming</EM> <EM>Language</EM>, Alfred V. Aho, Brian W.
+  Kernighan, Peter J. Weinberger, Addison-Wesley, 1988. ISBN
+  0-201-07981-X.
+
+  <EM>The</EM> <EM>GAWK</EM> <EM>Manual</EM>, Edition 0.15, published by the Free
+  Software Foundation, 1993.
+
+<STRONG>POSIX</STRONG> <STRONG>COMPATIBILITY</STRONG>
+  A primary goal for <EM>gawk</EM> is compatibility with the POSIX
+  standard, as well as with the latest version of UNIX <EM>awk</EM>.
+  To this end, <EM>gawk</EM> incorporates the following user visible
+  features which are not described in the AWK book, but are
+  part of <EM>awk</EM> in System V Release 4, and are in the POSIX
+  standard.
+
+  The <STRONG>-v</STRONG> option for assigning variables before program
+  execution starts is new.  The book indicates that command
+  line variable assignment happens when <EM>awk</EM> would otherwise
+  open the argument as a file, which is after the <STRONG>BEGIN</STRONG> block
+  is executed.  However, in earlier implementations, when such
+  an assignment appeared before any file names, the assignment
+  would happen <EM>before</EM> the <STRONG>BEGIN</STRONG> block was run.  Applications
+  came to depend on this ``feature.'' When <EM>awk</EM> was changed to
+  match its documentation, this option was added to
+  accommodate applications that depended upon the old
+  behavior.  (This feature was agreed upon by both the AT&amp;T
+  and GNU developers.)
+
+  The <STRONG>-W</STRONG> option for implementation specific features is from
+  the POSIX standard.
+
+  When processing arguments, <EM>gawk</EM> uses the special option
+
+  mode, it will warn about, but otherwise ignore, undefined
+  options.  In normal operation, such arguments are passed on
+  to the AWK program for it to process.
+
+  The AWK book does not define the return value of <STRONG>srand()</STRONG>.
+  The System V Release 4 version of UNIX <EM>awk</EM> (and the POSIX
+  standard) has it return the seed it was using, to allow
+  keeping track of random number sequences. Therefore <STRONG>srand()</STRONG>
+  in <EM>gawk</EM> also returns its current seed.
+
+  Other new features are: The use of multiple <STRONG>-f</STRONG> options (from
+  MKS <EM>awk)</EM>; the <STRONG>ENVIRON</STRONG> array; the <STRONG>\a</STRONG>, and <STRONG>\v</STRONG> escape sequences
+  (done originally in <EM>gawk</EM> and fed back into AT&amp;T's); the
+  <STRONG>tolower()</STRONG> and <STRONG>toupper()</STRONG> built-in functions (from AT&amp;T); and
+  the ANSI C conversion specifications in <STRONG>printf</STRONG> (done first
+  in AT&amp;T's version).
+
+<STRONG>GNU</STRONG> <STRONG>EXTENSIONS</STRONG>
+  <EM>Gawk</EM> has some extensions to POSIX <EM>awk</EM>.  They are described
+  in this section.  All the extensions described here can be
+  disabled by invoking <EM>gawk</EM> with the <STRONG>-W</STRONG> <STRONG>compat</STRONG> option.
+
+  The following features of <EM>gawk</EM> are not available in POSIX
+  <EM>awk</EM>.
+
+	   <STRONG>+</STRONG> The <STRONG>\x</STRONG> escape sequence.
+
+	   <STRONG>+</STRONG> The <STRONG>systime()</STRONG> and <STRONG>strftime()</STRONG> functions.
+
+	   <STRONG>+</STRONG> The special file names available for I/O redirection
+		 are not recognized.
+
+	   <STRONG>+</STRONG> The <STRONG>ARGIND</STRONG> and <STRONG>ERRNO</STRONG> variables are not special.
+
+	   <STRONG>+</STRONG> The <STRONG>IGNORECASE</STRONG> variable and its side-effects are not
+		 available.
+
+	   <STRONG>+</STRONG> The <STRONG>FIELDWIDTHS</STRONG> variable and fixed width field
+		 splitting.
+
+	   <STRONG>+</STRONG> No path search is performed for files named via the
+		 <STRONG>-f</STRONG> option.  Therefore the <STRONG>AWKPATH</STRONG> environment
+		 variable is not special.
+
+	   <STRONG>+</STRONG> The use of <STRONG>next</STRONG> <STRONG>file</STRONG> to abandon processing of the
+		 current input file.
+
+	   <STRONG>+</STRONG> The use of <STRONG>delete</STRONG> <EM>array</EM> to delete the entire contents
+		 of an array.
+
+  The AWK book does not define the return value of the <STRONG>close()</STRONG>
+
+  or <EM>pclose</EM>(3), when closing a file or pipe, respectively.
+
+  When <EM>gawk</EM> is invoked with the <STRONG>-W</STRONG> <STRONG>compat</STRONG> option, if the <EM>fs</EM>
+  argument to the <STRONG>-F</STRONG> option is ``t'', then <STRONG>FS</STRONG> will be set to
+  the tab character.  Since this is a rather ugly special
+  case, it is not the default behavior.  This behavior also
+  does not occur if <STRONG>-W</STRONG> <STRONG>posix</STRONG> has been specified.
+
+<STRONG>HISTORICAL</STRONG> <STRONG>FEATURES</STRONG>
+  There are two features of historical AWK implementations
+  that <EM>gawk</EM> supports.  First, it is possible to call the
+  <STRONG>length()</STRONG> built-in function not only with no argument, but
+  even without parentheses!  Thus,
+
+	   <STRONG>a</STRONG> <STRONG>=</STRONG> <STRONG>length</STRONG>
+
+  is the same as either of
+
+	   <STRONG>a</STRONG> <STRONG>=</STRONG> <STRONG>length()</STRONG>
+	   <STRONG>a</STRONG> <STRONG>=</STRONG> <STRONG>length($0)</STRONG>
+
+  This feature is marked as ``deprecated'' in the POSIX
+  standard, and <EM>gawk</EM> will issue a warning about its use if <STRONG>-W</STRONG>
+  <STRONG>lint</STRONG> is specified on the command line.
+
+  The other feature is the use of either the <STRONG>continue</STRONG> or the
+  <STRONG>break</STRONG> statements outside the body of a <STRONG>while</STRONG>, <STRONG>for</STRONG>, or <STRONG>do</STRONG>
+  loop.  Traditional AWK implementations have treated such
+  usage as equivalent to the <STRONG>next</STRONG> statement.  <EM>Gawk</EM> will
+  support this usage if <STRONG>-W</STRONG> <STRONG>compat</STRONG> has been specified.
+
+<STRONG>ENVIRONMENT</STRONG> <STRONG>VARIABLES</STRONG>
+  If <STRONG>POSIXLY_CORRECT</STRONG> exists in the environment, then <EM>gawk</EM>
+  behaves exactly as if <STRONG>--posix</STRONG> had been specified on the
+  command line.  If <STRONG>--lint</STRONG> has been specified, <EM>gawk</EM> will issue
+  a warning message to this effect.
+
+<STRONG>BUGS</STRONG>
+  The <STRONG>-F</STRONG> option is not necessary given the command line
+  variable assignment feature; it remains only for backwards
+  compatibility.
+
+  If your system actually has support for <STRONG>/dev/fd</STRONG> and the
+  associated <STRONG>/dev/stdin</STRONG>, <STRONG>/dev/stdout</STRONG>, and <STRONG>/dev/stderr</STRONG> files,
+  you may get different output from <EM>gawk</EM> than you would get on
+  a system without those files.  When <EM>gawk</EM> interprets these
+  files internally, it synchronizes output to the standard
+  output with output to <STRONG>/dev/stdout</STRONG>, while on a system with
+  those files, the output is actually to different open files.
+  Caveat Emptor.
+
+
+  This man page documents <EM>gawk</EM>, version 2.15.
+
+  Starting with the 2.15 version of <EM>gawk</EM>, the <STRONG>-c</STRONG>, <STRONG>-V</STRONG>, <STRONG>-C</STRONG>, <STRONG>-a</STRONG>,
+  and <STRONG>-e</STRONG> options of the 2.11 version are no longer recognized.
+  This fact will not even be documented in the manual page for
+  the next major version.
+
+<STRONG>AUTHORS</STRONG>
+  The original version of UNIX <EM>awk</EM> was designed and
+  implemented by Alfred Aho, Peter Weinberger, and Brian
+  Kernighan of AT&amp;T Bell Labs. Brian Kernighan continues to
+  maintain and enhance it.
+
+  Paul Rubin and Jay Fenlason, of the Free Software
+  Foundation, wrote <EM>gawk</EM>, to be compatible with the original
+  version of <EM>awk</EM> distributed in Seventh Edition UNIX.  John
+  Woods contributed a number of bug fixes.  David Trueman,
+  with contributions from Arnold Robbins, made <EM>gawk</EM> compatible
+  with the new version of UNIX <EM>awk</EM>.  Arnold Robbins is the
+  current maintainer.
+
+  The initial DOS port was done by Conrad Kwok and Scott
+  Garfinkle.  Scott Deifik is the current DOS maintainer.  Pat
+  Rankin did the port to VMS, and Michal Jaegermann did the
+  port to the Atari ST.  The port to OS/2 was done by Kai Uwe
+  Rommel, with contributions and help from Darrel Hankerson.
+
+<STRONG>BUG</STRONG> <STRONG>REPORTS</STRONG>
+  If you find a bug in <EM>gawk</EM>, please send electronic mail to
+  <STRONG>bug-gnu-utils@prep.ai.mit.edu</STRONG>, <EM>with</EM> a carbon copy to
+  <STRONG>arnold@gnu.ai.mit.edu</STRONG>.  Please include your operating system
+  and its revision, the version of <EM>gawk</EM>, what C compiler you
+  used to compile it, and a test program and data that are as
+  small as possible for reproducing the problem.
+
+  Before sending a bug report, please do two things. First,
+  verify that you have the latest version of <EM>gawk</EM>.  Many bugs
+  (usually subtle ones) are fixed at each release, and if
+  your's is out of date, the problem may already have been
+  solved.  Second, please read this man page and the reference
+  manual carefully to be sure that what you think is a bug
+  really is, instead of just a quirk in the language.
+
+<STRONG>ACKNOWLEDGEMENTS</STRONG>
+  Brian Kernighan of Bell Labs provided valuable assistance
+  during testing and debugging.  We thank him.
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

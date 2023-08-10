@@ -1,0 +1,1583 @@
+<HTML><HEAD><TITLE>XV: Modifying xv Behavior</TITLE></HEAD>
+<BODY><H1>Modifying xv Behavior</H1>
+<P> <I>xv</I> supports literally dozens of command line options and X11 resources.  
+Fortunately, it is doubtful that
+you'll ever need to use more than a small few.  The rest are provided 
+mainly for that 'one special case'
+application of  <I>xv</I>...  Note that you do not have to specify the entire 
+option name, only enough characters to
+uniquely identify the option.  Thus, '
+ <TT>-geom</TT>
+' is a fine abbreviation of '
+ <TT>-geometry</TT>
+'.</P>
+<A NAME="command-line-options-overview"><H2>  Command Line Options Overview</H2></A>
+<P>If you start  <I>xv</I> with the command '
+ <TT>xv -help</TT>
+', the current (wildly out of control) list of options will be
+displayed:</P>
+<P> <TT>xv [-] [-/+24] [-/+2xlimit] [-/+4x3] [-/+8] [-/+acrop] [-aspect w:h] [-best24]
+   [-bg color] [-black color] [-bw width] [-/+cecmap] [-cegeometry geom]
+   [-/+cemap] [-cgamma rval gval bval] [-cgeometry geom] [-/+clear] [-/+close]
+   [-/+cmap] [-cmtgeometry geom] [-/+cmtmap] [-crop x y w h] [-cursor char#]
+   [-DEBUG level] [-dir directory] [-display disp] [-/+dither] [-drift dx dy]
+   [-expand exp | hexp:vexp] [-fg color] [-/+fixed] [-flist fname]
+   [-gamma val] [-geometry geom] [-grabdelay seconds] [-gsdev str]
+   [-gsgeom geom] [-gsres int] [-help] [-/+hflip] [-hi color] [-/+hist]
+   [-/+hsv] [-icgeometry geom] [-/+iconic] [-igeometry geom] [-/+imap]
+   [-/+lbrowse] [-lo color] [-/+loadclear] [-/+max] [-/+maxpect] [-mfn font]
+   [-/+mono] [-name str] [-ncols #] [-/+ninstall] [-/+nodecor] [-/+nofreecols]
+   [-/+nolimits] [-/+nopos] [-/+noqcheck] [-/+noresetroot] [-/+norm]
+   [-/+nostat] [-/+owncmap] [-/+perfect] [-/+poll] [-preset #] [-quick24]
+   [-/+quit] [-/+random] [-/+raw] [-rbg color] [-rfg color] [-/+rgb] [-RM]
+   [-rmode #] [-/+root] [-rotate deg] [-/+rv] [-/+rw] [-slow24] [-/+smooth]
+   [-/+stdcmap] [-tgeometry geom] [-/+vflip] [-/+viewonly] [-visual type]
+   [-/+vsdisable] [-vsgeometry geom] [-/+vsmap] [-/+vsperfect] [-wait seconds]
+   [-white color] [-/+wloop] [filename ...]</TT></P>
+<P>Yes, as a matter of fact, I  <I>am</I> a little embarrassed about it.</P>
+<P>One big change starting in  <I>xv </I>3.10:  In the past, most of the command-line 
+options were  <I>toggles</I>, in that
+they would normally turn some feature on, but if you had an X resource that 
+also turned that feature on,
+then they would turn that feature  <I>off.  </I>Now, they are absolute settings.  
+For instance, '
+ <TT>-rv</TT>
+' turns on
+reverse video mode, regardless of the setting of the '
+ <TT>xv.reverse</TT>
+' resource, and '
+ <TT>+rv</TT>
+' turns  <I>off</I> reverse
+video mode, regardless of the setting of the '
+ <TT>xv.reverse</TT>
+' resource.  (Thanks Peder!)</P>
+<A NAME="general-options"><H2>  General Options</H2></A>
+<P>Note:  In the following sections, the part of the option name shown in 
+ <B>boldface</B>
+ is the shortest allowable
+abbreviation of the option in question.</P>
+<DL>
+<DT><B>-he</B><TT>lp</TT></DT>
+<DD>
+Print usage instructions, listing the current available command-line
+options.  Any unrecognized option will do this as well.</P>
+</DD>
+<DT><B>-dis</B><TT>play</TT> <I>disp</I></DT>
+<DD>
+ Specifies the display that  <I>xv</I> should attempt to connect to.  If you 
+don't
+specify a display,  <I>xv</I> will use the environment variable 
+ <TT>$DISPLAY</TT>
+.</P>
+</DD>
+<DT><B>-fg</B> <I>color</I></DT>
+<DD>
+ Sets the foreground color used by the windows.</P>
+<P>(Resource name:  
+ <TT>foreground</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-bg</B> <I>color</I></DT>
+<DD>
+ Sets the background color used by the windows.</P>
+<P>(Resource name:  
+ <TT>background</TT>
+.  Type: string)
+</P>
+</DD>
+<DT><B>-hi</B> <I>color</I></DT>
+<DD>
+ Sets the highlight color used for the top-left edges of the control buttons.</P>
+<P>(Resource name:  
+ <TT>highlight</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-lo</B> <I>color</I></DT>
+<DD>
+ Sets the lowlight color used for the bottom-right edges of the control
+buttons, and also the background of some windows.</P>
+<P>(Resource name:  
+ <TT>lowlight</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-bw</B> <I>bwidth</I></DT>
+<DD>
+ Sets the width of the border on the windows.  Your window manager may
+choose to ignore this, however.</P>
+<P>(Resource name:  
+ <TT>borderWidth</TT>
+.  Type: integer)</P>
+</DD>
+</DL>
+
+<A NAME="sizing-options"><H2>  Image Sizing Options</H2></A>
+<DL>
+<DT><B>-ge</B><TT>ometry</TT> <I>geom</I></DT>
+<DD>
+ Lets you specify the size and placement of the 'image' window.  It's 
+most
+useful when you only specify a position, and let  <I>xv</I> choose the size.  If you
+specify a size as well,  <I>xv</I> will create a window of that size, unless 
+ <TT>-fixed</TT>
+is specified.  The geom argument is in the form of a normal X geometry
+string (e.g. "300x240" or "+10+10" or "400x300+10+10")</P>
+<P>(Resource name: 
+ <TT>geometry</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-</B>/<B>+fi</B><TT>xed</TT></DT>
+<DD>
+Only used in conjunction with the 
+ <TT>-geometry</TT>
+ option.  If you specify a
+window size with the 
+ <TT>-geometry</TT>
+ option,  <I>xv</I> will normally stretch the
+picture to exactly that size.  This is not always desirable, as it may
+seriously distort the aspect ratio of the picture.  Specifying the 
+ <TT>-fixed</TT>
+option corrects this behavior by instructing  <I>xv</I> to use the specified 
+geometry
+size as a maximum window size.  It will preserve the original aspect ratio
+of the picture.  (
+ <TT>+fixed</TT>
+ turns off this feature, forcing the image to be
+exactly the size specified by the 
+ <TT>-geometry</TT>
+ option.)</P>
+<P>For example, if you give a rectangular geometry of '320x240', and you try
+to display a square picture with a size of '256x256', the window opened
+will actually be '240x240', which is the largest square that still fits in 
+the
+'320x240' rectangle that was specified.</P>
+<P>(Resource name: 
+ <TT>fixed</TT>
+.  Type:  boolean)</P>
+</DD>
+<DT><B>-e</B><TT>xpand</TT> <I>exp</I></DT>
+<DD>
+ Lets you specify an initial expansion or compression factor for the 
+picture.
+You can specify floating-point values.  Values larger than zero multiply the
+picture's dimensions by the given factor.  (i.e., an expand factor of '3' 
+will
+make a 320x200 image display as 960x600).</P>
+<P>Factors less than zero are treated as reciprocals.  (i.e., an expand factor 
+of
+'-4' makes the picture 1/4
+th
+ its normal size.).  '0' is not a valid expansion
+factor.</P>
+<P>You can also specify a pair of expansion values, separated by a colon, to 
+set
+different horizontal and vertical expansion ratios.  For instance, '3:2'
+would expand images 3x horizontally, and 2x vertically.</P>
+<P>(Resource name: 
+ <TT>expand</TT>
+.  Type:  string)
+</P>
+</DD>
+<DT><B>-as</B><TT>pect</TT> <I>w:h</I></DT>
+<DD>
+ Lets you set an initial aspect ratio, and also sets the value used by 
+the
+ <B>Aspect</B>
+ command.  The aspect ratio of nearly every X display (and, in fact,
+ <I>any</I> civilized graphics display) is 1:1.  What this means is that pixels
+appear to be 'square'.  A 100 pixel wide by 100 pixel high box will appear
+on the screen as a square.  Unfortunately, this is not the case with some
+screens and digitizers.  The 
+ <TT>-aspect</TT>
+ option lets you stretch the picture so
+that the picture appears correctly on your display.  Unlike the other size-
+related options, this one doesn't care what the size of the overall picture 
+is.
+It operates on a pixel-by-pixel basis, stretching each image pixel slightly,
+in either width or height, depending on the ratio.</P>
+<P>Aspect ratios greater than '1:1' (e.g., '4:3') make the picture wider than
+normal.  Aspect ratios less than '1:1' (e.g. '2:3') make the picture taller
+than normal.  (Useful aspect ratio:  A 512x480 image that was supposed to
+fill a standard 4x3 video screen (produced by many video digitizers) should
+be displayed with an aspect ratio of '5:4')</P>
+<P>(Resource name:  
+ <TT>aspect</TT>
+.  Type: string)</P>
+</DD>
+</DL>
+
+<A NAME="color-allocation-options"><H2>  Color Allocation Options</H2></A>
+<DL>
+<DT><B>-nc</B><TT>ols</TT> <I>nc</I></DT>
+<DD>
+ Sets the maximum number of colors that  <I>xv</I> will use.  By default, this is 
+'as
+many as it can get'.  However, you can set this to smaller values for
+interesting effect.  If you set it to '0', it will display the picture by 
+dithering
+with 'black' and 'white'.  (The actual colors used can be set by the 
+ <TT>-
+black</TT>
+ and 
+ <TT>-white</TT>
+ options, below.)</P>
+<P>The other major use of this option is to limit the number of colors used
+when putting up an image that's going to be hanging around for a while.
+(i.e., an image in the root window)  You may want to limit the number of
+colors used for such images so that other programs will still have some
+colorcells available for their own use.</P>
+<P>(Resource name: 
+ <TT>ncols</TT>
+.  Type: integer)</P>
+</DD>
+<DT><B>-</B>/<B>+rw</B></DT>
+<DD>
+Tells  <I>xv</I> to use read/write color cells.  Normally,  <I>xv</I> allocates colors read-
+only, which allows it to share colors with other programs.  If you use
+read/write color cells, no other program can use the colors that  <I>xv</I> is 
+using,
+and vice-versa.  The major reason to do such a thing is that using
+read/write color cells allows the 
+ <B>Apply</B>
+ function in the  <I>xv color editor</I>
+window to operate much faster.  (
+ <TT>+rw</TT>
+ forces  <I>xv</I> to use read-only color, the
+default)</P>
+<P>(Resource name: 
+ <TT>rwColor</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+pe</B><TT>rfect</TT></DT>
+<DD>
+Makes  <I>xv</I> try 'extra hard' to get all the colors it wants.  In particular, 
+when
+ <TT>-perfect</TT>
+ is specified,  <I>xv</I> will allocate and install its own colormap if
+(and only if) it was unable to allocate all the desired colors.  This 
+option is
+not allowed in conjunction with the 
+ <TT>-root</TT>
+ option.</P>
+<P>(Resource name:  
+ <TT>perfect</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+o</B><TT>wncmap</TT></DT>
+<DD>
+Like '
+ <TT>-perfect</TT>
+', only this option forces  <I>xv</I> to always allocate and install
+its own colormap, thereby leaving the default colormap untouched.
+</P>
+<P>(Resource name:  
+ <TT>ownCmap</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+st</B><TT>dcmap</TT></DT>
+<DD>
+Puts  <I>xv</I> into 
+ <B>Use Std. Colormap</B>
+ mode.  All images will be shown dithered
+using the same set of colors.  This lets you run multiple copies of  <I>xv</I> to
+display multiple images simultaneously, and still have enough colors to go
+around.</P>
+<P>(Resource name:  
+ <TT>useStdCmap</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+cec</B><TT>map</TT></DT>
+<DD>
+Specifies whether  <I>xv</I> installs the image's colormap in the  <I>xv color editor</I>
+window, as well as in the image's window.  By default, the program does
+not install the colormap in the color editor window, as this often makes the
+color editor window unreadable.  Note, however that the  <I>Colormap Editor</I>
+tool will be appear somewhat misleading.  (This option only applies when
+the '
+ <TT>-perfect</TT>
+' or '
+ <TT>-owncmap</TT>
+' options create their own colormaps.)</P>
+<P>(Resource name:  
+ <TT>ceditColorMap</TT>
+.  Type boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+ni</B><TT>nstall</TT></DT>
+<DD>
+Prevents  <I>xv</I> from 'installing' its own colormap, when the 
+ <TT>-perfect</TT>
+ or
+ <TT>-owncmap</TT>
+ options are in effect.  Instead of installing the colormap, it will
+merely 'ask the window manager, nicely' to take care of it.  This is the
+correct way to install a colormap (i.e., ask the WM to do it), 
+unfortunately,
+it doesn't actually seem to work in many window managers, so the default
+behavior is for  <I>xv</I> to handle installation itself.  However, this has been 
+seen
+to annoy one window manager ( <I>dxwm</I>), so this option is provided if your
+WM doesn't like programs installing their own colormaps.</P>
+<P>(Resource name: 
+ <TT>ninstall</TT>
+.  Type: boolean)</P>
+</DD>
+</DL>
+<A NAME="bit-options"><H2>  8/24-Bit Options</H2></A>
+<P>See "<A HREF="control-window.html#bit-menu">The 24/8 Bit Menu
+"</A>
+ for further information about the following options.</P>
+<DL>
+<DT><B>-</B>/<B>+8</B></DT>
+<DD>
+Locks  <I>xv</I> into 
+ <B>8-</B>
+bit
+ <B> Mode</B>
+.</P>
+<P>(Resource name: 
+ <TT>force8</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+24</B></DT>
+<DD>
+Locks  <I>xv</I> into 
+ <B>24-bit Mode</B>
+.
+<P>(Resource name: 
+ <TT>force24</TT>
+.  Type: boolean)</P>
+</DD>
+</DL>
+<P>The following three options only come into play if you are using  <I>xv</I>
+ to display 24-bit RGB data (PPM files,
+color PM files, JPEG files,  the output of  <I>bggen</I>, etc.), and you have  <I>xv</I> 
+locked into 
+ <B>8-bit Mode</B>
+, or you
+save 24-bit image data into an 8-bit graphics file format (such as GIF).  They have no effect whatsoever on
+how GIF pictures or 8-bit greyscale images are displayed.</P>
+<DL>
+<DT><B>-quic</B><TT>k24</TT></DT>
+<DD>
+Forces  <I>xv</I> to use the 'quick' 24-bit to 8-bit conversion algorithm.  This
+algorithm dithers the picture using a fixed set of colors that span the 
+entire
+RGB colorspace.  In versions of  <I>xv</I> prior to 2.10, this was the default
+algorithm.  It no longer is.</P>
+<P>(Resource name: 
+ <TT>quick24</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-sl</B><TT>ow24</TT></DT>
+<DD>
+Forces  <I>xv</I> to use the 'slow' 24-bit to 8-bit conversion algorithm.  This
+algorithm uses a version of Heckbert's median cut algorithm to pick the
+'best' colors on a per-image basis, and dithers with those.  This is the
+current default conversion algorithm.</P>
+<P>Advantages: The 
+ <TT>-slow24</TT>
+ algorithm often produces better looking
+pictures than the 
+ <TT>-quick24</TT>
+ algorithm.</P>
+<P>Disadvantages: The 
+ <TT>-slow24</TT>
+ algorithm is about half as fast as the
+ <TT>-quick24</TT>
+ algorithm.  Also, since the colors are chosen on a per-image
+basis, it can't be used to display multiple images simultaneously, as each
+image will almost certainly want a different set of 256 colors.  The
+ <TT>-quick24</TT>
+ algorithm, however, uses the same exact colors for all images,
+so it can display many images simultaneously, without running out of
+colors.</P>
+<P>(Resource name: 
+ <TT>slow24</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-be</B><TT>st24</TT></DT>
+<DD>
+Forces  <I>xv</I> to use the same algorithm used in the program  <I>ppmquant</I>,
+written by Jef Poskanzer.  This algorithm also uses a version of Heckbert's
+median cut algorithm, but is capable of picking 'better' colors than the 
+ <TT>-
+slow24</TT>
+ algorithm, and it doesn't dither.</P>
+<P>Advantages:  Generally produces slightly better images than the 
+ <TT>-slow24</TT>
+algorithm.  Also, the images are undithered, so they look better when
+expanded.</P>
+<P>Disadvantages:  Much slower than the 
+ <TT>-slow24</TT>
+ algorithm.  Like, 5 to 10
+times slower.  The images produced aren't  <I>that</I> much better than those
+produced by the 
+ <TT>-slow24</TT>
+ algorithm.</P>
+<P>(Resource name: 
+ <TT>best24</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-noq</B><TT>check</TT></DT>
+<DD>
+Turns off a 'quick check' that is normally made.  Normally, before running
+any of the 24-bit to 8-bit conversion algorithms,  <I>xv</I> determines whether the
+picture to be displayed has more than 256 unique colors in it.  If the 
+picture
+doesn't, it will treat the picture as an 8-bit colormapped image (i.e., 
+GIF),
+and won't run either of the conversion algorithms.</P>
+<P>Advantages: The pictures will be displayed 'perfectly', whereas if they
+went through one of the conversion algorithms, they'd probably be
+dithered.</P>
+<P>Disadvantages:  Often uses a lot of colors, which limits the ability to view
+multiple images at once.  (See the 
+ <TT>-slow24</TT>
+ option above for further info
+about color sharing.)</P>
+<P>(Resource name:  <TT>noqcheck</TT>.  Type: boolean)</P>
+</DD>
+</DL>
+
+<A NAME="root-window-options"><H2>  Root Window Options</H2></A>
+<P> <I>xv</I> has the ability to display images on the root window of an X display, 
+rather than opening its own
+window (the default behavior).  When using the root window, the program is 
+somewhat limited, because
+the program cannot receive input events (keypresses and mouse clicks) from the root window. 
+ As a result,
+you cannot track pixel values, nor crop, nor can you use keyboard commands 
+while the mouse is in the
+root window.</P>
+<DL>
+<DT><B>-</B>/<B>+roo</B><TT>t</TT></DT>
+<DD>
+Directs  <I>xv</I> to display images in the root window, instead of opening its own
+window.  Exactly how the images will be displayed in the root window is
+determined by the setting of the 
+ <TT>-rmode</TT>
+ option.  Defaults to style '0' if 
+ <TT>-
+rmode</TT>
+ is not specified.</P>
+<P>(Resource name: &lt;none>)</P>
+</DD>
+<DT><B>-rm</B><TT>ode</TT> <I>mode</I></DT>
+<DD>
+ Determines how images are to be displayed on the root window, when
+ <TT>-root</TT>
+ has been specified.  You can find the current list of 'modes' by
+using a mode value of '-1'.   <I>xv</I> will complain, and show a list of valid
+modes.  The current list at of the time of this writing is:</P>
+<PRE>0:  tiling
+1:  integer tiling
+2:  mirrored tiling
+3:  integer mirrored tiling
+4:  centered tiling
+5:  centered on a solid background
+6:  centered on a 'warp' background
+7:  centered on a 'brick' background
+8:  symmetrical tiling
+9:  symmetrical mirrored tiling</PRE>
+<P>The default mode is '0'.  See "<A HREF="control-window.html#root-display-modes">Root Display Modes"</A>
+ for a
+description of the different display modes.  Also, if you specify a '
+ <TT>-rmode</TT>
+'
+option on the command line, it is not necessary to also specify the '
+ <TT>-root</TT>
+'
+option.</P>
+<P>(Resource name:  
+ <TT>rootMode</TT>
+.  Type:  integer)</P>
+</DD>
+<DT><B>-</B>/<B>+nore</B><TT>setroot</TT></DT>
+<DD>
+Lets you turn off the clearing of the root window that happens when you
+switch from a 'root' display mode back to the 'window' display mode.
+Handy if you're trying to create a neat mirrored root tile, and you have to
+keep adjusting your cropping.  Or something like that.</P>
+<P>(Resource name: 
+ <TT>resetroot</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-rf</B><TT>g</TT> <I>color</I></DT>
+<DD>
+Sets the 'foreground' color used in some of the root display modes.</P>
+<P>(Resource name: 
+ <TT>rootForeground</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-rb</B><TT>g</TT> <I>color</I></DT>
+<DD>
+ Sets the 'background' color used in some of the root display modes.</P>
+<P>(Resource name: 
+ <TT>rootBackground</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-</B>/<B>+max</B></DT>
+<DD>
+Makes  <I>xv</I> automatically stretch the image to the full size of the screen.
+This is mostly useful when you want  <I>xv</I> to display a background.  While
+you could just as well specify the dimensions of your display
+('-geom 1152x900' for example), the 
+ <TT>-max</TT>
+ option is display-independent.
+If you decide to start working on a 1280x1024 display the same command
+will still work.  Note: If you specify 
+ <TT>-max</TT>
+ when you aren't using 
+ <TT>-root</TT>
+,
+the behavior is slightly different.  In this case, the image will be made as
+large as possible while still preserving the normal aspect ratio.</P>
+<P>(Resource name: &lt;none>)</P>
+</DD>
+<DT><B>-</B>/<B>+maxp</B><TT>ect</TT></DT>
+<DD>
+Makes the image as large as possible while preserving the aspect ratio,
+whether you're in a 'root' mode or not.
+</P>
+<P>(Resource name: &lt;none>)</P>
+</DD>
+<DT><B>-</B>/<B>+quit</B></DT>
+<DD>
+Makes  <I>xv</I> display the (first) specified file and exit, without any user
+intervention.  Since images displayed on the root window remain there
+until explicitly cleared, this is very useful for having  <I>xv</I> display 
+background
+images on the root window in some sort of start-up script.</P>
+<P>If you aren't using a 'root' mode, this option will make  <I>xv</I> exit as soon as
+the user clicks any mouse button in the image window.  This is useful if
+you are calling  <I>xv</I> from some other program to display an image.</P>
+<P>(Resource name:  &lt;none>)</P>
+</DD>
+<DT><B>-</B>/<B>+cle</B><TT>ar</TT></DT>
+<DD>
+Clears the root window of any  <I>xv</I> images.  Note: it is not necessary to do an
+'
+ <TT>xv -clear</TT>
+' before displaying another picture in the root window.   <I>xv</I>
+will detect that there's an old image in the root window and automatically
+clear it out (and free the associated colors).</P>
+<P>(Resource name:  &lt;none>)</P>
+</DD>
+</DL>
+
+<A NAME="window-options"><H2>  Window Options</H2></A>
+<P> <I>xv</I> currently consists has several top-level windows, plus one window for 
+the actual image.  These
+windows (the  <I>xv controls</I> window, the  <I>xv info</I> window, the  <I>xv color editor</I> 
+window, the  <I>xv comments</I>
+window, the  <I>xv text</I>  <I>viewer</I> window, and the  <I>xv visual schnauzer</I>) may be 
+automatically mapped and
+positioned when the program starts.</P>
+<DL>
+<DT><B>-</B>/<B>+cma</B><TT>p</TT></DT>
+<DD>
+Maps the  <I>xv controls</I> window.</P>
+<P>(Resource name:  
+ <TT>ctrlMap</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-cge</B><TT>om</TT> <I>geom</I></DT>
+<DD>
+ Sets the initial geometry of the  <I>xv controls</I> window.  Note:  only the
+position information is used.  The window is of fixed size.</P>
+<P>(Resource name:  
+ <TT>ctrlGeometry</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-</B>/<B>+im</B><TT>ap</TT></DT>
+<DD>
+Maps the  <I>xv info</I> window.</P>
+<P>(Resource name:  
+ <TT>infoMap</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-ig</B><TT>eom</TT> <I>geom</I></DT>
+<DD>
+ Sets the initial geometry of the  <I>xv info</I> window.  Note:  only the 
+position
+information is used.  The window is of fixed size.</P>
+<P>(Resource name:  
+ <TT>infoGeometry</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-</B>/<B>+cem</B><TT>ap</TT></DT>
+<DD>
+Maps the  <I>xv color editor</I> window.</P>
+<P>(Resource name:  
+ <TT>ceditMap</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-ceg</B><TT>eom</TT> <I>geom</I></DT>
+<DD>
+ Sets the initial geometry of the  <I>xv color editor</I> window.  Note:  only 
+the
+position information is used.  The window is of fixed size.</P>
+<P>(Resource name:  
+ <TT>ceditGeometry</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-</B>/<B>+cmtm</B><TT>ap</TT></DT>
+<DD>
+Maps the  <I>xv comments</I> window.</P>
+<P>(Resource name:  
+ <TT>commentMap</TT>
+.  Type: boolean)
+</P>
+</DD>
+<DT><B>-cmtg</B><TT>eometry</TT> <I>geom</I></DT>
+<DD>
+ Sets the initial geometry of the  <I>xv comments</I> window.</P>
+<P>(Resource name:  
+ <TT>commentGeometry</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-tg</B><TT>eometry</TT> <I>geom</I></DT>
+<DD>
+ Sets the initial geometry for any  <I>TextView</I> windows (other than the
+ <I>xv comments</I> window).</P>
+<P>(Resource name:  
+ <TT>textviewGeometry</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-</B>/<B>+vsm</B><TT>ap</TT></DT>
+<DD>
+Maps an  <I>xv visual schnauzer</I> window.</P>
+<P>(Resource name:  
+ <TT>vsMap</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-vsg</B><TT>eometry</TT> <I>geom</I></DT>
+<DD>
+ Sets the initial geometry of the  <I>xv visual schnauzer</I> windows.</P>
+<P>(Resource name:  
+ <TT>vsGeometry</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-</B>/<B>+nop</B><TT>os</TT></DT>
+<DD>
+Turns off the 'default' positioning of the various  <I>xv</I> windows.  Every time
+you open a window, you will be asked to position it.  (Assuming your
+window manager asks you such things.   <I>mwm</I>, for instance, doesn't seem to
+ask)</P>
+<P>(Resource name:  
+ <TT>nopos</TT>
+.  Type:  boolean)</P>
+</DD>
+</DL>
+
+<A NAME="manipulation-options"><H2>  Image Manipulation Options</H2></A>
+<DL>
+<DT><B>-</B>/<B>+dit</B><TT>her</TT></DT>
+<DD>
+When specified, tells  <I>xv</I> to automatically issue a 
+ <B>Dither</B>
+ command
+whenever an image is first displayed.  Useful on displays with limited color
+capabilities (4-bit and 6-bit displays), or in conjunction with the '
+ <TT>-ncols</TT>
+'
+option.</P>
+<P>(Resource name:  
+ <TT>autoDither</TT>
+.  Type:  boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+sm</B><TT>ooth</TT></DT>
+<DD>
+When specified, tells  <I>xv</I> to automatically issue a 
+ <B>Smooth</B>
+ command
+whenever an image is first displayed.  This is useful when you are using
+one of the image sizing options (such as '
+ <TT>-expand</TT>
+' or '
+ <TT>-max</TT>
+').</P>
+<P>(Resource name:  
+ <TT>autoSmooth</TT>
+.  Type:  boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+ra</B><TT>w</TT></DT>
+<DD>
+Forces  <I>xv</I> to display the image in 
+ <B>Raw</B>
+ mode.  Mainly used to override the
+ <TT>autoDither</TT>
+ or 
+ <TT>autoSmooth</TT>
+ resources.  Can also be used to turn off
+the automatic dithering and smoothing that occurs when you are using
+ <B>Use Std. Colormap</B>
+ mode or when an image is shrunk to fit the screen.</P>
+<P>(Resource name:  
+ <TT>autoRaw</TT>
+.  Type:  boolean)</P>
+</DD>
+<DT><B>-cr</B><TT>op</TT> <I>x y w h</I></DT>
+<DD>
+ Tells  <I>xv</I> to automatically crop the specified region of the image.  
+The
+rectangle is specified in  <I>image</I> coordinates, which remain constant
+(regardless of any expansion/compression of the  <I>displayed</I> image).  This is
+useful if you want to view a series of images, and you only want to see one
+common area of the images.  For example, you may have the GIF weather
+maps of the United States, but only want to display your general region of
+the country.</P>
+<P>(Resource name:  &lt;none>) </P>
+</DD>
+<DT><B>-</B>/<B>+ac</B><TT>rop</TT></DT>
+<DD>
+When specified, tells  <I>xv</I> to automatically issue an 
+ <B>AutoCrop</B>
+ command
+whenever an image is first displayed.</P>
+<P>(Resource name: 
+ <TT>autoCrop</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+4</B><TT>x3</TT></DT>
+<DD>
+Automatically issues a 
+ <B>4x3</B>
+ command whenever an image is loaded.</P>
+<P>(Resource name:  
+ <TT>auto4x3</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+hf</B><TT>lip</TT></DT>
+<DD>
+Automatically issues a 'horizontal flip' command whenever an image is
+loaded.</P>
+<P>(Resource name:  
+ <TT>autoHFlip</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+vf</B><TT>lip</TT></DT>
+<DD>
+Automatically issues a 'vertical flip' command whenever an image is
+loaded.</P>
+<P>(Resource name:  
+ <TT>autoVFlip</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-rot</B><TT>ate</TT> <I>deg</I></DT>
+<DD>
+ Automatically rotates the image by the specified amount whenever an
+image is loaded.   <I>deg</I> can be 0, 90, 180, or 270.  Positive values rotate
+the image clockwise, negative values rotate the image counter-clockwise.</P>
+<P>(Resource name:  
+ <TT>autoRotate</TT>
+.  Type: integer)</P>
+</DD>
+<DT><B>-</B>/<B>+norm</B></DT>
+<DD>
+Automatically issues a 
+ <B>Norm</B>
+ command (to normalize the contrast of an
+image) whenever an image is loaded.</P>
+<P>(Resource name:  
+ <TT>autoNorm</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+his</B><TT>t</TT></DT>
+<DD>
+Automatically issues a 
+ <B>HistEq</B>
+ command (to do histogram equalization)
+whenever an image is loaded.</P>
+<P>(Resource name:  
+ <TT>autoHist</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-ga</B><TT>mma</TT> <I>val</I></DT>
+<DD>
+ Sets the  <I>Intensity</I> graph (in the  <I>xv color editor</I> window) to the gamma
+function of the specified value.</P>
+<P>(Resource name:  &lt;none>)</P>
+</DD>
+<DT><B>-cga</B><TT>mma</TT> <I>rv gv bv</I></DT>
+<DD>
+ Sets the  <I>Red, Green, </I>and  <I>Blue</I> graphs in the  <I>xv color editor</I> window 
+to the
+gamma functions of the specified values.</P>
+<P>(Resource name:  &lt;none>)</P>
+</DD>
+<DT><B>-pr</B><TT>eset</TT> <I>preset</I></DT>
+<DD>
+ Makes the specified  <I>preset</I> (in the  <I>xv color editor</I>) the default.  It 
+does this
+by swapping the specified preset (
+ <B>1</B>
+, 
+ <B>2</B>
+, 
+ <B>3</B>
+, or 
+ <B>4</B>
+) with the settings associated
+with the 
+ <B>Reset</B>
+ button.</P>
+<P>(Resource name:  
+ <TT>defaultPreset</TT>
+.  Type: integer)</P>
+</DD>
+</DL>
+
+<A NAME="miscellaneous-options"><H2>  Miscellaneous Options</H2></A>
+<DL>
+<DT><B>-</B>/<B>+mo</B><TT>no</TT></DT>
+<DD>
+Forces the image to be displayed in greyscale.  This is most useful when
+you are using certain greyscale X displays.  While  <I>xv</I> attempts to determine
+if it's running on a greyscale display, many X displays  <I>lie</I>, and claim to be able to do color.  (This is often because they have color graphics boards
+hooked up to b/w monitors.  The computer, of course, has no way of
+knowing what type of monitor is attached.)  On these displays, if you don't
+specify 
+ <TT>-mono</TT>
+, what you will see is a greyscale representation of one of
+the RGB outputs of the system.  (For example, you'll see the 'red' output
+on greyscale Sun 3/60s.)  The 
+ <TT>-mono</TT>
+ option corrects this behavior.</P>
+<P>(Resource name: 
+ <TT>mono</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+rv</B></DT>
+<DD>
+Makes  <I>xv</I> display a 'negative' of the loaded image.  White becomes black,
+and black becomes white.  Color images will have 'interesting' effects, as
+the RGB components are individually reversed.  For example, red (255,0,0)
+will become cyan (0,255,255), yellow will become blue, and so on.</P>
+</DD>
+<DT><B>-wh</B><TT>ite</TT> <I>color</I></DT>
+<DD>
+ Specifies the 'white' color used when the picture is b/w stippled. 
+(When
+'
+ <TT>-ncols 0</TT>
+' has been specified, or when viewing a b/w image.)</P>
+<P>(Resource name: 
+ <TT>white</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-bl</B><TT>ack</TT> <I>color</I></DT>
+<DD>
+ Specifies the 'black' color used when the picture is b/w stippled. 
+(When
+'
+ <TT>-ncols 0</TT>
+' has been specified, or when viewing a b/w image.)</P>
+<P>Try something like:
+'
+ <TT>xv -ncols 0 -bl red -wh yellow &lt;filename></TT>
+'
+for some interesting, late-60's- <I>style</I> psychedelia effects.</P>
+<P>(Resource name: 
+ <TT>black</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-wa</B><TT>it</TT> <I>secs</I></DT>
+<DD>
+ Turns on a 'slide-show' feature.  Normally, if you specify multiple 
+input
+files,  <I>xv</I> will display the first one, and wait for you to give the 
+ <B>Next</B>
+command (or whatever).  The 
+ <TT>-wait</TT>
+ option makes  <I>xv</I> wait for the
+specified number of seconds, and then go on to the next picture, without
+any user intervention.  The program still accepts commands, so it's
+possible to 'abort' the current picture without waiting the full specified
+time by using the 
+ <B>Next</B>
+ command.</P>
+<P>Note:  If you are in 
+ <B>Use Std. Colormap</B>
+ mode, and you use 
+ <TT>-wait 0</TT>
+, the
+images will  <I>not</I> be dithered (as they normally are when you are in
+ <B>Use Std. Colormap</B>
+ mode).  It's assumed that if you said '
+ <TT>-wait 0</TT>
+' that
+you want the images displayed at maximum speed.  You can still turn the
+dithering on if you desire by using the 
+ <TT>-dither</TT>
+ option.</P>
+<P>(Resource name: &lt;none>)</P>
+</DD>
+<DT><B>-</B>/<B>+wl</B><TT>oop</TT></DT>
+<DD>
+Normally, when running a slide-show with the 
+ <TT>-wait</TT>
+ option,  <I>xv</I> will
+terminate after displaying the last image.  If you also specify the 
+ <TT>-wloop</TT>
+option, the program will loop back to the first image and continue the
+slide-show until the user issues the 
+ <B>Quit</B>
+ command.</P>
+<P>(Resource name:  &lt;none>)</P>
+</DD>
+<DT><B>-</B>/<B>+ra</B><TT>ndom</TT></DT>
+<DD>
+Makes  <I>xv</I> display multiple image files in a random order.  Useful for
+breaking up the monotony of having slide-shows always display in the
+same order.  Also, if you also use the 
+ <TT>-quit</TT>
+ option, you can have  <I>xv</I> display a single, random file from a list of files.  This may be useful if
+you'd like  <I>xv</I> to pick a random 'background image' from some set of files.</P>
+<P>(Resource name:  &lt;none>)</P>
+</DD>
+<DT><B>-</B>/<B>+loa</B><TT>dclear</TT></DT>
+<DD>
+If you were on a PseudoColor display,  <I>xv</I> used to automatically clear the
+image window (and the root window, if using a root mode) whenever you
+loaded a new image.  This was to prevent the potentially
+annoying/confusing 'rainbow' effect that happens when colormap entries
+are freed and reallocated with different colors.  This has changed.  By
+default,  <I>xv</I> no longer clears the image/root window.  This is for two
+reasons:  I've decided the rainbow effect is semi-entertaining, in that it
+gives you something to look at while the next image is being loaded.
+Secondly, if you are viewing a series of images that have the same colors in
+them, it's possible for  <I>xv</I> to animate them (by using the '
+ <TT>-wait</TT>
+' command
+line option), albeit no faster than one frame every 1-2 seconds.  For
+example, you can go get the satellite radar images from
+ <TT>vmd.cso.uiuc.edu</TT>
+ (in the directory 
+ <TT>wx</TT>
+), run '
+ <TT>xv -wait 0 SA*</TT>
+',
+and voila!  Just like the evening news!</P>
+<P>(Resource name:  
+ <TT>clearOnLoad</TT>
+  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+nof</B><TT>reecols</TT></DT>
+<DD>
+Whenever you load a new image,  <I>xv</I> normally frees the colors it was using
+for the previous image, and allocates new colors for the new image.  This
+can cause 'rainbow' effects on PseudoColor displays as the colors are
+changed.  You can avoid this problem entirely by using the
+ <TT>-nofreecols</TT>
+ option, which suppresses the normal freeing of old colors.
+This is most useful when doing slide-shows.  Note, however that there will
+be fewer colors available for 'later' images.  These images will wind up
+being displayed with whatever colors were allocated for the earlier images.
+As such, they may or may not look that hot...  (And allow me to reiterate:
+ <I>xv</I> is  <I>not</I> an image animator, despite options like these that let it do so,
+albeit poorly.)</P>
+<P>(Resource name: &lt;none>)</P>
+</DD>
+<DT><B>-</B>/<B>+rg</B><TT>b</TT></DT>
+<DD>
+Specifies that, by default, the colormap editing dials in the  <I>xv color 
+editor</I>
+window should be in RGB mode.  This is the normal default behavior.</P>
+<P>(Resource name:  
+ <TT>hsvMode</TT>
+.  Type:  boolean  ( <I>false</I>))</P>
+</DD>
+<DT><B>-</B>/<B>+hs</B><TT>v</TT></DT>
+<DD>
+Specifies that, by default, the colormap editing dials in the  <I>xv color 
+editor</I>
+window should be in HSV mode.</P>
+<P>(Resource name:  
+ <TT>hsvMode</TT>
+.  Type:  boolean  ( <I>true</I>))</P>
+</DD>
+<DT><B>-</B>/<B>+lb</B><TT>rowse</TT></DT>
+<DD>
+Turns on the 
+ <B>Browse</B>
+ checkbox in the  <I>xv load</I> window.  This keeps the
+window from being automatically closed whenever you successfully load an
+image.</P>
+<P>(Resource name: 
+ <TT>loadBrowse</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+nos</B><TT>tat</TT></DT>
+<DD>
+Speeds up the performance of the  <I>xv load</I> and  <I>xv save</I> windows.  (Which
+are really the same window...)  It keeps  <I>xv </I>from doing a 
+ <TT>stat()</TT>
+ system
+call for each file in the current directory whenever you change directories.
+This is handy on systems with a lot remote files, where doing the 
+ <TT>stat()</TT> calls takes too long.  One downside:  subdirectories will not be shown with
+the little folder icons, as it requires a 
+ <TT>stat()</TT>
+ call to determine whether a
+file is a subdirectory or a data file.  This will not affect the operation 
+of the
+program, just the 'niceness'.</P>
+<P>(Resource name: 
+ <TT>nostat</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-vis</B><TT>ual</TT> <I>vistype</I></DT>
+<DD>
+ Normally,  <I>xv</I> uses the 'best' visual model it can get.  It looks for 
+a 24 or
+32-bit deep  <I>TrueColor</I>, or  <I>DirectColor</I> visual.  If it can get one, that's 
+what
+it uses.  Otherwise, it will fall back to using the 'default' visual 
+provided by
+your X server.  You can override this bit of cleverness by explicitly
+selecting a visual to use.  Valid types are  <I>StaticGray</I>,  <I>StaticColor</I>,
+ <I>TrueColor</I>,  <I>GrayScale</I>,  <I>PseudoColor</I>,  <I>DirectColor</I>, and  <I>default.</I>  All of
+these modes are not necessarily provided on any given X display.  Run
+ <I>xdpyinfo</I> on your display to find out what visual types are supported.  You
+can also specify a specific visual by using its numeric visual ID, in the 
+case
+that you have multiple instances of a given visual type available ( <I>xv</I> will
+pick the 'deepest' one by default)</P>
+<P>(Resource name:  
+ <TT>visual</TT>
+.  Type:  string)</P>
+</DD>
+<DT><B>-cu</B><TT>rsor</TT> <I>curs</I></DT>
+<DD>
+ Specifies an alternate cursor to use in the image window (instead of 
+the
+normal 'arrow' cursor).   <I>curs</I> values are obtained by finding the character
+number of a cursor you like in the 'cursor' font.</P>
+<P>(Run '<TT>xfd -fn cursor</TT>' to display the cursor font.)  For example,
+a  <I>curs</I> value of '56' corresponds to the (singularly useless) 'Gumby'
+cursor.</P>
+<P>(Resource name:  
+ <TT>cursor</TT>
+.  Type:  integer)</P>
+</DD>
+<DT><B>-</B>/<B>+2x</B><TT>limit</TT></DT>
+<DD>
+By default,  <I>xv</I> prevents the image window from ever getting larger than the
+screen.  Unfortunately, because of this, if you load an image that is larger
+than your screen, the image will be shrunk until it fits on your screen.
+Some folks find this undesirable behavior.  Specifying the 
+ <TT>-2xlimit</TT>
+option doubles the size limitations.  The image window will be kept from
+getting larger than 2x the width and height of your screen.</P>
+<P>Just in case you're wondering why there  <I>are</I> any size limitations:  it's 
+fairly
+easy to accidentally ask for a huge image to be generated.  Simply 
+ <B>Crop</B>
+ a
+section of the image, zoom so you can see the individual pixels, and
+ <B>UnCrop</B>
+.  If there were no size limitations, the (expanded many times)
+image could be huge, and might crash your X server.  At the very least, it
+would take a long time to generate and transmit to your X server, and
+would freeze up your X server during part of it.  Generally undesirable
+behavior.</P>
+<P>(Resource name:  
+ <TT>2xlimit</TT>
+.  Type:  boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+nol</B><TT>imits</TT></DT>
+<DD>
+For the truly daring, this turns off all limitations on the maximum size of
+an image.  (Well, there's still an X-imposed maximum size of 64K by 64K,
+but that really shouldn't be a problem.)  Warning:  as mentioned above, it
+is fairly easy to accidentally generate a huge image when you do an
+ <B>UnCrop</B>
+ command, and you may well crash  <I>xv</I>, your X server, the host
+machine, or all three.  Use At Your Own Risk!!!</P>
+<P>(Resource name:  
+ <TT>nolimits</TT>
+  Type:  boolean) </P>
+</DD>
+<DT><B>-</B>/<B>+clo</B><TT>se</TT></DT>
+<DD>
+If specified, iconifying the  <I>xv image</I> window will automatically close all
+the other  <I>xv</I> windows.  De-iconifying the  <I>xv image</I> window will re-open the
+other  <I>xv</I> windows.</P>
+<P>(Resource name:  
+ <TT>autoClose</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+ico</B><TT>nic</TT></DT>
+<DD>
+Starts  <I>xv</I> with its image window iconified.</P>
+<P>(Resource name:  
+ <TT>iconic</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-icg</B><TT>eometry</TT> <I>geom</I></DT>
+<DD>
+ Specifies the screen position of the icon (when you use the 
+ <TT>-iconic</TT>
+option).</P>
+<P>(Resource name:  
+ <TT>iconGeometry</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-dir</B> <I>directory</I> </DT>
+<DD>Specifies an initial directory for  <I>xv</I> to switch to when run.
+<P>Also specifies
+the default directory used for the  <I>visual schnauzer</I> and the  <I>xv load</I> and
+ <I>xv save </I>windows.</P>
+<P>(Resource name:  
+ <TT>searchDirectory</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-fl</B><TT>ist</TT> <I>fname</I></DT>
+<DD>
+ Tells  <I>xv</I> to read a file  <I>fname</I> that consists of a list of names of 
+image files to
+load, one per line.  This file is in the same format generated by the 
+ <B>File list</B>
+checkbox in the  <I>xv save</I> window.  You can use this to get around shell
+'command-length' limitations (which can hit you if you try '
+ <TT>xv *</TT>
+' in a
+directory with a thousand or two files), or you could have  <I>find</I> (or
+whatever) generate this file based on some type of criteria (age, size, etc.)</P>
+<P>(Resource name:  
+ <TT>fileList</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-dr</B><TT>ift</TT> <I>dx dy</I></DT>
+<DD>
+ A kludge.  In order to do certain operations,  <I>xv</I> needs to be able to 
+precisely
+position the contents of an image window on the screen.  Unfortunately,
+window managers disagree wildly on exactly how the "where's the
+window" information will be presented to the program.  The practical
+upshot is that, despite a sizable effort to the contrary,  <I>xv</I> may very will 
+have
+its image window 'drift' on the screen as you resize it.  This option lets 
+you
+specify correction factors to cancel out the drift.  If the window drifts 
+down
+and to the right, use negative values to cancel the drifting.  If the window
+drifts up and to the left, use positive values to cancel the drifting.</P>
+<P>(Resource name: 
+ <TT>driftKludge</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-mf</B><TT>n</TT> <I>font</I></DT>
+<DD>
+ Lets you specify the mono-spaced font used in the  <I>TextView </I>windows, and
+a few other places.  Be sure you use a mono-spaced font, or you may well
+get 'interesting' effects.</P>
+<P>(Resource name:  
+ <TT>monofont</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-na</B><TT>me</TT> <I>string</I></DT>
+<DD>
+ Lets you change what string is displayed in the titlebar of the image
+window.  Normally,  <I>xv</I> will display the version number and the filename.
+If you're calling  <I>xv</I> from another program, you may prefer to have it print a
+more descriptive string, or perhaps something like '&lt;click mouse to
+ quit>'
+if you're also using the 
+ <TT>-quit</TT>
+ option.</P>
+<P>(Resource name:  &lt;none>) </P>
+</DD>
+<DT><B>-</B>/<B>+vie</B><TT>wonly</TT></DT>
+<DD>
+For use when calling  <I>xv</I> from some other program.  Forces all user input to
+be ignored.  This keeps the untrained (or inquisitive) user from nosing
+around, creating files, or just generally misbehaving.  Also note that
+there's no way for the user to quit the program.  It is up to the calling
+process to manually kill  <I>xv</I> when it feels that the image has been displayed
+long enough.</P>
+<P>(Resource name:  &lt;none>)</P>
+</DD>
+<DT><B>-</B>/<B>+gr</B><TT>abdelay</TT> <I>seconds</I></DT>
+<DD>
+ Sets the default 'grab delay' in the 
+ <B>Grab</B>
+ dialog box.  See "<A HREF="control-window.html#grab-command">The Grab Command"</A>
+.</P>
+<P>(Resource name:  &lt;none>)</P>
+</DD>
+<DT><B>-</B>/<B>+po</B><TT>ll</TT></DT>
+<DD>
+Turns file polling on.  If enabled,  <I>xv</I> will notice when the currently
+displayed image file changes (due to some other process rewriting it, or
+something like that), and it will automatically reload the image file once 
+it
+appears to have settled down (once the file size stops changing for a few
+seconds).  See "<A HREF="control-window.html#reloading">Image Reloading"</A>
+ for further details.</P>
+<P>(Resource name:  &lt;none>)</P>
+</DD>
+<DT><B>-</B>/<B>+vsp</B><TT>erfect</TT></DT>
+<DD>
+Normally, the  <I>visual schnauzer</I> uses its own private colormap.  This is
+necessary in order to get a good set of colors to display the image icons,
+and not steal colors away from the actual image window.  However, you
+may find the colormap install/deinstall very annoying.  I do.  You can
+specify this option (
+ <TT>+vsperfect</TT>
+) to turn the 'perfect' behavior  off.  If
+you do so, the  <I>visual schnauzer</I> windows will steal away a small (64-entry)
+part of the colormap (unless you are in 
+ <B>Use Std. Colormap</B>
+ mode, in which
+case they will share the standard colormap).  The downside is that neither
+the schnauzer  <I>nor</I> the image will look as good.</P>
+<P>(Resource name:  
+ <TT>vsPerfect</TT>
+.  Type: boolean)</P>
+</DD>
+<DT><B>-</B>/<B>+vsd</B><TT>isable</TT></DT>
+<DD>
+Completely disables the  <I>visual schnauzer</I>.  This is mainly so, if you have
+ <TT>vsPerfect</TT>
+ turned off, you can disable the schnauzer and keep it from
+stealing any colors from the image.  In the default setting (
+ <TT>vsPerfect</TT>
+ is
+turned on), this option will have no useful effect.</P>
+<P>(Resource name:  
+ <TT>vsDisable</TT>
+.  Type:  boolean)</P>
+</DD>
+<DT><B>-gsd</B><TT>ev</TT> <I>str</I></DT>
+<DD>
+ Sets the 'device' that the  <I>ghostscript</I> package will generate output for,
+which is used whenever you read a PostScript file in  <I>xv</I>.  Currently, the
+default device is 
+ <B>ppmraw</B>
+, which means all PostScript will be converted to
+either a 24-bit color PPM file, an 8-bit greyscale PGM file, or a 1-bit 
+black-
+and-white PBM file, as appropriate (based on the particular PostScript file
+in question).  Note that your copy of  <I>ghostscript</I> must be configured to
+support this device, and any other values you may wish to set this option to.
+See the  <I>xv</I> 
+ <TT>Makefile</TT>
+ for further information.</P>
+<P>Also note:  Be very careful when using these options, as it's pretty easy to
+have  <I>ghostscript</I> generate  <I>enormous</I> data files.  For example, for normal
+8" by 11" pages, at 72dpi, a PBM file will require ~60K per page, a PGM
+file will require ~500K per page, and a PPM file will require ~1.5M per
+page.  If you have it generate images at 300 dpi (see below), these sizes
+explode to roughly 1, 8, and 24 megabytes per page. As such, you should
+forget about viewing color pages at 300 dpi, and you
+may also want to forget about viewing multi-page PostScript files at 300
+dpi.</P>
+<P>(Resource name:  
+ <TT>gsDevice</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-gsr</B><TT>es</TT> <I>res</I></DT>
+<DD>
+ Specifies the resolution of the page files generated by  <I>ghostscript</I>, in 
+dots
+per inch.  Defaults to 72 dpi.  You can set it to any value, but be careful
+about generating enormous intermediate datafiles.</P>
+<P>(Resource name:  
+ <TT>gsResolution</TT>
+.  Type: integer)</P>
+</DD>
+<DT><B>-gsg</B><TT>eom</TT> <I>geom</I></DT>
+<DD>
+ Sets the page size of the files generated by  <I>ghostscript</I>.  Normally, 
+this
+defaults to '612x792', which is the size of 8" by 11" paper, as measured
+in 72nds of an inch.  Note that these numbers are in 72nds of an inch
+regardless of the resolution (dpi) value set by 
+ <TT>gsResolution</TT>
+.</P>
+<P>(Resource name:  
+ <TT>gsGeometry</TT>
+.  Type: string)</P>
+</DD>
+<DT><B>-</B>/<B>+nod</B><TT>ecor</TT></DT>
+<DD>
+Turns off certain decorations on the  <I>xv image </I>window's frame, maybe.
+Works for  <I>mwm</I>, at least.  There is no way to do this trick with  <I>olwm</I>, and
+ <I>twm</I> doesn't need it.  Anyway, if you turn off the titlebar and such on the 
+ <I>xv
+image</I> window, it removes the  <I>minimum size</I> constraint/problem that I talk
+about in "<A HREF="image-window.html#cropping">Cropping"</A>
+, and elsewhere.</P>
+<P>(Resource name:  
+ <TT>nodecor</TT>
+  Type: boolean)</P>
+</DD>
+<DT><B>-R</B><TT>M</TT></DT>
+<DD>
+If specified,  <I>deletes</I> all files specified on the  <I>xv</I> command line when  <I>xv</I>
+exits.  This can be handy if you're using  <I>xv</I> as an external viewer, and
+you'd like to hand it a file, have it displayed, and then have it go away.</P>
+<P>(Resource name:  
+ <TT>nodecor</TT>
+  Type: boolean)</P>
+</DD>
+<DT><B>-D</B><TT>EBUG</TT> <I>level</I></DT>
+<DD>
+ Turns on some debugging information.  You shouldn't need this.  If
+everything worked perfectly,  <I>I</I> wouldn't need this.</P>
+<P>(Resource name:  &lt;none>)</P>
+</DD>
+<DT><B>-</B></DT>
+<DD>
+Specifying '-' all by itself tells  <I>xv</I> to take its input from 
+ <TT>stdin</TT>
+, rather than
+from a file.  This lets you put  <I>xv</I> on the end of a Unix pipe.</P>
+</DD>
+</DL>
+
+<A NAME="color-editor-resources"><H2>  Color Editor Resources</H2></A>
+<P>You can set default values for all of the HSV and RGB modification controls 
+in the x <I>v color editor</I>
+window via X resources.  The easiest way to explain this is with an example.</P>
+<OL>
+<LI>Start  <I>xv</I> and put it in the background by typing '
+ <TT>xv &amp;</TT>
+'.</LI>
+<LI>Type the command '
+ <TT>cat >foo</TT>
+' in an active  <I>xterm</I> window</LI>
+<LI>Bring the  <I>xv color editor</I> window up.</LI>
+<LI>Issue the 
+ <B>Cut Resources</B>
+ command.</LI>
+<LI>Click your middle mouse button in the  <I>xterm</I> window.  A set of resource 
+lines describing the
+current state of the  <I>xv color editor</I>
+ controls will be 'pasted' into the window. </LI>
+<LI>You could type 
+ <B>&lt;ctrl-D></B>
+ in the  <I>xterm</I> to complete the  <I>cat</I> command, edit this file, and put it in
+your 
+ <TT>.Xdefaults</TT>
+ or 
+ <TT>.Xresources</TT>
+ file.</LI>
+</OL>
+<P>The lines generated by Cut Resources will look like this:</P>
+<PRE>xv.default.huemap1: 330  30  CW 330  30  CW
+xv.default.huemap2:  30  90  CW  30  90  CW
+xv.default.huemap3:  90 150  CW  90 150  CW
+xv.default.huemap4: 150 210  CW 150 210  CW
+xv.default.huemap5: 210 270  CW 210 270  CW
+xv.default.huemap6: 270 330  CW 270 330  CW
+xv.default.whtmap:  0 0 1
+xv.default.satval:  0
+xv.default.igraf: S 4 : 0,0 : 64,64 : 192,192 : 254,254
+xv.default.rgraf: S 4 : 0,0 : 64,64 : 192,192 : 254,254
+xv.default.ggraf: S 4 : 0,0 : 64,64 : 192,192 : 254,254
+xv.default.bgraf: S 4 : 0,0 : 64,64 : 192,192 : 254,254</PRE>
+<P>These lines completely describe one state of the  <I>xv color editor</I> controls.  
+There are five different states
+that you can specify via X resources.  The '
+ <TT>default</TT>
+' state (as shown) holds the settings used whenever
+the program is first started, and whenever the 
+ <B>Reset</B>
+ command is used.  You can also store settings in one
+of the four  <I>xv</I> presets (accessed via the 
+ <B>1, 2, 3, </B>
+or 
+ <B>4</B>
+ buttons in the  <I>xv color editor</I>) by changing the string
+'
+ <TT>default</TT>
+' in the above lines to '
+ <TT>preset1</TT>
+', '
+ <TT>preset2</TT>
+', '
+ <TT>preset3</TT>
+', or '
+ <TT>preset4</TT>
+' respectively.</P>
+<P>There are four types of resource described in these lines:  
+ <TT>huemap</TT>
+, 
+ <TT>whtmap</TT>
+, 
+ <TT>satval</TT>
+, and 
+ <TT>graf</TT>
+.</P>
+<A NAME="huemap-resources"><H3>  Huemap Resources</H3></A>
+<P>The 
+ <TT>huemap</TT>
+ resources describe the state of the hue remapping dials.  There are six 
+huemap resources per
+state of the  <I>xv color editor</I>.  These huemap resources are numbered '
+ <TT>huemap1</TT>
+', through '
+ <TT>huemap6</TT>
+', and
+correspond to the '
+ <B>1</B>
+'-'
+ <B>6</B>
+' radio buttons under the hue remapping dials.</P>
+<P>Each huemap resources takes six parameters:</P>
+<OL>
+<LI>The 'starting' angle of the  <I>From</I> range, in degrees (integer).</LI>
+<LI>The 'ending' angle of the  <I>From</I> range, in degrees (integer).</LI>
+<LI>The direction of the  <I>From</I> range.  Either '
+ <TT>cw</TT>
+' (clockwise) or '
+ <TT>ccw</TT>
+' (counter-clockwise).</LI>
+<LI>The 'starting' angle of the  <I>To</I> range, in degrees (integer).</LI>
+<LI>The 'ending' angle of the  <I>To</I> range, in degrees (integer).</LI>
+<LI>The direction of the  <I>To</I> range.  Either '
+ <TT>cw</TT>
+' or '
+ <TT>ccw</TT>
+'.</LI>
+</OL>
+<A NAME="whtmap-resources"><H3>  Whtmap Resources</H3></A>
+<P>The 
+ <TT>whtmap</TT>
+ resource describes the state of the white remapping control.  There is one 
+whtmap resource
+per state of the  <I>xv color editor</I>
+ controls.  The whtmap resource takes three parameters:</P>
+<OL>
+<LI>The hue to remap 'white' to, in degrees (integer).</LI>
+<LI>The saturation to give to the remapped 'white', in percent (integer).</LI>
+<LI>A boolean specifying whether the white remapping control is enabled.  If 
+'1', the control is
+enabled.  If '0', the control is disabled. </LI>
+</OL>
+<A NAME="satval-resource"><H3>  Satval Resource</H3></A>
+<P>The 
+ <TT>satval</TT>
+ resource describes the value of the Saturation dial.  There is one satval 
+resource per state.
+The satval resource takes a single integer value, in the range 100, which 
+specifies how much to add or
+subtract to the overall image color saturation.</P>
+<A NAME="graf-resources"><H3>  Graf Resources</H3></A>
+<P>The 
+ <TT>graf</TT>
+ resources describe the state of the four 'graph' windows in the  <I>xv color 
+editor</I> window
+( <I>Intensity</I>,  <I>Red</I>,  <I>Green</I>, and  <I>Blue</I>).  The graf resources can be in one of two 
+formats, 'gamma' and
+'spline/line'.</P>
+<P>In 'gamma' format, the graf resource takes two parameters:</P>
+<OL>
+<LI>The letter 'G', specifying 'gamma' mode</LI>
+<LI>A single floating point number specifying the gamma value.</LI>
+</OL>
+<P>In 'spline/line' mode, the graf resource takes a variable number of parameters:</P>
+<OL>
+<LI>The letter 'S' specifying 'spline' mode, or the letter 'L' specifying 'line' mode.</LI>
+<LI>An integer number indicating the number of handles (control points) that 
+this graph window will
+have.  (Must be in the range 2-16, inclusive.)</LI>
+<LI>For each handle, there will be a ':', and the  <I>x</I> and  <I>y</I> positions of the 
+handle, separated by a
+comma.  The  <I>x</I> and  <I>y</I> positions can be in the range 0-255 inclusive.</LI>
+</OL>
+<A NAME="resources"><H3>  Other Resources</H3></A>
+<DL>
+<DT><TT>autoApply</TT></DT>
+<DD>A boolean resource that sets the default condition of the 
+ <B>Auto-Apply
+HSV/RGB Mods</B>
+ checkbox in the  <I>xv color editor</I> window.</DD>
+<DT><TT>displayMods</TT></DT>
+<DD>A boolean resource that sets the default condition of the 
+ <B>Display With
+HSV/RGB Mods</B>
+ checkbox in the  <I>xv color editor</I> window.</DD>
+<DT><TT>dragApply</TT></DT>
+<DD>A boolean resource that sets the default condition of the 
+ <B>Auto-Apply
+While Dragging</B>
+ checkbox in the  <I>xv color editor</I> window.</DD>
+<DT><TT>autoReset</TT></DT>
+<DD>A boolean resource that sets the default condition of the 
+ <B>Auto-Reset On
+New Image</B>
+ checkbox in the  <I>xv color editor</I> window.</DD>
+<DT><TT>saveNormal</TT></DT>
+<DD>A boolean resource that sets the default condition of 
+ <B>Normal Size</B>
+checkbox in the  <I>xv save</I> window.</DD>
+<DT><TT>pspreview</TT></DT>
+<DD>A boolean resource that sets the default condition of 
+ <B>Preview</B>
+ checkbox in
+the  <I>xv postscript</I> window.</DD>
+<DT><TT>pscompress</TT></DT>
+<DD>A boolean resource that sets the default condition of 
+ <B>Compress</B>
+ checkbox
+in the  <I>xv postscript</I> window.</DD>
+<DT><TT>print</TT></DT>
+<DD>A string resource that sets the default command that shows up in the 
+ <B>Print</B>
+dialog box.</DD>
+<DT><TT>pspaper</TT></DT>
+<DD>
+A string resource that sets the default paper size selected in the  <I>xv
+postscript</I> window.  Valid settings are:  
+ <TT>8.5x11, 8.5x14, 11x17, 4x5 35mm a3 a4 b5</TT></DD>
+<DT><TT>psorient</TT></DT>
+<DD>A string resource that sets the default image orientation in the  <I>xv 
+postscript</I>
+window.  Valid settings are:  
+ <TT>portrait</TT>
+ and 
+ <TT>landscape</TT> </DD>
+<DT><TT>psres</TT></DT>
+<DD>An integer resource that sets the default image resolution in the  <I>xv
+postscript</I> window.  Valid settings are in the range 10 through 720 dpi.</DD>
+</DL>
+<H2>Window Classes</H2>
+<P> <I>xv</I> defines the following 'class' names for its various top-level windows:</P>
+<DL>
+<DT><TT>XVroot</TT></DT>
+<DD>for the  <I>xv image</I> window</DD>
+<DT><TT>XVcontrols</TT></DT>
+<DD>for the  <I>xv controls</I> window</DD>
+<DT><TT>XVdir</TT></DT>
+<DD>for the  <I>xv load</I> and  <I>xv save</I> windows</DD>
+<DT><TT>XVinfo</TT></DT>
+<DD>for the  <I>xv info</I> window</DD>
+<DT><TT>XVcedit</TT></DT>
+<DD>for the  <I>xv color editor</I> window</DD>
+<DT><TT>XVps</TT></DT>
+<DD>for the  <I>xv postscript</I> window</DD>
+<DT><TT>XVjpeg</TT></DT>
+<DD>for the  <I>xv jpeg</I> window</DD>
+<DT><TT>XVtiff</TT></DT>
+<DD>for the  <I>xv tiff</I> window</DD>
+<DT><TT>XVconfirm</TT></DT>
+<DD>for all the pop-up windows</P></DD>
+</DL>
+<P>You may be able to use these class names to do something nifty with your window 
+manager.  For instance,
+with  <I>mwm</I> you can control which controls you'll get in the window frame, on 
+a per-window basis.  For
+example, to turn off all the  <I>mwm</I> doodads that normally are tacked onto the 
+ <I>xv image</I> window, you could
+put this in your .Xdefaults file:</P>
+<P> <TT>Mwm*XVroot*clientDecoration:  none</TT></P>
+<HR>
+This document was extracted from the PostScript documentation and
+formatted by <A HREF="mailto:rjohnson@shell.com">Roy Johnson</A>.
+Much of the process was automated, and may therefore have introduced
+errors.  Corrections are appreciated.
+
+</BODY></HTML>

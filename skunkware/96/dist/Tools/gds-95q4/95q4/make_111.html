@@ -1,0 +1,87 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Makefile Basics</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_110.html">previous</A>, <A HREF="make_112.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC110" HREF="make_toc.html#TOC110">General Conventions for Makefiles</A></H2>
+<P>
+Every Makefile should contain this line:
+<P>
+<PRE>
+SHELL = /bin/sh
+</PRE>
+<P>
+to avoid trouble on systems where the <CODE>SHELL</CODE> variable might be
+inherited from the environment.  (This is never a problem with GNU
+<CODE>make</CODE>.)
+<P>
+Different <CODE>make</CODE> programs have incompatible suffix lists and
+implicit rules, and this sometimes creates confusion or misbehavior.  So
+it is a good idea to set the suffix list explicitly using only the
+suffixes you need in the particular Makefile, like this:
+<P>
+<PRE>
+.SUFFIXES:
+.SUFFIXES: .c .o
+</PRE>
+<P>
+The first line clears out the suffix list, the second introduces all
+suffixes which may be subject to implicit rules in this Makefile.
+<P>
+Don't assume that <TT>`.'</TT> is in the path for command execution.  When
+you need to run programs that are a part of your package during the
+make, please make sure that it uses <TT>`./'</TT> if the program is built as
+part of the make or <TT>`$(srcdir)/'</TT> if the file is an unchanging part
+of the source code.  Without one of these prefixes, the current search
+path is used.  
+<P>
+The distinction between <TT>`./'</TT> and <TT>`$(srcdir)/'</TT> is important
+when using the <SAMP>`--srcdir'</SAMP> option to <TT>`configure'</TT>.  A rule of
+the form:
+<P>
+<PRE>
+foo.1 : foo.man sedscript
+        sed -e sedscript foo.man &#62; foo.1
+</PRE>
+<P>
+will fail when the current directory is not the source directory,
+because <TT>`foo.man'</TT> and <TT>`sedscript'</TT> are not in the current
+directory.
+<P>
+When using GNU <CODE>make</CODE>, relying on <SAMP>`VPATH'</SAMP> to find the source
+file will work in the case where there is a single dependency file,
+since the <TT>`make'</TT> automatic variable <SAMP>`$&#60;'</SAMP> will represent the
+source file wherever it is.  (Many versions of <CODE>make</CODE> set <SAMP>`$&#60;'</SAMP>
+only in implicit rules.)  A makefile target like
+<P>
+<PRE>
+foo.o : bar.c
+        $(CC) -I. -I$(srcdir) $(CFLAGS) -c bar.c -o foo.o
+</PRE>
+<P>
+should instead be written as
+<P>
+<PRE>
+foo.o : bar.c
+        $(CC) -I. -I$(srcdir) $(CFLAGS) -c $&#60; -o $@
+</PRE>
+<P>
+in order to allow <SAMP>`VPATH'</SAMP> to work correctly.  When the target has
+multiple dependencies, using an explicit <SAMP>`\$(srcdir)'</SAMP> is the easiest
+way to make the rule work well.  For example, the target above for
+<TT>`foo.1'</TT> is best written as:
+<P>
+<PRE>
+foo.1 : foo.man sedscript
+        sed -e $(srcdir)/sedscript $(srcdir)/foo.man &#62; $@
+</PRE>
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_110.html">previous</A>, <A HREF="make_112.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

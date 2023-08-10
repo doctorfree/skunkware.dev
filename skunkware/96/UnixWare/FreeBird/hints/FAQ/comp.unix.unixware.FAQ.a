@@ -1,0 +1,905 @@
+Newsgroups: comp.unix.unixware.misc,comp.answers,news.answers
+Subject: UnixWare Frequently Asked Questions (Autoconfiguration)
+Followup-To: comp.unix.unixware.misc
+Expires: Wed, 15 May 1996 00:00:00 GMT
+Supersedes: <Dp4n4t.1FL@tamarix.demon.co.uk> 
+Summary: Answers to questions frequently asked about SCO's UnixWare product
+Approved: news-answers-request@MIT.EDU
+
+Archive-name: unix-faq/unixware/autoconfig
+Posting-Frequency: monthly
+Last-modified: April 14, 1996
+Version: 2.01
+
+UnixWare Frequently Asked Questions List (Autoconfiguration)
+
+For more information about the files which compose the total UnixWare
+FAQ, see the "FAQ Overview" file posted regularly on the Internet newsgroup
+comp.unix.unixware.misc.
+
+INTRODUCTION
+
+The purpose of this document is to give answer frequently asked questions
+on the hardware configuration, the new administration tools, and common
+tasks using the autoconfiguration feature in UnixWare 2. 
+
+This document may be obtained by anonymous ftp from the freebird
+archive at
+    ftp.abs.net:/unixware/freebird/hints/FAQ/comp.unix.unixware.FAQ.a
+    netlab1.usu.edu:/pub/mirror/freebird/hints/FAQ/comp.unix.unixware.FAQ.a
+    ftp.osiris.com:/pub/unixware/freebird/hints/FAQ/comp.unix.unixware.FAQ.a 
+
+Its maintainer is Rob Dinoff (rdinoff@novell.com).  Suggestions and
+contributions welcome.
+
+
+DISCLAIMER
+
+This file is freely copyable.  Many proper names of companies and software
+mentioned in these files are trademarks of their respective owners.  All
+views are those of the individual contributors and not of their employers.
+
+
+TABLE OF CONTENTS
+
+Section 1: Overview of Autoconfiguration
+
+        AO1) What is the Autoconfiguration feature?
+        A02) What does Autoconfiguration mean to me?
+        AO3) What are the new Administration tools provided as part
+             of autoconfiguration?
+        AO4) How do I invoke the DCU ?
+
+Section 2: Administration using the DCU
+
+    2.1 ISA Board Specific Administration
+
+        AI1) How do I Change the IRQ, IOADDRs, MEMADDRs, or DMA?
+        AI2) How do I Add an ISA board?
+        AI3) How do I Delete an ISA board?
+        AI4) How do I Add an internal modem?
+        AI5) How do I Add a dual serial board?
+        AI6) How do I Add a parallel port board?
+
+    2.2 General Administration Section
+
+        AG1) How do I Bind a driver to a specific CPU (MP systems only)?
+        AG2) How do I Change the UNIT parameter?
+        AG3) How do I Disable a board?
+        AG4) How do I Enable a previously disabled board?
+    
+    2.3 Special Case Administration Section
+
+        AS1) How do I Determine Board ID's?
+        AS2) How do I Determine resmgr keys?
+        AS3) How do I Change the Boot HBA ?
+        AS4) How do I Move a board?
+
+    Section 3. Trouble Shooting.
+
+        3.1 Trouble Shooting Problems during Installation.
+        3.2 Trouble Shooting Problems on an Installed System.
+
+Section 4. Acknowledgements.
+
+
+RELATED INFORMATION:
+
+For additional information on the autoconfiguration feature, see
+the following related documents:
+
+    o Installation Handbook.
+    o System Owner Handbook: Chapter 6.
+    o Device Driver Programming Guide: Chapter 3.
+    o Device Driver Reference Manual
+
+
+Section 1: Overview of Autoconfiguration
+
+Subject: AO1) What is the Autoconfiguration feature?
+
+The autoconfiguration feature in UnixWare 2 incorporates several
+new kernel modules, changes to device driver initialization,
+and introduces several new administration tools.  From an
+administrator's perspective, the primary impact of autoconfiguration
+is related to how configuration changes are made, and if and when
+kernel rebuilds are needed.
+
+In UnixWare 1.x, the configuration parameters for an expansion
+board are input by the user when installing the driver package
+and were stored in /etc/conf/sdevice.d/* files.  When the
+kernel was built using idbuild(1M), these configuration parameters
+were built into the resulting kernel.  If the administrator
+needed to change any of these parameters they had to edit these
+sdevice files, rebuild the kernel, and reboot the system.
+
+In UnixWare 2, on EISA, MCA and PCI systems, the configuration
+parameters are read from Non-Volatile RAM (NVRAM).  Only ISA
+cards still require the user to enter this information.  The
+/etc/conf/sdevice.d/* (see System(4)) files still accurately
+reflect the configuration parameters, but they are no longer
+used to configure the drivers.  The configuration parameters
+are stored in /stand/resmgr, a binary file used to initialize
+a new kernel module, the resource manager.  Drivers then query
+the resource manager for their configuration parameters.
+
+For EISA, MCA and PCI systems, hardware configuration changes
+are made using the Hardware Configuration Utility that came
+with the system and are then picked up automatically by UnixWare.
+For ISA cards, administrators change configuration parameters by
+changing the values within the resource manager.  The new
+administration tools discussed in a following section are used to
+make these changes, and then synchronize these changes with
+/stand/resmgr and the /etc/conf/sdevice.d/* files.  Rebuilding
+the kernel is rarely required.
+
+
+Subject: A02) What does Autoconfiguration mean to me?
+
+Autoconfiguration means different things to different people, to some
+it applies to every aspect of the hardware, main memory, display device,
+expansion boards, modems, etc.  In UnixWare 2.0, Autoconfiguration
+applies to bus expansion boards and the software that supports them.
+Let's clarify what we mean by "bus expansion boards and the software
+that supports them".
+
+Bus expansion boards are cards that plug into slots within your
+computer.  Examples include networking cards, SCSI host bus adapters
+and modem cards.  Expansion boards are designed to provide access to
+different kinds of "devices".  We use the term "devices" loosely; in
+the case of SCSI host bus adapters, devices are just that, hard disks,
+cd-roms, tape drives, etc.  In the case of networking and modem cards,
+"devices" refer to "the computer network" and "the telephone network"
+respectively.
+
+Hardware boards by themselves are useless without supporting software.
+The software modules supporting these boards are generally called
+"device drivers".  In order for the device driver to provide access to
+the expansion board, both the device driver and hardware must be
+"in-sync" with respect to the board's configuration parameters.  When we
+talk about "configuration parameters" we mean interrupt vector (IRQ),
+memory address range, I/O address range, direct memory access (DMA)
+channel, etc.
+
+Two important definitions:
+
+Autodetection: this is the ability to automatically determine information
+about the hardware, how much memory's installed, the bus type, disk
+capacity, presence of expansion boards, etc.  In the case of expansion
+boards, autodetection can range from simply identifying that a specific
+brand of ethernet card is installed (i.e XYZ Brand), or better yet,
+identifying the specific card installed (i.e. XYZ Ethernet 16), to the
+ability to glean some or possibly all configuration parameters relevant
+to the board's operation.
+
+Autoconfiguration: this is the ability to automatically configure the
+system so the hardware is accessible.  There are two parts to
+autoconfiguration, configuring the software and configuring the
+hardware.  The simplest case here would be to simply accept the
+configuration parameters from the user, check for conflicts and then "do
+whatever's required" with the information to produce a running system.
+Obviously this functionality falls far short of most people's
+expectation regarding autoconfiguration, although in some cases (ISA
+boards in an ISA bus) that is the best we are able to provide.  The next
+level of functionality would be to configure the software dynamically
+based on information gleaned during autodetection without asking the user
+for configuration parameters.  The ideal case would be to automatically
+change hardware settings and/or software configuration such that no
+action whatsoever from the user was required.
+
+For UnixWare 2.O, the Autoconfiguration Feature supports autodetecting
+the boards and their configuration parameters (if and when possible) and
+using these configuration parameters to autoconfigure the device
+drivers.  We do NOT currently support autoconfiguring the hardware
+itself.
+
+It would be nice if autoconfiguration in UnixWare 2.0 would address all
+aspects of hardware configuration, however it is not a panacea.  It is
+important that you understand what autoconfiguration will NOT provide.
+
+Autoconfiguration for UnixWare 2.0 does not provide the following:
+
+    o Automatic resolution of ISA expansion board configuration conflicts.
+  
+Most ISA boards are configured via dip switches and jumpers.  If you
+do not configure these boards correctly before they are installed, the
+only solution will be for you to re-configure the boards to remove any
+conflicts.  You will also have to enter the correct configuration
+parameters when prompted.  Autoconfiguration does provide functionality
+to help identify which boards and configuration parameters are conflicting,
+The DCU will allow you to change the software configuration parameters
+in the event wrong information was inadvertently input during package
+installation.
+
+When you invoke the DCU you will get a warning message about which
+boards and configuration parameters are conflicting, you can then go modify
+the parameters to the appropriate values.  See section 2.1 for more
+on modifying the IRQ, IOADDRs, MEMADDRs, or DMA.
+
+   o Configuring hardware attached to ports (i.e serial, parallel, PS/2)
+
+The DCU configures hardware controllers, not devices attached to them.
+The tools to configure these types of hardware devices should already be
+available.  For example, to configure the mouse use mouseadmin(1).
+
+   o Replacing one expansion board with another and expecting the system
+     to reboot into the same operational state.
+
+A simple example would be to replace your networking board.  Unless you
+replace your old board with the exact same board, or another board
+supported by the same driver, your networking will not be working when
+you reboot.  Any time you exchange boards, you will need to install the
+appropriate software to support the new board.  Even if the correct
+software was installed, other "network specific" software configuration
+is required.  Autoconfiguration does NOT provide the additional software
+configuration; the necessary tools are provided in the network package.
+
+   o For those expansion boards that support hardware configuration via
+     non-volatile RAM (NVRAM), UnixWare 2 does not assign configuration
+     parameters to boards by writing NVRAM.
+
+This functionality is already provided by the hardware vendors with their
+Hardware Configuration Utility.
+
+
+Subject: AO3) What are the new Administration tools provided as part
+              of autoconfiguration?
+
+    Several new administration tools were introduced in UnixWare 2
+    to support the Autoconfiguration feature.
+
+    o /sbin/dcu(1M): the Device Configuration Utility (DCU) is the
+      primary interface into the Autoconfiguration system.  The DCU
+      provides the ability to map hardware instances to device drivers,
+      detect parallel and serial ports, view or edit the current
+      configuration, and detect hardware conflicts that would
+      subsequently cause idbuild(1M) failures.  It also provides a way
+      to modify the configuration, should a board be added, removed or
+      configured.  In the case of EISA/MCA/PCI machines, most of the
+      configuration can be determined automatically.
+
+      However, the DCU is not intended to be the primary method for
+      configuration.  It is assumed that on these machines, the hardware
+      will be properly configured via the Hardware Configuration Utility
+      that is provided with the machine.  If a board needs to be
+      reconfigured, it will be necessary to rerun the Hardware Configuration
+      Utility and UnixWare 2, will attempt to automatically incorporate the
+      change.  Basically, UnixWare 2, will read information from NVRAM but
+      will not write information out to NVRAM.
+
+      In addition, the DCU is not intended as the mechanism for installing
+      drivers.  Drivers will continue to be provided as packages that
+      can be installed via the standard packaging utilities.
+   
+    o /sbin/resmgr(1M): the resmgr command provides a raw interface
+      into the resource manager kernel module.  It can be used to
+      make unrestricted changes to the in-core database.  If at all
+      possible, use the DCU to make configuration changes.  This tool
+      should be used cautiously; it provides unrestricted/un-validated
+      access to the resource manager's database.
+
+    o /etc/conf/bin/idconfupdate(1M): this command is primarily
+      used to synchronize the resource manager's in-core database with
+      /stand/resmgr and the /etc/conf/sdevice.d/* files.  The DCU
+      command automatically calls this to synchronize up everything unless
+      you opt to cancel your changes when you exit.  The resmgr command
+      does NOT synchronize anything.  If you make changes to the in-core
+      resource manager database, AND you want these changes to be
+      permanent, you need to call idconfupdate to synchronize up all the
+      files.
+
+      See the manual pages for a complete description of these commands.
+
+
+Subject: AO4) How do I invoke the DCU?
+
+
+As you use/read this document, many of the instructions start
+with "Invoke the DCU."  The DCU can be invoked several ways.
+During installation, "Invoking the DCU" is very specific, it
+can be invoked once and only once, if you miss your opportunity,
+the only alternative is to restart the installation.  During
+Installation, after you choose your keyboard type, you'll have
+the opportunity to install HBA floppies (if required) once you
+are done installing one or more HBA's, you will be given the choice
+of either continuing the installation, or "Enter the DCU", with the
+default being to continue.  To invoke the DCU, hit the <DOWN ARROW>
+key and then hit <RETURN> or <ENTER>.
+
+If you need to invoke DCU on a running system, there are three ways:
+
+   1.  From the Desktop, select Admin_tools, then open
+       Hardware_setup.
+
+   2.  From the Desktop, open an terminal window, su(1M) to root,
+       and then type dcu.
+
+   3.  Log in at the "Console Login:" prompt as root, and
+       type dcu.
+
+       Note: you have to be root to execute the DCU or know the root
+       password if using Hardware_setup.
+
+Section 2: Administration using the DCU
+
+This section is broken up into three parts:
+
+    o ISA Board Specific Administration
+
+    o General Administration
+
+    o Special Case Administration
+
+
+2.1 ISA Board Specific Administration
+
+Subject:  AI1) How do I Change the IRQ, IOADDRs, MEMADDRs, or DMA?
+
+This only applies to ISA boards. The entries for EISA, MCA
+and PCI are read-only, you need to use the Hardware
+Configuration utility that came with the system to make changes
+on those systems.
+
+   1.  Invoke the DCU.
+
+   2.  Select "Hardware Device Configuration" and hit <ENTER>.
+
+   3.  Move the cursor to the line for the entry you want
+       change.
+
+   4.  Mover the cursor to the field you want to change and
+       enter the new value.
+
+   5.  Hit F10 to exit form.
+
+   6.  Hit F10 again to return to main menu.
+
+   7.  Select "Apply Changes & Exit DCU"
+
+Subject: AI2) How do I Add an ISA board?
+
+   1.  If the driver supporting the board you want to add is
+       NOT installed, install it using pkgadd(1M).
+
+   2.  Invoke the DCU.
+
+   3.  Select "Software Device Drivers" and hit <ENTER>.
+
+   4.  Select the category of driver you want or "All" for a
+       list of all the drivers available.
+
+   5.  Page Up/Down to the driver that supports the new ISA board.
+
+   6.  Use the <SPACEBAR> to select the driver.
+
+   7.  Hit F5 to create a new instance.
+
+   8.  Enter all the correct configuration information for
+       the board.
+
+   9.  Hit F10 to create the new entry.
+
+  10.  Hit <ENTER> to return to the "Software Drivers" menu.
+
+  11.  Select "Return to the DCU Main Menu"
+
+  12.  Select "Apply Changes & Exit DCU"
+
+Subject: AI3) How do I Delete an ISA board?
+
+   1.  Invoke the DCU.
+
+   2.  Select "Hardware Device Configuration" and hit <ENTER>
+
+   3.  Move the cursor to the line for the entry you want to delete.
+
+   4.  Mover the cursor to the first field and change the "Y"
+       to "N".
+
+   5.  Hit F10 again to return to main menu.
+
+   6.  Select "Apply Changes & Exit DCU"
+
+Subject: AI4) How do I Add an internal modem?
+
+To add an internal modem, follow the instructions in the
+section "Add an ISA board" and create a new entry for the asyc
+driver (Communications Card Driver).
+
+
+Subject: AI5) How to I add a dual serial board?
+
+To add a dual serial board, follow the instructions in the 
+section "Add an ISA board" and create two new entries for the asyc driver.
+
+
+Subject: AI6) How do I Add a parallel port board?
+
+To add a  parallel port, follow the instructions in the section
+"Add an ISA board" and create a new entry for the mfpd driver.
+
+
+2.2 General Administration Section
+
+Subject: AG1)  How do I Bind a driver to a specific CPU (MP systems only)?
+
+   1.  Invoke the DCU.
+
+   2.  Select "Hardware Device Configuration" and hit <ENTER>
+
+   3.  Move the cursor to the line for the entry you want to
+       bind to a specific CPU.
+
+   4.  Hit F7 to edit the advanced parameters
+
+   5.  Change the BindCPU value to the CPU you want to bind
+       the driver to.
+
+   6.  Hit F10 to exit form.
+
+   7.  Hit F10 again to return to main menu.
+
+   8.  Select "Apply Changes & Exit DCU"
+
+
+Subject: AG2) How do I Change the UNIT parameter?
+
+   1.  Invoke the DCU.
+
+   2.  Select "Hardware Device Configuration" and hit <ENTER>
+
+   3.  Move the cursor to the line for the entry you want to change.
+
+   4.  Hit F7 to edit the advanced parameters.
+
+   5.  Change the  UNIT field to the value you want.
+
+   6.  Hit F10 to exit form.
+
+   7.  Hit F10 again to return to main menu.
+
+   8.  Select "Apply Changes & Exit DCU"
+
+
+Subject: AG3) How do I Disable a board?
+
+   1.  Invoke the DCU.
+
+   2.  Select "Hardware Device Configuration" and hit <ENTER>
+
+   3.  Move the cursor to the line for the entry you want to disable.
+
+   4.  If you plan to re-enable the board later, make note of
+       the current Device Name.
+
+   5.  Mover the cursor to the Device Name field and enter "unused".
+
+   6.  Hit F10 to exit form.
+
+   7.  Hit F10 again to return to main menu.
+
+   8.  Select "Apply Changes & Exit DCU"
+
+
+Subject: AG4) How do I Enable a previously disabled board?
+
+   1.  Invoke the DCU.
+
+   2.  Select "Hardware Device Configuration" and hit <ENTER>.
+
+   3.  Move the cursor to the line for the entry you want re-enable.
+
+   4.  Mover the cursor to the Device Name and enter the name
+       of the driver.  If needed, hit F2 for choices.
+
+   5.  Hit F10 to exit form.
+
+   6.  Hit F10 again to return to main menu.
+
+   7.  Select "Apply Changes & Exit DCU".
+
+
+2.3 Special Case Administration Section
+
+This section covers scenarios that should rarely be
+encountered.  From a hardware perspective, independent of
+UnixWare, changing boot HBA's is NOT guaranteed to work, but
+if you are willing to try, this might/should work.
+
+Just to be safe, you should save a copy of the current kernel
+and resmgr file before you start.
+
+    cp /stand/unix /stand/unix.good
+    cp /stand/resmgr /stand/resmgr.good
+
+If the following instructions do not work, you need to go back to the
+old board, or reinstall from scratch with the new board.   If
+you want to go back to the old board, restore your original
+board using the same configuration parameters, then from the
+interactive boot(1M) set RESMGR=resmgr.good and KERNEL=unix.good.
+
+If these instructions do work, it is important that you
+recreate your Emergency Recovery Diskette (emergency_disk(1M) or from
+the desktop) with the new configuration.
+
+
+Subject: AS1) How do I Determine Board ID's?
+
+Some of the instructions in the following sections require
+changing the BRDID parameter in the resource manager database.
+The new board id you will need is different depending on the
+bus type.
+
+       EISA: the board id is a 7 character string (e.g. "CPQ6100").
+
+       MCA: the board id is EXACTLY a 4-digit hex number of the form
+            "0x1234".  Use 0's to  pad to four digits if needed,
+            "0x0123" is correct, "0x123" is wrong.
+
+       PCI: the board id is an 8-digit hex number of the form
+            "0x12345678".  Do NOT pad a PCI board id with 0's.
+
+       ISA: these cards have no board id.
+
+It is not always easy to determine the board id for a given
+board.  In the case of EISA boards, the documentation that came
+with the board may or may not clearly indicate the board id.
+For MCA and PCI, the board id is something we have defined for
+UnixWare and it will not be clearly documented in the materials
+that came with the board.  A good place to start is
+the Drvmap(4) file for the driver that supports the new board.
+The Drvmap files are located in /etc/conf/drvmap.d/*.  If the
+new board is not listed in the Drvmap file, shutdown the
+system, insert the new board, but DO NOT remove the current
+board and DO NOT attach the boot device to the new board.   On
+an EISA or MCA system you will need to run the Hardware
+Configuration Utility.  Then reboot, login, and run /sbin/resmgr
+from  the shell.  The new board should be the last line and it
+should include the board id you need to complete the steps
+below.
+
+
+Subject: AS2) How do I Determine resmgr keys?
+
+Some of the steps below require knowing the resource manager key
+for a specific entry.  To determine the key you need, run the the
+resmgr(1M) command.  The key is the first column of the output.
+
+2 fd 1 4 2 6 3f0 3f7 - - 2 - - - - 1
+KEY=2
+
+Subject: AS3) How do I Change the Boot HBA?
+
+If you are replacing an ISA HBA with an ISA HBA:
+
+   1.  Make sure the new board is using the exact same
+       configuration parameters as the current board, or use the DCU
+       to update the resmgr entry for the current board to reflect
+       the settings of the new board.  If you use the DCU to update
+       the existing resmgr entry, you MUST do it before you shutdown
+       and swap boards.
+
+   2.  If the new HBA requires a different driver, make sure
+       the new driver is installed, or install it using pkgadd(1M).
+       Then:
+
+       o If you had to use pkgadd to install the new driver, a new default
+         entry may have been added to the resource manager.  This entry
+         must be removed before you continue.  Run resmgr to check if a
+         default entry was added (it will be the last line of output).  If
+         so, delete this entry using "resmgr -r -k new_key".
+
+       o Execute "resmgr -k key -p MODNAME -v modname"
+         where key is the key corresponding to the current ISA entry
+         and modname is the driver that supports the new board.
+
+       o Run /etc/conf/bin/idconfupdate to synchronize up this
+         change with /stand/resmgr and the sdevice file.
+
+       o Add $static to /etc/conf/sdevice.d/modname and
+         change the second field from "N" to "Y" if needed.
+
+       o Execute /etc/conf/bin/idbuild -B to rebuild the kernel.
+
+   3.  Shutdown your system.
+
+   4.  Swap the boards.
+
+   5.  Reboot the system.
+
+If you are replacing a non-ISA (EISA or PCI) with an ISA HBA:
+
+   1.  Update the parameters of the current resmgr entry for the
+       non-ISA board to match the new ISA board:
+
+       resmgr -k key -p IRQ -v irq
+
+       resmgr -k key -p IOADDR -v "sioaddr eioaddr"
+       resmgr -k key -p MEMADDR -v "smemaddr ememaddr"
+       resmgr -k key -p DMA -v dma
+
+       Where:  key is the key for the current non-ISA board,
+               irq is the irq for the ISA board,
+               sioaadr and eioaddr are the start i/o address and
+               end i/o address for the ISA board,
+               smemaddr and ememaddr are the start memory address and
+               end memory address for the ISA board,
+               dma is the DMA channel for the ISA board.
+
+   2.  Execute "resmgr -k key -p BRDBUSTYPE -v 1" to change
+       the bus type, where key is the key corresponding to the
+       current non-ISA entry.
+
+   3.  Use the resmgr command to delete some non-ISA specific
+       params:
+
+       resmgr -k key -p BRDID -v "" resmgr -k key -p SLOT -v ""
+       resmgr -k key -p CA_DEVCONFIG,n -v ""
+
+   4.  If the new board is supported by the same driver,
+       execute:  resmgr -k key -p ITYPE -v 1.
+
+   5.  Run /etc/conf/bin/idconfupdate to synchronize up these
+       changes with /stand/resmgr and the sdevice files.
+
+   6.  If  the new  HBA requires a different driver, make sure
+       the new driver is installed, or install it using pkgadd(1M).
+       Then:
+
+       o If you had to use pkgadd to install the new driver, a new
+         default entry may have been added to the resource manager.
+         This entry must be removed before you continue.  Run resmgr(1M)
+         to check if a default entry was added (it will be the last line
+         of output).  If so, delete this entry using 
+         resmgr -r -k new_key
+
+       o Execute "resmgr -k key -p MODNAME -v modname"
+         where key is the key corresponding to the current non-ISA
+         entry and modname is the driver that supports the new board.
+
+       o Add $static to /etc/conf/sdevice.d/modname and
+         change the second field from "N" to "Y" if needed.
+
+       o Execute "resmgr -k key -p ITYPE -v itype" where
+         itype is the fifth field of the last line in the sdevice file.
+
+       o Execute /etc/conf/bin/idbuild -B to rebuild your kernel.
+
+   7.  Shutdown the system.
+
+   8.  Remove the non-ISA board.
+
+   9.  Run the Hardware Configuration Utility if needed.
+
+  10.  Insert the new ISA board and attach SCSI devices.
+
+  11.  Reboot your system.
+
+If you are replacing an ISA HBA with an non-ISA HBA (EISA or PCI):
+
+   1.  Shutdown your system.
+
+   2.  Install the non-ISA board, but do NOT remove the current board
+       and do NOT move your boot disk.
+
+       Note: if the ISA boot controller is controlling the floppy,
+       you need to disable the floppy controller on the non-ISA board.
+       This may require changing a jumper or dip switch,
+       or it may require the Hardware Configuration Utility.
+
+   3.  Run the Hardware Configuration Utility if needed, to 
+       configure your new board.
+
+       Note: the ROM BIOS address of the new boot controller must be
+       set to a value that does not conflict with any HBAs in the
+       system, AND must be less than any secondary HBA controllers that
+       exist in the machine.  Otherwise, when the original boot
+       controller is removed, the BIOS will try to boot from the
+       secondary controller, instead of the new boot controller.
+
+   4.  Reboot the system.
+
+   5.  Login and execute the following:
+
+       resmgr -k key -p BOOTHBA -v 1 resmgr -k key -p UNIT -v 0
+       resmgr -r -k different_key
+
+       Where key is the key corresponding to the new non-ISA entry and
+       different_key is the key corresponding to the current ISA entry.
+
+   6.  Run /etc/conf/bin/idconfupdate to synchronize up these
+       changes with /stand/resmgr and the sdevice files.
+
+   7.  If the new HBA requires a different driver, make sure the
+       new driver is installed, or install it using pkgadd(1M).  Then:
+
+       o If you had to use pkgadd to install the new driver, a new default
+         entry may have been added to the resource manager.  This entry
+         must be removed before you continue.  Run resmgr to check if a
+         default entry was added (it will be the last line of output).
+         If so, delete this entry using "resmgr -r -k new key".
+
+       o Execute "resmgr -k key -p MODNAME -v modname"
+         where key is the key corresponding to the new non-ISA entry
+         and modname is the driver that supports the new board.
+
+       o Add $static to /etc/conf/sdevice.d/modname and change the
+         second field from "N" to "Y" if needed.
+
+       o Execute /etc/conf/bin/idbuild -B to rebuild your kernel.
+
+   8.  Shutdown your system again.
+
+   9.  Remove the old ISA HBA.
+
+  10.  Insert the SCSI cable into the new board.
+
+       If you disabled the floppy controller on the new board in
+       step 2 above, you need to re-enable it now.
+
+  11.  Reboot the system.
+
+For the following cases, use these instructions:
+
+     EISA <=> EISA 
+     EISA <=> PCI 
+     PCI <=> PCI 
+     PCI <=> MCA 
+     MCA <=> MCA
+
+   1.  Execute "resmgr -k key -p BRDID -v brdid" where key is
+       the key of the current HBA, and brdid is the board id for the
+       new board.
+
+   2.  If the new  board is a different bus type, execute
+       "resmgr -k  key -p BRDBUSTYPE -v bustype" where bustype is  a
+       numeric value representing the bus type of the new board.
+
+       EISA   2 
+       PCI    4 
+       MCA    32
+
+   3.  Run /etc/conf/bin/idconfupdate to synchronize up this
+       change with /stand/resmgr and the sdevice files.
+
+   4.  If the new HBA requires a different driver, make sure the
+       new driver is installed, or install it using pkgadd.  Then:
+
+       o If you had to use pkgadd to install the new driver,
+         a new default entry may have been added to the resource manager.
+         This entry must be removed before you continue.  Run resmgr to
+         check if a default entry was added (it will be the last line of
+         output).  If so, delete this entry using resmgr -r -k new key.
+
+       o Execute "resmgr -k key -p MODNAME -v modname"
+         where key is the key corresponding to the current ISA entry
+         and modname is the driver that supports the new board.
+
+       o Run /etc/conf/bin/idconfupdate to sync up this
+         change with /stand/resmgr and the sdevice file.
+
+       o Add $static to /etc/conf/sdevice.d/modname and
+         change the second field from "N" to "Y" if needed.
+
+       o Execute /etc/conf/bin/idbuild -B to rebuild your kernel.
+
+   5.  Shutdown the system.
+
+   6.  Swap the boards (use same slot to be safe).
+
+   7.  Reboot the system.
+
+
+Subject: AS4) How do I Move a board?
+
+   1.  Shutdown the system.
+
+   2.  Move the board.
+
+   3.  Reboot.
+
+
+Section 3. Trouble Shooting.
+
+3.1 Trouble Shooting Problems during Installation
+
+There are many different types of problems you could encounter
+during  installation.  Most of these problems are covered in the
+Trouble Shooting section of the Installation Handbook and you
+are directed there for solutions to those problems.
+
+One problem not covered in the Installation Handbook involves
+problems loading HBA drivers.  On some platforms, attempting to
+load a driver for a board that is not installed on your system
+can mess-up your system and cause the installation  to fail.
+If this happens, you have to disable loading of that particular
+driver during installation.
+
+   1.  Invoke the DCU.
+
+   2.  Select "Software Device Drivers".
+
+   3.  Select "Host Bus Adapters".
+
+   4.  Page Up/Down until you find the driver that is causing
+       you problems.  If you are not sure which driver is causing the
+       trouble, try switching vt's with <alt><sysreq> H and look for
+       the driver name in the error messages.  To switch back to the
+       desktop <alt><sysreq> <F1>
+
+   5.  De-select the driver using the <SPACEBAR>
+
+   6.  Hit <ENTER> to exit menu.
+
+   7.  Select "Return to DCU Main Menu".
+
+   8.  Select "Apply Changes & Exit DCU".
+
+
+3.2 Trouble Shooting Problems on an Installed System
+
+Problems are more likely to be encountered when boards are
+added, rather than when they are removed.  The exception to
+this is the removal of an ISA board.  If you remove an ISA
+board, you must use the DCU to free-up the configuration
+parameters for the board.  (See the section "Delete an ISA
+Board" earlier in this document.)
+
+The first step to trouble shooting is to understand the true
+nature of the problem.  Here are some questions to ask:
+
+   1.  What type of board are you having trouble with ?
+
+       ISA cards must be added using the DCU and the configuration
+       parameters you specify must match the settings on the board.
+
+       EISA, MCA and PCI boards should automatically be detected by
+       UnixWare.  To verify this, run the DCU, select "Hardware Device
+       Configuration", and verify the new board was found.
+
+       If a new entry is not there, run the hardware configuration
+       floppy that came with the system to verify it can find the new
+       board.  If it detects the board, save the configuration
+       information, and reboot the system.  If it fails to find the
+       board also, try pulling the board, and reinserting it and
+       rerunning the Hardware Configuration Utility again.
+
+   2.  Was the driver correctly assigned to the board?
+
+       1.  Invoke the DCU.
+
+       2.  Select "Hardware Device Configuration".
+
+       3.  Check the "Device Name" field for the new entry.  If the
+           entry  is UNKNOWN, then no driver was assigned to the board.
+
+       4.  If the entry is UNKNOWN or incorrect, move the cursor to
+           the Device Name field and hit F2 for a list of drivers to
+           choose from.
+
+       5.  Select the driver for the new board and hit <RETURN>.
+
+       6.  Hit F10 to return to the main menu.
+
+       7.  Select "Apply Changes & Exit DCU"
+
+       8.  Reboot your system.
+
+       One reason a driver might not be correctly  assigned to a board
+       is if the driver's drvmap(4) file does not contain the board id of
+       the new board.  See section 2.3.1 for more on board ids.
+
+   3.  Is the driver that supports the board installed?
+
+       Run pkginfo(1) to list the packages that are installed on the
+       system and verify the required driver is installed.
+
+
+Section 4. Acknowledgements.
+
+I would like to thank Les Temple for writing this FAQ.  Also
+Andrew Josey, Dave Ballman, Dean Flamberg and Evan Leibovitch for
+providing comments and suggestions.
+
+
+

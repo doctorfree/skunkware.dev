@@ -1,0 +1,129 @@
+
+
+
+     mmmmaaaalllllllloooocccc((((3333JJJJ))))                UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV                mmmmaaaalllllllloooocccc((((3333JJJJ))))
+
+
+
+     NNNNAAAAMMMMEEEE
+          malloc - debugging memory allocation routines
+
+     SSSSYYYYNNNNOOOOPPPPSSSSIIIISSSS
+          #include <stdlib.h>
+9          void *malloc(size_t size);
+9          void *realloc(void *ptr, size_t size);
+9          void *calloc(size_t size, size_t nel);
+9          void free(void);
+9          void *check_malloc(void *ptr);
+
+     DDDDEEEESSSSCCCCRRRRIIIIPPPPTTTTIIIIOOOONNNN
+          These routines are replacements for the standard memory
+          allocation routines for use in debugging an application that
+          corrupts its memory arena.
+
+          Applications corrupt the memory arena by writing to or
+          reading from memory that has not been allocated, or by
+          scribbling on the internal malloc(3C) data structures that
+          precede and/or follow each allocated buffer.  Typically this
+          corruption occurs before the application unexpectedly
+          terminates. Tracking and locating the errant access at the
+          time of corruption facilitates fixing the application.
+          These routines are designed to return pointers to blocks
+          that are aligned to cause the generation of a fault when
+          accessing a memory location that is beyond the allocated
+          block.  They are based on the virtual memory sub-system's
+          denying  a process access to unmapped pages.
+
+          Memory arena corruption can occur at either end of an
+          allocated block.  The page fault on access behavior can only
+          be enforced towards one end within a process at any one
+          time. By default, these routines will fault on access of
+          data beyond the end of the allocated block. This is the more
+          typical cause of malloc arena corruption. Fault generation
+          can be changed to occur upon access of data in front of the
+          allocated block by setting the DEBUG_MALLOC environment
+          variable, as described below.
+
+          Another example of memory corruption occurs when accessing
+          memory that has already been free'd. This version of free
+          makes freed memory inaccessible.  All freed memory is
+          released when the system can not allocate any new memory
+          resources.  Accessing data within such a block after it has
+          been freed but before it has been made accessible again will
+          generate a fault.  The default behavior can be modified to
+          immediately make freed pages available. See the DEBUG_MALLOC
+          description below.
+
+9
+
+
+     Page 1                                          (printed 7/15/96)
+
+
+
+
+
+
+     mmmmaaaalllllllloooocccc((((3333JJJJ))))                UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV                mmmmaaaalllllllloooocccc((((3333JJJJ))))
+
+
+
+          check_malloc examines the memory block pointed to by _p_t_r and
+          on detection of corruption, prints to standard error the
+          address of the corrupted block and corruption address.  If
+          _p_t_r is NULL, _t_h_e _e_n_t_i_r_e _a_l_l_o_c_a_t_e_d _m_e_m_o_r_y _a_r_e_n_a _i_s _c_h_e_c_k_e_d.
+          _c_h_e_c_k__m_a_l_l_o_c  returns 0 if the block pointed to by _p_t_r, or
+          in the case of NULL _t_h_e _e_n_t_i_r_e _a_r_e_n_a, _i_s _i_n_t_a_c_t.  _O_t_h_e_r_w_i_s_e
+          _i_t _r_e_t_u_r_n_s _a _c_o_r_r_u_p_t_i_o_n _a_d_d_r_e_s_s. _I_f _p_t_r _i_s _N_U_L_L _a_n_d _t_h_e_r_e
+          _a_r_e _m_u_l_t_i_p_l_e _c_o_r_r_u_p_t_e_d _b_l_o_c_k_s, _c_h_e_c_k__m_a_l_l_o_c _r_e_t_u_r_n_s _a
+          _c_o_r_r_u_p_t_e_d _a_d_d_r_e_s_s. _T_h_i_s _f_u_n_c_t_i_o_n _i_s _u_s_e_f_u_l _i_n _d_e_t_e_r_m_i_n_i_n_g _i_f
+          _t_h_e _m_e_m_o_r_y _a_r_e_n_a _h_a_s _b_e_e_n _c_o_r_r_u_p_t_e_d _a_t _t_h_e _n_o_n-_f_a_u_l_t
+          _g_e_n_e_r_a_t_i_n_g _e_n_d.  _T_h_e _e_n_v_i_r_o_n_m_e_n_t _v_a_r_i_a_b_l_e _D_E_B_U_G__M_A_L_L_O_C _c_a_n
+          _t_h_e_n _b_e _r_e_s_e_t _t_o _f_a_u_l_t _o_n _a_c_c_e_s_s _o_f _t_h_e _r_e_v_e_r_s_e _e_n_d, _a_n_d _t_h_e
+          _f_a_u_l_t _g_e_n_e_r_a_t_e_d _b_y _r_u_n_n_i_n_g _t_h_e _a_p_p_l_i_c_a_t_i_o_n _a_g_a_i_n.
+
+          f(CWdebug(1) _s_h_o_u_l_d _b_e _u_s_e_d _i_n _c_o_n_j_u_n_c_t_i_o_n _w_i_t_h _t_h_e_s_e
+          _r_o_u_t_i_n_e_s _t_o _f_a_c_i_l_i_t_a_t_e _t_r_a_c_k_i_n_g _d_o_w_n _t_h_e _i_n_s_t_r_u_c_t_i_o_n _t_h_a_t
+          _a_c_c_e_s_s_e_d _u_n_a_v_a_i_l_a_b_l_e _m_e_m_o_r_y.  _S_e_t_t_i_n_g _D_E_B_U_G__M_A_L_L_O_C to show
+          the information from any of the allocation routines includes
+          the return address of the function that is calling the
+          memory routines.  Using this information with debug makes it
+          easier to isolate memory corruption.
+
+          Control over the amount of debugging information presented
+          is provided by setting and exporting the environment
+          variable DEBUG_MALLOC.  The supported options are: M - trace
+          return values from malloc R - trace entry and return values
+          from realloc C - trace entry and return values from calloc F
+          - trace entry to free H - return freed blocks to the memory
+          pool immediately X - provide additional debugging/tracing
+          information B - allocation routines will fault on access of
+          data beyond the block (default) T - allocation routines will
+          fault on access of data before the beginning of a block N -
+          fill allocated space with a non-zero bit pattern
+
+          If both B and T are specified, B will be used.
+
+     DDDDIIIIAAAAGGGGNNNNOOOOSSSSTTTTIIIICCCCSSSS
+          The allocation routines return NULL if the allocation can
+          not be satisfied.
+
+     SSSSEEEEEEEE AAAALLLLSSSSOOOO
+          mmap(2), munmap(2), mprotect(2), malloc(3C)
+
+
+
+
+
+
+
+
+
+
+
+
+
+     Page 2                                          (printed 7/15/96)
+
+
+

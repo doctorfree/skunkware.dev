@@ -1,0 +1,266 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Function Attributes</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_78.html">previous</A>, <A HREF="usegcc_80.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX325"></A>
+<A NAME="IDX326"></A>
+<A NAME="IDX327"></A>
+<A NAME="IDX328"></A>
+<A NAME="IDX329"></A>
+<A NAME="IDX330"></A>
+<A NAME="IDX331"></A>
+<A NAME="IDX332"></A>
+<A NAME="IDX333"></A>
+<A NAME="IDX334"></A>
+<A NAME="IDX335"></A>
+<H2><A NAME="SEC82" HREF="usegcc_toc.html#TOC82">Declaring Attributes of Functions</A></H2>
+<P>
+In GNU C, you declare certain things about functions called in your program
+which help the compiler optimize function calls and check your code more
+carefully.
+<P>
+The keyword <CODE>__attribute__</CODE> allows you to specify special
+attributes when making a declaration.  This keyword is followed by an
+attribute specification inside double parentheses.  Eight attributes,
+<CODE>noreturn</CODE>, <CODE>const</CODE>, <CODE>format</CODE>, <CODE>section</CODE>,
+<CODE>constructor</CODE>, <CODE>destructor</CODE>, <CODE>unused</CODE> and <CODE>weak</CODE> are
+currently defined for functions.  Other attributes, including
+<CODE>section</CODE> are supported for variables declarations (see section <A HREF="usegcc_86.html#SEC89">Specifying Attributes of Variables</A>) and for types (see section <A HREF="usegcc_87.html#SEC90">Specifying Attributes of Types</A>).
+<P>
+You may also specify attributes with <SAMP>`__'</SAMP> preceding and following
+each keyword.  This allows you to use them in header files without
+being concerned about a possible macro of the same name.  For example,
+you may use <CODE>__noreturn__</CODE> instead of <CODE>noreturn</CODE>.
+<P>
+<A NAME="IDX336"></A>
+<DL COMPACT>
+<DT><CODE>noreturn</CODE>
+<DD>A few standard library functions, such as <CODE>abort</CODE> and <CODE>exit</CODE>,
+cannot return.  GNU CC knows this automatically.  Some programs define
+their own functions that never return.  You can declare them
+<CODE>noreturn</CODE> to tell the compiler this fact.  For example,
+
+<PRE>
+void fatal () __attribute__ ((noreturn));
+
+void
+fatal (...)
+{
+  ... /* Print error message. */ ...
+  exit (1);
+}
+</PRE>
+
+The <CODE>noreturn</CODE> keyword tells the compiler to assume that
+<CODE>fatal</CODE> cannot return.  It can then optimize without regard to what
+would happen if <CODE>fatal</CODE> ever did return.  This makes slightly
+better code.  More importantly, it helps avoid spurious warnings of
+uninitialized variables.
+
+Do not assume that registers saved by the calling function are
+restored before calling the <CODE>noreturn</CODE> function.
+
+It does not make sense for a <CODE>noreturn</CODE> function to have a return
+type other than <CODE>void</CODE>.
+
+The attribute <CODE>noreturn</CODE> is not implemented in GNU C versions
+earlier than 2.5.  An alternative way to declare that a function does
+not return, which works in the current version and in some older
+versions, is as follows:
+
+<PRE>
+typedef void voidfn ();
+
+volatile voidfn fatal;
+</PRE>
+
+<A NAME="IDX337"></A>
+<DT><CODE>const</CODE>
+<DD>Many functions do not examine any values except their arguments, and
+have no effects except the return value.  Such a function can be subject
+to common subexpression elimination and loop optimization just as an
+arithmetic operator would be.  These functions should be declared
+with the attribute <CODE>const</CODE>.  For example,
+
+<PRE>
+int square (int) __attribute__ ((const));
+</PRE>
+
+says that the hypothetical function <CODE>square</CODE> is safe to call
+fewer times than the program says.
+
+The attribute <CODE>const</CODE> is not implemented in GNU C versions earlier
+than 2.5.  An alternative way to declare that a function has no side
+effects, which works in the current version and in some older versions,
+is as follows:
+
+<PRE>
+typedef int intfn ();
+extern const intfn square;
+</PRE>
+
+This approach does not work in GNU C++ from 2.6.0 on, since the language
+specifies that the <SAMP>`const'</SAMP> must be attached to the return value.
+
+<A NAME="IDX338"></A>
+Note that a function that has pointer arguments and examines the data
+pointed to must <EM>not</EM> be declared <CODE>const</CODE>.  Likewise, a
+function that calls a non-<CODE>const</CODE> function usually must not be
+<CODE>const</CODE>.  It does not make sense for a <CODE>const</CODE> function to
+return <CODE>void</CODE>.
+
+<A NAME="IDX339"></A>
+<DT><CODE>format (<VAR>archetype</VAR>, <VAR>string-index</VAR>, <VAR>first-to-check</VAR>)</CODE>
+<DD>The <CODE>format</CODE> attribute specifies that a function takes <CODE>printf</CODE>
+or <CODE>scanf</CODE> style arguments which should be type-checked against a
+format string.  For example, the declaration:
+
+<PRE>
+extern int
+my_printf (void *my_object, const char *my_format,...)
+      __attribute__ ((format (printf, 2, 3)));
+</PRE>
+
+causes the compiler to check the arguments in calls to <CODE>my_printf</CODE>
+for consistency with the <CODE>printf</CODE> style format string argument
+<CODE>my_format</CODE>.
+
+The parameter <VAR>archetype</VAR> determines how the format string is
+interpreted, and should be either <CODE>printf</CODE> or <CODE>scanf</CODE>.  The
+parameter <VAR>string-index</VAR> specifies which argument is the format
+string argument (starting from 1), while <VAR>first-to-check</VAR> is the
+number of the first argument to check against the format string.  For
+functions where the arguments are not available to be checked (such as
+<CODE>vprintf</CODE>), specify the third parameter as zero.  In this case the
+compiler only checks the format string for consistency.
+
+In the example above, the format string (<CODE>my_format</CODE>) is the second
+argument of the function <CODE>my_print</CODE>, and the arguments to check
+start with the third argument, so the correct parameters for the format
+attribute are 2 and 3.
+
+The <CODE>format</CODE> attribute allows you to identify your own functions
+which take format strings as arguments, so that GNU CC can check the
+calls to these functions for errors.  The compiler always checks formats
+for the ANSI library functions <CODE>printf</CODE>, <CODE>fprintf</CODE>,
+<CODE>sprintf</CODE>, <CODE>scanf</CODE>, <CODE>fscanf</CODE>, <CODE>sscanf</CODE>,
+<CODE>vprintf</CODE>, <CODE>vfprintf</CODE> and <CODE>vsprintf</CODE> whenever such
+warnings are requested (using <SAMP>`-Wformat'</SAMP>), so there is no need to
+modify the header file <TT>`stdio.h'</TT>.
+
+<A NAME="IDX340"></A>
+<DT><CODE>section ("section-name")</CODE>
+<DD>Normally, the compiler places the code it generates in the <CODE>text</CODE> section.
+Sometimes, however, you need additional sections, or you need certain
+particular functions to appear in special sections.  The <CODE>section</CODE>
+attribute specifies that a function lives in a particular section.
+For example, the declaration:
+
+<PRE>
+extern void foobar (void) __attribute__
+                     ((section ("bar")));
+</PRE>
+
+puts the function <CODE>foobar</CODE> in the <CODE>bar</CODE> section.
+
+Some file formats do not support arbitrary sections so the <CODE>section</CODE>
+attribute is not available on all platforms.
+If you need to map the entire contents of a module to a particular
+section, consider using the facilities of the linker instead.
+
+<A NAME="IDX342"></A>
+<A NAME="IDX341"></A>
+<DT><CODE>constructor</CODE>
+<DD><DT><CODE>destructor</CODE>
+<DD>The <CODE>constructor</CODE> attribute causes the function to be called
+automatically before execution enters <CODE>main ()</CODE>.  Similarly, the
+<CODE>destructor</CODE> attribute causes the function to be called
+automatically after <CODE>main ()</CODE> has completed or <CODE>exit ()</CODE> has
+been called.  Functions with these attributes are useful for
+initializing data that will be used implicitly during the execution of
+the program.
+
+These attributes are not currently implemented for Objective C.
+
+<DT><CODE>unused</CODE>
+<DD>This attribute, attached to a function, means that the function is meant
+to be possibly unused.  GNU CC will not produce a warning for this
+function.
+
+<A NAME="IDX343"></A>
+<DT><CODE>weak</CODE>
+<DD>The <CODE>weak</CODE> attribute causes the declaration to be emitted as a weak
+symbol rather than a global.  This is primarily useful in defining
+library functions which can be overridden in user code, though it can
+also be used with non-function declarations.  Weak symbols are supported
+for ELF targets, and also for a.out targets when using the GNU assembler
+and linker.
+
+<A NAME="IDX344"></A>
+<DT><CODE>alias ("target")</CODE>
+<DD>The <CODE>alias</CODE> attribute causes the declaration to be emitted as an
+alias for another symbol, which must be specified.  For instance,
+
+<PRE>
+void __f () { /* do something */; }
+void f () __attribute__ ((weak, alias ("__f")));
+</PRE>
+
+declares <SAMP>`f'</SAMP> to be a weak alias for <SAMP>`__f'</SAMP>.  In C++, the
+mangled name for the target must be used.
+
+<A NAME="IDX345"></A>
+<DT><CODE>regparm (<VAR>number</VAR>)</CODE>
+<DD>On the Intel 386, the <CODE>regparm</CODE> attribute causes the compiler to
+pass up to <VAR>number</VAR> integer arguments in registers <VAR>EAX</VAR>,
+<VAR>EDX</VAR>, and <VAR>ECX</VAR> instead of on the stack.  Functions that take a
+variable number of arguments will continue to be passed all of their
+arguments on the stack.
+
+<A NAME="IDX346"></A>
+<DT><CODE>stdcall</CODE>
+<DD>On the Intel 386, the <CODE>stdcall</CODE> attribute causes the compiler to
+assume that the called function will pop off the stack space used to
+pass arguments, unless it takes a variable number of arguments.
+
+<A NAME="IDX347"></A>
+<DT><CODE>cdecl</CODE>
+<DD>On the Intel 386, the <CODE>cdecl</CODE> attribute causes the compiler to
+assume that the called function will pop off the stack space used to
+pass arguments, unless it takes a variable number of arguments.  This is
+useful to override the effects of the <SAMP>`-mrtd'</SAMP> switch.
+</DL>
+<P>
+You can specify multiple attributes in a declaration by separating them
+by commas within the double parentheses or by immediately following an
+attribute declaration with another attribute declaration.
+<A NAME="IDX348"></A>
+<A NAME="IDX349"></A>
+<P>
+Some people object to the <CODE>__attribute__</CODE> feature, suggesting that ANSI C's
+<CODE>#pragma</CODE> should be used instead.  There are two reasons for not
+doing this.
+<P>
+<OL>
+<LI>
+It is impossible to generate <CODE>#pragma</CODE> commands from a macro.
+
+<LI>
+There is no telling what the same <CODE>#pragma</CODE> might mean in another
+compiler.
+</OL>
+<P>
+These two reasons apply to almost any application that might be proposed
+for <CODE>#pragma</CODE>.  It is basically a mistake to use <CODE>#pragma</CODE> for
+<EM>anything</EM>.
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_78.html">previous</A>, <A HREF="usegcc_80.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

@@ -1,0 +1,59 @@
+Setting up a Jail or chroot'd  environment
+-------------------------------------------
+
+If you've ever read Cheswick and Bellovin, or the TIS Firewall
+Toolkit docs, then the concept of a jail will be familiar. This
+is an environment where you can contain visitors, and also contain
+software that may not have been thoroughly vetted for potential
+security holes. 
+
+This is basically a chroot'd environment. This directory contains
+a chroot'd environment in which to run wuftpd and CERN httpd
+- suitable for a firewall. This archive includes wuftpd-2.4
+CERN 3.0 httpd, and perl5.
+
+This version for UnixWare 2.02, for use with other versions
+just change the copies of the libraries (libc.so.1 etc).
+
+NOTE: IT IS ASSUMED THAT YOU ARE AN EXPERIENCED SYSTEM ADMINISTRATOR.
+DO NOT ATTEMPT TO INSTALL THIS SOFTWARE IF YOU ARE UNSURE.
+
+This allows you to invoke wuftpd in a chroot'd environment
+prior to it chroot'ing itself further - for PARANOID Sites!
+This also allows you to run the CERN httpd in a chroot'd environment.
+
+The chroot'd environment should be placed on a filesystem
+mounted with nosuid, and the ${chrootdir}/home/ftp/dev 
+directory should be on another seperate filesystem
+mounted read-only.
+
+
+The CERN httpd is ran as a standalone daemon (mainly for
+performance reasons) - an rc2.d script is provided which
+invokes /sbin/chroot and then  httpd .
+
+The ftpd is invoked using the netacl wrappers from the TIS Firewall
+Toolkit  ( see ftp.ukb.novell.com:/pub/mailserver/internet/fwtk
+- sample-binaries - those are compiled for S/key authentication )
+
+
+/etc/inet/inetd.conf contains:
+
+ftp     stream  tcp     nowait  root    /usr/local/etc/netacl   in.ftpd 
+
+
+/usr/local/etc/netperm-table contains sample rules to 
+allow certain hosts in for the real ftp and the rest get
+wuftpd running chroot'd .
+
+netacl-in.ftpd: permit-hosts mytrustedhost -exec /usr/sbin/in.ftpd
+netacl-in.ftpd: permit-hosts * -chroot /lfs/data1/chrootdir  -exec /opt/bin/ftpd -o -L -l    
+
+home/ftp is where the chroot'd wuftpd runs
+home/www is where the www documents live
+opt/lib/httpd is the httpd configuration
+opt/lib/ftpd is the ftpd configuration
+
+You'll need to edit various files in the config directories
+to localise them opt/lib/ftpd/motd , opt/lib/ftpd/ftpaccess
+opt/lib/httpd/config/httpd.conf

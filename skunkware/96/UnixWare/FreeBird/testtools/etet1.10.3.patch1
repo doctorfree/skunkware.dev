@@ -1,0 +1,393 @@
+Subject: ETET1.10.3 Patch #1
+Summary: This is an official patch for etet 1.10.3. Please apply it.
+Sender: andrew@novell.co.uk (ETET Coordinator)
+Organization: ETET Development group.
+
+
+part 1 of a 1 part patch set.
+
+This fixes the following bug reports against ETET1.10.3 , this is 
+a bug fix patch only.
+
+
++ reference 1.10.3.1  class bug
+
+Synopsis: A call to setpgid(0,0) when TET_EXTENDED was set to true prevents
+keyboard input.
+
+Resolution: Remove call to setpgid(0,0), and change associated
+termination code no longer to send kill (-cpid, signal).
+
+
+
++ reference 1.10.3.3 class bug
+
+Synopsis: journal dir appears garbled. In journal.c, function get_jnl_dir 
+returns a pointer to a local string (full_name) which is out of 
+scope on function exit.
+
+Resolution : 
+Make full_name "static" in get_jnl_dir (journal.c).
+
+
++ reference 1.10.3.4 class bug
+
+Synopsis:  In tcc.c the following code is in place...
+    
+        /*  locking defaults to TET1.10 compatible unless TET_LOCK is
+         *  is set to FALSE or TET_EXTENDED is set to True
+         */
+    
+        tet_lock_set = TRUE;
+    /*-*/
+        tet_lock_p = get_tetenv("TET_LOCK");
+        if ( (tet_lock_p != NULL) && (toupper(*tet_lock_p) == 'F') )
+            tet_lock_set = FALSE;
+    
+        if (etet_ext_set == TRUE)
+            tet_lock_set = FALSE;
+
+    I have a couple of problems with this - once extended tet is set,
+    you can't even explicitly set locking.
+
+    I don't see the reason for it either.  Can you tell me the rationale
+    for doing this?
+
+Resolution: remove explicit setting of  tet_lock_set to FALSE in
+TET_EXTENDED mode
+
+Synopsis:  The  code for resume-restart has a problem. If
+no codes have been selected and a resume or rerun option is passed,
+tcc gets a seg fault.  The diff follows ...
+
+===================================================================
+RCS file: RCS/again.c,v
+retrieving revision 1.1
+retrieving revision 1.2
+diff -wc -r1.1 -r1.2
+*** 1.1	1994/05/24 21:30:04
+--- 1.2	1994/08/17 18:14:20
+***************
+*** 69,75 ****
+  
+  
+  static char  linein[JNL_LINE_MAX]; /* A line read in from an old journal file */
+! char  *g_tc_line;                  /* Global tc line - used in resume mode */
+  int   g_ic_num = -1;               /* Global ic number - used in resume mode */
+  
+  
+--- 69,75 ----
+  
+  
+  static char  linein[JNL_LINE_MAX]; /* A line read in from an old journal file */
+! char  *g_tc_line = "_no_line_";    /* Global tc line - used in resume mode */
+  int   g_ic_num = -1;               /* Global ic number - used in resume mode */
+  
+Resolution: make change as per diff.
+
++ reference 1.10.3.11 class bug
+
+
+Synopsis: 
+The ETET 1.10.3 ./src/posix_c/makefile has an error in it for the cplusplus 
+target. The TET_ROOT variable should have parenthesis around it.
+
+$ diff makefile.fixed makefile.org
+73c73
+<       cd posix_c ; $(MAKE) TET_ROOT="$(TET_ROOT)" cplusplus
+---
+>       cd posix_c ; $(MAKE) TET_ROOT="$TET_ROOT" cplusplus
+
+
+Resolution: make change as per diff
+
+
+To apply the patch, save to a file, say patch
+
+	cat patch | patch -p -N -d DIR
+
+where DIR is the source directory, typically the current directory "." .
+
+
+regards
+Andrew
+
+	Andrew Josey
+	ETET Coordinator
+	Novell USG R&D Europe
+
+---cut here, including this line
+*** src/posix_c/tcc/again.c.orig	Tue Dec 13 15:20:59 1994
+--- src/posix_c/tcc/again.c	Mon Dec 12 13:21:14 1994
+***************
+*** 51,59 ****
+  		increase ICS_MAX to 128
+  		Andrew J. Josey, UNIX System Labs Inc., May 1993.
+  
+! 	        Code review cleanup 
+!                 Ranjan Das-Gupta, UNIX System Labs Inc, 1 Jul 1993
+  
+  ************************************************************************/
+  #include <tcc_env.h>
+  #include <tcc_mac.h>
+--- 51,63 ----
+  		increase ICS_MAX to 128
+  		Andrew J. Josey, UNIX System Labs Inc., May 1993.
+  
+! 	    Code review cleanup 
+!         Ranjan Das-Gupta, UNIX System Labs Inc, 1 Jul 1993
+  
++ 		Resume-restart mode could fail with seg fault if no codes had
++ 		been selected.(see ref 1.10.3.4 part 3).
++ 		Andrew Josey, Novell USG, December 1994
++ 
+  ************************************************************************/
+  #include <tcc_env.h>
+  #include <tcc_mac.h>
+***************
+*** 69,75 ****
+  
+  
+  static char  linein[JNL_LINE_MAX]; /* A line read in from an old journal file */
+! char  *g_tc_line;                  /* Global tc line - used in resume mode */
+  int   g_ic_num = -1;               /* Global ic number - used in resume mode */
+  
+  
+--- 73,79 ----
+  
+  
+  static char  linein[JNL_LINE_MAX]; /* A line read in from an old journal file */
+! char  *g_tc_line = "_no_line_";    /* Global tc line - used in resume mode */
+  int   g_ic_num = -1;               /* Global ic number - used in resume mode */
+  
+  
+*** src/posix_c/tcc/journal.c.orig	Tue Dec 13 15:20:59 1994
+--- src/posix_c/tcc/journal.c	Mon Dec 12 13:16:47 1994
+***************
+*** 65,70 ****
+--- 65,73 ----
+                 so data can be accessed from other modules.
+                 Andrew Josey, UNIX System Labs, 16 May 1993
+  
++ 			Change get_jnl_dir() so that full_name[] is static so may
++ 			be used outside of this function (see ref: 1.10.3.3)
++ 			Andrew Josey, Novell USG, December 1994
+  ************************************************************************/
+  
+  
+***************
+*** 427,433 ****
+--- 430,439 ----
+      (void) jnl_entry(lineout);
+  }
+  
++ /* full_name[] must be static so can be used outside of this function */
+  
++ static char full_name[_POSIX_PATH_MAX];
++ 
+  /*
+   * Determines & creates the directory for the journal file name
+   * (TET_ROOT/results/n, where 'n' is one greater than the highest
+***************
+*** 443,449 ****
+  {
+      DIR *dir_pointer;
+      struct dirent *dp;
+!     char tmp_name[_POSIX_PATH_MAX], full_name[_POSIX_PATH_MAX];
+      int num, max, rc;
+  
+  #ifdef DBG
+--- 449,455 ----
+  {
+      DIR *dir_pointer;
+      struct dirent *dp;
+!     char tmp_name[_POSIX_PATH_MAX];
+      int num, max, rc;
+  
+  #ifdef DBG
+*** src/posix_c/tcc/startit.c.orig	Tue Dec 13 15:20:59 1994
+--- src/posix_c/tcc/startit.c	Mon Dec 12 15:50:07 1994
+***************
+*** 115,120 ****
+--- 115,125 ----
+  		in the case when tcc fails to exec, see tet bug report tet1.10.067.
+  		Andrew Josey, Novell UNIX System Labs, March 1994
+  
++ 		Don't call setpgid(0,0) when etet_ext_set - to allow interactive
++ 		testing in TET EXTENDED MODE. (see ref 1.10.3.1)
++ 		Andrew Josey, Novell USG, December 1994
++ 		
++ 
+  ************************************************************************/
+  
+  #if defined(SunOS41) && defined(_POSIX_SOURCE)
+***************
+*** 195,204 ****
+--- 200,218 ----
+      err=errno;
+      alarm(0);
+      if ((result == -1) && (err == EINTR)) {
++ #if defined(SunOS41) ||  defined (SUNTEST)
+  	(void) kill(-pid,SIGTERM);
++ #else
++ 	(void) kill(pid,SIGTERM);
++ #endif
+  	alarm(5);
+  	if (((result=waitpid(pid,stat_loc,0))==-1) && (errno == EINTR)) {
++ #if defined(SunOS41) ||  defined (SUNTEST)
+  	    (void) kill(-pid,SIGKILL);
++ #else
++ 	    (void) kill(pid,SIGKILL);
++ #endif
++ 
+  	    alarm(5);
+  	    result=waitpid(pid,stat_loc,0);
+  	}
+***************
+*** 288,296 ****
+  
+  #if defined(SunOS41) || defined (SUNTEST)
+  	setpgrp(0, 0);
+! #else
+! 	if (etet_ext_set)
+! 		setpgid(0,0);
+  #endif
+  
+          /* 
+--- 302,314 ----
+  
+  #if defined(SunOS41) || defined (SUNTEST)
+  	setpgrp(0, 0);
+! 
+! /* removed 12/12/94 AJJ 
+!  * #else
+!  *
+!  *	if (etet_ext_set)
+!  *		setpgid(0,0);
+!  */
+  #endif
+  
+          /* 
+*** src/posix_c/tcc/tcc.c.orig	Tue Dec 13 15:20:59 1994
+--- src/posix_c/tcc/tcc.c	Mon Dec 12 16:16:28 1994
+***************
+*** 1128,1135 ****
+--- 1128,1137 ----
+      if ( (tet_lock_p != NULL) && (toupper(*tet_lock_p) == 'F') )
+  		tet_lock_set = FALSE;
+  
++ #if defined (SUNTEST)
+      if (etet_ext_set == TRUE)
+  		tet_lock_set = FALSE;
++ #endif
+  
+  
+      /* 
+*** src/posix_c/tcc/tool.c.orig	Tue Dec 13 15:20:59 1994
+--- src/posix_c/tcc/tool.c	Mon Dec 12 15:49:15 1994
+***************
+*** 448,454 ****
+--- 448,456 ----
+  
+          /* If fork() failed and return -1 we now bail out */
+          BAIL_OUT_ON(cpid, "fork");
++ #if defined(SunOS41) || defined (SUNTEST)
+  	cpid = -cpid;	/* kill group instead of individual process */
++ #endif
+  
+          /* In the event of a timeout control will return to this point and
+           * timed_out will be set.
+*** src/perl/template.pl.orig	Tue Dec 13 15:21:00 1994
+--- src/perl/template.pl	Tue Dec 13 15:01:55 1994
+***************
+*** 28,33 ****
+--- 28,40 ----
+  #
+  # March 29th 1994, Update version number to 1.10.3
+  #
++ # December 1994, A.Josey, Novell USG
++ # Update line 185 @main to be \@main for perl5.000 
++ #
++ # December 1994, A.Josey, Novell USG
++ # Update for backwards compatibility to base TET1.10 with handling
++ # of the tet_xres file. In TET_EXTENDED=T/t mode handle the journal
++ # file using the ETET style. 
+  
+  package tet;
+  
+***************
+*** 178,184 ****
+  local($tpcounter)=1;
+  local ($ic);
+  foreach $ic (@main'iclist) {
+! 	local(@a)=eval("@main'"."$ic");
+  	local ($tp);
+  	foreach $tp (@a) {
+  		if (!defined($tp_ids{"$tp"})) {
+--- 185,191 ----
+  local($tpcounter)=1;
+  local ($ic);
+  foreach $ic (@main'iclist) {
+! 	local(@a)=eval("\@main'"."$ic");
+  	local ($tp);
+  	foreach $tp (@a) {
+  		if (!defined($tp_ids{"$tp"})) {
+***************
+*** 445,452 ****
+  # note that JOURNAL_HANDLE is an indirect reference to the actual file handle
+  # and is used that way in the API
+  
+  
+! $journal_path=$ENV{"TET_JOURNAL_PATH"};
+  if (!defined($journal_path)) 
+  {
+  	$journal_fd="/dev/tty";
+--- 452,469 ----
+  # note that JOURNAL_HANDLE is an indirect reference to the actual file handle
+  # and is used that way in the API
+  
++ $tet_ext_set=$ENV{"TET_EXTENDED"};
++ substr($tet_ext_set,1)='';
+  
+! if ($tet_ext_set eq "T" || $tet_ext_set eq "t")
+! {
+! 	$journal_path=$ENV{"TET_JOURNAL_PATH"};
+! }
+! else
+! {
+! 	$journal_path="tet_xres";
+! }
+! 
+  if (!defined($journal_path)) 
+  {
+  	$journal_fd="/dev/tty";
+***************
+*** 454,459 ****
+--- 471,478 ----
+  }
+  else 
+  	{
++ # always unlink tet_xres file
++ 	unlink(tet_xres);
+  	if (open(JOURNAL_HANDLE_REAL,">>$journal_path")) {
+  		$JOURNAL_HANDLE=JOURNAL_HANDLE_REAL;
+  	} 
+*** src/makefile.orig	Tue Dec 13 15:23:21 1994
+--- src/makefile	Tue Dec 13 15:23:28 1994
+***************
+*** 70,76 ****
+  	cd perl ; $(MAKE) TET_ROOT="$(TET_ROOT)"
+  
+  cplusplus: nofile
+! 	cd posix_c ; $(MAKE) TET_ROOT="$TET_ROOT" cplusplus
+  
+  clean:
+  	cd posix_c ; $(MAKE) clean
+--- 70,76 ----
+  	cd perl ; $(MAKE) TET_ROOT="$(TET_ROOT)"
+  
+  cplusplus: nofile
+! 	cd posix_c ; $(MAKE) TET_ROOT="$(TET_ROOT)" cplusplus
+  
+  clean:
+  	cd posix_c ; $(MAKE) clean

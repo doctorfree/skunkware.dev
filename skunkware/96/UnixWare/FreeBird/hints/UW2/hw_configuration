@@ -1,0 +1,931 @@
+	B	Hardware Configuration Notes
+
+UnixWare supports most common hardware controllers and devices. If you 
+follow the hardware manufacturer's instructions when installing and 
+configuring your hardware, UnixWare will typically detect the hardware and 
+configure the software device drivers (if installed) to access the hardware. This 
+is particularly true for supported EISA, MCA, and PCI systems. For other 
+hardware, such as some ISA hardware, you may need to use the DCU to 
+configure the software device drivers.
+
+For details on using the DCU and adding hardware after installing UnixWare, see the 
+chapter "Setting Up and Configuring Your Hardware" in the System Owner Handbook.
+
+This appendix provides general information about hardware IRQ settings and 
+software device drivers. This appendix also provides recommendations for 
+configuring specific hardware in the following categories:
+
+u	Disk Drives
+
+u	HBA Controllers
+
+u	CD-ROM Controllers
+
+u	Cartridge Tape Controllers
+
+u	Network Interface Cards
+
+u	Video Configuration
+
+The recommendations in this appendix indicate the type of hardware 
+considerations you may need to consider. Since UnixWare currently supports 
+a wide variety of platforms and hardware, with new hardware support 
+constantly being added, not every configuration is covered.
+
+To obtain the most recent listing of supported hardware, and hardware-specific 
+technical bulletins for UnixWare, contact the Novell FaxBack system at 1-
+801-429-5060 or (in the United States or Canada) 1-800-486-4835.
+
+Standard Hardware IRQ Settings
+
+Specific IRQs are typically used for certain hardware devices. Although it is 
+possible to configure hardware using nonstandard values, doing so is not 
+recommended. The following table lists standard hardware configuration data.
+
+Table B-1
+Standard Hardware IRQs
+
+IRQ
+
+Description (driver)
+
+Notes
+
+0
+
+Reserved
+
+1
+
+Keyboard driver (kd)
+
+Reserved
+
+2
+
+Available (IRQ 2 is internally mapped to IRQ 9. When 
+choosing IRQ values, you should consider IRQ 2 and 
+IRQ 9 to be the same interrupt.)
+
+3
+
+Serial COM2 Port (asyc)
+
+Reserved (can change after installation)
+
+4
+
+Serial COM1 Port (asyc)
+
+Reserved (can change after installation but doing so is 
+not recommended)
+
+5
+
+Cartridge tape (ictha) or
+
+Parallel Port #2 (lp)
+
+Recommended cartridge tape setting if installing from 
+non-SCSI cartridge tape drive and a printer is not 
+assigned to this IRQ
+
+6
+
+Floppy disk (fd)
+
+Reserved 
+
+7
+
+Parallel port #1 (lp)
+
+Required (can change after installation but doing so is 
+not recommended)
+
+8
+
+Real-time clock (rtc)
+
+Reserved
+
+9
+
+Available
+
+10
+
+Available
+
+11
+
+Available
+
+12
+
+PS/2 Mouse
+
+Reserved if PS/2 Mouse is installed
+
+13
+
+Math Coprocessor and 
+Programmable Interrupt 
+Controller (atup)
+
+Reserved
+
+14
+
+Integral hard disk (dcd/athd)
+
+Only required if an IDE, ESDI, or ST506 hard disk is 
+installed
+
+15
+
+Available
+
+Typically, distinct hardware controllers must have distinct hardware parameter settings. 
+However, you can configure multiple hardware controllers with the same IRQ value 
+provided that each such controller supports a sharable IRQ. In this case, the controllers 
+that share the same IRQ must be configured to share the same Interrupt Priority Level 
+(IPL) value.
+
+Software Device Drivers
+
+Some device drivers (for EISA, MCA, and PCI hardware) can automatically 
+detect your hardware configuration and do not require any UnixWare software 
+configuration. Other hardware cannot be automatically detected. In this case 
+you must either set the IRQ, I/O address range, memory address range, and 
+DMA channel to the values UnixWare expects, or you must use the DCU when 
+installing UnixWare to assign the hardware parameter values to the appropriate 
+device driver (see Step 10 in Chapter 2, "Installing the Personal Edition or 
+Application Server").
+
+Tables B-2 and B-3 list the device drivers provided with UnixWare 2.0. In 
+these tables, a "-" indicates that UnixWare will automatically detect the 
+hardware setting and configure the device driver. A value indicates the 
+hardware configuration setting that UnixWare expects. If your hardware is 
+configured at a different value, you must use the DCU to assign the correct 
+value to the device driver.
+
+The following device drivers are provided with your UnixWare system on the 
+Install Diskette.
+
+Table B-2
+Device Drivers on the Install Diskette
+
+Device Driver
+
+Vendor
+
+Model
+
+IRQ
+
+I/O Range
+
+Memory 
+Address 
+Range
+
+DMA
+
+adsc
+
+Adaptec
+
+ AHA-1540B, AHA-
+1540CF, AHA-
+1542B, AHA-
+1542CF, AHA-
+1540C, AHA-1542C 
+AHA-1640, AHA-
+1740, AHA-1740A, 
+AHA-1742
+
+11
+
+330-333
+
+dc000-
+ddfff
+
+5
+
+athd
+
+multiple
+
+ESDI/IDE Hard disk
+
+14
+
+1f0-1ff
+
+0-0
+
+-
+
+cpqsc
+
+Compaq
+
+Compaq Integrated 
+Fast SCSI-2, Compaq 
+Fast SCSI-2
+
+-
+
+-
+
+-
+
+-
+
+dpt
+
+DPT
+
+DPT-2012A, DPT-
+2012B, DPT-2012B2, 
+DPT-2022, DPT-
+2122, DPT-2322, 
+DPT-2011, DPT-2021
+
+15
+
+170-177
+
+c8000-
+c9fff
+
+-
+
+ictha
+
+multiple
+
+MCA Archive, 
+Wangtek 31040-
+XXX, Wangtek 
+30428-XXX, 
+Wangtek 30475-
+XXX, Wangtek 
+30631-XXX
+
+5
+
+300-301
+
+0-0
+
+1
+
+mcesdi
+
+MCA
+
+ESDI Disk Controller
+
+14
+
+3510-
+351f
+
+0-0
+
+5
+
+mcst
+
+MCA
+
+ST-506 Disk 
+Controller
+
+14
+
+320-32f
+
+0-0
+
+3
+
+The adsc, dpt, and ictha device drivers support both EISA and ISA controllers. The 
+values listed above are only required for ISA controllers.
+
+If all of the hardware in your system is listed in Table B-2, then you do not need 
+to use any HBA diskettes during installation.
+
+The following device drivers are included on the UnixWare 2.0 Host Bus 
+Adapter Drivers diskette.
+
+Table B-3
+Device Drivers on UnixWare 2.0 Host Bus Adapter Drivers Diskette
+
+Device Driver
+
+Vendor
+
+Model
+
+IRQ
+
+I/O Range
+
+Memory 
+Address 
+Range
+
+DMA
+
+adsa
+
+Adaptec
+
+AIC-7770, AHA-
+2740, AHA-2742, 
+AHA-2740-T, AHA-
+2742-T
+
+-
+
+-
+
+-
+
+-
+
+adse
+
+Adaptec
+
+AHA-1740, AHA-
+1740A, AHA-1742A
+
+-
+
+-
+
+-
+
+-
+
+adss
+
+Adaptec
+
+AHA-1505, AHA-
+1510, AHA-1512, 
+AHA-1520, AHA-
+1522, AHA-1520A, 
+AHA-1522A
+
+-
+
+-
+
+-
+
+-
+
+blc
+
+BusLogic
+
+BT-542B, BT-545S, 
+BT-542D, BT-742-
+A, BT-747S, BT-
+747D, BT-757S, BT-
+757D, BT-640A, BT-
+646S, BT-646D, BT-
+445S, BT-946C
+
+11
+
+330-333
+
+dc000-
+ddfff
+
+-
+
+dak
+
+Mylex
+
+Dac960 (2-channel, 
+3-channel, and 5-
+channel)
+
+-
+
+-
+
+-
+
+-
+
+efp2
+
+Olivetti
+
+EFP2 SCSI
+
+-
+
+-
+
+-
+
+-
+
+fdeb
+
+Future 
+Domain
+
+IC-9C50, TMC 
+850IBM, TMC 
+850/M/MEX/MER
+
+5
+
+0-0
+
+ca00-
+cbfff
+
+-
+
+fdsb
+
+Future 
+Domain
+
+IBM 16-Bit AT Fast 
+SCSI Adapter, IC-
+18C30, IC-18C50, 
+IC-36C70, MCS 
+600/700, TMC 3260, 
+1660/1680, 
+1650/1670, 
+1610MER/MEX/M
+
+11
+
+140-14f
+
+0-0
+
+-
+
+ida
+
+Compaq
+
+IDA, IDA-2, IDAE, 
+SMART
+
+-
+
+-
+
+-
+
+-
+
+iiop
+
+Tricord
+
+PowerFrame
+
+-
+
+-
+
+-
+
+-
+
+lmsi
+
+Phillips
+
+LMSI non-SCSI CD-
+ROM
+
+5
+
+340-347
+
+0-0
+
+-
+
+mcis
+
+IBM
+
+MCIS-1015, MCIS-
+1018 SCSI Host 
+Adapter
+
+-
+
+-
+
+-
+
+-
+
+mitsumi
+
+Mitsumi
+
+CRMC-LU005S CD-
+ROM
+
+10
+
+360-363
+
+0-0
+
+-
+
+sony
+
+Sony
+
+SONY non-SCSI 
+CD-ROM (cd31a, 
+cd33a, cd535)
+
+5
+
+320-323
+
+0-0
+
+1
+
+wd7000
+
+Western 
+DIgital
+
+wd7000-ASC
+
+-
+
+-
+
+-
+
+-
+
+The blc and fdsb device drivers support both EISA and ISA controllers. The values 
+listed above are only required for ISA controllers.
+
+Additional device drivers may also be provided on this diskette. Software 
+device drivers are included after the hardware controllers they support are 
+successfully tested with UnixWare.
+
+If none of the device drivers on the UnixWare Host Bus Adapter Drivers 
+diskette are needed to support the hardware on your system, then you do not 
+need to insert the Host Bus Adapter Drivers diskette during installation.
+
+Disk Drives
+
+UnixWare supports disk drives that are larger than 512 MB and defined using 
+more than 16 heads. However, the system BIOS for some hardware platforms 
+do not support more than 16 heads. If your system BIOS does not support disks 
+larger than 512 MB, redefine your disk parameters using 16 or less heads. See 
+your hardware documentation for details.
+
+Rewritable Optical Disks
+
+Rewritable optical disks are available in two formats: 512 bytes-per-sector or 
+1024 bytes-per-sector. If an optical device is configured on a SCSI bus so that 
+it reports itself as a disk, either the VERITAS file system type must be used for 
+all the file systems on the disk or the rewritable optical disk must use 512 byte-
+per-sector media.
+
+HBA Controllers
+
+A SCSI hardware board tells your computer that you have SCSI device 
+attached. This type of board allows you to attach more devices to your 
+computer.
+
+If you have a SCSI-based system, you should set the Target Controller (TC, 
+also known as SCSI address, SCSI ID, or Device ID) and Logical Unit Number 
+(LUN) values as follows:
+
+u	In most cases, the Target Controller should be set to 0 for the primary disk, 
+1 for a secondary disk, and 7 for an HBA. However, on computers that use 
+the IBM PS/2 SCSI host adapter (mcis device driver), the primary disk has 
+the highest Target Controller value. For example, it a system has disks with 
+Target Controller values 0, 3, and 6, then the disk with Target Controller 
+value 6 is the primary disk.
+
+For a cartridge tape drive, you can use any TC value that is different from 
+all the other SCSI devices on your system.
+
+u	The Logical Unit Number (LUN) should be set to 0.
+
+Installing Multiple HBA Controllers
+
+When installing multiple HBA controllers, the boot HBA must be defined to 
+both the system BIOS and to UnixWare. Typically, the boot device is the HBA 
+device with the lowest BIOS address among all HBA devices that have a disk 
+attached. You can set the BIOS address for an ISA or EISA HBA; however, the 
+BIOS address for a PCI device is determined by the PCI bus slot where the 
+controller is installed.
+
+UnixWare detects the BIOS address for EISA and PCI devices but there is no 
+reliable way to determine the BIOS address for ISA devices. Therefore, if your 
+system contains an ISA HBA, you must ensure that the correct memory 
+address is used for the boot controller. Otherwise, UnixWare will be installed 
+on the wrong hard disk.
+
+To specify the BIOS address, also known as the memory address, enter the 
+DCU as described in see "Entering the DCU to View /Change Device Driver 
+Configuration" on page 18.
+
+SCSI Terminators
+
+Always consult the manufacturers' documentation for the proper termination procedure 
+for the HBA and SCSI devices you are using. Excess or improper SCSI termination can 
+cause permanent damage to both the SCSI HBA and the devices attached to the HBA, 
+or affect signal quality (possibly resulting in SCSI errors).
+
+Always keep the terminating resistor packs (terminators) that came with a 
+SCSI device so they can be restored to the device if needed. Terminators from 
+different devices may not be interchangeable.
+
+Terminators are polarized. Before removing a terminator from a device, note 
+its orientation (the polarity is usually marked with a dot on the terminator). If 
+you restore a terminator to a device, make sure the polarity is correct.
+
+Both ends of the SCSI bus must be terminated
+
+u	If you have only one cable attached to your SCSI HBA, the HBA itself 
+should be terminated and the last physical device on the SCSI cable should 
+be terminated.
+
+u	If you have two cables (one internal and one external) attached to your 
+HBA, there should be no termination on the HBA itself and the last 
+physical last devices (that is, those on the ends of the cable farthest away 
+from the HBA) must be terminated.
+
+Adaptec HBA Controllers
+
+Note the following when using an Adaptec HBA controller:
+
+u	The DMA transfer rate for Adaptec 1540-series SCSI host adapters must 
+be set to 5 MB per second. See the documentation supplied with the HBA 
+for considerations.
+
+u	When used in enhanced mode, the configuration of the Adaptec 1740-
+series is determined automatically. There is no need to install the card at a 
+given set of parameters.
+
+u	If you are using an Adaptec 1542 SCSI controller with a hard disk that is 
+larger than one gigabyte, do not enable extended translation. If extended 
+translation is enabled, your system may not boot.
+
+u	UnixWare will not install on Unisys PW2 computers that use an integrated 
+Adaptec SCSI controller with the 6260 chip set. The controller must be 
+disabled and another SCSI controller must be used in its place.
+
+DPT HBA Controllers
+
+For all DPT controllers:
+
+u	The I/O ports must be set secondary/disabled.
+
+u	The hard drive, SCSI device, and EISA bus must be enabled.
+
+Run the dptfmt utility program for a DPT 2011 HBA to write reserved disk 
+sector information before installing UnixWare. If dptfmt is not run, you may 
+experience delays (up to 30 seconds) before you can access disks that are 
+attached to the controller. You should also run dptfmt if you upgrade from a 
+2011 to a 2012A or 2012B adapter. Please refer to the DPT documentation for 
+information about dptfmt.
+
+Western Digital HBA Controllers
+
+For the AT&T WGS SCSI host adapters (manufactured for AT&T by 
+Western Digital), the documentation supplied with the host adapter does not 
+discuss how to enable or disable the floppy controller on the host adapter. To 
+enable the floppy controller, remove the jumpers at locations W6 and W9 on 
+the host adapter. To disable the floppy controller, install the jumpers at 
+locations W6 and W9.
+
+CD-ROM Controllers
+
+Note the following when configuring CD-ROM controllers:
+
+u	The manufacturer's documentation for the cd33a SONY non-SCSI CD-
+ROM may not explain how to set the interrupt. To set the interrupt, set the 
+JP4 jumper to 1.
+
+Cartridge Tape Controllers
+
+Note the following when configuring tape controllers:
+
+u	The manufacturer's documentation for Archive SC499-R (and other 
+integral Archive) tape drive controllers does not discuss how to set the I/O 
+address to 300. To set to 300, combine the jumper settings for addresses 
+100 and 200.
+
+u	The manufacturer's documentation for Wangtek 30850 (also PC-36) tape 
+drive controllers does not discuss how to set the I/O address to 300. To set 
+the I/O address, find the row of ten DIP switches on your tape controller 
+board and set switches 1 through 7 to ON and switches 8 through 10 to 
+OFF.
+
+u	The Wangtek cartridge tape (5099EK/512EK) does not work with 
+controllers which support both high and low density I/O.
+
+Network Interface Cards
+
+UnixWare 2.0 supports auto-detection and auto-configuration of EISA and 
+MCA network interface cards that are compliant with the EISA and MCA 
+architectures, respectively. Once these cards are configured using the EISA 
+Configuration Utility or the MCA Configuration Utility, UnixWare obtains the 
+device driver configuration parameters (IRQ, I/O address range, and so on) 
+from the computer's non-volatile memory. As a result, you are not prompted 
+for any of these parameters when installing the Network Interface Card 
+Support (nics) package.
+
+For networking cards that are compliant with the ISA architecture, you must 
+enter device driver parameters when installing the nics package. To obtain the 
+correct values, boot using the DR DOS diskette provided with UnixWare and 
+then use the configuration diskette provided with the networking card. For 
+details, see the section "Configuring Your Hardware" in Chapter 1, "Before 
+You Begin."
+
+Please note the following when installing network interface cards:
+
+u	Some networking cards support a "wait state" register which should be 
+enabled for enhanced networking performance. However, this may cause 
+timing problems on the networking card and result in a loss of network 
+connectivity. If you are not sure whether your computer hardware supports 
+this register, disable the wait state when configuring the networking card.
+
+u	Some networking cards support a "Turbo" mode which should be enabled 
+for enhanced networking performance. However, this may cause timing 
+problems on the networking card and result in a loss of network 
+connectivity. If you are not sure whether your computer hardware supports 
+Turbo mode, disable this mode when configuring the networking card.
+
+u	Most network interface cards that are compliant with the ISA architecture 
+have their I/O start address preset to 300h. However, this address may be 
+used by another hardware device already configured on your system. In 
+this case, change the I/O address range on the networking card so that it 
+does not conflict with other hardware I/O address ranges.
+
+u	For network interface cards that support shared RAM, do not use memory 
+addresses greater than 0xF00000.
+
+u	Most network interface cards that support shared RAM do not work if the 
+processor cache for shared memory is enabled. In this case, you should use 
+the machine set-up programs provided by your computer manufacturer to 
+disable the processor cache for shared memory.
+
+
+
+u	No more than one of the following eight network interface cards can be 
+installed on your system:
+
+IBM_AutoLANStreamer_MC_32
+
+Olivetti_NCU_9180
+
+IBM_EtherStreamer_MC_32
+
+Olivetti_NCU_9181/S
+
+IBM_LANStreamer_MC_16
+
+Olivetti_NCU_9195
+
+IBM_LANStreamer_MC_32
+
+IBM_Token_Ring_16/4_Adapter_II
+
+If one of these cards is installed on your system, you can not install a 
+second networking card from this group, even if the second card is the 
+same brand (for example, you can not install two Olivetti_NCU_9181/S).
+
+u	The IBM EtherStreamer MC 32 Network Interface Card does not work 
+with the Thinnet (10base2) cable type.
+
+u	The SMC EtherCard Elite32 Ultra and the SMC TokenCard Elite 32 
+network interface cards (device driver smc8232) are only supported in the 
+non-bus mastering mode. Use the ECU for these cards to disable the Bus-
+Mastering switch for these cards.
+
+Changing Network Interface Cards Configuration and
+Installing Multiple Network Interface Cards
+
+When installing the Network Interface Card Support (nics) package, you can 
+select to install up to four networking cards. After installing the nics package, 
+if you want to add a new network interface card, configure the new networking 
+card and then use the desktop App Installer or pkgadd command to reinstall 
+the nics package.
+
+If you want to remove a networking card after installing the nics package, 
+remove the nics package using the App Installer or pkgrm command, shut 
+down your system and remove the networking card, and then reboot your 
+system and reinstall the nics package using the App Installer or pkgadd 
+command.
+
+Network Cable Types
+
+The cable type setting for a network interface card is typically detected by its 
+UnixWare device driver. Make sure that the cable type setting for your 
+networking card is the cable type you plan on using. The following describes 
+the various cable types.
+
+Ethernet
+
+There are three basic types of Ethernet cables:
+
+AUI: A thick cable with a flat multi-pin connector.
+
+BNC: A thin cable with a round twist-on connector.
+
+TP: A flat cable with a telephone-style jack for a connector.
+
+Token-Ring
+
+There are two basic types of Token-Ring cables:
+
+Shielded: A thick cable with a flat multi-pin connector.
+
+Unshielded/TP: A flat cable with a telephone-style jack for a connector.
+
+Video Configuration
+
+The following are some video-related configuration considerations:
+
+u	If you have a color monitor that only displays in black and white after 
+UnixWare is installed, you may need to turn on the monitor before you turn 
+on the computer to have the colors work properly.
+
+u	If you are using the Compaq QVision video card, you must disable 
+interrupts on the board. (Disable the interrupts using the EISA 
+configuration utility provided with your computer.)
+
+
+
+Additional Hardware Recommendations
+
+The following are generic hardware considerations that may help prevent 
+system problems:
+
+u	To install on a system with 8 MB of RAM, either
+
+u	Each device must be SCSI device and all device and all devices must 
+be connected to a single HBA, or
+
+u	If you have an ESDI or IDE disk, then you can install from a non-SCSI 
+cartridge tape drive.
+
+u	If you disable BIOS on some EISA cards, such as the Adaptec 2742, the 
+IRQ and memory address range are disabled. Since the IRQ is disabled, 
+you may not be able to access the card. If this occurs, contact your 
+hardware vendor to see if you can disable memory without disabling the 
+IRQ.
+
+For example, if you have multiple HBA controllers, you may have to 
+disable some of these controllers since they are configured with conflicting 
+memory address ranges. As a result, UnixWare can not access devices 
+connected to such controllers.
+
+u	Some devices and controllers hang when trying to perform synchronous 
+negotiation. Typically, you want synchronous negotiation enabled; 
+however, try disabling synchronous negotiation if a device or controller 
+does not work.
+
+u	By default, the CPU speed on some systems is set to low. To significantly 
+increase the performance of your UnixWare system, change the CPU 
+speed to high.
+
+u	Some systems with the "Power Saver" option (also referred to as "Power 
+Management" or "Green PC") enabled are not supported by UnixWare. If 
+this option is enabled and the installation fails at random points after 
+setting up the hard disk, disable the Power Saver option.
+
+Also, if installation is successful but the message WARNING: Disk 
+Driver Request Timed Out, Resetting Controller is 
+displayed, disabling the Power Saver option may correct the problem.
+
+For more information, see the hardware documentation provided with your 
+hardware devices and controllers.

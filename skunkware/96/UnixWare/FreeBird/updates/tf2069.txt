@@ -1,0 +1,389 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+TITLE:  TF2069 - Installation Fixes
+DATE:  02SEP95
+README FOR:  TF2069.TAR
+NOVELL PRODUCT and VERSION:
+
+UnixWare 2.01
+
+----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.  
+-----------------------------------------------------------------
+
+Self-Extracting File Name:  tf2069.tar
+
+Files Included	Size	Date	Time	Version
+
+\
+	tf2069.txt		(this file)
+	tf2069		212480	09-02-95 15:14
+	tf2069.dd.as   1474650  09-06-95 11:24
+	tf2069.dd.pe   1474650  09-06-95 11:24
+
+Installation Instructions:  
+
+DATATYPE: tar
+
+1.To use this ptf, you must have a working UnixWare machine.
+
+2.Expand the tf2069.tar file into the /tmp directory using the following commands from a terminal window or the UNIX command line:
+
+	# cd /tmp
+	# tar xvf /tmp/tf2069.tar
+
+This will give you tf2069, tf2069.dd.as, tf2069.dd.pe and tf2069.txt files in your /tmp directory.
+
+3.Read the engineering release notes contained in the tf2069.txt file and follow the instuctions to create the boot diskette and how to add the package to your system once it is installed.  Note that in the release notes the files are referred to as ptf2069 and the files are actually named tf2069.  Simply follow the instructions dropping the leading p in the file names.
+
+
+ENGINEERING RELEASE NOTES
+-------------------------
+
+#ident	"@(#)ptf2069.txt	1.5"
+
+Title
+-----
+
+PTF2069 - Installation Fixes
+
+Novell Product And Version
+--------------------------
+
+UnixWare 2.01
+
+Abstract
+--------
+
+This PTF fixes several problems that occur on some computers during the
+installation of UnixWare 2.01.
+
+Symptoms
+--------
+
+1) The system always enables the cache and does not allow the user to override
+that cache enabling.  Some computers (especially prototypes) must have the
+cache disabled in order to install and run.
+
+2) On some computers whose secondary cache and/or memory does not support
+parity checking, the system panics with a Machine Check Exception just after
+the initial red logo screen disappears.
+
+3) The system does not automatically recognize the presence of LBA IDE disks.
+
+4) Certain computers contain a faulty BIOS that causes PCI devices to
+respond incorrectly, making it appear to the system that there are more
+PCI devices than there really are.  This will cause various problems,
+including installation failures or the inability to access the hard disk
+during a reboot.
+
+5) The BIOS of some EISA computers writes past the end of a buffer, which
+causes a PANIC just after the red Novell logo screen disappears.
+
+SOLUTION SPECIFICS
+------------------
+
+General Description.
+-------------------
+
+This PTF contains fixes for the problems listed above, and is intended to be
+used only if you cannot otherwise install UnixWare 2.01. In general, if you have
+already installed UnixWare 2.01, then you do not need this PTF.
+
+New Features.
+------------
+
+None.
+
+Software Notes and Recommendations.
+----------------------------------
+
+This PTF is designed for use only with the UnixWare 2.01 installation media
+(that is, UnixWare 2.01 on tape or CD, or in the staging area of a network
+install server).  Do not attempt to use this PTF with UnixWare 2.0 or with
+UnixWare 2.02 or beyond.
+
+Testing of the modified software contained in this package has been
+conducted only to the extent necessary to confirm that it resolves the
+problem(s) stated above ("Symptom").  Such testing consists of
+recreating the problem conditions (typically in a Novell test
+laboratory) and verifying that the problem no longer occurs.  No other
+testing of this software has been done.
+
+Hardware Notes and Recommendations.
+----------------------------------
+
+This PTF is targeted for the i386, i486 and Pentium CPU's.
+
+Installation Instructions.
+-------------------------
+                ***** Making the PTF Diskettes *****
+
+Follow this procedure to write the images from this PTF onto diskettes.  You
+will then use these diskettes to install UnixWare 2.01.
+
+1)  Format two 3.5-inch diskettes.  To format the first diskette,
+place a blank diskette into a diskette drive and enter
+
+	/usr/sbin/format -i 1 device_name
+
+where device_name is /dev/rdsk/f03ht if your 3.5-inch drive is A, or
+/dev/rdsk/f13ht if your 3.5-inch drive is B.
+
+To format the second diskette, place a blank diskette into a diskette drive
+and enter
+
+	/usr/sbin/format -i 2 device_name
+
+where device_name is as above.  Note that the two "format" lines above are
+identical except for the argument to the -i option.
+
+Put a paper label on each diskette, and write "ptf 2069 Boot Diskette" on the
+first diskette, and "ptf 2069 Patch Diskette" on the second.
+
+2)  Copy the appropriate Boot diskette image onto the first diskette.  To do
+this, enter
+
+	/usr/bin/dd if=image_file of=device_name bs=36b
+
+where image_file is ptf2069.dd.as (if you bought the Application Server) or
+ptf2069.dd.pe (if you bought the Personal Edition), and device_name is as
+described above.
+
+	Note:  If you bought the Personal Edition and you try using
+	ptf2069.dd.as, the installation will likely hang, and even if it does
+	not hang you will still have only a two-user license.  The licensing
+	data are not contained in ptf2069.dd.as or in ptf2069.dd.pe.  By the
+	way, the reverse is also true -- if you bought the Application Server
+	and you try using ptf2069.dd.pe, installation will likely hang.
+
+3)  Copy the Patch diskette image onto the second diskette.  To do this, enter
+
+	/usr/bin/dd if=ptf2069 of=device_name bs=36b
+
+where device_name is as described above.
+
+
+                ***** Installing the PTF Diskettes *****
+
+If you are installing this PTF because you need to disable the cache (item 1
+under "Symptoms"), then do the following:
+	1)  Boot from the diskette labeled "ptf 2069 Boot Diskette"
+	2)  As soon as you see the message "Booting UnixWare...", press the
+		space bar
+	3)  Type "CR0_CACHE_ENABLE=NO"
+	4)  Type "go"
+
+If you are installing this PTF because your system gets the Machine Check
+Exception panic (item 2 under "Symptoms"), then do the following:
+	1)  Boot from the diskette labeled "ptf 2069 Boot Diskette"
+	2)  As soon as you see the message "Booting UnixWare...", press the
+		space bar
+	3)  Type "CR4_MCE=NO"
+	4)  Type "go"
+
+If you are installing this PTF for any of the other reasons listed under
+"Symptoms", just boot from the diskette labeled "ptf 2069 Boot Diskette".  You
+do not need to hit the space bar.
+
+After you boot from the "ptf 2069 Boot Diskette," the installation of UnixWare
+2.01 will proceed as documented in the "Installation Handbook."  Toward the
+end of installation, you will be prompted to insert the "ptf 2069 Patch
+Diskette."  Follow the directions you see on the screen at that point.
+	
+After installation is complete, you will see a blue screen that says
+
+	Final activation of the UnixWare 2 software requires the installation
+	of selected software.  This software is contained on the Install
+	diskette that came with your system.
+
+At this point, you need to insert the original UnixWare 2.01 Install diskette
+that came with your system.  Do not insert the "ptf 2069 Boot Diskette," for
+it will not work.
+
+If you installed the "OS Multiprocessor Support" (osmp) package during the
+initial installation, you will need to bring the second processor on-line
+manually.  Type 
+
+	/sbin/psradm -n -a
+
+You will need to do this only once;  that is, you do not need to repeat it
+after subsequent reboots of the system.
+
+	Note:  If you have more than two processors you wish to bring on-line,
+	you will need to purchase and install one or more copies of the
+	"Processor Upgrade" package.
+
+If you install ptf2069, and you later install the "OS Multiprocessor Support"
+(osmp) package, you will need to run "/usr/sbin/pkgrm ptf2069" and then
+reinstall ptf2069 using /usr/sbin/pkgadd.  After installing osmp, you
+*must not* reboot the system until after you remove and reinstall ptf2069.
+
+If you do reboot after installing osmp and before reinstalling ptf2069, the
+system will most likely panic or hang while it is booting.  If this happens,
+turn the computer off and back on.  When you see the message
+	Booting UnixWare...
+*immediately* press the space bar to enter interactive boot mode, then type
+	KERNEL=unix.old
+	go
+When the system comes up, the first thing you should do is remove and
+reinstall ptf2069 and then reboot using the /usr/sbin/shutdown command.
+
+Some customers might need to install this PTF after UnixWare 2.01 is already up
+and running.  (This will be rare.  Such customers would usually be hardware
+vendors who need to disable the cache to test some new hardware.)  If this is
+true for you, insert the diskette labelled "ptf 2069 Patch Diskette," type
+	/usr/sbin/pkgadd -d diskette1
+and follow the instructions you see.  You will not need to use the "ptf 2069
+Boot Diskette" at all.
+
+HOW TO GET UNIXWARE SUPPORT AND INFORMATION
+-------------------------------------------
+
+Most of the information you need is provided in the documentation and in the online help facility.  If you need further assistance, however, the following sources can help.
+
+Fulfillment
+-----------
+
+The Update CD-ROM can be ordered directly from the Novell Fulfillment centers.
+
+       Country             Voice           Fax
+       -------             -----           ---
+
+       Austria             0660-8443       0660-8125
+       Belgium             0800-11062      0800-11061
+       Denmark             800-10930       800-10545
+       France              05-905995       05-905996
+       Germany             0130-812444     0130-812443
+       Italy               1678-78388      1678-78398
+       Norway              800-11310       800-11309
+       Spain               900-993170      900-993169
+       Sweden              020-795736      020-795735
+       Switz.              155-1846        155-1847
+       UK                  0800-960274     0800-960273
+       US                  800-457-1767    317-364-8888
+       other Europe        +31-55-384279   +31-55-434455
+       other International 317-364-7276    317-364-8888
+       (Asia, Latin America)
+
+
+Novell Authorized Service Centers (SM)
+--------------------------------------
+
+Novell Authorized Service Centers (NASCs) are independent organizations which specialize in quality service and support, and who have met Novell's stringent standards for excellent customer service.  To find the NASC that can best meet your technical support needs, please call one of the following numbers:
+
+United States and Canada  (800) 338-NASC  or  (801) 429-5588
+
+Europe                    +49 211 5277 510
+
+Other Countries           Call your local Novell office
+
+
+NSEPro (SM) Update
+------------------
+
+The Network Support Encyclopedia Professional Volume (NSEPro) is a subscription to an electronic information base on CD-ROM containing comprehensive network technical information needed to install your network or to maintain and troubleshoot an existing system. The NSEPro is updated as many as 12 times per year.
+
+The NSEPro includes Novell Technical Information Documents, Novell Labs hardware and software test bulletins, product documentation, NetWare Application Notes, Professional Developer Bullets, and downloadable NetWare and UnixWare patches, fixes and drivers, including the regular update of NetWare and UnixWare.
+
+You can purchase the NSEPro from a Novell Authorized Reseller, or directly from Novell by calling 1-800-377-4136 in the United States and Canada.  In all other locations, call +1-303-297-2725.  Resellers can purchase the NSEPro starter kit through authorized Novell distributors.  NSEPro (Part # 883-001714-001) is priced at $1,395 for a one year subscription.
+
+Technical Information by Fax
+----------------------------
+
+In some regions you can get answers to commonly asked questions by fax.  This automated fax service is available 24 hours a day, 7 days a week and includes up-to-date technical information on troubleshooting and fine-tuning all of Novell's UnixWare products.  Each system contains a master document which describes the documents that can be downloaded.
+
+To use this service you must have a touch-tone phone.
+
+United States and Canada  (800) 486-4835  or  (801) 429-5060  and choose the automated fax option.
+
+E-Mail
+------
+
+Novell provides technical support via e-mail. Send your question to:
+
+     unixware@novell.com   (based in Provo, Utah, United States)
+     unixware@novell.de    (based in Germany)
+
+Internet
+--------
+
+Novell offers information on the Internet using a variety of publishing tools. These tools include:
+
+1. File Transfer Protocol (FTP): Patches, fixes, updates and drivers are available from Novell's anonymous FTP servers at:
+
+     ftp.novell.com
+     ftp.novell.de
+
+To access a server:
+
+  1. Type ``ftp ftp.novell.com'' or ``ftp ftp.novell.dd''
+
+  2. Type ``anonymous'' at the ``Name:'' prompt.
+
+  3. Enter your full e-mail address when prompted for a password.
+
+2. Gopher: Novell information is available using gopher services at:
+
+     gopher.novell.com
+     gopher.novell.de
+
+3. Wide Area Information Servers (WAIS): Full text searching of indexed Novell information is available via WAIS at:
+
+     wais.novell.com
+     wais.novell.de
+
+4. World Wide Web (WWW): Hypertext access to Novell information via WWW browsers is available at:
+
+     www.novell.com
+     www.novell.de
+
+5. Net News. On Internet you can access a news group called ``comp.unix.unixware.misc'' which contains information and user discussions about UnixWare.  This news group is not formally supported by Novell, but Novell technicians do informally review and participate in the discussions held here.
+
+To help you take advantage of the power of the Internet, Novell provides various gopher, WAIS, and WWW browsers at all FTP sites.
+
+CompuServe
+----------
+
+Another source of technical information and support is the UnixWare forum on CompuServe. To access this forum, type ``GO UNIXWARE'' at any CompuServe prompt.  Message sections contain subjects such as General Information, Product Information, Developers, DOS Merge, Installation, X Windows, Networking, Device Drivers, Printing, Communications, Applications, Bug Watchers, and Updates.  Novell technicians and other information providers can help you solve UnixWare-related problems.
+
+Using CompuServe also provides you with a way to exchange information and experiences with other UnixWare users.  For CompuServe account information, call CompuServe directly:
+
+U.S., Canada and other countries  (800) 524-3388  or  (614) 457-8650
+
+
+Telephone Support
+-----------------
+
+After purchasing UnixWare, you are entitled to free telephone support for 30 days, which is activated from the date of your first call. Beyond the first 30 days, support is available as follows:
+
+- Single Incidents are paid for at the time the call is placed, provide you with priority access to Novell's support specialists and provide a 2 hour response time.
+
+- Unlimited Incident Support Packages provide you with the same priority access, guaranteed response time, unlimited incidents for 3 designated callers and a one-year subscription to NSE Pro (SM), Novell's infobase available on CD-ROM.  To purchase an Unlimited Incident Support Contract, please call:
+       
+       (800) 346-7177  or  (801) 429-7127
+
+The phone numbers, business hours, and methods of payment for single incidents are as follows:
+
+Support      Language     Hours      Phone #             Payment
+------------------------------------------------------------------------------
+Americas                  6AM to     (800) 486-4835      Major Credit Card
+                          6PM MST    (800) 429-2676      bill @ current price
+
+Europe       French       9:00 to    +49 211 5277 733    Major Credit Card
+             German       18:00 CET  +49 211 5277 777    or Purchase Order
+             Spanish                 +49 211 5277 734    bill @ current price
+             Italian                 +49 211 5277 739 
+             Dutch                   +49 211 5277 731 
+             Scandinavian            +49 211 5277 747 
+             Russian                 +49 211 5277 708 
+             English & others        +49 211 5277 744 
+
+Thank you for purchasing one of Novell's UnixWare products.  If you are interested in obtaining pre-sales information on other Novell products, please call your local Novell office or Novell's Product Information department at (800) 486-4835  or  (801) 429-2676.
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+
+

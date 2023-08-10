@@ -1,0 +1,349 @@
+Connecting UnixWare 2.0 to NetWare
+
+By Greg Smith (gsmith@westnet.com)
+
+URL http://www.westnet.com/~gsmith
+
+
+One of the major attractions of Novell's UnixWare (UW) product is its
+built-in support for NetWare (NW) connectivity. The potential for
+transparent access between these two types of systems had lured many
+people familiar with one type of system (either Unix or NetWare) to try
+out UnixWare and become familiar with the other. Some of the
+configuration and troubleshooting procedures for getting these
+connections working are very complicated, however, and the documentation
+is less then complete in parts. Having spent a considerable amount of
+time myself producing a working, integrated NW/UW system, I can tell you
+that knowing what a working system is supposed to do is quite useful in
+figuring out what is wrong with yours. This article attempts to mix
+information about how a working system acts with some troubleshooting
+advice for when yours doesn't. Note that I only deal with running these
+systems with an IPX network, since that's what I'm using, and that's
+what the majority of NW sites have; if you have a TCP/IP network
+running, the configuration details are somewhat different.
+
+It's easy to tell if you have a correctly configured UW system connected
+to a Novell NW Network.  Start up UW and, from the desktop, open the NW
+folder that appears in the main desktop window. It will show all the NW
+servers on your network. Double-click on one of them, and a login box
+will appear to attach you to that server. After logging in, a listing of
+all the disk volumes on that NW server will appear. Double-clicking on
+one of these will show all the files on that volume, and you'll be able
+to traverse the directory tree.
+
+Novell's UW documentation leads you to believe that loading the NW Unix
+Client (NUC) NLM on your NW server is the first thing you do after
+installing UW to fix all your problems. Loading NUC is actually close to
+the last thing to worry about; most of the functions involving NW do not
+require it.  In fact, there is very little configuration that needs to
+be done to get the basic connections working; if things don't work as
+expected, it's probably not because you haven't loaded some of the high
+level software like NUC, it's probably something more mundane like a
+network card configuration problem. Let's take apart the previous
+paragraph step-by-step and see what's really involved in each one of
+them to get your system working.
+
+UnixWare NetWare folder shows all the NetWare servers
+
+UW recognizes the NW servers on the network it is connected to by
+looking for Service Advertising Protocol (SAP) packets from the NW
+server on that network. In order for this to happen, several things need
+to have happened:
+
+UW is correctly configured for its network card
+
+There are several packages of UW software that need to be loaded to make
+NW connectivity work.  First, you need to have installed the nics
+package that supports your network card. This is where you specify the
+IRQ, I/O address, and buffer address, just as you would with NW.
+
+It's possible that a configuration conflict will make your UW network
+card able to broadcast packets but not receive them. You can check if
+this is happening by watching the traffic on the NW system, which is
+covered later. If this is what you notice it is probably a conflict with
+the IRQ or the buffer address; it is possible to send packets even if
+all you got right is the I/O address, but you can't receive them unless
+all three are correct and don't conflict with other settings in your
+computer.
+
+If you need to reconfigure the settings for your network card, the
+correct thing to do is to reinstall the nics package from the original
+installation media (probably a CD). That's the simplest way to get back
+to the configuration screen where you enter all the parameters.
+
+UW has the NUC software loaded and configured
+
+The other packages required to get connectivity working correctly are
+nwnet, nuc, nwsup,  nsu, and netmgt. Make sure all these packages are
+installed. Configuration for these is done with the NW Setup program on
+the desktop. Most of the parameters shown are correct for just about
+every installation with the default values. The only items you really
+need to check are under the Logical LAN Configuration section. The LAN
+Device gets filled in with your network card information. To figure out
+what frame type to use and what the External LAN address for your NW
+network are and get the UW system configured to match, you can LOAD
+MONITOR on the NW server. Choose LAN Information, select the appropriate
+network card, and a screen showing the frame type and network address
+will appear. Get the UW Logical LAN settings to match these. That should
+be the only items you need to configure for your initial connections,
+the rest are optional parameters you can leave alone for the moment. The
+system will reboot itself after this configuration change.
+
+NW has drivers loaded for its network card
+
+Obviously, the NW sever needs to function properly with the network card
+installed in it. Usually you can verify it is functioning correctly by
+logging on that network with an already configured workstation.
+
+The cable connecting the systems is good
+
+This is an obvious potential problem that usually can be verified by
+using that cable in another, known to be correctly configured
+application (i.e. using that piece of cable for a workstation connection
+elsewhere that you know to be good).
+
+Looking at the communications occurring
+
+After these items are taken care of, you should see the NW servers on
+your network in the NW window on the UW machine. If you don't, the next
+thing to do is see if the problem is with the NW side or the UW side.
+The easiest way to do this is with the NW TRACK ON command. After
+executing this command on the system console, you can watch the network
+traffic that the NW server sees. After executing TRACK ON, reboot the UW
+computer. When it gets to the part where it loads the IPX drivers, some
+communication will occur between the UW server and the NW server over
+their common network, as SAP packets are sent and routes are traced.
+After this, the UW server will show up in the DISPLAY SERVERS listing on
+the NW server. Here's what typical traffic on the TRACK display looks
+like as a UW server connects and introduces itself to the NW network.
+In this example, 00000006 is the external network number for this
+segment of ethernet, while 00000009 is the internal network number.
+0000C0E2CE12 is the MAC address of the UW computer. OLP1 and OLP2 are
+the names of the two NW servers on the network, while OLP4 is the UW
+server.
+
+IN  [00000006:0000C0E2CE12]  2:56:44pm   Get Nearest Server                    
+OUT [00000006:0000C0E2CE12]  2:56:44pm   Give Nearest Server OLP1              
+IN  [00000006:0000C0E2CE12]  2:56:44pm   Get Nearest Server                    
+IN  [00000006:0000C0E2CE12]  2:56:47pm   Route Request                         
+OUT [00000006:0000C0E2CE12]  2:56:47pm   00000001  1/2     00000009  1/2
+
+IN  [00000009:000000000001]  2:56:49pm   OLP1          1                       
+IN  [00000006:0000C0E2CE12]  2:56:51pm   Send All Server Info                  
+OUT [00000006:0000C0E2CE12]  2:56:51pm   CORP          2   OLP1          1     
+OUT [00000006:0000C0E2CE12]  2:56:51pm   OLP1          2   OLP2          2     
+OLP2          3
+
+IN  [00000006:0000C0E2CE12]  2:56:52pm   OLP4          1                       
+OUT [00000009:FFFFFFFFFFFF]  2:56:52pm   OLP4          2                       
+OUT [00000001:FFFFFFFFFFFF]  2:56:52pm   OLP4          2                       
+IN  [00000006:0000C0E2CE12]  2:56:52pm   OLP4          1                       
+OUT [00000009:FFFFFFFFFFFF]  2:56:52pm   OLP4          2                       
+OUT [00000001:FFFFFFFFFFFF]  2:56:52pm   OLP4          2                       
+
+The Send All Server Info request is what shows all the NW servers in the
+NW windows under UW, while the OLP4 related packets are what establish
+the UW server in NW's server list. The portions of this communication
+that are missing should point you toward where the problem lies. Note
+that if you have the newest version of the IPX software, the listing
+shown above will be split across the two tracking screens, and will
+require very fast fingers to catch before it scrolls away.
+
+Logging into the NetWare server from UnixWare
+
+After you have the two computers talking and showing up on each other's
+server lists, the next thing to do is try to log in from the UW server.
+After double-clicking on the desktop picture of a NW server, a box
+prompting for a login name and password appears. Type them in, and you
+should see a list of the volumes on the server. If you don't, there's a
+problem with one of the steps listed about; usually errors at this point
+for me have been because of configuration problems with the NW side,
+causing it not to properly receive packets.
+
+If the login goes well, you are now attached to that NW server and can
+now print on it. You can configure the UW printers so that something
+sent to one of them actually prints on the NW print queue. This is all
+without loading any additional software on the NW server above the
+network card drive; you do not need to load the NUC.NLM or any of its
+associated NLMs to get this functionality.
+
+Before proceeding any further, you probably should check to see if there
+is updated UW software you should load. For my installation, running
+with 2.01, to get everything working properly I needed to download a UW
+patch called tf2000.ptf from Novell to correct some problems with the UW
+NUC support. You might want to search for similar updates; I imagine
+that this patch was incorporated into the general 2.02 update that was
+recently released for UW, and if you have that this is probably not an
+issue.
+
+Logging into the UnixWare server from NetWare
+
+UW comes with an application called TNVT that allows you to run a text
+based session on the UW system from your NW workstations. The System
+Owner Handbook documentation covers getting this program installed on
+your DOS or Windows based workstation in the section titled "Setting up
+UW Terminal Emulators for Dos/MS Windows" in the NetWare Connectivity
+chapter.  Running this software, you should now be able to get a text
+login prompt from any of the NW workstations on your network to the UW
+system. Again, this should work with no problems without loading NUC.NLM
+or needing to work with TCP/IP.
+
+Looking at the disk volumes on the NetWare server
+
+If things have went well so far, double-clicking on the server icon in
+the NW window on your UW system produced a listing of the disk volumes
+on that server. But, they probably have red circles with a slash through
+them. If you try to open one of these volumes, you'll get an error
+telling you to load NUC.NLM. If everything else mentioned so far works
+correctly, now is when you consider doing this.
+
+First, a note on what NUC will do for you. Reading the System Owner
+Handbook will tell you that you should be able to access the volumes on
+your NW server in NW mode even without loading NUC. As of version 2.01
+of UW, this was still not true, and considered a bug in the software.
+Later versions may iron this out and let you access files with NUC, but,
+for the moment, if you want files off the NW server accessible to the UW
+server, you need NUC loaded.
+
+Many people have been thwarted by the NUC.NLM installation, because it
+doesn't work as expected unless you have a very new server. The
+installation instructions are in the NLM Installation and Administration
+Guide, which you need to print your own copy of to get.  If you tried to
+install NUC and get errors telling you that certain functions were not
+available, it's because you need some newer driver software installed on
+your server before installing NUC.NLM.  When I contacted Novell, I was
+informed that my Novell 3.11 server would never work correctly, because
+it was so out of date and its drivers were so old. This is not true;
+what follows are the steps I took to take a fairly old (five years)
+Novell 3.11 server and make it capable of running NUC without any
+problems. You may be able to skip some of these steps, especially if you
+have a 4.1 server, because you may already have the proper, new, drivers
+installed. All of the drivers mentioned are available either from
+NetWire on CompuServe, from ftp.novell.com, from gopher.novell.com, or
+http://www.novell.com.
+
+Load PATCHMAN
+
+One of the pieces of NUC.NLM requires that you have the NW PATCHMAN
+extensions manager loaded. Most NW servers already have this essential
+utility installed, but if yours doesn't, you need it.
+
+Load TCP188.EXE
+
+The version of TCPIP.NLM required is at least 2.02M. If you have an
+earlier version, download the TCP188.EXE patch from one of the sources
+mentioned above. Running this program produces a series of files; you
+need to copy these to a floppy, put it into the file server, and LOAD
+INSTALL to install the update (details are give in the documentation for
+the update, after you execute the main file). Down the server and reboot
+it after this update.
+
+Load LIBUP5.EXE
+
+You need a version of CLIB that is at least 3.12h. If you have an
+earlier version, download LIBUP5.EXE. Running this program produces a
+series of files that run from your workstation; you need to be logged
+into the NW server as a supervisor in order to execute the installation
+program.  The last time I got this file, it was mildly corrupted--there
+are supposed to be directories created by the program named 3.X and 4.X,
+but the copy I got had them named 3X and 4X; accordingly, the
+installation program wouldn't run. Creating new 3.X and 4.X directories
+and moving the files from the incorrectly named ones solved the problem;
+hopefully, by the time you read this the original file should be fixed
+and you won't have to worry about this bit of a problem. LIBUP5 installs
+a variety of updated system components, as its documentation will
+describe; again, you need to reboot after installing this update.
+
+Load NUC.NLM
+
+Following the instructions in the UW documentation, you should have
+produced two disks that contain the NUC.NLM program. Before you try and
+load it, be sure to LOAD TCPIP on the NW console; the installation
+doesn't work correctly if you don't. Also, if you want full remote
+console features for UW, you need to have loaded REMOTE and RSPX on the
+NW server; otherwise, you'll get a variety of messages saying that
+functions whose names begin with RS can't be accessed.  After loading
+TCPIP, you can LOAD INSTALL and install the product update. The NUC
+installation will ask you where you ran the SERVER.EXE file from when
+you booted NW; this is probably C:\NETWARE, but if you're not sure,
+you'll need to down the server and look at the computer's AUTOEXEC.BAT
+to see for sure. After NUC installs, you should check what it did to
+your AUTOEXEC.NCF file to see if you're happy with it before rebooting.
+One thing to watch out for is that when the NUC program is loaded, a
+bunch of other modules will auto-load themselves; I have had this
+process overflow the stack on a server because the modules to auto-load
+were nested so deep. My solution is to make sure to LOAD TCPIP before
+calling the UNISTART.NCF file.
+
+For reference sake, here's the AUTOEXEC.NCF on my 3.11 server after
+installing TCP188, LIBUP5, and NUC; everything here works correctly:
+
+file server name OLP1
+ipx internal net 9
+load patchman
+
+load ne2000 port=320 int=B name=unix1
+bind ipx to unix1 net=6
+
+load remote password
+load rspx
+
+# Command to start LAN WorkGroup, NFS, and other products.
+load remfilfx
+load tcpip
+UNISTART.NCF
+
+After making sure you AUTOEXEC.NCF looks all right, reboot the server
+yet again and all the NUC programs should load properly. If they don't,
+you'll probably have to comment out the UNISTART.NCF line and load the
+items contained in it manually to see what the problem is. Here's what a
+sample UNISTART.NCF file looks like:
+
+load tsaproxy
+load netdb
+load unixlib
+load nuc
+load xconsole
+
+After doing all this, you'll probably find that nothing has changed; you
+still can't access your NW volumes. It's possible that you have a newer
+copy of NUC that has all the problem worked out, but at the moment you
+need to add the NFS name space to your NW volumes in order to mount them
+under UW. To do this, type
+
+add name space nfs to volume sys
+
+Replacing sys with whatever volume you want to be able to access. Do
+this for each of the volumes (note that this takes a fair amount of time
+to execute and uses up a portion of the your disk in the process). After
+this, the NW volumes should have the red circle-slash symbol removed,
+and you can open them up and look at the files. The load nuc command in
+the UNISTART.NCF can be modified to mount a different set of volumes,
+but on my configuration as given above all the volumes mount file
+without any additional parameters.
+
+The System Owner Handbook implies that you need to do bunches of
+configuration with hosts, password, and nfs users and groups before
+these functions will work. This is not true; you probably don't need to
+touch these files at all to make things work just fine. They are only
+necessary if you really want seamless file connections where all the
+permissions match across the servers and you can change the attribute of
+the files from either server. These are not files you must configure
+just for file transfers across the systems.
+
+Conclusion
+
+If you have a clear picture of what order to do things, getting UnixWare
+and NetWare connectivity running involves little above the normal
+routine of getting cards configured and drivers loaded.  Hopefully this
+ordered walkthrough will give you an idea what order to tackle things
+in, what the potential problems might be, and what functionality to
+expect at each point in the configuration process.
+
+Credits
+
+This is release 1.0 of this document, from September 21, 1995. Written
+by Gregory Smith (gsmith@westnet.com). Feel free to use this document
+however you wish, as long as no portion of it is distributed without my
+name and e-mail address. Additions, corrections, and links to this
+document are welcomed.

@@ -1,0 +1,122 @@
+Subject: Mail to News gateway for Cnews
+
+
+Attached are two files, one a prog called injectmail and
+the other mailtonews.cfg.  These can be integrated into Cnews and
+the stock mail subsystem as follows:
+
+
+In /etc/mail/mailsurr we have a rule as follows:
+
+'.+'    'mailtonews'            '</usr/lib/newsbin/input/injectmail  "%S" "%O" "%R"'
+
+And in /etc/mail/newsaliases we have
+
+# mailalias   accepted for mailtonews filtering
+
+local.foo       mailtonews
+example2        mailtonews
+
+
+(Note we add the name /etc/mail/newsaliases to the end of /etc/mail/namefiles)
+
+The injectmail script is in /usr/lib/newsbin/input
+
+#!/bin/ksh
+# injectmail script
+# (c) 1995 Novell, All rights reserved
+# You are free to use this script but please acknowledge the source.
+# This is "as is"
+# You need to localise this for your installation
+
+
+error(){
+	cat | mailx -s"Article sent to $Alias by $From Subj [$Subject] rejected " postmaster
+	exit 0
+}
+
+TMPFILE=/tmp/$$injnews
+
+Subject="$1"
+Alias="`echo $2 | sed -e 's/.*!//' -e 's/@.*//' | tr '[A-Z]' '[a-z]'`"
+From="$3"
+
+[ "$#" -ne 3 ] && error
+
+echo "`date`" "[$Subject]" "$Alias" "$From" >> /var/adm/log/mailtonews
+
+# validate sender
+
+allowed=no
+while read alias address group ; do
+	if expr "$Alias" : "$alias" >/dev/null&&expr "$From" : "$address" ; then
+			allowed=yes
+			Newsgroup=$group
+			break;
+	fi
+done < /etc/mail/mailtonews.cfg
+
+if [ "$allowed" != yes ] ; then
+	error
+fi
+
+if [ "$Subject" = "" ]
+then
+	Subject="<no subject>"
+fi
+
+
+cat - |grep -v "^Received: "> $TMPFILE
+
+name=`echo $Newsgroup | sed 's/^.*\.\([^.][^.]*\)$/list-\1/'`
+Path=`sed -e '/^Path: /!d' -e 's/^Path: //' $TMPFILE`
+if expr "$Path" : ".*$name.*" ; then
+	cat $TMPFILE | mailx -s "Duplicate article to $Newsgroup" news
+	exit 1
+fi
+
+[ -z "$Path" ] && Path="not-for-mail"
+Path="$name!$Path"
+
+Org=`grep "^Organization: " $TMPFILE`
+if [ "$Org" = "" ]
+then
+	Orgz="Novell."
+else
+	Orgz=`echo $Org|cut -f2- -d":"`
+fi
+From=`grep "^From:" $TMPFILE|line |sed 's/^From: //'`
+
+
+echo $Newsgroup | cut -f1 -d\. | grep -i novell >/dev/null 2>&1
+if [ $? = 0 ]
+then
+   DIST=novell
+else 
+   DIST=local
+fi
+
+(echo "Path: $Path\nNewsgroups: $Newsgroup\nOrganization: $Orgz\nFrom: $From\nSubject: $Subject\nDistribution: $DIST\n" ; (cat $TMPFILE |sed -e '1,/^$/d'))|/usr/bin/injnews
+
+excode=$?
+rm -f $TMPFILE 
+exit $excode
+
+# /etc/mail/mailtonews.cfg 
+# (c) 1995 Novell, All rights reserved
+# You are free to use this script but please acknowledge the source.
+# This is "as is"
+# Format is 
+# alias address group
+# where
+# alias   specifies the address used to send mail to the newsgroup
+#         (listed in /etc/mail/newsaliases)
+# address specifies the address of the sender of the mail
+# group   specifies the newsgroup mail matching the alias and address
+#         is to be injected into.
+#
+# alias and address may be regular expressions.
+foonews		.*	local.technical.foo
+local.blag	.*	local.news
+local.tech	.*an_emailaddr.*	junk
+

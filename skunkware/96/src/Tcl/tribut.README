@@ -1,0 +1,81 @@
+From loverso Thu Sep  8 13:17:15 1994
+Path: LoVerso.Southborough.MA.US!John
+Message-ID: <08Sep94.130316@LoVerso.Southborough.MA.US>
+From: John Robert LoVerso <John@LoVerso.Southborough.MA.US>
+Sender: John Robert LoVerso <John@LoVerso.Southborough.MA.US>
+Reply-To: John Robert LoVerso <John@LoVerso.Southborough.MA.US>
+Return-Path: John Robert LoVerso <John@LoVerso.Southborough.MA.US>
+Organization: John & Sue's House, Southborough MA
+Newsgroups: comp.lang.tcl
+Distribution: world
+Followup-To: 
+Subject: tributton widget
+Keywords: 
+
+The other day I was thinking about the "moreButtons" extension, which
+adds (in C) a separate widget that is the little triangular button from
+the scrollbar (the tributton).  This is a useful little gadget to have
+around for the handle on a collapsible and such.  This annoying thing
+is that it is an extension, and such, not universally available.
+
+[Side bar
+	I've always felt that, in some instances, Tk embeds too much
+	into its widgets.  I.e., there shouldn't be separate, coded in C,
+	widgets for button, checkbutton, etc.  Instead you should be able
+	to add button behavior (i.e. shift image right) onto a widget tree.
+	Then, a button becomes a label with button behavior bound to it;
+	a checkbutton replaces the label with a frame containing a label
+	and a diamond.  For free, you get multiline or text+bitmap buttons.
+	In a similar sense, a scrollbar becomes two tributtons and a slider
+	packed horizontally or vertically.
+end]
+
+
+Anyway, my wandering mind said that this could be accomplished by the
+prudent application of the placer.  Hence, this bit of code which
+creates a "tributton" in one of 4 directions:	up, down, left, right.
+
+	set w <widget pathname>
+
+	# defaults
+	set ori right
+	set size 15
+	set bg #ffe4c4
+	set bw 2
+	
+	# do it
+
+	set sx 0; set sy 0; set sa nw
+	set sm2 [expr $size - $bw + ($bw / 2 - 1)]
+	switch -glob -- $ori {
+	r*	-
+	l*	{ set sori horizontal; set fheight $size; set fwidth $sm2 }
+	u*	-
+	d*	{ set sori vertical; set fheight $sm2; set fwidth $size }
+	default	{ error "Invalid orientation" }
+	}
+
+	switch -glob -- $ori {
+	r*	{set sx -$bw; set sa n}
+	d*	{set sy -$bw; set sa w}
+	}
+
+	frame $w
+	frame $w.f -width $fwidth -height $fheight
+	scrollbar $w.f.s -ori $sori -width $size -bg $bg -borderw $bw \
+		-activefore #eed5b7
+	pack $w.f -fill both
+	place $w.f.s -x $sx -y $sy -anchor $sa
+	place $w.f -in $w
+
+
+You can then pack $w as desired into your application.
+
+Of course, the above is ugly.  Since there isn't a convenient Tcl-only
+version of MegaWidget (my own package isn't polished enough, either), here
+is the above wrapped in enough code to create a "tributton" command that
+supports enough of the "button" guts to use the standard button bindings.
+Source this and invoke "tritest".
+
+John
+

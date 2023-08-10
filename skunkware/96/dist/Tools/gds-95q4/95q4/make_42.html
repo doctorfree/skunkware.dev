@@ -1,0 +1,136 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Automatic Dependencies</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_41.html">previous</A>, <A HREF="make_43.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX217"></A>
+<A NAME="IDX218"></A>
+<A NAME="IDX219"></A>
+<H2><A NAME="SEC41" HREF="make_toc.html#TOC41">Generating Dependencies Automatically</A></H2>
+<P>
+In the makefile for a program, many of the rules you need to write often
+say only that some object file depends on some header
+file.  For example, if <TT>`main.c'</TT> uses <TT>`defs.h'</TT> via an
+<CODE>#include</CODE>, you would write:
+<P>
+<PRE>
+main.o: defs.h
+</PRE>
+<P>
+You need this rule so that <CODE>make</CODE> knows that it must remake
+<TT>`main.o'</TT> whenever <TT>`defs.h'</TT> changes.  You can see that for a
+large program you would have to write dozens of such rules in your
+makefile.  And, you must always be very careful to update the makefile
+every time you add or remove an <CODE>#include</CODE>.
+<A NAME="IDX220"></A>
+<A NAME="IDX221"></A>
+<P>
+To avoid this hassle, most modern C compilers can write these rules for
+you, by looking at the <CODE>#include</CODE> lines in the source files.
+Usually this is done with the <SAMP>`-M'</SAMP> option to the compiler.
+For example, the command:
+<P>
+<PRE>
+cc -M main.c
+</PRE>
+<P>
+generates the output:
+<P>
+<PRE>
+main.o : main.c defs.h
+</PRE>
+<P>
+Thus you no longer have to write all those rules yourself.
+The compiler will do it for you.
+<P>
+Note that such a dependency constitutes mentioning <TT>`main.o'</TT> in a
+makefile, so it can never be considered an intermediate file by implicit
+rule search.  This means that <CODE>make</CODE> won't ever remove the file
+after using it; see section <A HREF="make_91.html#SEC90">Chains of Implicit Rules</A>.
+<A NAME="IDX222"></A>
+<P>
+With old <CODE>make</CODE> programs, it was traditional practice to use this
+compiler feature to generate dependencies on demand with a command like
+<SAMP>`make depend'</SAMP>.  That command would create a file <TT>`depend'</TT>
+containing all the automatically-generated dependencies; then the
+makefile could use <CODE>include</CODE> to read them in (see section <A HREF="make_16.html#SEC15">Including Other Makefiles</A>).
+<P>
+In GNU <CODE>make</CODE>, the feature of remaking makefiles makes this
+practice obsolete--you need never tell <CODE>make</CODE> explicitly to
+regenerate the dependencies, because it always regenerates any makefile
+that is out of date.  See section <A HREF="make_18.html#SEC17">How Makefiles Are Remade</A>.
+<P>
+The practice we recommend for automatic dependency generation is to have
+one makefile corresponding to each source file.  For each source file
+<TT>`<VAR>name</VAR>.c'</TT> there is a makefile <TT>`<VAR>name</VAR>.d'</TT> which lists
+what files the object file <TT>`<VAR>name</VAR>.o'</TT> depends on.  That way
+only the source files that have changed need to be rescanned to produce
+the new dependencies.
+<P>
+Here is the pattern rule to generate a file of dependencies (i.e., a makefile)
+called <TT>`<VAR>name</VAR>.d'</TT> from a C source file called <TT>`<VAR>name</VAR>.c'</TT>:
+<P>
+<PRE>
+%.d: %.c
+        $(SHELL) -ec '$(CC) -M $(CPPFLAGS) $&#60; \
+           | sed '\"s/$*\\.o[ :]*/&#38; $@/g'\" &#62; $@'
+</PRE>
+<P>
+See section <A HREF="make_92.html#SEC91">Defining and Redefining Pattern Rules</A>, for information on defining pattern rules.  The
+<SAMP>`-e'</SAMP> flag to the shell makes it exit immediately if the
+<CODE>$(CC)</CODE> command fails (exits with a nonzero status).  Normally the
+shell exits with the status of the last command in the pipeline
+(<CODE>sed</CODE> in this case), so <CODE>make</CODE> would not notice a nonzero
+status from the compiler.
+<A NAME="IDX223"></A>
+<A NAME="IDX224"></A>
+<P>
+With the GNU C compiler, you may wish to use the <SAMP>`-MM'</SAMP> flag instead
+of <SAMP>`-M'</SAMP>.  This omits dependencies on system header files.
+See section `Options Controlling the Preprocessor' in <CITE>Using GNU CC</CITE>, for details.
+<A NAME="IDX225"></A>
+<P>
+The purpose of the <CODE>sed</CODE> command is to translate (for example):
+<P>
+<PRE>
+main.o : main.c defs.h
+</PRE>
+<P>
+into:
+<P>
+<PRE>
+main.o main.d : main.c defs.h
+</PRE>
+<P>
+<A NAME="IDX226"></A>
+This makes each <SAMP>`.d'</SAMP> file depend on all the source and header files
+that the corresponding <SAMP>`.o'</SAMP> file depends on.  <CODE>make</CODE> then
+knows it must regenerate the dependencies whenever any of the source or
+header files changes.
+<P>
+Once you've defined the rule to remake the <SAMP>`.d'</SAMP> files,
+you then use the <CODE>include</CODE> directive to read them all in.
+See section <A HREF="make_16.html#SEC15">Including Other Makefiles</A>.  For example:
+<P>
+<PRE>
+sources = foo.c bar.c
+
+include $(sources:.c=.d)
+</PRE>
+<P>
+(This example uses a substitution variable reference to translate the
+list of source files <SAMP>`foo.c bar.c'</SAMP> into a list of dependency
+makefiles, <SAMP>`foo.d bar.d'</SAMP>.  See section <A HREF="make_60.html#SEC59">Substitution References</A>, for full
+information on substitution references.)  Since the <SAMP>`.d'</SAMP> files are
+makefiles like any others, <CODE>make</CODE> will remake them as necessary
+with no further work from you.  See section <A HREF="make_18.html#SEC17">How Makefiles Are Remade</A>.
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_41.html">previous</A>, <A HREF="make_43.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

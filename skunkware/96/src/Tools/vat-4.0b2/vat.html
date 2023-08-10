@@ -1,0 +1,489 @@
+<HTML>
+<HEAD>
+<TITLE>vat</TITLE>
+</HEAD>
+<!--
+Light Blue Background
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+New Midnight Blue Background
+<BODY BGCOLOR=#00009C LINK=#00FFFF VLINK=#00C8C8 TEXT=#23D8FF ALINK=#00FF00>
+White Background
+<BODY BGCOLOR=#FFFFFF TEXT=#000000 LINK=#0000FF VLINK=#00009C ALINK=#00FF00>
+Black Background
+<BODY BGCOLOR=#000000  TEXT=#FFFFFF LINK=#0077FF VLINK=#FF3EE4 ALINK=#00FF00>
+-->
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+<H1>vat</H1>
+<HR>
+<PRE>
+     <STRONG>NAME</STRONG>
+          vat - remote audio conferencing tool
+
+     <STRONG>SYNOPSIS</STRONG>
+          <STRONG>vat</STRONG> [ <STRONG>-aAcdEjJklLMnnsSv</STRONG> ] [ <STRONG>-F</STRONG> <EM>device</EM> ] [ <STRONG>-f</STRONG> <EM>audiofmt</EM> ]
+          [ <STRONG>-g</STRONG> <EM>geometry</EM> ] [ <STRONG>-N</STRONG> <EM>sessionname</EM> ] [ <STRONG>-n</STRONG> ] [ <STRONG>-C</STRONG>
+          <EM>conferencename</EM> ]
+          [ <STRONG>-I</STRONG> <EM>channel</EM> ] <STRONG>-K</STRONG> <EM>key</EM> ] [ <STRONG>-P</STRONG> <EM>priority</EM> ] [ <STRONG>-R</STRONG> ] [ <STRONG>-t</STRONG> <EM>ttl</EM> ]
+          [ <STRONG>-U</STRONG> <EM>socket</EM> ] [ <STRONG>-u</STRONG> <EM>script</EM> ] [ <STRONG>-X</STRONG> <EM>resource</EM>=<EM>value</EM> ]
+          <EM>dest</EM>/<EM>port</EM>/[/<EM>ttl</EM>/<EM>format</EM>]
+
+     <STRONG>DESCRIPTION</STRONG>
+          <EM>Vat</EM> allows users to conduct host-to-host or multihost  audio
+          teleconferences  over  an  internet  (multihost  conferences
+          require that the kernel  support  IP  multicast).   On  most
+          systems,  no  hardware other than a microphone is required -
+          sound I/O is  via  the  built-in  audio  hardware.   On  DEC
+          systems, an AudioFile server must be running.
+
+          The conference is carried out on the  address  specified  by
+          <EM>dest</EM>.  Point-to-point conferences are initiated by supplying
+          a standard IP address, while multiparty  conferences  use  a
+          Class D group address.  <EM>Port</EM> specifies the UDP ports to use,
+          and <EM>ttl</EM> specifies the IP  time-to-live  (see  below).   <EM>Port</EM>
+          specifies  two  consecutive  ports, one for data and one for
+          control.  The data port is set to the greatest even  integer
+          less  than or equal to <EM>port</EM>. The control port is one greater
+          than the data port.
+
+
+     <STRONG>OPTIONS</STRONG>
+          (Note that all the parameters set by the following flags can
+          also   be   controlled   by  X  resources  (which  all  have
+          `reasonable' defaults) so one should not need  to  give  <EM>vat</EM>
+          any  flags  in  the  usual  case.   The  flags only exist to
+          temporarily override some resource.)
+
+          <STRONG>-a</STRONG>   Enable automatic gain control on the output (speaker).
+
+          <STRONG>-A</STRONG>   Enable automatic gain control on the input (mike).
+
+          <STRONG>-c</STRONG>   Start up in `conference mode' (see description  below).
+               (This flag is the opposite of <STRONG>-l</STRONG>.)
+
+          <STRONG>-C</STRONG>   Use <EM>conference</EM> as the title of this vat window.  If  no
+               -C  flag is given, the destination address and port are
+               used as the window title.
+
+          <STRONG>-d</STRONG>   Start up with the  VU  meters  disabled  (this  can  be
+               changed  using  the  <STRONG>`Disable</STRONG>  <STRONG>Meters'</STRONG>  checkbox on the
+               auxiliary controls panel).
+
+          <STRONG>-E</STRONG>   Include a checkbox in the auxiliary controls panel  for
+               specifying  that  echo  cancellation is being performed
+               externally (i.e., in hardware).  This option  can  also
+               be    effected    by    setting    the    X    resource
+               <EM>Vat.externalEchoCancel</EM> to ``true''.
+
+          <STRONG>-f</STRONG>   Sets the output audio packet format to <EM>fmt</EM>. (Note  that
+               it  not necessary to set an input format since vat will
+               accept <EM>any</EM> packet format it  knows  about.)   Currently
+               available audio formats are:
+                    pcm  78Kb/s 8-bit mu-law encoded 8KHz PCM (20ms frames)
+                    pcm2 71Kb/s 8-bit mu-law encoded 8KHz PCM (40ms frames)
+                    pcm4 68Kb/s 8-bit mu-law encoded 8KHz PCM (80ms frames)
+                    dvi  46Kb/s Intel DVI ADPCM (20ms frames)
+                    dvi2 39Kb/s Intel DVI ADPCM (40ms frames)
+                    dvi4 36Kb/s Intel DVI ADPCM (80ms frames)
+                    gsm  17Kb/s GSM (80ms frames)
+                    lpc4 9Kb/s Linear Predictive Coder (80ms frames)
+               (The <EM>dvi</EM> encoding was contributed  by  Jack  Jansen  of
+               CWI.   The <EM>gsm</EM> coder was contributed by Carsten Bormann
+               of the Technische Universitaet Berlin.  The  <EM>lpc</EM>  coder
+               was contributed by Ron Frederick of Xerox PARC.)
+9               The  default  audio  format  can  be   set   with   the
+               <EM>audioFormat</EM> X resource.  It defaults to <STRONG>pcm.</STRONG>
+
+          <STRONG>-g</STRONG>   Override the default  window  geometry  with  <EM>geometry</EM>,
+               which should be a standard X geometry string.
+
+          <STRONG>-I</STRONG>   Use the ``LBL Conference Bus'' to interact  with  other
+               multimedia   conferencing  tools.   The  small  integer
+               <EM>channel</EM>, which must be non-zero, is used as the channel
+               identifier  for group interprocess communication on the
+               local host.  This value  should  be  consistent  across
+               each  group  of  applications  that  belong to a single
+               conference, and should be  unique  across  conferences.
+               The   session   directory   tool   (sd)  will  allocate
+               appropriate values.  (<EM>Vic</EM> and <EM>vat</EM>  currently  use  this
+               mechanism to coordinate voice-activated video switching
+               as well as other conference control abstractions.)
+
+          <STRONG>-j</STRONG>   Start up with audio output to the external audio  jack.
+               This  flag  can  be defaulted by setting the X resource
+               <EM>Vat.outputPort</EM> to <EM>Jack</EM>.
+
+          <STRONG>-J</STRONG>   Start up with audio output muted.
+
+          <STRONG>-k</STRONG>   Keep  all  sites  in  the  `Conference  Hosts'   panel.
+               Normally  sites  that  exit are deleted from the panel.
+               With  <STRONG>-k,</STRONG>  sites  that  exit  are  grayed-out  but  not
+               deleted.
+
+9
+
+          <STRONG>-l</STRONG>   Start up in `lecture  mode'  (see  description  below).
+               This  flag  can  be defaulted by setting the X resource
+               <EM>Vat.lectureMode</EM> to true.
+
+          <STRONG>-M</STRONG>   Start up with audio input unmuted.
+
+          <STRONG>-N</STRONG>   Use <EM>session</EM>, in lieu of your user name and local  host,
+               to  identify  you  to  other  sites.   If no -N flag is
+               given, the X resource Vat.sessionName is used.
+
+          <STRONG>-n</STRONG>   Use  a  packet  format  that  is  compatible  with  the
+               obsolete vat protocol, used by version 3 and earlier of
+               vat.
+
+          <STRONG>-P</STRONG>   Use  <EM>priority</EM>  as  this  vat  window's   priority   for
+               obtaining  the  audio  device.   All vat windows have a
+               priority which is  typically  set  by  the  X  resource
+               Vat.defaultPriority  (defaults  to 100) but this can be
+               overridden by a <STRONG>-P</STRONG> flag.   If  a  window  requests  the
+               audio (because new network data arrived or the mike has
+               been unmuted) and  the  window  currently  holding  the
+               audio  is  either  lower  priority,  the  audio  holder
+               immediately gives it up.  Otherwise  the  new  window's
+               request is ignored.
+
+          <STRONG>-R</STRONG>   Disable the mike controls in the user-interface.   This
+               prevents   the   user   from   enabling  the  mike  and
+               transmitting audio to the session.
+
+          <STRONG>-s</STRONG>   Start up with audio output  to  the  internal  speaker.
+               (This flag is the opposite of <STRONG>-j</STRONG>.)
+
+          <STRONG>-S</STRONG>   Make new sites come up `suppressed' (the check box next
+               to  the  sitename  will be checked and you will have to
+               click on it to hear the  site  speak).   This  flag  is
+               intended  for something like meeting audiocasts where a
+               moderator wants to have control over  who  is  able  to
+               speak.    This   flag   can   also   be   set   by  the
+               Vat.muteNewSites X resource.
+
+          <STRONG>-t</STRONG>   Set the multicast ttl (time-to-live) to <EM>ttl</EM>.  (The  ttl
+               is  ignored  if  the  destination  address is not an IP
+               multicast address.)  If no -t flag is given, the  value
+               of the X resource <EM>Vat.defaultTTL</EM> is used.
+
+          <STRONG>-U</STRONG>   Use the unix-domain stream socket specified  by  <EM>socket</EM>
+               for  audio I/O.  Some process should bind to and listen
+               on this socket before vat is run.  The data is raw 8khz
+               mulaw  samples.   If <EM>socket</EM> is a number, then AudioFile
+               is  used.   The  number  indicates  the   corresponding
+
+
+          <STRONG>-u</STRONG>   Source <EM>script</EM>, in addition to the  compiled-in  script,
+               to build the user interface.  You can provide addtional
+               tcl code that is loaded at startup in $HOME/.vat.tcl.
+
+          <STRONG>-X</STRONG>   Override the X resource Vat.<EM>resource</EM> with <EM>value</EM>.
+
+
+     <STRONG>VAT</STRONG> <STRONG>OPERATION</STRONG>
+          Note:  In addition to invoking the ``quit''  button,  typing
+          `q',  `Q',  ctrl-C  or  ctrl-D  anywhere  in the window will
+          terminate <EM>vat</EM>.
+
+          The <EM>vat</EM> window is divided into  two  parts:  the  right  has
+          controls  for  the  local  audio  and  the left has a status
+          display of the remote users  participating  in  the  current
+          conference.   The audio controls consist of two sliders that
+          control the mike and  playback  gain,  a  button  to  toggle
+          output  between the built in speaker and the headphone jack,
+          buttons to enable/disable either the mike  or  speaker,  and
+          buttons  to  control acquistion of the audio hardware.  Just
+          to the left of each slider is a VU meter.  A rule  of  thumb
+          is  to  adjust the mike and speaker gain sliders so the peak
+          readings on the meter are about 80% of full scale.
+
+          To change the audio output line (i.e.,  speaker,  headphone,
+          lineout,  etc.)  click on the speaker icon (it should change
+          to a headphone icon).  Additional  clicks  will  round-robin
+          among the available lines.  If there is only one option, the
+          button will be disabled.  Similarly, click on the mike  icon
+          to  select  among  the  input lines.  By default, vat starts
+          with the mike muted and the speaker enabled.   The  mike  is
+          active  when  the  ``talk'' button is selected, while output
+          can be muted by de-selecting the ``listen'' button.
+
+          The <STRONG>Conference</STRONG> <STRONG>Hosts</STRONG>  window  lists  all  the  remote  users
+          participating  in  the  conference.   Each  user's  name  is
+          displayed in a box that is highlighted  whenever  that  user
+          speaks  and grayed-out if a `session' message from that user
+          hasn't been received for at  least  30  seconds  (vat  sends
+          `session'  message  every so often) - this usually indicates
+          that the site has lost connectivity or  that  vat  has  been
+          aborted or stopped.  There is a checkbox to the left of each
+          participant name.  Clicking on the box will cause audio from
+          that  participant  to  be  discarded  instead of played (for
+          example, this might be used  to  suppress  a  site  that  is
+          generating echoes).
+
+     <STRONG>Multiple</STRONG> <STRONG>VAT</STRONG> <STRONG>Windows</STRONG>
+          One host can be running an arbitrary number of vat  sessions
+          (presumably with different destination addresses).  However,
+
+          only  one  of those sessions will be able to access the mike
+          and speaker.  For the  most  part,  the  vat  sessions  will
+          automatically follow the action.  If you select the ``talk''
+          button or press ``Keep Audio'' button, the audio device will
+          be  acquired by that session and the session that previously
+          held the audio will relinquish it.  Vat displays it's  title
+          bar in an oblique font when the audio is not being held.
+
+          A vat session will also acquire the audio if there is  input
+          from  the  network.  But to prevent a background vat session
+          from stealing the audio from the foreground session, you can
+          toggle  the  ``Keep Audio'' button.  When the ``Keep Audio''
+          button is selected, vat will reliquish  the  audio  only  if
+          there is a user demand in another window (i.e., unmuting the
+          mike or selecting the ``Keep Audio'' button).
+
+          Participants in a multi-site conference often want  to  have
+          `side  conversations'  that  don't  bother  the  rest of the
+          conference  participants.   Vat   has   some   support   for
+          establishing  side conversations: If you middle-click on the
+          name of some site in the conference hosts window, a new  vat
+          window  will  be created that talks only to that participant
+          (it sends unicast datagrams rather than multicast).  If that
+          other  participant  also middle-clicks on your site, you can
+          have a private conversation  between  just  your  two  sites
+          using  the newly created vat windows.  Note:  due to a `bug'
+          in the way most systems implement multicast, if you create a
+          new  window  aimed  at  a  particular  participant  but they
+          haven't created a window aimed at you, they  will  hear  you
+          speaking  in  the main conference window and may not realize
+          that  your  audio  is  being  sent  only  to  them  and  not
+          multicast.   One  can  view  this  either  as  a feature (it
+          provides a semi-private channel you can use to  ask  someone
+          to  set  up a side conversation) or a bug (it often leads to
+          strange, one-sided conversations where one  side  multicasts
+          and the other doesn't).
+
+     <STRONG>Auxiliary</STRONG> <STRONG>Controls</STRONG>
+          Clicking on the ``Menu'' label at  the  bottom  of  the  <EM>vat</EM>
+          window will cause a panel of <STRONG>auxiliary</STRONG> <STRONG>controls</STRONG> to open.
+
+          The <STRONG>Audio</STRONG> <STRONG>Tests</STRONG> buttons will enable some audio  test  modes.
+          These  should  <EM>not</EM>  be  selected  during  a conference.  The
+          <STRONG>loopback</STRONG> <STRONG>mike</STRONG> button will cause input from the  mike  to  be
+          sent  to  the  local speaker/jack.  This might be useful for
+          checking levels and debugging cable problems  but  the  20ms
+          delay from input to output makes talking in this mode almost
+          impossible.  The three tone buttons  will  generate  one  of
+          three  reference  tones  through  the  local speaker.  Level
+          setting should generally be done with the -6dBm tone.
+
+
+          feedback/echo  from  the mike to the speaker.  In <STRONG>mike</STRONG> <STRONG>mutes</STRONG>
+          <STRONG>net</STRONG> mode, vat will mute the speaker whenever it thinks  that
+          you are talking, while in <STRONG>net</STRONG> <STRONG>mutes</STRONG> <STRONG>mike</STRONG> mode, vat will mute
+          the mike whenever input from the network arrives.   In  <STRONG>full</STRONG>
+          <STRONG>duplex</STRONG>  mode, vat will assume that feedback can't happen and
+          do nothing to avoid it.   In  <STRONG>echo</STRONG>  <STRONG>cancel</STRONG>  mode,  vat  will
+          attempt  to  eliminate  echoes  by  doing  some fancy signal
+          processing.  (EchoCancel requires the BSD sound driver -  it
+          is  disabled  when  running vat under Sun OS because the Sun
+          driver does not provide  any  mechanism  to  time  correlate
+          audio  output  and input.)  The internal speaker should only
+          be used in `speakerphone' or `echo cancel' mode -  selecting
+          `headphone' mode for it will result in your site injecting a
+          lot of unpleasant echoes into the conference.  The headphone
+          jack  should  be  set  to  `FullDuplex'  mode  if  you  have
+          headphones   plugged   into   it   and   `MikeMutesNet'   or
+          `EchoCancel'  mode  if  you have an external amp and speaker
+          plugged into it.
+
+          There are two <EM>type</EM>-<EM>in</EM> <EM>boxes</EM> (see below) at the bottom of the
+          Auxiliary  Controls  panel.   The  one labeled <STRONG>`Name'</STRONG> can be
+          used to change the session name announced  to  other  sites.
+          The  one labelled <STRONG>`Key'</STRONG> can be used to specify an encryption
+          key (see next section).
+
+     <STRONG>Encryption</STRONG>
+          (<EM>N.B</EM>.:  <EM>Because</EM>  <EM>of</EM>  <EM>U.S</EM>.  <EM>export</EM>  <EM>controls</EM>,  <EM>the</EM>   <EM>standard</EM>
+          <EM>distribution</EM>  <EM>of</EM>  <EM>vat</EM>  <EM>from</EM> <EM>LBL</EM> <EM>does</EM> <EM>not</EM> <EM>support</EM> <EM>encryption</EM>.
+          <EM>In</EM> <EM>this</EM> <EM>case</EM>, <EM>the</EM> ``<EM>Key</EM>'' <EM>type</EM>-<EM>in</EM> <EM>box</EM> <EM>will</EM> <EM>be</EM> <EM>disabled</EM>.)
+
+          Since vat conversations are typically conducted over open IP
+          networks   there   is   no  way  to  prevent  eavesdropping,
+          particularly for multicast conferences.  To add some measure
+          of  privacy,  vat  allows the audio packet streams to be DES
+          encrypted.  Presumably only sites sharing the same key  will
+          be able to decrypt and listen to the encrypted audio.
+
+          Encryption is enabled by entering an arbitrary string in the
+          <STRONG>key</STRONG>   box   (this  string  is  the  previously  agreed  upon
+          encryption  key  for  the  conference  -   note   that   key
+          distribution  should  be done by mechanisms totally separate
+          from vat).  Encryption can be turned off by entering a  null
+          string (just a carriage return or any string starting with a
+          blank) in the <STRONG>key</STRONG> box.
+
+     <STRONG>X</STRONG> <STRONG>Resources</STRONG>
+          The  following  are  the  names  and  default  values  of  X
+          resources used by <EM>vat</EM>. This list is incomplete.  Consult the
+          tcl code in ui-resource.tcl from the vat source distribution
+          for the complete set.
+
+
+               Vat.audioFormat:          pcm
+               Vat.lectureMode:          false
+               Vat.inputPort:            Mike
+               Vat.outputPort:           Speaker
+               Vat.speakerMode:          Speakerphone
+               Vat.jackMode:             Headphone
+               Vat.mikeGain:             32
+               Vat.speakerGain:          180
+               Vat.jackGain:             180
+               Vat.mikeAGC:              false
+               Vat.mikeAGCLevel:         0
+               Vat.speakerAGC:           false
+               Vat.speakerAGCLevel:      0
+               Vat.maxPlayout:           6
+               Vat.defaultPriority:      100
+               Vat.idleDropTime:         20
+               Vat.autoRaise:            true
+               Vat.pushToTalk:           false
+               Vat.keepSites:            false
+               Vat.key:
+               Vat.muteNewSites:         false
+               Vat.siteDropTime:         30
+               ! fonts
+               Vat.titleFont:            -*-helvetica-bold-r-normal--*-140-75-75-*-*-*-*
+               Vat.audioFont:            -*-helvetica-medium-r-normal--*-100-75-75-*-*-*-*
+               Vat.helpFont:             -*-times-medium-r-normal--*-140-75-75-*-*-*-*
+               Vat.ctrlFont:             -*-helvetica-bold-r-normal--*-100-75-75-*-*-*-*
+               Vat.ctrlTitleFont:        -*-helvetica-bold-r-normal--*-120-75-75-*-*-*-*
+               Vat.entryFont:            -*-helvetica-medium-r-normal--*-100-75-75-*-*-*-*
+
+          <STRONG>Vat.maxPlayout</STRONG> is the maximum `play out' delay, in  seconds,
+          that  can  be  tolerated.   I.e.,  <EM>vat</EM> dynamically adapts to
+          delays introduced in the network by delaying the play out of
+          a  remote  site's audio packets.  The range of adaptation is
+          limited by the size of a buffer in vat  and  this  parameter
+          essentially   sets   the   size  of  that  buffer.   Setting
+          <STRONG>maxPlayout</STRONG> larger than 10 seconds will probably result  poor
+          vat and system behavior.
+
+          Vat has two different modes of adapting the  playout  delay,
+          one more suitable for an interactive, multi-party discussion
+          or conference and the other more suitable for listening to a
+          speech or lecture.  The two modes differ in how quickly they
+          `forget' the delay vat  introduces  to  adapt  to  transient
+          network  congestion:  In  <EM>Conference</EM>  <EM>mode</EM>  vat  attempts to
+          minimize the delay  (since  large  delays  make  interactive
+          conversations  difficult)  but  this usually results in more
+          lost packets when the delay becomes  too  short  handle  the
+          next  congestion  event.   In  <EM>Lecture</EM>  <EM>mode</EM> vat attempts to
+          minimize lost packets by reducing delays very slowly.   This
+          results  in  the  clearest  playback  but  interactivity may
+
+
+          <EM>Conference</EM> <EM>mode</EM> is the default when vat starts up unless the
+          <STRONG>-l</STRONG>  flag  is  given  or the X resource <EM>lectureMode</EM> is set to
+          true.  There are radio buttons in the network section of the
+          Auxiliary  Controls  panel  to switch between Conference and
+          Lecture
+
+     <STRONG>Statistics</STRONG>
+          Clicking on a name with the left mouse button will bring  up
+          a  small window of identification information for that user.
+          The  window  includes  several  of  the  RTP  identification
+          descriptors,  the  audio  format  in  use,  and the times of
+          reception of the last data and control  packets.   A  packet
+          statistics  window  can  be brought up from the ``Stats...''
+          pulldown menu by selecting ``RTP''.  There are three columns
+          of  numbers.   The  last  column is the aggregate statistics
+          since vat started, while the middle column is the difference
+          between  the  last  update  time  and the current time.  The
+          first column is an smoother version of  the  middle  column,
+          using   an   exponentially   weighted   average   with  gain
+          Vat.statTimeConst.
+
+          The statistics are updated every  second  or  so  while  the
+          window  is  mapped.   Any  of  values  can be plotted with a
+          stripchart by clicking on the name of the desired statistic.
+
+     <STRONG>SEE</STRONG> <STRONG>ALSO</STRONG>
+          audio(4)
+
+     <STRONG>AUTHORS</STRONG>
+          Van   Jacobson   (van@ee.lbl.gov)   and    Steven    McCanne
+          (mccanne@ee.lbl.gov),  both of Lawrence Berkeley Laboratory,
+          University of California, Berkeley, CA.
+9          Jack Jansen (Jack.Jansen@cwi.nl) of  Stichting  Mathematisch
+          Centrum,  Amsterdam,  the Netherlands, contributed the Intel
+          DVI ADPCM codec.
+9          Ron Frederick (frederic@parc.xerox.com) of Xerox PARC,  Palo
+          Alto,  CA,  contributed  the  LPC codec which is based on an
+          implementation       done       by       Ron       Zuckerman
+          (ronzu@isu.comm.mot.com) of Motorola which was posted to the
+          Usenet group comp.dsp on 26 June 1992.
+9          Carsten Bormann  (cabo@cs.tu-berlin.de)  and  Jutta  Degener
+          (jutta@cs.tu-berlin.de)  of the Communications and Operating
+          Systems Research Group (KBS) at the Technische  Universitaet
+          Berlin contributed the GSM codec.
+9          Steve Casner (casner@isi.edu) of ISI, Los Angeles,  CA,  and
+          Steve  Deering  (deering@parc.xerox.com)  of Xerox PARC have
+          invested tremendous effort in making vat work on a scale far
+          beyond   the   authors'   wildest   expectations   and  have
+
+
+
+          severely pushed the envelope of vat's capabilities).
+
+     <STRONG>BUGS</STRONG>
+          Speakerphone mode is difficult to get right - use a  headset
+          if  you  can  (or  run BSD instead of Sun-OS to get a kernel
+          audio driver that can support echo  cancellation).   If  you
+          have  to  use speakerphone mode, try to position the mike as
+          far  as  possible  from  the  speaker  (the  speaker  in   a
+          sparcstation  is on bottom of the machine in the front right
+          corner near the LED).  If there's a problem with echo (i.e.,
+          you  transmit  whenever  other  people  start speaking), try
+          reducing the mike gain or mute  the  mike  when  you're  not
+          speaking.
+
+          In speakerphone mode <EM>vat</EM> assumes that if there is audio data
+          from  the net being sent to the speaker at least part of the
+          signal from the mike is pickup from the speaker.  So, unless
+          the  mike  signal is `large' compared to the signal from the
+          net, <EM>vat</EM> assumes it is echo and suppresses it.   This  means
+          that  if  you  want to interrupt someone who is talking, you
+          may have to talk a bit louder than usual at the  start  (you
+          can  tell  if  you succeed because your site's name box will
+          light and the speaker will mute).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

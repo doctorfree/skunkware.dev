@@ -1,0 +1,103 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Cross Runtime</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_49.html">previous</A>, <A HREF="usegcc_51.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<H3><A NAME="SEC53" HREF="usegcc_toc.html#TOC53"><TT>`libgcc.a'</TT> and Cross-Compilers</A></H3>
+<P>
+Code compiled by GNU CC uses certain runtime support functions
+implicitly.  Some of these functions can be compiled successfully with
+GNU CC itself, but a few cannot be.  These problem functions are in the
+source file <TT>`libgcc1.c'</TT>; the library made from them is called
+<TT>`libgcc1.a'</TT>.
+<P>
+When you build a native compiler, these functions are compiled with some
+other compiler--the one that you use for bootstrapping GNU CC.
+Presumably it knows how to open code these operations, or else knows how
+to call the run-time emulation facilities that the machine comes with.
+But this approach doesn't work for building a cross-compiler.  The
+compiler that you use for building knows about the host system, not the
+target system.
+<P>
+So, when you build a cross-compiler you have to supply a suitable
+library <TT>`libgcc1.a'</TT> that does the job it is expected to do.
+<P>
+To compile <TT>`libgcc1.c'</TT> with the cross-compiler itself does not
+work.  The functions in this file are supposed to implement arithmetic
+operations that GNU CC does not know how to open code for your target
+machine.  If these functions are compiled with GNU CC itself, they 
+will compile into infinite recursion.
+<P>
+On any given target, most of these functions are not needed.  If GNU CC
+can open code an arithmetic operation, it will not call these functions
+to perform the operation.  It is possible that on your target machine,
+none of these functions is needed.  If so, you can supply an empty
+library as <TT>`libgcc1.a'</TT>.
+<P>
+Many targets need library support only for multiplication and division.
+If you are linking with a library that contains functions for
+multiplication and division, you can tell GNU CC to call them directly
+by defining the macros <CODE>MULSI3_LIBCALL</CODE>, and the like.  These
+macros need to be defined in the target description macro file.  For
+some targets, they are defined already.  This may be sufficient to 
+avoid the need for libgcc1.a; if so, you can supply an empty library.
+<P>
+Some targets do not have floating point instructions; they need other
+functions in <TT>`libgcc1.a'</TT>, which do floating arithmetic.
+Recent versions of GNU CC have a file which emulates floating point.
+With a certain amount of work, you should be able to construct a 
+floating point emulator that can be used as <TT>`libgcc1.a'</TT>.  Perhaps
+future versions will contain code to do this automatically and
+conveniently.  That depends on whether someone wants to implement it.
+<P>
+Some embedded targets come with all the necessary <TT>`libgcc1.a'</TT>
+routines written in C or assembler.  These targets build
+<TT>`libgcc1.a'</TT> automatically and you do not need to do anything
+special for them.  Other embedded targets do not need any
+<TT>`libgcc1.a'</TT> routines since all the necessary operations are
+supported by the hardware.
+<P>
+If your target system has another C compiler, you can configure GNU CC
+as a native compiler on that machine, build just <TT>`libgcc1.a'</TT> with
+<SAMP>`make libgcc1.a'</SAMP> on that machine, and use the resulting file with
+the cross-compiler.  To do this, execute the following on the target
+machine:
+<P>
+<PRE>
+cd <VAR>target-build-dir</VAR>
+./configure --host=sparc --target=sun3
+make libgcc1.a
+</PRE>
+<P>
+And then this on the host machine:
+<P>
+<PRE>
+ftp <VAR>target-machine</VAR>
+binary
+cd <VAR>target-build-dir</VAR>
+get libgcc1.a
+quit
+</PRE>
+<P>
+Another way to provide the functions you need in <TT>`libgcc1.a'</TT> is to
+define the appropriate <CODE>perform_...</CODE> macros for those
+functions.  If these definitions do not use the C arithmetic operators
+that they are meant to implement, you should be able to compile them
+with the cross-compiler you are building.  (If these definitions already
+exist for your target file, then you are all set.)
+<P>
+To build <TT>`libgcc1.a'</TT> using the perform macros, 
+build the compiler using <SAMP>`LIBGCC1=libgcc1.a OLDCC=./xgcc'</SAMP>. 
+Otherwise, you should place your replacement library under the name
+<TT>`libgcc1.a'</TT> in the directory in which you will build the
+cross-compiler, before you run <CODE>make</CODE>.
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_49.html">previous</A>, <A HREF="usegcc_51.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

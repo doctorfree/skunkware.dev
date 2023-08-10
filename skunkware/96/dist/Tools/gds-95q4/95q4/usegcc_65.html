@@ -1,0 +1,98 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Lvalues</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_64.html">previous</A>, <A HREF="usegcc_66.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX272"></A>
+<A NAME="IDX273"></A>
+<A NAME="IDX274"></A>
+<A NAME="IDX275"></A>
+<A NAME="IDX276"></A>
+<A NAME="IDX277"></A>
+<A NAME="IDX278"></A>
+<A NAME="IDX279"></A>
+<A NAME="IDX280"></A>
+<H2><A NAME="SEC68" HREF="usegcc_toc.html#TOC68">Generalized Lvalues</A></H2>
+Compound expressions, conditional expressions and casts are allowed as
+lvalues provided their operands are lvalues.  This means that you can take
+their addresses or store values into them.
+<P>
+Standard C++ allows compound expressions and conditional expressions as
+lvalues, and permits casts to reference type, so use of this extension
+is deprecated for C++ code.
+<P>
+For example, a compound expression can be assigned, provided the last
+expression in the sequence is an lvalue.  These two expressions are
+equivalent:
+<P>
+<PRE>
+(a, b) += 5
+a, (b += 5)
+</PRE>
+<P>
+Similarly, the address of the compound expression can be taken.  These two
+expressions are equivalent:
+<P>
+<PRE>
+&#38;(a, b)
+a, &#38;b
+</PRE>
+<P>
+A conditional expression is a valid lvalue if its type is not void and the
+true and false branches are both valid lvalues.  For example, these two
+expressions are equivalent:
+<P>
+<PRE>
+(a ? b : c) = 5
+(a ? b = 5 : (c = 5))
+</PRE>
+<P>
+A cast is a valid lvalue if its operand is an lvalue.  A simple
+assignment whose left-hand side is a cast works by converting the
+right-hand side first to the specified type, then to the type of the
+inner left-hand side expression.  After this is stored, the value is
+converted back to the specified type to become the value of the
+assignment.  Thus, if <CODE>a</CODE> has type <CODE>char *</CODE>, the following two
+expressions are equivalent:
+<P>
+<PRE>
+(int)a = 5
+(int)(a = (char *)(int)5)
+</PRE>
+<P>
+An assignment-with-arithmetic operation such as <SAMP>`+='</SAMP> applied to a cast
+performs the arithmetic using the type resulting from the cast, and then
+continues as in the previous case.  Therefore, these two expressions are
+equivalent:
+<P>
+<PRE>
+(int)a += 5
+(int)(a = (char *)(int) ((int)a + 5))
+</PRE>
+<P>
+You cannot take the address of an lvalue cast, because the use of its
+address would not work out coherently.  Suppose that <CODE>&#38;(int)f</CODE> were
+permitted, where <CODE>f</CODE> has type <CODE>float</CODE>.  Then the following
+statement would try to store an integer bit-pattern where a floating
+point number belongs:
+<P>
+<PRE>
+*&#38;(int)f = 1;
+</PRE>
+<P>
+This is quite different from what <CODE>(int)f = 1</CODE> would do--that
+would convert 1 to floating point and store it.  Rather than cause this
+inconsistency, we think it is better to prohibit use of <SAMP>`&#38;'</SAMP> on a cast.
+<P>
+If you really do want an <CODE>int *</CODE> pointer with the address of
+<CODE>f</CODE>, you can simply write <CODE>(int *)&#38;f</CODE>.
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_64.html">previous</A>, <A HREF="usegcc_66.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

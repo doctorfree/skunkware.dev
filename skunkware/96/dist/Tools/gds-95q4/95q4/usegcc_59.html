@@ -1,0 +1,69 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Local Labels</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_58.html">previous</A>, <A HREF="usegcc_60.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX249"></A>
+<A NAME="IDX250"></A>
+<H2><A NAME="SEC62" HREF="usegcc_toc.html#TOC62">Locally Declared Labels</A></H2>
+<P>
+Each statement expression is a scope in which <DFN>local labels</DFN> can be
+declared.  A local label is simply an identifier; you can jump to it
+with an ordinary <CODE>goto</CODE> statement, but only from within the
+statement expression it belongs to.
+<P>
+A local label declaration looks like this:
+<P>
+<PRE>
+__label__ <VAR>label</VAR>;
+</PRE>
+<P>
+or
+<P>
+<PRE>
+__label__ <VAR>label1</VAR>, <VAR>label2</VAR>, ...;
+</PRE>
+<P>
+Local label declarations must come at the beginning of the statement
+expression, right after the <SAMP>`({'</SAMP>, before any ordinary
+declarations.
+<P>
+The label declaration defines the label <EM>name</EM>, but does not define
+the label itself.  You must do this in the usual way, with
+<CODE><VAR>label</VAR>:</CODE>, within the statements of the statement expression.
+<P>
+The local label feature is useful because statement expressions are
+often used in macros.  If the macro contains nested loops, a <CODE>goto</CODE>
+can be useful for breaking out of them.  However, an ordinary label
+whose scope is the whole function cannot be used: if the macro can be
+expanded several times in one function, the label will be multiply
+defined in that function.  A local label avoids this problem.  For
+example:
+<P>
+<PRE>
+#define SEARCH(array, target)                     \
+({                                               \
+  __label__ found;                                \
+  typeof (target) _SEARCH_target = (target);      \
+  typeof (*(array)) *_SEARCH_array = (array);     \
+  int i, j;                                       \
+  int value;                                      \
+  for (i = 0; i &#60; max; i++)                       \
+    for (j = 0; j &#60; max; j++)                     \
+      if (_SEARCH_array[i][j] == _SEARCH_target)  \
+        { value = i; goto found; }              \
+  value = -1;                                     \
+ found:                                           \
+  value;                                          \
+})
+</PRE>
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_58.html">previous</A>, <A HREF="usegcc_60.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

@@ -1,0 +1,228 @@
+mpack/munpack version 1.4
+
+Mpack and munpack are utilities for encoding and decoding
+(respectively) binary files in MIME (Multipurpose Internet Mail
+Extensions) format mail messages.  For compabibility with older forms
+of transferring binary files, the munpack program can also decode
+messages in split-uuencoded format.
+
+This MIME implementation is intended to be as simple and portable as
+possible.  For a slightly more sophisticated MIME implementation, see
+the program MetaMail, available via anonymous FTP to
+thumper.bellcore.com, in directory pub/nsb
+
+
+This package was obtained from an ftp archive server.
+Please observe the copyright notice displayed upon installation.
+
+Manual pages are included with this package.
+
+
+This software package follows the ABI conventions for add-on
+packages and is  installed in /opt. It is wise to
+change the default PATH setting to include /opt/bin in /etc/profile.
+
+If you do not have a /opt, you can create it with the subdirectories
+/opt/bin, /opt/lib, /opt/man -- you could also use a symbolic link
+to some other part of disk if you like.
+
+To make the manual pages accessible to the /usr/ucb/man command
+set the MANPATH environment variable to include /opt/man,
+a typical MANPATH might be:
+
+	MANPATH=/usr/share/man:/opt/man
+	export MANPATH
+
+
+To install the package the simplest way follows:
+
+
+1. Extract the tar archive. 
+
+$ cd /tmp
+$ su
+# tar xvf mpack-1.4.pkg.tar
+
+
+2. Install the package 
+
+# pkgadd -d `pwd`
+
+	(there's no graphical startup item for this package)
+
+3. Removing the package
+
+# pkgrm mpack
+
+Using mpack: 
+-------------
+
+Mpack is used to encode a file in one or more MIME format messages.
+The program is invoked with:
+
+	mpack [options] -o outputfile file
+
+Where "[options]" is one or more optional switches described below.
+"file" is the name of the file to encode and "-o outputfile" is
+described below.
+
+The unix version may also be invoked with either:
+
+	mpack [options] file address...
+
+or
+
+	mpack [options] -n newsgroups file
+
+Where "address..." is one or more e-mail address to mail the resulting
+messages to and "newsgroups" is a comma-separated list of newsgroups
+to post the resulting messages to.
+
+The possible options are:
+
+     -s subject
+          Set the Subject header field to Subject.   By default,
+          mpack will prompt for the contents of the subject
+          header.
+
+     -d descriptionfile
+          Include the contents of the file descriptionfile in an
+          introductory section at the beginning of the first
+          generated message.
+
+     -m maxsize
+          Split the message (if necessary) into partial messages,
+          each not exceeding maxsize characters.  The default
+          limit is the value of the SPLITSIZE environment 
+	  variable, or no limit if the environment variable
+          does not exist.  Specifying a maxsize of 0 means there
+          is no limit to the size of the generated message.
+
+     -c content-type
+          Label the included file as being of MIME type
+          content-type, which must be a subtype of application,
+          audio, image, or video.  If this switch is not given,
+          mpack examines the file to determine its type.
+
+     -o outputfile
+          Write the generated message to the file outputfile.  If
+          the message has to be split, the partial messages will
+          instead be written to the files outputfile.01,
+          outputfile.02, etc.
+
+
+The environment variables which control mpack's behavior are:
+
+     SPLITSIZE
+          Default value of the -m switch.  Default "0".
+
+     TMPDIR        [unix version only]
+	  Directory to store temporary files.  Default "/tmp".
+
+	   
+
+Using munpack:
+-------------
+
+Mpack is used to decode one or more messages in MIME or
+split-uuencoded format and extract the embedded files.  The program is
+invoked with:
+
+	munpack [options] filename...
+
+which reads the messages in the files "filename...".  The pc version
+does accept wildcards.  Munpack may also be invoked with just:
+
+	munpack [options]
+
+which reads a message from the standard input.
+
+If the message suggests a file name to use for the imbedded part, that
+name is cleaned of potential problem characters and used for the
+output file.  If the suggested filename includes subdirectories, they
+will be created as necessary.  If the message does not suggest a file
+name, the names "part01", "part02", etc are used in sequence.
+
+If the imbedded part was preceded with textual information, that
+information is also written to a file. The file is named the same as
+the imbedded part, with any filename extension replaced with ".desc"
+on the unix version or with ".dsc" on the pc version.
+
+The possible options are:
+
+     -f
+          Forces the overwriting of existing files.  If a message
+          suggests a file name of an existing file, the file will be
+          overwritten.  Without this flag, the unix version appends
+          ".1", ".2", etc to find a nonexistent file.  Without this
+          flag, the pc version replaces any filename extension with
+          ".1", ".2", etc to find a nonexistent file.
+
+     -t
+	  Also unpack the text parts of multipart messages to files.
+	  By default, text parts that do not have a filename parameter
+	  do not get unpacked.
+
+     -q
+          Be quiet--suppress messages about saving partial messages.
+
+     -C directory
+          Change the current directory to "directory" before reading
+          any files.  This is useful when invoking munpack
+          from a mail or news reader.
+
+The environment variables which control munpack's behavior are:
+
+     TMPDIR	[unix version]
+          Root of directory to store partial messages awaiting 
+          reassembly.  Default is "/tmp".   Partial messages are
+	  stored in subdirectories of $TMPDIR/message-parts-$USER/
+
+
+Acknowledgements:
+
+Written by John G. Myers, jgm+@cmu.edu
+The mac version was written by Christopher J. Newman, chrisn+@cmu.edu
+The amiga port was done by Mike W. Meyer, mwm@contessa.phone.net.
+
+Thanks to Nathaniel Borenstein for testing early versions of mpack and
+for making many helpful suggestions.
+
+
+Reporting bugs:
+
+Bugs and comments should be reported to jgm+@cmu.edu.  Please include
+the version number and the platform in the report.
+
+
+Legalese:
+
+(C) Copyright 1993 by John G. Myers and Christopher J. Newman
+All Rights Reserved.
+
+Permission to use, copy, modify, distribute, and sell this software
+and its documentation for any purpose is hereby granted without fee,
+provided that the above copyright notice appear in all copies and that
+both that copyright notice and this permission notice appear in
+supporting documentation, and that the name of John G. Myers or
+Christopher J. Newman not be used in advertising or publicity
+pertaining to distribution of the software without specific, written
+prior permission.  John G.  Myers and Christopher J. Newman make no
+representations about the suitability of this software for any
+purpose.  It is provided "as is" without express or implied warranty.
+
+JOHN G. MYERS AND CHRISTOPHER J. NEWMAN DISCLAIM ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL JOHN G. MYERS OR
+CHRISTOPHER J. NEWMAN BE LIABLE FOR ANY SPECIAL, INDIRECT OR
+CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF
+USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+
+Portions of this software are derived from code written by Bell
+Communications Research, Inc. (Bellcore) and by RSA Data Security,
+Inc. and bear similar copyrights and disclaimers of warranty.
+
+

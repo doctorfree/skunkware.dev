@@ -1,0 +1,375 @@
+
+/*
+ * Copyright (c) 1993, 1994, 1995 Carnegie Mellon University.
+ * All rights reserved.
+ *
+ * Permission to use, copy, modify, and distribute this software and
+ * its documentation for any purpose and without fee is hereby granted, 
+ * provided that the above copyright notice appear in all copies and
+ * that both that copyright notice and this permission notice appear
+ * in supporting documentation, and that the name of CMU not be
+ * used in advertising or publicity pertaining to distribution of the
+ * software without specific, written prior permission.  
+ * 
+ * CMU DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+ * ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
+ * CMU BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR
+ * ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+ * WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+ * ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
+ *
+ */
+
+Argus 1.5
+Software Engineering Institute
+Carnegie Mellon University
+argus@sei.cmu.edu
+ftp:/ftp.sei.cmu.edu/pub/argus-1.5
+
+
+Thank you for your interest in Argus.
+
+Argus is a generic IP network transaction auditing tool that has
+allowed us at Carnegie Mellon University's Software Engineering Institute
+to perform a number of powerful network management tasks that are
+currently not possible using commercial network management tools.
+
+Argus runs as an application level daemon, promiscuously reading network
+datagrams from a specified interface, and generates network traffic status
+records for the network activity that it encounters.  It is the way that
+Argus categorizes and reports on network activity that makes this tool
+unique and powerful.
+
+In our day to day operations, we have been using Argus on a Sun
+SPARCstation 2, to collect daily comprehensive network transaction logs
+from the CMU DMZ, for all of the network traffic between Carnegie Mellon
+University, the Software Engineering Institute, CERT Coordination Center
+and the Internet.  This network experiences data rates that exceed 48
+Gigabytes/day, with peak packet loads of ~4000 packets/sec.
+With Argus, we have been able to reliably achieve high orders of data
+reduction with considerable semantic preservation, allowing us
+to perform extensive analysis of our network traffic, historically.
+
+By processing these historical network logs, we have been able to:
+
+   1. Verify that our network security access control policies are
+      actually being enforced and detect attempts to break through
+      our firewall and host based mechanisms.
+
+   2. Perform grade of service analysis for every IP based network
+      service that is offered in our network infrastructure.
+     
+   3. Discover changes in the behavior of our network elements and
+      in the behavior of our external network partners.
+
+   4. Identify and troubleshoot difficult transient network problems such
+      as intermittent service failure, denial of service attacks and
+      host and network configuration problems.
+
+   5. Perform "what if?" analysis on network load and performance.
+
+
+And by using the realtime features of Argus, we have been able to
+develop complex proactive network management tasks, such as real-time
+management notification of the occurrence of high connection setup
+failures to key service machines.
+
+
+The data that Argus generates makes possible the ability to analyze
+network activity and performance in ways that have not been possible
+before.  We are routinely answering questions such as:
+
+   "Has anything scanned this subnet for system vulnerabilities, such
+       as that performed by SATAN?"
+
+   "A new intrusion method has been discovered, has anyone tried
+    to use it to attack the CERT Coordination Center's network in
+    the past year?"
+
+   "What host and what TCP service used all of the bandwidth on the
+       CMU DMZ last night?"
+
+   "Did a new MUD server appear on any of the SEI machines last
+       Tuesday?"
+
+   "What network traffic was blocked by our router-enforced firewall?"
+
+   "What is the average HTTP transaction connection time when a CMU
+       host accesses MIT's WWW server?"
+
+   "If we move the News server to another subnet, what other machines
+       should be moved with it?"
+
+Each of these questions can be answered from the same historical network
+activity audit log.
+
+
+This software distribution includes the network transaction auditing
+engine, argus(5), as well as two Argus data reading tools, ra(1) and
+services(1),  which we include as examples of argus(5) clients.
+We use variants of ra(1) for most our analyses. We would like to
+encourage the development of more Argus analysis tools, and to that
+end we have developed a library of support routines and a client template
+that should make developing clients easier.  Please see the
+clients/README file for more information.
+
+
+We have found that comprehensive network transaction auditing can be a
+powerful network management tool, and we think that a large number
+of sites can benefit from the prototype work that we have done in this
+area.  We hope that you find Argus and the support tools helpful.
+
+Included is a brief description of some design issues relating to
+Argus that may be of interest.  If you have any questions, comments,
+suggestions, recommendations, opinions, attitudes, contributions,
+accolades, and/or illuminations, please send them to argus@sei.cmu.edu.
+
+
+Again, thank you for your interest in Argus.
+
+Carter Bullard
+Software Engineering Institute
+Carnegie Mellon University
+wcb@sei.cmu.edu
+
+Chas DiFatta
+Software Engineering Institute
+Carnegie Mellon University
+chas@sei.cmu.edu
+
+
+
+Overview
+
+In this package we have provided the network transaction auditing engine,
+Argus, and a few basic tools for reading and analyzing the data.  Please
+read the man pages for argus(8), ra(1) and services(1) for detailed
+description of how to use these specific programs.
+
+Argus is an implementation of our research work in general network
+accountability, that is tailored for IP networking.  The research
+has lead to the development of an abstract model of network behavior
+that allows arbitrary network traffic to be categorized into prototypic
+network "transactions".  Argus tracks the transactions that it "discovers",
+and generates status reports, as the transactions progress.
+
+Argus categorizes network traffic into one of four types of network
+"transactions" (example):
+
+   1. connection oriented (tcp)
+   2. connection-less
+         request/response (udp/dns)
+         persistent       (MBONE multicast traffic)
+   3. event               (icmp)
+
+and then applies connection oriented semantics to each.  This approach
+allows Argus to treat these dissimilar transaction models as if they
+are the same.
+
+In the IP implementation, all network datagrams are categorized by
+source and destination MAC addresses, source and destination IP
+addresses, the IP options that may exist, the upper layer protocol as
+indicated in the IP header proto field, and in the case of UDP or TCP,
+by the datagram's source and destination port numbers.
+
+
+Argus Status Records
+
+There is one union structure for the fixed length Argus status reports
+that are generated for the 4 different types of transactions.  Each
+status report contains transaction start and stop time information, 
+the MAC and IP src and dst addresses, the IP options that were seen,
+the upper layer protocol used, the transaction src and dst byte and
+packet counts and upper layer protocol specific information.  The
+protocol specific information and the criteria for when the status
+reports are created, is different for each of the four transaction
+types.
+
+   Connection Oriented Transactions
+
+      The connection oriented protocol that Argus understands is TCP.
+      Argus has a complete knowledge of the TCP state machine and
+      as such can generate status reports with each state transition
+      seen within any individual TCP.  There is also the provision for
+      generating time interval based status reporting on the TCP
+      connections that Argus is tracking.
+
+      The status report for TCP indicates what TCP states were seen,
+      if any packets were retransmitted, if the src or dst windows
+      had closed, and if the report had been generated by a time out
+      condition.
+
+      In the default mode, Argus will generate a cumulative status report
+      at the time that a TCP connection closes, or times out.  This
+      strategy offers the greatest amount of data reduction on TCP
+      transactions.
+
+
+   Connection-Less Transactions
+
+      All non-TCP traffic is categorized as belonging to a
+      connection-less transaction.  When configured to generate the
+      most detailed level of reporting for connection-less traffic,
+      Argus will report:
+
+         1. The "discovery" of a new connection-less transaction.
+
+         2. The existence of a request/response "volley" within the
+               transaction.  This exists when Argus has seen a single
+               packet from both the source and destination for this
+               transaction.
+
+         3. The continuation of a transaction, or transaction persistence.
+               This status is generated by a timer function.  If traffic
+               has been seen within a configured timer window, a status
+               report is generated.
+
+      The status report for nonTCP traffic indicates if this is the
+      initial report on the transaction, if this is a request/response
+      status report, and if this is a continuation of a current transaction.
+
+      In the default mode, Argus will generate a status report when it
+      has seen a request/response "volley" within a transaction and then
+      every 15 minutes, if the transaction persists.  This strategy
+      offers immediate notification of request/response traffic and
+      a fair amount of data reduction on connection-less transactions.
+
+
+   Events
+      Argus reports ICMP datagrams as events, creating an Argus
+      status report for each ICMP datagram seen.  This strategy
+      is not data reducing, unfortunately, and can result in a large
+      number of status reports in a period of time.  This will, in many
+      cases, be "turned off" at runtime.
+
+      The status report for ICMP traffic includes most of the data
+      fields of the original ICMP datagram.  This is to preserve as
+      much ICMP semantics as possible.
+
+
+Because of the nature of IP networking, Argus records generally have a
+one to one relationship with application oriented transactions.
+Network based application transactions are represented as either a
+single status report, or a collection of related Argus status records.
+
+A TCP connection can span a number of Argus status records, if there
+are no keep alives, since the default TCP timeout value is 120 seconds.
+In this case, all the status records are identified as belonging to the
+TCP connection, because of the source/destination IP address, TCP port
+pairs are all the same.  The first report will show that it saw the
+start of the connection (SAW_SYN, SAW_SYN_SENT, CON_ESTABLISHED flags
+will be set), and the report was generated by a TIMED_OUT signal.  All
+the subsequent records will simply have the CON_ESTABLISHED flag set,
+and when it is the close of the connection, it will have the NORMAL_CLOSE
+flag, or the RESET flags set.
+
+Request/Response and Event transactions will be reported as one status
+record.  But persistent transactions will almost always be represented
+by multiple CON_ESTABLISHED, or TIMED_OUT status records where the
+source/destination IP addresses, the upper protocol, and in the case
+of UDP the source/destination port numbers are all the same.
+
+Argus is designed to function in a high packet load environment, and
+recovers cleanly in situations where there is packet loss.  The packet
+counts and byte counts reflect only what Argus actually realizes, except
+in the case of TCP, where total connection byte counts are actually
+calculated from the TCP sequence numbers that Argus tracks during the
+course of the TCP.
+
+When you begin to analyze Argus data, either using the simple tools that
+are in the package, or when you write your own Argus data analysis tools,
+these conditions should become clear.
+
+
+Network Security
+
+Comprehensive network transaction auditing can make a major impact on
+a sites network security.  As we have had a great deal of success in
+using Argus to improve the network security at the Software Engineering
+Institute and CERT Coordination Center, we would like to emphasize this
+advantage of the use of Argus.
+
+Accountability has always been recognized as a critical element in system
+security modeling.  One of the principal deficiencies in the functional
+structure of current Internet technology is its inherent lack of
+accountability.  Experience in Internet computer incident handling
+clearly indicates that current Internet technology does not adequately
+support the detection and/or analysis of computer security related events.
+
+One of the fundamental problems with the current "state of the art"
+in computer security, is the reliance on host based accounting systems.
+When a host is compromised during a security incident, there is a
+high probability that the hosts accounting system will be modified
+in order to "cover up" the unauthorized accesses.  As a result of the
+compromise, the host based accounting system is completely unreliable.
+This lack of accounting reliability makes host based intrusion detection
+a very difficult, if not impossible task.  In addition, most host
+accounting systems are not capable of detecting and accounting for all
+the network events that may be important to the security of the host, as
+many of the meaningful events can not be anticipated.
+
+Our experience has been that independent comprehensive network
+transaction auditing provides a powerful addition to network based
+access control that compensates for many of the inadequacies seen in host
+based accounting.  Argus has become a critical element in the network
+security mechanisms of CMU's Software Engineering Institute and CERT
+Coordination Center.
+
+One of the key roles that Argus plays is in the verification of our
+router-based firewall control mechanisms.  By comparing the Argus
+transaction status records for our internal networks against the
+actual router access control lists, we can have 100% assurance that
+the router is implementing the control policies correctly.  This
+independent scheme has been used to detect bugs in router vendor security
+mechanisms.  Of course if the access control lists are poorly defined,
+then problems will get past even this mechanism.  But, by analyzing
+our internal network Argus data for violations of the intent of the
+access control policies, we establish 100% assurance that our access
+control policies are actually being enforced.
+
+Network scanning, such as that done by SATAN and ISS, generates
+characteristic network "signatures" which are preserved in the
+comprehensive network transaction logs generated by Argus, so that
+simple Argus data analysis tools could be written to discover the
+the use of SATAN.  We highly recommend the development of these types
+of Argus data analysis tools.
+
+We have included in our ./contrib directory a sample ra(1) filter that
+acts to detect intrusion attacks of the type described in the CERT
+advisory CA-95:01 "IP spoofing attacks and hijacked terminal connections".
+This is a reliable, although not warrantable, method for detecting these
+types of attacks and we offer it as an example of how Argus data can be
+used in intrusion detection.  We also highly recommend the development
+of these types of Argus data analysis tools.
+
+
+Individual Privacy
+
+Network transaction auditing may be perceived as having an impact on
+individual privacy.  This is a real issue and should not be trivialized.
+
+The protection of an individual's right to privacy was a critical design
+feature of Argus, and dictated that Argus not scan datagrams beyond the
+Transport Layer Header data.  The need to gather information from the
+network for the purposes of network management must be balanced with the
+requirement to preserve an individual's right to privacy.  We do not
+recommend that implementors extend this type of network management
+analysis beyond the Transport Layer, without considering the impact on
+an individual's right to privacy.
+
+
+Implementation Platforms
+
+Argus has been built and tested under SunOS 4.x, Solaris 2.3, SGI IRIX5.2.
+The issue of portability has been principally addressed by the use of
+libpcap-0.0.x.  Argus, itself, has been written assuming a BSD environment,
+and is designed around the select() and socket() facilities.  Porting
+to environments that do not supply these features, may be problematic.
+We suspect that you may run into some problems when porting -- please
+send us the patches if you fix any porting problems.  We will be very
+grateful.
+ 
+The FDDI support in argus-1.5 has been tested, on SGI architectures.
+THERE COULD BE PROBLEMS, so in the event that you use Argus successfully
+on FDDI interfaces, we would like to hear about your experiences.

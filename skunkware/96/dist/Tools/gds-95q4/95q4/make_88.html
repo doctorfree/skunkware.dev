@@ -1,0 +1,88 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Using Implicit</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_87.html">previous</A>, <A HREF="make_89.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX627"></A>
+<A NAME="IDX628"></A>
+<H2><A NAME="SEC87" HREF="make_toc.html#TOC87">Using Implicit Rules</A></H2>
+<P>
+To allow <CODE>make</CODE> to find a customary method for updating a target file,
+all you have to do is refrain from specifying commands yourself.  Either
+write a rule with no command lines, or don't write a rule at all.  Then
+<CODE>make</CODE> will figure out which implicit rule to use based on which
+kind of source file exists or can be made.
+<P>
+For example, suppose the makefile looks like this:
+<P>
+<PRE>
+foo : foo.o bar.o
+        cc -o foo foo.o bar.o $(CFLAGS) $(LDFLAGS)
+</PRE>
+<P>
+Because you mention <TT>`foo.o'</TT> but do not give a rule for it, <CODE>make</CODE>
+will automatically look for an implicit rule that tells how to update it.
+This happens whether or not the file <TT>`foo.o'</TT> currently exists.
+<P>
+If an implicit rule is found, it can supply both commands and one or
+more dependencies (the source files).  You would want to write a rule
+for <TT>`foo.o'</TT> with no command lines if you need to specify additional
+dependencies, such as header files, that the implicit rule cannot
+supply.
+<P>
+Each implicit rule has a target pattern and dependency patterns.  There may
+be many implicit rules with the same target pattern.  For example, numerous
+rules make <SAMP>`.o'</SAMP> files: one, from a <SAMP>`.c'</SAMP> file with the C compiler;
+another, from a <SAMP>`.p'</SAMP> file with the Pascal compiler; and so on.  The rule
+that actually applies is the one whose dependencies exist or can be made.
+So, if you have a file <TT>`foo.c'</TT>, <CODE>make</CODE> will run the C compiler;
+otherwise, if you have a file <TT>`foo.p'</TT>, <CODE>make</CODE> will run the Pascal
+compiler; and so on.
+<P>
+Of course, when you write the makefile, you know which implicit rule you
+want <CODE>make</CODE> to use, and you know it will choose that one because you
+know which possible dependency files are supposed to exist.
+See section <A HREF="make_89.html#SEC88">Catalogue of Implicit Rules</A>,
+for a catalogue of all the predefined implicit rules.
+<P>
+Above, we said an implicit rule applies if the required dependencies "exist
+or can be made".  A file "can be made" if it is mentioned explicitly in
+the makefile as a target or a dependency, or if an implicit rule can be
+recursively found for how to make it.  When an implicit dependency is the
+result of another implicit rule, we say that <DFN>chaining</DFN> is occurring.
+See section <A HREF="make_91.html#SEC90">Chains of Implicit Rules</A>.
+<P>
+In general, <CODE>make</CODE> searches for an implicit rule for each target, and
+for each double-colon rule, that has no commands.  A file that is mentioned
+only as a dependency is considered a target whose rule specifies nothing,
+so implicit rule search happens for it.  See section <A HREF="make_101.html#SEC100">Implicit Rule Search Algorithm</A>, for the
+details of how the search is done.
+<P>
+Note that explicit dependencies do not influence implicit rule search.
+For example, consider this explicit rule:
+<P>
+<PRE>
+foo.o: foo.p
+</PRE>
+<P>
+The dependency on <TT>`foo.p'</TT> does not necessarily mean that
+<CODE>make</CODE> will remake <TT>`foo.o'</TT> according to the implicit rule to
+make an object file, a <TT>`.o'</TT> file, from a Pascal source file, a
+<TT>`.p'</TT> file.  For example, if <TT>`foo.c'</TT> also exists, the implicit
+rule to make an object file from a C source file is used instead,
+because it appears before the Pascal rule in the list of predefined
+implicit rules (see section <A HREF="make_89.html#SEC88">Catalogue of Implicit Rules</A>).
+<P>
+If you do not want an implicit rule to be used for a target that has no
+commands, you can give that target empty commands by writing a semicolon
+(see section <A HREF="make_55.html#SEC54">Using Empty Commands</A>).
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_87.html">previous</A>, <A HREF="make_89.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

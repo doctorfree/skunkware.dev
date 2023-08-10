@@ -1,0 +1,2058 @@
+
+	Extended Test Environment Toolkit (ETET) Release 1.10.3
+
+Implementation for POSIX.1 Systems in `C' and `C++', XPG3 Shell, 
+		Korn Shell and Perl
+	by SunSoft, UNIX System Laboratories and the ETET Development group.
+
+		An Extension to TET.1.10
+	   by OSF, UNIX International and X/Open
+
+
+The ETET is  an extended version of TET1.10. 
+The release now available is Revision 1.10.3. This is a maintenance
+release of ETET with minor revisions from 1.10.2, this release also
+includes fixes for the agreed bugs in the base TET 1.10 release.
+
+>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<
+==>>> There are now available two patches to 1.10.3
+
+Latest additions include
+
+etet1.10.3.tar.Z - the latest full release of ETET.
+etet1.10.3.patch1 - patch level 1 to 1.10.3
+etet1.10.3.patch2 - patch level 2 to 1.10.3
+etet1.10.3-1.10.3pl2.tar.Z - the complete file changes from 1.10.3 to PL2.
+
+>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<
+
+ETET is available by ftp (the preferred mechanism - see later) and from
+the novell.co.uk mail-server.
+
+The release notes for revision 1.10.3 are attached.
+
+What is the ETET?
+
+The Extended Test Environment Toolkit (ETET) is an extension to the
+Test Environment Toolkit Release 1.10. 
+
+The objective of the ETET project is to extend the functionality of 
+TET to support its commercial use outside of the conformance test arena 
+in a way that is compatible with the base TET.
+
+The core of the work for ETET was implemented at SunSoft with extensions and 
+revisions by USL (now Novell's UNIX Systems Group). ETET is now being 
+maintained by a group of volunteers from many different companies (see 
+appendix A in the release notes).  All interested parties are welcome to 
+participate in development of the ETET.
+
+The ETET has been designed to be compatible with TET1.10, so that
+existing tests require no changes to execute with an ETET harness.
+The main differences are in the test driver (the test case controller has
+extensions more suited to using TET for system testing in a production
+environment), and the provision of additional language bindings.
+The APIs are the same.
+
+
+ETET implements several of the future directions stated in the TET 
+Architectural, Functional and Interface Specification, and also introduces
+new ways of executing existing tests.
+
+This release of ETET builds on the TET1.10 and consists of:
+
+o A test case controller providing support for the building, execution,
+and clean-up of test scenarios with the following extensions:
+
+- New Scenario key words: parallel, group, repeat, timed_loop, random
+
+- Scenario Syntax extensions
+
+- Addition of TET_SUITE_ROOT to allow test suites to be 
+located in a different directory other than under TET_ROOT (also
+supports a read-only TET_ROOT).
+
+- Addition of TET_RUN to support  running of read-only copies of test suites.
+
+o `C' and `C++' Application Programming Interface;
+
+o  two `Shell' Application Programming Interfaces (XPG3 and Korn Shell).
+
+o  a `Perl' Application Programming Interface.
+
+o  Improved and complete documentation.
+
+o  A contrib directory, containing several demonstration test suites, a test
+suite for the TET and ETET APIs, a TET portability library for non-POSIX
+systems and some sample tools.
+
+What Operating Systems are supported?
+
+ETET has the same requirements as the TET. The system should be
+compliant with POSIX.1 and the XPG3 Shell (for systems
+not quite compliant to POSIX.1 a compatibility library is provided). 
+To use the ETET extensions for Perl, requires Perl Version 4.0 or later, and to
+use the C++ extensions requires a C++ compiler (this release
+has been tested with USL C++ 3.0.2 and GNU g++ 2.5.7).
+
+The ETET has been installed and tested on the following platforms:
+	UNIX SVR4.0, ICL DRS6000
+	UNIX SVR4.2 or UnixWare 1.x on Intel i486
+	UNIX SVR4.2 MP, or UnixWare 2.0 on  Compaq Systempro 2 x i486
+	AIX 3.1, RS/6000
+	ULTRIX 4.2, Decstation 3100
+	SunOS 4.1, SPARCstation
+	SunOS 5.0 and later
+	IRIX 4.0, SGI 
+
+New with 1.10.3, sample makefiles are provided for the above operating
+systems in
+	src/posix_c/mkfiles
+	src/xpg3sh/api/mkfiles
+	src/ksh/api/mkfiles
+simply copy the selected makefile to ../makefile.
+(note the perl api auto configures - using perl of course:-)
+
+
+What's changed in ETET 1.10.3
+
+(for a full description of the changes since the Base TET 1.10 release
+please refer to the release notes).
+
+(i) There  are a number of fixes for agreed problems in the underlying
+base TET 1.10 release, including:
+	tet1.10.001 - make clean does not remove libapi.a
+	tet1.10.002 - use of zeetime variable stops -p from reporting time
+	tet1.10.004 - printing of tet_thistest with %d instead of %ld
+	tet1.10.008	- use of unexpected strings in resume mode 
+	tet1.10.033 - running test suites in parallel
+	tet1.10.034 - blank lines in scenario file
+	tet1.10.040/47 - resetting of sequence number in shell api
+	tet1.10.049 - tet allocates too much memory
+	tet1.10.061 - inc/tcc_mac.h _STCD_ should be _STDC_
+	tet1.10.062 - do_save() declaration missing prototype
+	tet1.10.064 - parse_tprs_list() missing prototype
+	tet1.10.065 - optget() not declared
+	tet1.10.067 - shell API: bug in ic's in $iclist if containing leading 0s
+	tet1.10.068 - tet_setcontext() - TET1.10 violates TET Spec
+	tet1.10.069 - unwanted child not waited for
+
+(ii) ETET 1.10.2 patches 1-7 inclusive are included in this release.
+
+    - posix_c/tcc/tcc.c : add SUNTEST changes to make patch4 redundant
+		: simplify TET_RUN tar options
+		: force tet_env to exe_env before calling get_rescode_file()
+			so that $TET_RESCODES_FILENAME will be associated with the
+			exec environment
+    - posix_c/cplusplus/c_tcm.c: use TET_VERSION macro instead of hard coding va
+lue
+    - posix_c/api/resfile.c: remove SUNTEST code
+		: change behavior when TET_TMP_DIR="" to default to 1.10 behavior
+    - xpg3sh/api/tcm.sh : fix possible problem with grep -s producing
+		unwanted output
+    - xpg3sh/api/tetapi.sh :  support for TET_EXTENDED=T/F
+    - ksh/api/tetapi.ksh, tcm.ksh :  changes are per xpg3sh
+	- posix_c/tcc/newscen.c - fixed do_item() to check for resume mode,
+		set act.sa_flags=0 before call to sigaction() in perform_scen()
+
+These patches also include the introduction of two new configuration variables
+that affect API compliance, output capture and passing arguments to
+the build and clean phases. These features are an implementation
+of the proposal generated by action items 9308.07 & 9308.08 from the 
+August 1993 meeting of the TET workshop (see the release notes for
+further details).
+
+(iii) Ksh binding
+
+There have been further improvements to the Hewlett-Packard Co. ksh binding
+for xpg3sh api compatibility.
+
+(iv) TET Programmer's Guide.
+
+The TET Programmer's Guide has been revised for ETET. This release
+is 1.10.3, and includes the troff source, together with formatted 
+postscript output.
+
+(v) A top-level makefile is provided in tet_root/src. See the README
+file for details.
+
+(vi) A Frequently Asked Q&A's file is provided in tet_root/doc/faq.
+
+(vii) An updated presentation on TET/ETET is provided in 
+tet_root/doc/etet.slides.tar.Z. This comprises 12 postscript files;
+which are an updated version of the ETET talk presented at TETworks93.
+
+(viii) The manual pages have had minor edits to bring them up to
+date with the latest ETET features. These are located in tet_root/doc/man.
+To make these available to the man command either install them
+in your existing manual page hierarchy or add the installation 
+directory to your MANPATH:
+
+	MANPATH=$MANPATH:$TET_ROOT/doc/man export MANPATH
+
+	
+Where can I get the ETET distribution from?
+
+**NOTE** Due to the holidays here in the UK, the ftp version may not
+be immediately available in its final location: please also
+check: ecs.soton.ac.uk://pub/incoming/etet/etet1.10.3.tar.Z
+
+WWW availability:
+
+      http://ftp.novell.de/Ftp/NewUsle/testools/Alpha0.html
+
+
+ETET is available by anonymous ftp from 
+	ftp.novell.de:/pub/unixware/usle/testtools  
+	ftp.demon.co.uk:/pub/mirrors/novell/unixware/testtools
+	netlab1.usu.edu:/pub/mirror/usle/testtools
+	ftp.ecs.soton.ac.uk://pub/etet/etet1.10.3.tar.Z. 
+
+ETET is also mirrored on ftp.xopen.co.uk.
+
+        When you ftp the file, be sure to set the ftp mode to
+        binary.
+
+        To unwind the ftp distribution (in the current directory)
+         into a directory called ETET:
+                mkdir ETET; cd ETET
+                zcat ../etet1.10.3.tar.Z|tar xvf -
+
+There is also a mailing list tetworks@xopen.co.uk, which
+discusses TET issues (to subscribe mail to tetworks-request@xopen.co.uk).
+ 
+ETET is also available from the mail-server@novell.co.uk
+
+	Send a mail message to that address with the following 
+	contents. This will list the current contents of the server.
+
+
+	begin
+	index testtools
+	end
+
+(if your mailer does not add a correct From: line, you may add the following
+after the begin -
+	reply your-email-address
+where the string "your-email-address" should be a valid internet address,
+also if you are confident about your mailer, try increasing the
+default chunk limit by adding a line:
+	limit 100k
+before the send line)
+
+How is ETET supported?
+
+ETET is supported by a group of volunteers. If you wish to
+contribute to future revisions or have problems with ETET send 
+electronic mail to:
+
+	etet_support@novell.co.uk
+
+
+Contributing to the ETET.
+
+Contributions are welcome.
+
+A set of test suites are being developed for the ETET and TET API's. 
+These are provided in the contrib directory - the aim is to
+use these for regression test purposes  for testing future
+revisions and additions  to the ETET. For example, the new ksh binding
+was tested for compatibility using these suites.
+
+
+			Andrew Josey
+			ETET Coordinator
+			Novell UNIX Systems Group.
+
+
+The Release Notes follow, format with tbl etet_rel.mm|troff -mm 
+(note that a postscript copy of the release notes is available
+from the mail-server@novell.co.uk):
+
+
+#--------------------------------CUT HERE-------------------------------------
+#! /bin/sh
+#
+# This is a shell archive.  Save this into a file, edit it
+# and delete all lines above this comment.  Then give this
+# file to sh by executing the command "sh file".  The files
+# will be extracted into the current directory owned by
+# you with default permissions.
+#
+# The files contained herein are:
+#
+# -r--r-----   1 andrew   tech         53482 Mar 31 11:29 etet_rel.mm
+#
+echo 'x - etet_rel.mm'
+if test -f etet_rel.mm; then echo 'shar: not overwriting etet_rel.mm'; else
+sed 's/^X//' << '________This_Is_The_END________' > etet_rel.mm
+X.\" Format with: tbl | troff -mm
+X.de )k
+X..
+X.PH ""
+X.PF ""
+X.ds HP 14 12 12
+X.ds HF 3 3 3
+X.nr Hs 3
+X.nr Hb 7
+X.S 20
+X.SP 1.5i
+X.ce 99
+X.B "Release Notes for the"
+X.B "Extended Test Environment Toolkit"
+X.SP 1
+X.S
+X.S 12
+X.SP 2
+XImplementation for POSIX.1 Systems in `C' and `C++', XPG3 Shell, Korn Shell and Perl
+X.br
+Xby SunSoft, UNIX System Laboratories and the ETET Development Group.
+X.br
+X.sp
+X.sp
+X.sp
+X.SP
+XRelease 1.10.3 (03/31/94)
+X.sp
+X.sp
+X.sp
+X.sp
+X\fIAn Extension to\fP
+X.sp
+XTET.1.10
+X.br
+Xby OSF, UNIX International and X/Open
+X.SP
+X.SP 4.5i
+X.ce 0
+X.SK
+X.SP 15
+X.P
+X.S 10
+XThe information contained within this document is subject to change
+Xwithout notice.
+X.P
+X.S 8 -1
+XOSF, SunSoft, UI, USL and X/Open MAKE NO WARRANTY OF ANY KIND WITH REGARD TO 
+XTHIS MATERIAL, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+XMERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.  IN NO
+XEVENT SHALL OSF, SunSoft, UI, USL or X/Open BE LIABLE FOR ANY SPECIAL, 
+XINDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM 
+XLOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+XOTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+XPERFORMANCE OF THIS SOFTWARE.
+X.S 10 +1
+X.P
+XOSF, SunSoft, UI, USL and X/Open shall not be liable for errors contained 
+Xherein or for incidental
+Xconsequential damages in connection with the furnishing, performance,
+Xor use of this material.
+X.P
+X\fIThe TET1.10 portions of this software are:\fR
+X.P
+XCopyright\(co 1990, Open Software Foundation, Inc. (OSF)
+X.br
+XCopyright\(co 1990, UNIX International (UI)
+X.br
+XCopyright\(co 1990, X/Open Company Limited (X/Open)
+X.br
+X.P
+X\fIThe ETET extensions are:\fR
+X.P
+XCopyright\(co 1993, SunSoft, Inc. (SunSoft)
+X.br
+XCopyright\(co 1993, UNIX System Laboratories, Inc. (USL), a subsidiary of Novell Inc.
+X.P
+X.br
+X\fIThe changes to the Shell API for the Ksh bindings are:\fR
+X.P
+XCopyright\(co 1991, Hewlett-Packard Co. (HP).
+X.P
+XPermission to use, copy, modify, and distribute this software and its
+Xdocumentation for any purpose and without fee is hereby granted, provided
+Xthat the above copyright notice appear in all copies and that both that
+Xcopyright notice and this permission notice appear in supporting
+Xdocumentation, and that the name of OSF, SunSoft, UI, USL or X/Open not be 
+Xused in advertising or publicity pertaining to distribution of the software
+Xwithout specific, written prior permission.  OSF, SunSoft, UI, USL and X/Open 
+Xmake no representations about the suitability of this software for any purpose.
+XIt is provided "as is" without express or implied warranty.
+X.SP
+XOpen Software Foundation, OSF and OSF/1
+Xare trademarks of the Open Software Foundation, Inc.
+X.SP .5
+XX/Open is a trademark of the X/Open Company, Ltd. in the U.K. and
+Xother countries.
+X.SP .5
+XUI is a trademark of UNIX International.
+X.SP .5
+XUNIX is a registered trademark of UNIX System Laboratories, Inc. in
+Xthe U.S. and other countries.
+X.SP
+X.\"************NEW TEXT - MANDATORY***********************************
+X.DS 2
+X.S 8
+XFOR U.S. GOVERNMENT CUSTOMERS REGARDING THIS DOCUMENTATION
+XAND THE ASSOCIATED SOFTWARE
+X.S
+X.DE
+X.DS 3
+XNotice: Notwithstanding any other lease or licence agreement that may
+Xpertain to, or accompany the delivery of, this computer software, the rights
+Xof the Government regarding its use, reproduction, and disclosure are as
+Xset forth in the FAR Section 52.227-19 "Computer Software - Restricted
+XRights."
+X.DE
+X.P
+XUnpublished - All rights reserved under the Copyright Laws of the United
+XStates.
+X.P
+XThis notice shall be marked on any reproduction of this data, in whole or in
+Xpart.
+X.\"*****************END NEW TEXT*********************************
+X.PH "'ETET Release Notes''Release 1.10.3'"
+X.SK
+X.nr P 1
+X.nr % 1
+X.PF "''- \\\\nP -''"
+X.P
+X.S 11
+X.HU "Preface"
+X.P
+XThese release notes describe an extended version of the
+X\fITest Environment Toolkit\fR known as the \fIExtended Test Environment
+XToolkit\fR (ETET).
+XThey describe the prerequisites for running this toolkit, what is supplied
+Xin the toolkit, and how to build the toolkit.  The release notes also
+Xlist the operating system platforms on which the Extended Test Environment 
+XToolkit has been built and run.
+X.P
+X.HU "Audience"
+XThis document is written for software engineers who will be porting
+Xtheir validation test suites into the Test Environment Toolkit.
+X.HU "Document Usage"
+XThis document is organized into the following chapters.
+X.BL
+X.LI
+XChapter 1 gives introductory information about the Extended Test
+XEnvironment Toolkit.
+X.LI
+XChapter 2 describes how to build the Extended Test Environment Toolkit.
+X.LI
+XChapter 3 describes the new features provided with ETET.
+X.LI
+XChapter 4 describes the changes made since TET1.10
+X.LI
+XChapter 5 contains comments on specific areas of the specification.
+X.LI
+XChapter 6 describes extensions to the specification.
+X.LI
+XChapter 7 describes known problems with this release.
+X.LI
+XChapter 8 describes proposed future extensions to the ETET.
+X.LE
+X.HU "Related Documents"
+XFor additional information about the Extended Test Environment Toolkit,
+Xrefer to the following documents which are provided with this release:
+X.BL
+X.LI 
+X\fITest Environment Toolkit: Architectural, Functional, and
+XInterface Specification, Version 4.5\fR
+X.LI 
+X\fI Extended Test Environment Toolkit: Programmer's Guide, Revision 1.10.3 (94/03/31)\fR
+X.LE
+X.HU "Typographic and Keying Conventions"
+X.P
+XThis document uses the following typographic conventions: 
+X.VL \w@\f(CWTypewriter\ font\ \ \ fR@u
+X.LI "\fBBold\fR"
+XIn formats and command descriptions, 
+X.B "bold"
+Xwords or characters represent commands or keywords 
+Xthat you must use literally, including pathnames.  
+X.\".P
+X.\"In text, 
+X.\".B "bold"
+X.\"words indicate the first use of a new 
+X.\"term.
+X.P
+XIn examples, information that you enter appears in
+X.B "bold".
+X.LI "\fIItalics\fR"
+X.ft I
+XItalic words or characters in formats and command descriptions 
+Xrepresent values that you must supply.
+X.ft R
+X.LI "\f(CWTypewriter font\fR"
+X.ft CW
+XInformation that the system displays appears in 
+Xthis typeface.  Examples also appear in 
+Xthis typeface.
+X.ft R
+X.LE
+X.SP 
+X.HU "Problem Reporting"
+X.P
+XETET is supported by a group of volunteers, 
+X(see appendix A).  If you have problems with the ETET
+Xsend electronic mail to:
+X.P
+X\fBetet_support@novell.co.uk\fR
+X.P
+XInclude the following information in your mailing:
+X.BL
+X.LI
+XYour name, company or organization, and email address
+X.LI
+XHardware you are running on
+X.LI
+XOperating system version ETET is installed on
+X.LI
+XETET version number
+X.LI
+XDescription of encountered problem, including how the problem occurred
+Xand how it can be reproduced
+X.LI
+XA copy of the ETET configuration file(s) for the affected modes
+X.LI
+XA copy of the ETET journal file
+X.LI
+XA suggested fix for the problem, if possible
+X.LE
+X.P
+XA template to use for reporting problems by email is provided in the file
+X.BR doc/support/err.template .
+X.SK
+X.H 1 "Introducing the Extended Test Environment Toolkit"
+X.P
+XThe Extended Test Environment Toolkit (ETET) is an extension to the
+XTest Environment Toolkit (TET) which provides a uniform framework, or 
+Xtest scaffold, into which test suites  can be incorporated.
+XThis enables test suites from different vendors to share a
+Xcommon interface, and so improves portability.
+X.P
+XThe ETET has been designed to be upward compatible with TET1.10, so that
+Xexisting tests require no changes to execute with an ETET harness.
+XETET implements several of the future directions stated in the \f2TET 
+XArchitectural, Functional and Interface Specification\fP, and also introduces
+Xnew ways of executing existing tests.
+X.P
+XThe objective of the ETET project is to extend the functionality of
+XTET to support its commercial use outside of the conformance test arena
+Xin a way that is compatible with the base TET.
+X.P
+XThis release of ETET is the fourth revision of
+XETET based on Release 1.10 of the TET, and is known as ETET Release 1.10.3. 
+XThis release is a maintenance release.
+X.P
+XThis implementation of the ETET currently consists of:
+X.BL
+X.LI
+XA test case controller providing support for the building, execution,
+Xand clean-up of test scenarios (\fBtcc\fR) with the following extensions:
+X.DL
+X.LI
+XNew Scenario key words: \fBparallel\fP, \fBgroup\fP, \fBrepeat\fP, \fBtimed_loop\fP, 
+X\fBrandom\fP
+X.LI
+XScenario Syntax extensions
+X.LI
+XAddition of TET_SUITE_ROOT to allow test suites to be 
+Xlocated in a different directory other than under TET_ROOT.
+X.LI
+XAddition of TET_RUN to support  running of read-only copies of test suites.
+X.LI
+XAddition of TET_API_COMPLIANT and TET_TC_PASS_NAME
+Xthat affect API compliance, output capture and passing arguments to
+Xthe build and clean phases.
+X.LE
+X.LI
+X`C' and `C++' Application Programming Interface;
+X.LI
+Xtwo `Shell' Application Programming Interfaces (XPG3 Shell and Korn Shell).
+X.LI
+Xa `Perl' Application Programming Interface.
+X.LI
+XImproved and complete documentation.
+X.LI
+XA contrib directory, containing several demonstration test suites, a test
+Xsuite for the TET and ETET APIs, a TET portability library for non-POSIX
+Xsystems and some sample tools.
+X.LE
+X.P
+X.HU "Documentation"
+X.P
+XThis release includes the TET Programmers' Guide in source and formatted
+Xoutput. This is located in \fItet_root\fB/doc/prog_guide\fR.
+X.P
+XA file of frequently asked questions is in \fItet_root\fB/doc/faq\fR.
+X.P
+XA compressed tar archive containing postscript slides giving an overview of ETET
+Xis in \fItet_root\fB/doc/etet.slides.tar.Z\fR.
+X.P
+XThe following manual pages are included with this release:
+X.sp
+X\fBCommands:\fR
+X.br
+X.DS 3
+X\fItet_root\fB/doc/man/man1/tcc.1\fR
+X.DE
+X.sp
+X\fBPosix_c api routines\fR
+X.br
+X.DS 3
+X\fItet_root\fB/doc/man/man3/tet_child.3\fR
+X.br
+X\fItet_root\fB/doc/man/man3/tet_fork.3\fR
+X.br
+X\fItet_root\fB/doc/man/man3/tet_main.3\fR
+X.br
+X\fItet_root\fB/doc/man/man3/tet_setblock.3\fR
+X.br
+X\fItet_root\fB/doc/man/man3/tet_delete.3\fR
+X.br
+X\fItet_root\fB/doc/man/man3/tet_getvar.3\fR
+X.br
+X\fItet_root\fB/doc/man/man3/tet_reason.3\fR
+X\.br
+X\fItet_root\fB/doc/man/man3/tet_setcontext.3\fR
+X.br
+X\fItet_root\fB/doc/man/man3/tet_exec.3\fR
+X.br
+X\fItet_root\fB/doc/man/man3/tet_infoline.3\fR
+X.br
+X\fItet_root\fB/doc/man/man3/tet_result.3\fR
+X.br
+X.DE 
+X.sp
+X\fBFile formats:\fR
+X.sp
+X.DS 3
+X\fItet_root\fB/doc/man/man4/journal.4\fR
+X.br
+X\fItet_root\fB/doc/man/man4/tet_scen.4\fR
+X.br
+X\fItet_root\fB/doc/man/man4/tetclean.cfg.4\fR
+X.br
+X\fItet_root\fB/doc/man/man4/tet_code.4\fR
+X.br
+X\fItet_root\fB/doc/man/man4/tetbuild.cfg.4\fR
+X.br
+X\fItet_root\fB/doc/man/man4/tetexec.cfg.4\fR
+X.DE
+X.sp
+XRefer to Chapter 6 of the TET specification
+Xfor information on the Application Programming Interfaces
+Xand also to Chapter 5 of the ETET Programmers' Guide.
+X.P
+X.SK
+X.H 1 "Building the Extended Test Environment Toolkit"
+X.P
+XThis chapter describes how to set up your system and build the test
+Xenvironment.
+XThe next section lists the requirements which must be met before the
+XETET can be built.
+X.P
+X.H 2 "Extended Test Environment Toolkit Requirements"
+XETET has the same base requirements as the TET.
+XThe Test Environment Toolkit requires that your system's
+Xoperating system be compliant with the following:
+X.BL
+X.LI
+XPOSIX.1\*F
+X.FS
+XIEEE Std 1003.1-1990, \fIPortable Operating System Interface for
+XComputer Environments\fR. ETET may support some non-POSIX operating
+Xsystems through use of the \fIcontrib/port\fR portability library (see
+Xlater).
+X.FE
+Xwith either standard `C' or common `C' support.
+X.LI
+XXPG3, Vol. 1\*F
+X.FS
+X\fIX/Open Portability Guide Issue 3, Volume 1: XSI Commands and Utilities\fR
+X.FE
+X(for the \fBshell, find, cp, rm,\fR and \fBmake\fR commands)
+X.LE
+X.P
+XTo use the ETET Perl and C++ extensions requires the following:
+X.BL
+X.LI
+XThe Perl utility, Version 4.0 or later. This release has been tested
+Xwith Perl 4.0 Patchlevel 35 and Patchlevel 36.
+X.LI
+XA C++ compiler. This release has been tested 
+Xwith USL C++ Release 3.0.2 and GNU g++ Release 2.5.7
+X.LE
+X.P
+XAs of this writing, the Test Environment Toolkit has only been
+Xinstalled and tested on UNIX\*F
+X.FS
+XUNIX is a registered trademark of UNIX System Laboratories, Inc. in the U.S.
+Xand other countries.
+X.FE
+Xtype of systems.  Note that this
+Xdoes not preclude its installation on other types of operating
+Xsystems.
+X.P
+XThe ETET provides a series of makefiles that can be used to build the toolkit
+Xin a UNIX type of environment.  If you are not running a UNIX type of 
+Xoperating system, you will have to develop your own equivalent method of 
+Xbuilding TET.
+X.P
+X.H 2 "Installed Platforms"
+XThis release of the ETET has been
+Xinstalled and tested on the following operating system platforms (UNIX
+Xtype of operating systems). Appropriate definitions for these are
+Xprovided in the makefiles.
+X.BL
+X.LI
+XUNIX System V Release 4.0, ICL DRS6000
+X.LI
+XUNIX System V Release 4.2 or UnixWare 1.x, Intel processor.
+X.LI 
+XUNIX System V Release 4.2 MP or UnixWare 2.0, Compaq Systempro (2 i486 CPUs)
+X.LI
+XAIX\*F
+X.FS
+XAIX is a registered trademark of International Business Machines, Inc.
+X.FE
+XRelease 3.1, RS/6000.
+X.LI
+XULTRIX\*F
+X.FS
+XULTRIX, DEC, and DIGITAL are a registered trademarks of Digital
+XEquipment Corporation.
+X.FE
+X4.2, Decstation 3100
+X.LI
+XSunOS\*F
+X.FS
+XSunOS is a trademark of SUN Microsystems, Inc.
+X.FE
+Xrelease 4.1 
+X.LI 
+XSunOS 5.0 and later
+X.LI
+XIRIX Release 4.0.5F System V, Silicon Graphics workstation.
+X.LE
+X.P
+X.H 2 "What is in the Extended Test Environment Toolkit"
+XThis
+Xdocument assumes that your ETET root directory is \fItet_root\fR.  When
+Xyou specify your ETET pathname, replace \fItet_root\fR with your
+Xequivalent pathname.  After you load the ETET, you should have the following
+Xsubdirectories on your system:
+X.P
+X.VL 25
+X.LI "\fItet_root\fB/inc/posix_c\fR"
+XPOSIX `C' header files for use by test suites, currently only \fBtet_api.h\fR.
+X.LI "\fItet_root\fB/src\fR
+XA top-level
+Xmakefile is provided in \fItet_root\fB/src/makefile\fR. This makefile
+Xwill automatically install the test case controller, the POSIX C API,
+Xthe XPG3 Shell API, the Korn Shell API and the Perl API. Refer to the
+XREADME file for information on how to omit building certain language
+Xbindings. Before running this makefile you need to edit certain other
+Xmakefiles, and its recommended you initially install the components
+Xseparately.
+X.LI "\fItet_root\fB/src/posix_c\fR"
+XSource directory for the TET tools and API, for POSIX `C' and `C++'.
+X.LI "\fItet_root\fB/src/posix_c/tcc\fR"
+XSource directory for the \fBtcc\fR.
+X.LI "\fItet_root\fB/src/posix_c/api\fR"
+XSource directory for the TET Application Programming Interface for
+XPOSIX `C'.
+X.LI "\fItet_root\fB/src/posix_c/inc\fR"
+XHeader files, for the TET POSIX `C' sources, including the file
+X\fBtet_jrnl.h\fR.
+X.LI "\fItet_root\fB/src/posix_c/sun_lib\fR"
+XSource directory for SunSoft API extensions.
+X.LI "\fItet_root\fB/src/posix_c/cplusplus\fR"
+XSource directory for `C++' language bindings.
+X.LI "\fItet_root\fB/src/xpg3sh/api\fR"
+XSource directory for the TET Application Programming Interface for
+XXPG3 shell.
+X.LI "\fItet_root\fB/src/ksh/api\fR"
+XSource directory for the TET Application Programming Interface for
+XKorn shell.
+X.LI "\fItet_root\fB/src/perl\fR"
+XSource directory for the TET Application Programming Interface for
+Xperl shell.
+X.LI "\fItet_root\fB/bin\fR"
+XExecutable tools for the TET, including the \fBtcc\fR.
+X.LI "\fItet_root\fB/lib/posix_c\fR"
+XPOSIX `C' library files for use by test suites, including \fBlibapi.a\fR,
+X\fBtcm.o\fR, and \fBtcmchild.o\fR.
+X.LI "\fItet_root\fB/lib/perl\fR"
+Xperl library files for use by test suites.
+X.LI "\fItet_root\fB/lib/sun_lib\fR" 
+XSunSoft API library.
+X.LI "\fItet_root\fB/contrib\fR"
+XA directory of unsupported contributed software. 
+XFor this release  this contains several demonstration test suites, a test suite
+Xfor the TET and ETET APIs, a TET portability library for non-POSIX systems
+Xand some tools.
+X.LI "\fItet_root\fB/doc\fR"
+XA directory of online documentation, including manual pages, the \f2TET
+XArchitectural, Functional and Interface Specification\fP and the 
+X\f2TET Programmer's Guide\fP.
+X.LE
+X.P
+X.H 2 "Building the Environment"
+XAfter the ETET is loaded, you can build the
+XTest Environment Toolkit, including the \fBtcc\fR and the application
+Xprogramming interfaces, with the makefiles supplied. 
+XHowever, there is a
+Xmakefile that needs to be edited before you can build the ETET.
+X.BL
+X.LI
+X\fItet_root\fB/src/posix_c/makefile\fR
+X.LE
+X.P
+XThis makefile calls other makefiles in
+X\fItet_root\fB/src/posix_c/tcc\fR and
+X\fItet_root\fB/src/posix_c/api\fR.
+XEdit the
+X\fItet_root\fB/src/posix_c/makefile\fR
+Xand follow the instructions in the comments.
+XYou may wish to examine the directory \fItet_root\fB/src/posix_c/mkfiles\fR
+Xwhich contains sample makefiles for several different platforms.
+X.P
+XThe TET `C' source is written to POSIX.1 using common `C' language,
+Xalthough prototypes are provided in the appropriate
+Xheader files for use with ANSI `C' compilers.  One extension to POSIX.1
+Xis required: the symbol NSIG.  Many UNIX systems already define NSIG in
+X\fB<signal.h>\fR as an extension to POSIX.1.  In this case, NSIG
+Xcan be made available by compiling with the appropriate feature test
+Xmacro defined in addition to _POSIX_SOURCE.
+X.P
+XThe \fBtcc\fR catches all signals it can from 1 up to (NSIG-1).  On some systems
+Xthis can cause problems with non-standard signals, for example SIGCLD
+Xif it is supported separately from SIGCHLD.  Also, with the default signal
+Xhandling the \fBtcc\fR cannot be suspended and restarted using job control
+Xsignals.  Two variables can be set in \fBmakefile\fR to alter the signal
+Xhandling.  One specifies a list of signal numbers to ignore, the other a
+Xlist of signal numbers to leave alone.  If you wish to use job control
+Xwith the \fBtcc\fR, you should include the job control signals in SIG_LEAVE.
+X.H 2 "Building the Tools and `C' API"
+X.P
+X.AL
+X.LI
+XTo start, if you are not already there, change directory to
+X\fItet_root\fB/src/posix_c\fR.
+X.P
+X.ft CW
+X\fBcd \fItet_root\fB/src/posix_c\fR
+X.ft R
+X.P
+X.LI
+XType \fBmake\fR.  This will build the TET tool; \fBtcc\fR,
+Xas well as the `C' API.
+X.LE
+X.P
+XWhen you use \fBmake\fR,
+Xan executable file for each TET tool component is placed in
+Xthe directory 
+X\fItet_root\fR\fB/bin\fR.  The TET API files are generated and placed
+Xinto the appropriate directories:
+X.SP
+X.DS
+X.fi
+X.TS
+Xcenter, tab(;), box;
+XlB | lB | lBw(3i)
+Xl | l | l.
+XName;Path;Description
+X_
+X\fBtcm.o\fR;\fItet_root\fB/lib/posix_c\fR;T{
+XTest Case Manager \fBmain()\fR routine.  For processes to be executed
+Xby the \fBtcc\fR
+XT}
+X_
+X\fBtcmchild.o\fR;\fItet_root\fB/lib/posix_c\fR;T{
+XExecuted processes \fBmain()\fR routine.  For processes to be executed
+Xby \fBtet_exec()\fR
+XT}
+X_
+X\fBlibapi.a\fR;\fItet_root\fB/lib/posix_c\fR;Library of API interfaces
+X.TE
+X.DE
+X.P
+XIn addition, the following files are also available for use with the
+XApplication Programming Interface.
+X.SP
+X.DS
+X.fi
+X.TS
+Xcenter, tab(;), box;
+XlB | lB | lBw(3i)
+Xl | l | l.
+XName;Path;Description
+X_
+X\fBtet_api.h\fR;\fItet_root\fB/inc/posix_c\fR;T{
+XHeader containing useful symbol definitions and
+Xdeclarations/prototypes for all API interfaces
+XT}
+X_
+X\fBllib-ltcm.c\fR;\fItet_root\fB/src/posix_c/api\fR;Lint libraries defining
+X\fBllib-ltcmc.c\fR;;T{
+Xthe API interfaces.  Use the one which corresponds
+Xto the object file in which \fBmain()\fR is defined (\fBtcm.o\fR or
+X\fBtcmchild.o\fR).  They can be used directly or turned into libraries
+Xfor use with \fBlint -l\fR by doing a \fBmake LINTLIB\fR and
+Xinstalling the \fB.ln\fR files on the system.
+XT}
+X.TE
+X.DE
+X.P
+X.H 2 "Building the XPG3 Shell API"
+X.P
+X.AL
+X.LI
+XTo start, if you are not already there, change directory to
+X\fItet_root\fB/src/xpg3sh/api\fR.
+X.P
+X.ft CW
+X\fBcd \fItet_root\fB/src/xpg3sh/api\fR
+X.ft R
+X.LI
+XEdit the \fBmakefile\fR and change the lists of signal numbers to
+Xthe correct values for your system. Note that if you are using SunOS
+Xthe makefile is called \fBmakefile.sunos\fR.
+XSome other sample makefiles are  located  in the 
+Xdirectory \fItet_root\fB/src/xpg3sh/api/mkfiles\fR
+X.LI
+XType \fBmake\fR.  This will install the shell API files \fBtcm.sh\fR and
+X\fBtetapi.sh\fR in
+Xthe directory \fItet_root\fR\fB/lib/xpg3sh\fR.
+X.LE
+X.H 2 "Building the Korn Shell API"
+X.P
+XThe Korn Shell API builds in a similar way to the XPG3 Shell API:
+X.AL
+X.LI
+XTo start, if you are not already there, change directory to
+X\fItet_root\fB/src/ksh/api\fR.
+X.P
+X.ft CW
+X\fBcd \fItet_root\fB/src/ksh/api\fR
+X.ft R
+X.LI
+XEdit the \fBmakefile\fR and change the lists of signal numbers to
+Xthe correct values for your system.
+XNote that, some other sample makefiles are  located  in the 
+Xdirectory \fItet_root\fB/src/ksh/api/mkfiles\fR
+X.LI
+XType \fBmake\fR.  This will install the shell API files \fBtcm.ksh\fR and
+X\fBtetapi.ksh\fR in
+Xthe directory \fItet_root\fR\fB/lib/ksh\fR.
+X.LE
+X.P
+XSee the later section \fIUsing the Korn Shell API binding\fP.
+X.P
+X.H 2 "Building the Perl API"
+X.P
+X.AL
+X.LI
+XTo start, if you are not already there, change directory to
+X\fItet_root\fB/src/perl\fR
+X.P
+X.ft CW
+X\fBcd \fItet_root\fB/src/perl\fR
+X.ft R
+X.LI
+XThe \fBMakefile\fR should not need editing except for the PATH \fBPERL_DIR\fR.
+X.LI
+XType \fBmake\fR. This will install the files needed to build under this
+XAPI.
+X.LE
+X.H 2 "Building the C++ API"
+X.P
+X.AL
+X.LI
+XTo start, if you are not already there, change directory to
+X\fItet_root\fB/src/posix_c/cplusplus\fR
+X.P
+X.ft CW
+X\fBcd \fItet_root\fB/src/posix_c/cplusplus\fR
+X.ft R
+X.LI
+XEdit the \fBmakefile\fP and change the name of the `C' compiler and the `C++'
+Xcompiler to the correct values for your system. The default  values are
+X\fBcc\fR and \fBCC\fR respectively.
+X.LI
+XType \fBmake\fP. This will install the files needed to build under this API.
+X.LI
+XTo run a simple test of the `C++' API refer to the \fBcplusdemo\fR described
+Xin the next section.
+X.LE
+X.H 2 "Running the Extended Test Environment Toolkit Demonstrations"
+XThe ETET contains several demonstration test suites in \fItet_root\fB/contrib.
+XThese are as follows:
+X.P
+X.DS
+X.fi
+X.TS
+Xcenter, tab(;), box;
+XlB | lB | lBw(3i)
+Xl | l | l.
+XName;Path;Description
+X_
+X\fBdemo\fR;\fItet_root\fB/contrib/\fR;T{
+XTET1.10 demonstration test suite for `C' API.
+XThis is documented in the TET Programmers' Guide.
+XT}
+X_
+X\fBcplusdemo\fR;\fItet_root\fB/contrib/\fR;T{
+XETET demonstration test suite for `C++' API.
+XThis is  the `C' API demonstration suite modified to use 
+Xthe `C++' API.
+XT}
+X.TE
+X.DE
+X.P
+X.P
+X.HU "The `C' API Demonstration"
+X.P
+XThis section describes how to run the simple demonstration TET test suite in
+X\fItet_root\fB/contrib/demo\fR.  
+XThis is the standard TET1.10 demonstration.
+XThe given invocation will build, execute, and clean the test suite.
+X.P
+X.AL
+X.LI
+XTo start, if you are not already there,
+Xchange directory to to where the demonstration suite is:
+X.P
+X\fBcd \fItet_root\fB/contrib/demo\fR
+X.P
+X.LI
+XMake sure that \fItet_root\fB/bin\fR is in your PATH,
+Xand type the following 
+Xcommand invocation:
+X.AL
+X.DS I
+X\fBtcc -bec contrib/demo\fR
+X.DE
+X.P
+X.LE
+XAs the demonstration executes, it displays the following messages:
+X.SP
+X.DS
+X.ft CW
+X.S 9
+XJournal file is: tet_root/contrib/demo/results/0001bec/journal
+XWe have not set TET_OUTPUT_CAPTURE=True so all normal stdin/stdout/stderr
+Xfiles are available.
+XIf we had set output capture, the results logged by the API would not
+Xbe in the journal.
+XBut these lines would.
+X.S
+X.ft R
+X.DE
+XYou can then look in \fItet_root\fB/contrib/demo/results/0001bec/journal\fR to see
+Xthe results of the demonstration.
+X.P
+XA sample filter to generate a results summary is contained in \fItet_root\fB/contrib/usltools/vres\fR. This filter is an \fBawk\fR script. To install and
+Xrun this script do the following:
+X.P
+X.DS I
+X.ft B
+Xcp $TET_ROOT/contrib/usltools/vres $TET_ROOT/bin/vres
+Xchmod a+x $TET_ROOT/bin/vres
+Xvres results/0001bec/journal
+X.FT R
+X.DE
+X.P
+XWhich produces the following output:
+X.P
+X.DS
+X.ft CW
+X.S 9
+XResults: results/0001bec/journal
+XTotal tests:            3       PASS = 3        FAIL = 0
+X
+XPass Breakdown:
+XNumber of successes:    3       Number of warnings:     0
+XNumber unsupported:     0       Number not in use:      0
+XNumber of untested:     0       Number of FIP:          0
+X
+XFailure Breakdown:
+XNumber of failures:     0       Number unresolved:      0
+XNumber uninitiated:     0       Number unreported:      0
+X.S
+X.ft B
+X.DE
+X.br
+X.P
+X.LE
+X.P
+XAn alternate execution scenario file is provided to demonstrate some
+Xof the new features of the ETET. 
+XThis is provided in \fItet_root\fP/contrib/demo/etet_scen\fR.
+X.P
+XThis file contains
+X.SP
+X.DS
+X.ft CW
+X.S 9
+X#       Demonstration test suite.
+X#       A default execution scenario to demo the ETET features
+Xtests
+X        "starting scenario"
+X        /ts/tc1
+X        /ts/tc2
+X        "next is the last test case"
+X        /ts/tc3
+X        "done"
+X
+Xall
+X        "pick a random test"
+X        :random:^tests
+X        "repeat four times /ts/tc1"
+X        :repeat,4:@/ts/tc1
+X        "run all the tests in parallel"
+X        :parallel:^tests
+X        "pick random tests for 35 seconds"
+X        :timed_loop,35;random:^tests
+X.S
+X.FT R
+X.DE
+X.P
+XThe given invocations will build,  and execute using the new features.
+X.P
+X.AL
+X.DS I
+X\fBtcc -b contrib/demo\fR
+X.DE
+X.DS I
+X\fBtcc -e -p -s etet_scen contrib/demo\fR
+X.DE
+X.LE
+X.P
+X.P
+X.HU "The `C++' API Demonstration"
+X.P
+XThis section describes how to run the simple `C++' demonstration TET 
+Xtest suite in \fItet_root\fB/contrib/cplusdemo\fR.  
+XThe given invocation will build, execute, and clean the test suite.
+X.P
+X.AL
+X.LI
+XTo start, if you are not already there,
+Xchange directory to to where the demonstration suite is:
+X.P
+X\fBcd \fItet_root\fB/contrib/cplusdemo\fR
+X.P
+X.LI
+XReview the contents of \fBts/makefile\fP and ensure that it is correct
+Xfor your system.
+X.LI
+XMake sure that \fItet_root\fB/bin\fR is in your PATH,
+Xand type the following 
+Xcommand invocation:
+X.AL
+X.DS I
+X\fBtcc -bec contrib/cplusdemo\fR
+X.DE
+X.P
+X.LE
+XAs the demonstration executes, it displays the following messages:
+X.SP
+X.DS
+X.ft CW
+X.S 9
+Xjournal file name is: tet_root/contrib/cplusdemo/results/0001bec/journal
+XThis is from the startup routine for tp1
+XIts interesting to note that C++ output
+Xusing cout does not get journaled.
+XTest 2 will explain why!.
+XThis output comes from test purpose tp1
+XWe have not set TET_OUTPUT_CAPTURE=True so all normal stdin/stdout/stderr
+Xfiles are available.
+XIf we had set output capture,  the results logged by the API would not be in the
+X journal.
+XBut these lines would.
+Xtp3 child process called ok
+X.S
+X.ft R
+X.DE
+XYou can then look in \fItet_root\fB/contrib/cplusdemo/results/0001bec/journal\fR to see
+Xthe results of the demonstration.
+X.br
+X.P
+X.SK
+X.H 1 "New Features Of The Extended Test Environment Toolkit"
+X.P
+X.H 2 "Scenario Extensions"
+X.P
+XWith the ETET comes a set of new scenario keywords that can be used when 
+Xexecuting tests.
+XThese new functions are very useful since the machine under test can be
+Xsubjected to stress testing and regression testing.
+XThe new keywords are described below.
+X.P
+X.BL
+X.LI "\fIparallel\fR"
+X.P
+X\fI:parallel[,<#count>]:<test_list>\fR 
+X.br
+X\fI:group[,<#count>]:<test_list>\fR 
+X.sp
+XIn ETET execute mode, all the tests in <test_list> are executed in
+Xparallel as separate processes. If <#count> is given, <#count> copies
+Xof each item in <test_list> are started.  Scenario comments and
+Xjournal messages are ignored in <test_list>. Scenario execution
+Xwill not continue until all of the processes created by this
+Xexecution mode have either completed or timed out.  In build and
+Xclean mode each item in <test_list> is built or cleaned once
+Xsequentially. This capability allows for tests to execute
+Xin parallel.  (Note: The "group" execution mode as
+Xdescribed in the "TET Architectural, Functional,
+Xand Interface Specification" section 7.1.2.1 (2) is provided with ETET
+Xas a synonym for the "parallel" mode. It is proposed that the
+Xidentifier "parallel" is much more descriptive of the execution
+Xmode and should be used.)
+X.P
+X.LI "\fIrandom\fR"
+X.P
+X\fI:random:<test_list>\fR
+X.sp
+XIn ETET execute mode, one test is chosen randomly from all the tests
+Xin <test_list>.  Scenario comments and journal messages are
+Xignored in <test_list>.  In build and clean mode each item in
+X<test_list> is built or cleaned once sequentially.  This
+Xcapability allows for Monte Carlo style testing.
+X.P
+X.LI "\fIremote\fR"
+X.P
+X\fI:remote,<node_id>:<test_list>\fR
+X.sp
+XIn ETET execute mode, the entire <test_list> is executed sequentially
+Xon the remote node referred to by <node_id>. In build & clean mode all
+Xtests referred to by <test_list> are built or cleaned on the remote
+Xmachine referred to by <node_id> once each sequentially.  The
+X<node_id> identifier is a virtual node name that is used to
+Xlook up the actual node name and method of connection in the
+Xtetremote.cfg file.  Using a configuration file makes the test
+Xportable from one environment to another with a minimum amount
+Xof change.  This capability allows for distributed, network
+Xend network oriented systems testing.
+X\fBThis has not yet been implemented.\fR
+X.P
+X.LI "\fItimed_loop\fR"
+X.P
+X\fI:timed_loop,<#seconds>:<test_list>\fR
+X.sp
+XIn ETET execute mode, each item in <test_list> is executed
+Xsequentially as long as <#seconds> seconds have not elapsed.
+XWhen the last item in <test_list> has been executed, execution
+Xwill start over again at the beginning of <test_list> as long
+Xas <#seconds> seconds have not elapsed.  In build & clean mode
+Xall items in <test_list> are built or cleaned once each
+Xsequentially.  This capability allows for a given execution
+Xduration.  The timed_loop capability is particularly useful in
+Xcombination with the random and parallel capabilities to create
+XMonte Carlo scenarios that are more predictable in duration.
+X.P
+X.LI "repeat\fR
+X.P
+X\fI:repeat\fR
+X.sp
+XContinuously repeat the testlist.  It is assumed that the loop will
+Xbe terminated after expiration of some timeout such as the time_loop
+Xabove.
+X.P
+X.LI "Syntactic Extensions"
+X.P
+X.P
+XETET introduces two new test list formats for the \fB<test_list>\fR specifier.
+XFirstly the ability to refer to another scenario as a test list:
+X.sp
+X.ce
+X\fB^<scenario_name>\fR
+X.sp
+XSecondly the ability to refer to a single test directly:
+X.sp
+X.ce
+X\fB@<executable_path>\fR
+X.sp
+XAdditionally, the ability to compound execution modes on the same line
+Xmakes the scenario file much more readable.  This feature
+Xalso avoids the need to create arbitrary scenarios or test_list
+Xfiles, and the name collision problems that these arbitrary scenarios
+Xcan create.  Syntactically, the group_execution modes can be
+Xcombined as follows:
+X.sp
+X.ce
+X\fB:<group_execution>;<group_execution>;<group_execution>:<test_list>\fR
+X.sp
+XThe following example scenario file exemplifies the kind of
+Xcapabilities these new features would provide.
+X.P
+X.ft CW
+X.DS 
+X	# This is an example scenario file that shows how the new
+X	# execution modes are used.
+X
+X	# The parallel_tests scenario is a list of tests from which the
+X	# monte_carlo scenario randomly chooses tests to execute.
+X	parallel_tests
+X		/test/one
+X		/test/two
+X		/test/three
+X		/test/four
+X
+X	# The monte_carlo would test four parallel process each repeatedly
+X	# executing random choices from the parallel_tests scenario for
+X	# five minutes (300 seconds).
+X	monte_carlo
+X		:parallel,4;timed_loop,300;random:^parallel_tests
+X
+X	# The net_test
+X	net_tests
+X		/nettest/local_test
+X		:remote,net_partner:@/nettest/remote_test
+X
+X	# The network_test scenario executes both the tests in
+X	# net_tests scenario in parallel.
+X	network_test
+X		:parallel:^net_tests
+X.DE
+X.ft R
+X.LE
+X.H 2 "Using the Korn Shell API binding"
+X.P
+XThis is the ksh binding donated by Hewlett-Packard to the TET Workshop in 
+X\fI(tetworks 318)\fP. These bindings are thought to be
+Xbetween 3 and 5 times faster than the original XPG3 Shell API bindings.
+X.P
+XThe ETET Korn Shell API has been modified to make it consistent
+Xwith the ETET XPG3 Shell API to allow use of the Extended TET features
+Xsuch as parallel execution.
+X.P
+XThe Korn Shell API bindings may be used as a direct replacement for the
+XXPG3 Shell API bindings. This can be accomplished in several ways:
+X.P
+X.AL i
+X.LI
+Xcreate links from \fItet_root\fP/lib/ksh to \fItet_root\fP/lib/xpg3sh,
+Xfor example:
+X.P
+X.nf
+X\f(CW
+X        cd $TET_ROOT/lib/xpg3sh
+X        ln -s ../ksh/tcm.ksh tcm.sh
+X        ln -s ../ksh/tetapi.ksh tetapi.sh
+X\fP
+X.fi
+X.LI
+Xreplace the xpg3sh bindings with the ksh bindings:
+X.P
+X.nf
+X\f(CW
+X        cp $TET_ROOT/lib/ksh/tcm.ksh $TET_ROOT/lib/xpg3sh/tcm.sh
+X        cp $TET_ROOT/lib/ksh/tetapi.ksh $TET_ROOT/lib/xpg3sh/tetapi.sh
+X.fi
+X\fP
+X.P
+X.LI
+Xalternately they can be used directly by placing the following line
+Xat the bottom of Korn Shell test scripts.
+X.P
+X.nf
+X\f(CW
+X      .       $TET_ROOT/lib/ksh/ksh.tcm
+X\fP
+X.fi
+X.LE
+X.H 2 "The Perl bindings to the Extended Test Environment Toolkit"
+X.P
+XThe ETET adds support for Perl. In many respects this is similar to the
+X\fBxpg3sh\fR binding, but it overcomes some of the problems inherent to the
+Xshell binding,
+Xsuch as poor performance and the limitations of the
+Xexpressiveness of the shell language. 
+X.P
+XThe ETET Perl bindings are generated and placed into the appropriate
+Xdirectories:
+X.DS
+X.fi
+X.TS
+Xcenter, tab(;), box;
+XlB | lB | lBw(3i)
+Xl | l | l.
+XName;Path;Description
+X_
+X\fBtcm.pl\fR;\fItet_root\fB/lib/perl\fR;T{
+XPerl Test Case Manager.
+XT}
+X_
+X\fBapi.pl\fR;\fItet_root\fB/lib/perl\fR;T{
+XPerl library of API interfaces.
+XT}
+X.TE
+X.DE
+X.P
+XThe Perl API is equivalent to the posix_c API provided in TET1.10.
+X.P
+XThe following Perl Calling conventions should be observed:
+X.P
+X.DS
+X.nf
+X.ft CW
+X	&tet'setcontext;
+X	&tet'setblock;
+X	&tet'infoline("<info>");
+X	&tet'result("<RESULT>");
+X	&tet'delete("<test name>", ["reason"]);
+X	&tet'reason("<test name>");
+X.ft R
+X.fi
+X.DE
+X.P
+XThe default result code list is  PASS,  FAIL, UNRESOLVED, NOTINUSE,
+XUNSUPPORTED, UNTESTED, UNINITIATED, NORESULT
+X.P	
+XFor the exact usage of each call/variable, consult the TET Programmer's Guide.
+X.P
+XVariable references should take the form:
+X.P
+X.DS
+X.ft CW
+X.nf
+X	@iclist=(ic1,ic2...icn);
+X	@ic1=(my_tp1);
+X	@ic2=(my_tp2,my_tp3);
+X	
+X	$tet'startup="my_startup_routine";
+X	$tet'cleanup="my_cleanup_routine";
+X	
+X	@tet'sig_leave_list=(...);
+X	@tet'sig_ignore_list=(...);
+X
+X	$tet'thistest;
+X.fi
+X.ft R
+X.DE
+X.P
+XAn ETET  Perl API compliant program should adhere to the following
+Xstructure:
+X.P
+X.DS
+X.nf
+X.ft I
+X	set iclist, ic's, optional setup/cleanup routines
+X	code for subroutines
+X	"require "$ENV{\\\\"TET_ROOT\\\\"}/lib/perl/tcm.pl";"
+X.ft R
+X.fi
+X.DE
+X.P
+XA example test suite written in Perl that tests both the TET API and
+Xthe ETET extensions is provided in \fItet_root\fB/contrib/suite\fR and
+X\fItet_root\fB/contrib/api\fR.
+X.P
+XThe default location for perl is assumed to be \fB/bin/perl\fP.
+XIf perl is not located there on your system, or is not symlinked, then to change
+Xthe perl scripts used in the \fBcontrib\fR directory, review the script
+X\fItet_root\fB/contrib/suite/fixperl\fR and run it.
+X.P
+X.nf
+X        \fBsh fixperl\fR
+X.fi
+X.P
+XThe default example given by \fBfixperl\fP changes the execution path 
+Xfrom \fB/bin/perl\fR to \fB/usr/local/gnu/bin/perl\fR. 
+X.P
+X.H 3 "The ETET Test Suite"
+X.P
+XETET comes complete with a test suite for itself written in Perl.
+XFor a description of the test suite refer to the \fIETET Test Plan
+XVersion 0.5\fR in \fItet_root\fB/doc/testplan\fR.
+X.P
+XThis test suite comprises the \fItet_root\fB/contrib/api\fR and 
+X\fItet_root\fB/contrib/suite\fR test suites:
+X.P
+X.DS
+X.fi
+X.TS
+Xcenter, tab(;), box;
+XlB | lB | lBw(3i)
+Xl | l | l.
+XName;Path;Description
+X_
+X\fBsuite\fR;\fItet_root\fB/contrib/\fR;T{
+XThis is a test suite written in Perl that 
+Xtests the ETET `C', Shell and Perl API's. It 
+Xtests both the base TET features and the
+Xnew features of ETET. This test suite runs
+Xthe tests in the \fItet_root\fB/contrib/api\fR
+Xdirectory.  The \fBREADME\fR file describes the
+Xsetup requirements to run this test suite.
+XT}
+X_
+X\fBapi\fR;\fItet_root\fB/contrib/\fR;T{
+XThis is a set of tests driven by 
+Xby the \fBsuite\fR above. These tests
+Xare written in `C', Shell and Perl.
+XT}
+X.TE
+X.DE
+X.P
+XTo run this suite, execute the \fBruntest\fP script provided:
+X.DS
+X.ft CW
+X.nf
+X        sh runtest
+X.fi
+X.ft R
+X.DE
+X.P
+X.H 2 "The C++ bindings to the Extended Test Environment Toolkit"
+X.P
+XThe C++ binding is for the \fIposix_c\fR API.
+XETET can support both C and C++ test suites simultaneously.
+X.sp 
+XThe C++ binding provided can be
+Xthought of as a "lightweight" binding, in that only a small
+Xpart of the ETET requires compilation in C++, the majority of the
+Xcode being compiled as before using the C compiler.
+XThis approach was suggested by [Wijnen, Harrison].
+X.sp
+XThis method is used because of the differences between
+XC and C++ (IO, memory management, use of void etc) which make it
+Ximpossible to compile C code using a C++ compiler without
+Xmodifying the existing code.
+X.sp
+X.P
+XTo overcome possible linkage problems, [Stroustrup] recommends
+Xusing conditional compilation to create a 
+Xcommon C and C+ header:
+X.sp
+X\f(CW
+X.nf
+X#ifdef __cplusplus
+Xextern "C" {
+X#endif
+X
+X    //C and C++ code here
+X
+X#ifdef __cplusplus
+X}
+X#endif
+X.fi
+X\fR
+X.sp
+XThe predefined macro \f(CW__cplusplus\fR is used to ensure the C++ constructs
+Xare edited out when the file is used as a C header.
+XA function declared \f(CWextern "C"\fP still obeys the C++ type checking rules,
+Xso all functions must have full Standard C prototypes.
+X.P
+XThis C++ implementation also requires a C++ \f(CWmain()\fP module.
+X.P
+X.ft B
+XChanges and Additions for C++"
+X.ft R
+X.P
+XThe header file inc/posix_c/tet_api.h has been changed in the manner
+Xdescribed above to support linkage to both C and C++ bindings.
+X.sp 
+XLinkage to the ETET API for C++ test suites is provided by the following
+Xarchive libraries.
+X.P
+X.DS
+X.fi
+X.TS
+Xcenter, tab(;), box;
+XlB | lB | lBw(3i)
+Xl | l | l.
+XName;Path;Description
+X_
+X\fBlibCtcm.a\fR;\fItet_root\fB/lib/posix_c\fR;T{
+XC++ Test Case Manager \fBmain()\fR routine.  
+XFor processes to be executed by the \fBtcc\fR.
+XThis is equivalent to the `C' API module \fBtcm.o\fR.
+XT}
+X_
+X\fBlibCtcmc.a\fR;\fItet_root\fB/lib/posix_c\fR;T{
+XC++ executed processes \fBmain()\fR routine.  
+XFor processes to be executed by \fBtet_exec()\fR.
+XThis is equivalent to the `C' API \fBtcmchild.o\fR.
+XT}
+X_
+X\fBlibapi.a\fR;\fItet_root\fB/lib/posix_c\fR;T{
+XThe `C' API library interfaces
+XT}
+X.TE
+X.DE
+X.P
+XThere have been minimal changes to the common C and C++ code. Two existing
+XC modules containing the C main() routines have been copied and had
+Xtheir entry names changed.
+X.DS
+X.fi
+X.TS
+Xcenter, tab(;), box;
+XlB | lB | lBw(3i)
+Xl | l | l.
+XC++ Module;C Module;Description
+X_
+X\fBc_tcm.c\fR;\fBtcm.c\fR;T{
+XC \fBmain()\fR routine renamed to
+X\fBt_cmain()\fR for `C++' API.
+XT}
+X_
+X\fBc_tcmchild.c\fR;\fBtcmchild.c\fR;T{
+XC \fBmain()\fR routine renamed to
+X\fBtet_childmain()\fR for `C++' API.
+XT}
+X.TE
+X.DE
+X.P
+XA simple demonstration C++ test suite is included in contrib/cplusdemo.
+X.P
+XReferences: 
+X.DS
+X.ft CW
+X[Wijnen] B. Wijnen, Private communication, May 92
+X
+X[Harrison] R. Harrison, Private Communication, May 93
+X
+X[Stroustrup] B. Stroustrup, The C++ Programming Language, 2nd edition,
+X            Addison Wesley, 1991
+X.ft R
+X.DE
+X
+X.H 2 "The Portability library for BSD systems"
+X.P
+XETET includes a TET portability library for BSD systems. This is taken
+Xfrom the MIT X test suite release 1.2. The portability  library
+Xis designed for BSD systems, although
+Xmay be useful as a base for porting the TET to
+Xother non-POSIX systems with some change. The 
+Xfile \fItet_root/\fBcontrib/port/README\fR should be examined for
+Xan overview and adaptability hints.
+X.SK
+X.H 1 "Changes Since the TET1.10 Release"
+X.H 2 "`C' API"
+X.BL
+X.LI
+XChanges have been made to the handling of the temporary results file
+Xto allow parallel running of testsets.
+XBackwards compatibility is the default and no change in behavior
+Xshould be observed unless ETET is compiled with the definition -DSUNTEST.
+X.P
+X.LI
+XA sprintf statement in \fBresfile.c\fR has been updated to use \fB%d\fR instead
+Xof \fB%ld\fR for the \fBtet_thistest\fR variable (see tet bug report tet1.10.004).
+X.LI
+X\fBlibapi.a\fR has been added to the list of files to remove for the make clean
+Xtarget in \fItet_root/\fBsrc/posix_c/api/makefile\fR (see tet bug report tet1.10.001).
+X.LI
+XSeveral of the header files have had fixes to the prototypes (see
+Xtet bug reports tet1.10.062, tet1.10.064, tet1.10.065).
+X.LE
+X.H 2 "Shell API"
+X.BL
+X.LI
+XIf IC's are numbered from 01,02,03...10,11 a problem was
+Xfound that prevented IC's 02-09 from being executed in the all
+Xscenario. This has been fixed in this release (see tet bug report tet1.10.067).
+X.LI
+XThe setcontext in a subshell is implemented according to section 6.2.3.2
+Xof the TET specification. This differs from the TET1.10 implementation
+X(see tet bug report tet1.10.068).
+X.LI
+XThere have been some changes to tcm.sh to improve performance when processing
+Xlarge numbers of TP's and IC's.
+X.LI
+XThe Korn Shell API was added in ETET 1.10.2, providing a faster
+Xalternative to the existing XPG3 Shell API. Revisions have been
+Xmade to the Korn Shell API in 1.10.3 for further compatibility with the
+XXPG3 Shell API.
+X.LE
+X.H 2 "\fBtcc\fR"
+X.BL
+X.LI
+XImproved error reporting.
+X.LI
+XImproved test suite termination and changes for termination when
+Xexecuting in parallel.
+X.LI
+XAdditional journal file entry for uname() information.
+X.LI
+XImproved checking on value of TET_ROOT, and support of TET_SUITE_ROOT.
+X.LI
+XAddition of support for new scenario keywords and extensions to the
+Xscenario syntax.
+X.LI
+XThe `-p' option has a fix to report the time as well as the test in
+Xprogress. This was present in TET releases prior to 1.10, and was
+Xa problem with the scope of the zeetime[] array.
+X.LI
+XIntroduction of TET_EXTENDED for better support of parallel execution
+Xof tests.
+X.LI
+XIntroduction of TET_LOCK to control locking behavior,
+Xdefaults to TET1.10 style locking.
+X.LI
+XReduce the memory allocation in the function collate_and_sort() ( see
+Xtet bug report tet1.10.049).
+X.LI
+XIn some instances when tcc fails to exec a test case
+Xa child process is not waited for. A fix has been made to add
+Xan additional call to waitpid() (see tet bug report tet1.10.069).
+X.LE
+X.P
+X.H 2 "Specification"
+X.P
+XThis release is made with version 4.5 of the TET specification.
+X.SK
+X.H 1 "Notes on the Specification"
+X.P
+XThe aim of this chapter is to clarify some points about the functionality of
+Xthe TET that may not be immediately clear from reading the specification.
+X.P
+X.H 2 "Reserved Result Code Names"
+X.P
+XThe rerun and resume options of the \fBtcc\fR make use of the strings: 'b', 'e'
+Xand 'c'. Setting a result code name equal to one of these strings may cause
+Xunexpected results when the rerun or resume options are used.
+X.P
+X.H 2 "The TET_OUTPUT_CAPTURE variable"
+X.P
+XThis variable may be set independently for each mode of the \fBtcc\fR. When
+Xset to 'False' (the default) the \fBtcc\fR expects the appropriate mode of
+Xoperation to generate results in a file called \fBtet_xres\fR. The format
+Xof the results contained in this file are dictated by section 7.2.1 of the 
+Xspecification.
+X.P
+XWhen set to 'True', the \fBtcc\fR captures the \fIstderr\fR and \fIstdout\fR
+Xfrom the appropriate mode of operation, and makes no attempt to open the 
+X\fBtet_xres\fR file. 
+X.P
+X\fISee also the section entitled ETET Further Extensions which introduces the
+XTET_API_COMPLIANT and TET_TC_PASS_NAME configuration variables\fR.
+X.P
+X.H 2 "The Alternate Execution Directory"
+X.P
+XAn alternate execution directory can be set using the \fB-a\fR option of
+Xthe tcc (See also section 6.1.2 of these notes). Test cases are specified in
+Xa scenario in terms of a relative directory pathname ending with the test case
+Xtarget name. For each test case, the 
+Xbuild and clean modes of the \fBtcc\fR are initiated in the appropriate test
+Xcase directory which is relative to the test suite root directory. The execute 
+Xmode of the \fBtcc\fR is initiated in a directory that is either relative to 
+Xthe alternate execution directory (if it is set), or else the test suite root 
+Xdirectory.
+X.P
+X.H 2 "The TET_EXEC_IN_PLACE variable"
+X.P
+XWhen set to 'False' (the default) this variable instructs the \fBtcc\fR to 
+Xrecursively copy the directory in which execution would have taken place (see 
+Xthe above section) to a new temporary directory (See section 6.1.3 of these
+Xnotes). The execute mode of the \fBtcc\fR then takes place in the temporary 
+Xdirectory, after which, the temporary directory is recursively removed.
+X.SK
+X.H 1 "Extensions to the Specification"
+X.P
+XThe following features are implemented in addition to those
+Xrequired by the TET specification. This first section is provided by 
+XTET1.10.
+X.H 2 "Environment Variables"
+X.P
+X.H 3 "TET_ROOT"
+X.P
+XYou can override the value of TET_ROOT compiled into \fBtcc\fR
+Xby setting TET_ROOT in your shell environment before executing \fBtcc\fR.
+XFor example
+X.BL
+X.LI
+XFor the C shell, type a line like the
+Xfollowing at the shell prompt:
+X.P
+X\f(CWsetenv TET_ROOT <\fIyour TET_ROOT path\f(CW>
+X.ft R
+X.P
+X.LI
+XOr, for the Bourne shell, type the following line at the shell prompt:
+X.P
+X\f(CWTET_ROOT=<\fIyour TET_ROOT path\f(CW>;export TET_ROOT
+X.ft R
+X.P
+XBy doing this, you can then refer to \fI<your TET_ROOT path>\fR as
+X$TET_ROOT in the shell.
+X.LE
+X.P
+X.H 3 "TET_EXECUTE"
+X.P
+XThe environment variable TET_EXECUTE can be set in a similar fashion to that
+Xof the TET_ROOT, and allows you to specify a default value for the
+Xalternate execution directory that is used by the \fBtcc\fR. 
+XNote however that a command line supplied value
+Xfor the alternate execution directory has a higher precedence than that
+Xsupplied by the TET_EXECUTE environment variable.
+X.P
+X.H 3 "TET_TMP_DIR"
+X.P
+XDuring the execution of the \fBtcc\fR temporary files are usually created in
+Xunique sub_directories under a directory called \fBtet_tmp_dir\fR, which is
+Xlocated in the \fItet_root\fR.  Whilst every effort has been made to ensure
+Xthat each sub-directory is removed as the \fBtcc\fR finishes, it is possible 
+Xthat an abnormal termination will mean that a sub-directory remains.  Such
+Xdirectories should be removed to conserve disk space.
+X.P
+XThe user may specify an alternative temporary directory for use by
+X\fBtcc\fR by setting the environment variable TET_TMP_DIR.  This variable
+Xshould be set in a similar fashion to the TET_ROOT variable discussed above.
+XPerformance problems due to network file systems can be helped by setting
+Xthis variable to a directory on a local file system.
+X.P
+X.H 2 "Extra Options"
+X.P
+XThe following \fBtcc\fR command line options are provided in addition to those
+Xin the specification:
+X.VL 7n
+X.LI \fB-l\fR
+Xmay be used to supply a one-off scenario line for execution without the
+Xneed to create a scenario file.
+X.LI \fB-p\fR
+Xenables progress reporting to standard output.
+X.LI "\fB-y -n\fR"
+Xmay be used to select parts of a scenario for processing.  Test case
+Xexecution lines are processed only if they match the specified search
+Xstring (\fB-y\fR) or don't match it (\fB-n\fR).
+X.LE
+X.P
+XSee the manual page in \fItet_root\fB/doc/posix_c/tcc.1\fR for more details.
+X
+X.H 2 "ETET Further extensions"
+X.P
+X.H 3 "TET_SUITE_ROOT"
+X.P
+XThe environment variable TET_SUITE_ROOT can be set in a similar fashion to
+XTET_ROOT, and allows you to specify the root directory of a test suite to
+Xbe in a directory other than immediately under under TET_ROOT.
+XThis is an extension that allows flexibility in the location of
+Xtest suites, a typical use of this feature is to enable
+Xa copy of ETET to be held in a central location and served
+Xacross a network on a read-only mount point.
+X.P
+XFor example to run a test suite under \fB/home/ts\fR with the ETET
+Xlocated in \fB/TET_ROOT\fR, the following would be set in the
+Xusers \fB.profile\fR.
+X.P
+X.nf
+X.DS
+X.ft CW
+X# ETET
+XTET_ROOT=/TET_ROOT
+XTET_TMP_DIR=/tmp    # allows TET_ROOT to be read-only
+XTET_SUITE_ROOT=/home/ts
+XTET_EXECUTE=$HOME/TESTROOT
+XPATH=$PATH:$HOME/BIN:$TET_ROOT/bin
+XEDITOR=vi
+Xexport TET_ROOT TET_TMP_DIR TET_SUITE_ROOT PATH EDITOR TET_EXECUTE
+X.ft R
+X.DE
+X.fi
+X.P
+XIf you are running an X/Open test suite some additional changes
+Xare required since they make assumptions based on relative pathnames
+Xfor the location of the \f3bin\fR and \f3lib\fR directories.
+X.P
+X.nf
+X.DS
+X.ft CW
+Xcd $HOME
+Xcd ..
+Xln -s $TET_ROOT/bin bin
+Xln -s $TET_ROOT/lib lib
+X.ft R
+X.DE
+X.fi
+X.P
+X.H 3 "TET_RUN"
+X.P
+XThe environment variable TET_RUN should be set to a pathname which
+Xcan be used as an alternate TET_SUITE_ROOT directory. Upon startup when
+Xthis is set, the testsuite selected is copied across to the TET_RUN
+Xdirectory using the tar command. The build, clean, and execute modes
+Xthen use the copy of the test suite in TET_RUN.
+XA typical use of this
+Xextension is to permit running of read-only copies held on a central
+Xserver.
+X.P
+X.H 3 "TET_JOURNAL_PATH"
+X.P
+X\f2This feature is still subject to revision\fR
+X.P
+XThe environment variable TET_JOURNAL_PATH is used internally by ETET.
+X.P
+X.H 3 "TET_EXTENDED"
+X.P
+XThis environment
+Xvariable allows tcc and the language bindings  to alter behavior at runtime.
+XThis relates to temporary results
+Xfile behavior. The TET specification states that the file tet_xres
+Xis to be used for temporary results and this is the default behavior.
+XIf set to true, then ETET uses an alternate strategy that allows
+Xmultiple copies of \fBtcc\fR to execute without corrupting the temporary
+Xresults files.
+X.P
+XTET_EXTENDED is a boolean and may be set to "true" or "false", abbreviations
+Xof "t", "T", "f" and "F" are also accepted.
+X.P
+X.H 3 "TET_LOCK"
+X.P
+XThe environment variable TET_LOCK can be set in a similar fashion to
+XTET_ROOT, and allows you to specify whether the locking method 
+Xdescribed in the TET specification is to be used (set by setting
+XTET_LOCK=t). If unset then a different locking strategy is used
+Xwhich allows parallel execution for ETET test cases.
+XWhen TET_EXTENDED is true, TET_LOCK is set to false.
+X.P
+X.H 3 "TET Output Capture"
+X.P
+XThis release includes the introduction of two new configuration variables
+Xthat affect API compliance, output capture and passing arguments to
+Xthe build and clean phases. These features are an implementation
+Xof the proposal generated by action items 9308.07 & 9308.08 from the
+XAugust 1993 meeting of the TET workshop.
+X.P
+X.H 4 "\fBTET_API_COMPLIANT\fR"
+X.P
+XThis flag is  introduced in ETET as a way to specify TET API compliance.
+XThis has been introduced to overcome the problem that there was only
+Xone flag to control both Output Capture and API compliance.  These are 
+Xseparate features that need to be able to be specified independently.
+X.P
+XTET_API_COMPLIANT is a boolean variable.
+XIf TET_API_COMPLIANT is not explicitly set then it
+Xdefaults to !TET_OUTPUT_CAPTURE.  If it is set, it controls whether or
+Xnot \fBtcc\fR outputs IC and TP start and end messages and whether or not \fBtcc\fR
+Xuses the exit value of the executed test as the result code in the
+Xjournal.
+X.P
+XNote that, TET_API_COMPLIANT only applies during the execution phase.
+XIf a test is not API compliant, you have 1 TP per IC and results are
+Xreported or returned via the program exit code.
+X.P
+X.H 4 "\fBTET_PASS_TC_NAME\fR"
+X.P
+XETET introduces a new flag to specify that the test case name be passed
+Xto the build and clean tools.
+XThis has been introduced to overcome the overloading of the TET_OUTPUT_CAPTURE
+Xflag which among other things specified
+Xwhether or not
+Xthe test case name is passed to the build and clean tools.
+X.P
+XTET_PASS_TC_NAME is a boolean variable..
+XThis variable controls passing the TET_BUILD_FILE
+Xargument and the test name to the build tool. If it isn't explicitly
+Xset, it gets it's value from TET_OUTPUT_CAPTURE setting.
+X.P
+XIn order to maintain compatibility with current tests, it is
+Xnecessary to have TET_OUTPUT_CAPTURE's behavior remain unchanged
+Xin the absence of TET_PASS_TC_NAME.
+XNote also that TET_PASS_TC_NAME only applies during the build & clean phases.
+X.P
+X.SK
+X.H 1 "Known Problems With This Release"
+X.P
+XThe following problems are carried forward from the TET1.10 release
+Xinto ETET.
+X.AL
+X.LI
+XWhen using either the rerun or resume options of the \fBtcc\fR an error occurs
+Xif a test case has more than one hundred and twenty-eight invocable components. 
+XAn interim solution, is to enlarge the value of ICS_MAX in
+X\fBagain.c\fR. A value should be used that is greater than the maximum number 
+Xof invocable components that will be used in any test case.
+X.LI
+XThe \fBtcc\fR makes use of the command \fBcp -r\fR. If this use of \fBcp\fR is not supported on 
+Xyour system you should install a script in your PATH that correctly 
+Xinterprets, and replicates the recursive option of \fBcp\fR. 
+X.LE
+X.SK
+X.H 1 "ETET Future Directions"
+X.P
+XThis section documents proposed future directions for ETET.
+X.P
+X.BL
+X.LI
+X\fIremote\fP scenario keyword
+X.P
+XSee the section \fIScenario Extensions\fP for a description of
+Xthe proposed extension. This will allow a logical extension of
+Xthe ETET to allow distributed testing with minimal change to the
+Xexisting API's.
+X.LI
+XTET_SEED
+X.P
+XIn random mode, the journal will record the value of the seed
+Xused. Setting the environment variable TET_SEED will allow
+Xa random mode to replay a given scenario.
+X.LI
+XMulti-threaded Support
+X.P
+XThe C API will be enhanced to support multi-threading. 
+X.LI
+XDevelop more abilities to deal with stress testing.
+X.LI 
+XLook at ways of making TET suites more maintainable.
+X.LI
+XAbility to deal with testing of embedded systems.
+X.LI
+XAn Expect API (under development right now) - based on the OSF TCL API.
+X.LE
+X.SK
+X.H 1 "APPENDIX A: List of Contributors"
+X.SP 3
+X.ft CW
+X.DS
+XW. Turnbow, SunSoft Inc., California, USA.
+XEmail: William.Turnbow@eng.sun.com
+X
+XR. Valenzuela, SunSoft Inc., California, USA
+XEmail: Ricardo.Valenzuela@eng.sun.com
+X
+XM.J. Convey, Novell UK.
+XEmail: mike@novell.co.uk
+X
+XDr. R.Harrison, University of Southampton, UK.
+XEmail: R.Harrison@ecs.soton.ac.uk
+X
+XA.J. Josey, Novell UNIX Systems Group, UK.
+XEmail: a.josey@novell.co.uk
+X
+XJ. Birchfield, Qualtrak Corporation.
+XEmail: jb@qualtrak.com
+X
+XS.Mullan, Hewlett-Packard Co.
+XEmail: mullan_s@apollo.hp.com
+X
+XS. March, Motorola.
+XEmail: smarch@urbana.mcd.mot.com
+X
+XM.Kam
+XEmail: mkam@sco.com 
+X
+XJ. Sanfilippo, Hewlett-Packard Co.
+XEmail: jss@apollo.hp.com
+X.DE
+X.ft R
+X.sp
+XIf you wish to contribute and or  volunteer to assist with the
+Xsupport of the ETET send electronic mail to etet_support@novell.co.uk.
+X.sp
+X.SK
+X.TC 2
+X
+________This_Is_The_END________
+if test `wc -l < etet_rel.mm` -ne 1765 ; then
+	echo 'shar: etet_rel.mm was damaged during transit (should have been 1765  bytes)'
+fi
+fi		; : end of overwriting check
+exit 0

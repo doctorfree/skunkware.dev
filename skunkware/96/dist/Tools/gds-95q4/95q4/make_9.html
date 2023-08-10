@@ -1,0 +1,83 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Variables Simplify</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_8.html">previous</A>, <A HREF="make_10.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX33"></A>
+<A NAME="IDX34"></A>
+<H2><A NAME="SEC8" HREF="make_toc.html#TOC8">Variables Make Makefiles Simpler</A></H2>
+<P>
+In our example, we had to list all the object files twice in the rule for
+<TT>`edit'</TT> (repeated here):
+<P>
+<PRE>
+edit : main.o kbd.o command.o display.o \
+              insert.o search.o files.o utils.o
+        cc -o edit main.o kbd.o command.o display.o \
+                   insert.o search.o files.o utils.o
+</PRE>
+<A NAME="IDX35"></A>
+<P>
+Such duplication is error-prone; if a new object file is added to the
+system, we might add it to one list and forget the other.  We can eliminate
+the risk and simplify the makefile by using a variable.  <DFN>Variables</DFN>
+allow a text string to be defined once and substituted in multiple places
+later (see section <A HREF="make_56.html#SEC55">How to Use Variables</A>).
+<A NAME="IDX36"></A>
+<A NAME="IDX37"></A>
+<A NAME="IDX38"></A>
+<A NAME="IDX39"></A>
+<A NAME="IDX40"></A>
+<P>
+It is standard practice for every makefile to have a variable named
+<CODE>objects</CODE>, <CODE>OBJECTS</CODE>, <CODE>objs</CODE>, <CODE>OBJS</CODE>, <CODE>obj</CODE>,
+or <CODE>OBJ</CODE> which is a list of all object file names.  We would
+define such a variable <CODE>objects</CODE> with a line like this in the
+makefile:<P>
+<PRE>
+objects = main.o kbd.o command.o display.o \
+          insert.o search.o files.o utils.o
+</PRE>
+<P>
+Then, each place we want to put a list of the object file names, we can
+substitute the variable's value by writing <SAMP>`$(objects)'</SAMP>
+(see section <A HREF="make_56.html#SEC55">How to Use Variables</A>).  
+<P>
+Here is how the complete simple makefile looks when you use a variable
+for the object files:
+<P>
+<PRE>
+objects = main.o kbd.o command.o display.o \
+          insert.o search.o files.o utils.o
+
+edit : $(objects)
+        cc -o edit $(objects)
+main.o : main.c defs.h
+        cc -c main.c
+kbd.o : kbd.c defs.h command.h
+        cc -c kbd.c
+command.o : command.c defs.h command.h
+        cc -c command.c
+display.o : display.c defs.h buffer.h
+        cc -c display.c
+insert.o : insert.c defs.h buffer.h
+        cc -c insert.c
+search.o : search.c defs.h buffer.h
+        cc -c search.c
+files.o : files.c defs.h buffer.h command.h
+        cc -c files.c
+utils.o : utils.c defs.h
+        cc -c utils.c
+clean :
+        rm edit $(objects)
+</PRE>
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_8.html">previous</A>, <A HREF="make_10.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

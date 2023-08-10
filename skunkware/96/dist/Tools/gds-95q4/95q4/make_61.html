@@ -1,0 +1,176 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Computed Names</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_60.html">previous</A>, <A HREF="make_62.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX408"></A>
+<A NAME="IDX409"></A>
+<A NAME="IDX410"></A>
+<A NAME="IDX411"></A>
+<A NAME="IDX412"></A>
+<A NAME="IDX413"></A>
+<A NAME="IDX414"></A>
+<H3><A NAME="SEC60" HREF="make_toc.html#TOC60">Computed Variable Names</A></H3>
+<P>
+Computed variable names are a complicated concept needed only for
+sophisticated makefile programming.  For most purposes you need not
+consider them, except to know that making a variable with a dollar sign
+in its name might have strange results.  However, if you are the type
+that wants to understand everything, or you are actually interested in
+what they do, read on.
+<P>
+Variables may be referenced inside the name of a variable.  This is
+called a <DFN>computed variable name</DFN> or a <DFN>nested variable
+reference</DFN>.  For example,
+<P>
+<PRE>
+x = y
+y = z
+a := $($(x))
+</PRE>
+<P>
+defines <CODE>a</CODE> as <SAMP>`z'</SAMP>: the <SAMP>`$(x)'</SAMP> inside <SAMP>`$($(x))'</SAMP> expands
+to <SAMP>`y'</SAMP>, so <SAMP>`$($(x))'</SAMP> expands to <SAMP>`$(y)'</SAMP> which in turn expands
+to <SAMP>`z'</SAMP>.  Here the name of the variable to reference is not stated
+explicitly; it is computed by expansion of <SAMP>`$(x)'</SAMP>.  The reference
+<SAMP>`$(x)'</SAMP> here is nested within the outer variable reference.
+<P>
+The previous example shows two levels of nesting, but any number of levels
+is possible.  For example, here are three levels:
+<P>
+<PRE>
+x = y
+y = z
+z = u
+a := $($($(x)))
+</PRE>
+<P>
+Here the innermost <SAMP>`$(x)'</SAMP> expands to <SAMP>`y'</SAMP>, so <SAMP>`$($(x))'</SAMP>
+expands to <SAMP>`$(y)'</SAMP> which in turn expands to <SAMP>`z'</SAMP>; now we have
+<SAMP>`$(z)'</SAMP>, which becomes <SAMP>`u'</SAMP>.
+<P>
+References to recursively-expanded variables within a variable name are
+reexpanded in the usual fashion.  For example:
+<P>
+<PRE>
+x = $(y)
+y = z
+z = Hello
+a := $($(x))
+</PRE>
+<P>
+defines <CODE>a</CODE> as <SAMP>`Hello'</SAMP>: <SAMP>`$($(x))'</SAMP> becomes <SAMP>`$($(y))'</SAMP>
+which becomes <SAMP>`$(z)'</SAMP> which becomes <SAMP>`Hello'</SAMP>.
+<P>
+Nested variable references can also contain modified references and
+function invocations (see section <A HREF="make_72.html#SEC71">Functions for Transforming Text</A>),
+just like any other reference.
+For example, using the <CODE>subst</CODE> function 
+(see section <A HREF="make_74.html#SEC73">Functions for String Substitution and Analysis</A>):
+<P>
+<PRE>
+x = variable1
+variable2 := Hello
+y = $(subst 1,2,$(x))
+z = y
+a := $($($(z)))
+</PRE>
+<P>
+eventually defines <CODE>a</CODE> as <SAMP>`Hello'</SAMP>.  It is doubtful that anyone
+would ever want to write a nested reference as convoluted as this one, but
+it works: <SAMP>`$($($(z)))'</SAMP> expands to <SAMP>`$($(y))'</SAMP> which becomes
+<SAMP>`$($(subst 1,2,$(x)))'</SAMP>.  This gets the value <SAMP>`variable1'</SAMP> from
+<CODE>x</CODE> and changes it by substitution to <SAMP>`variable2'</SAMP>, so that the
+entire string becomes <SAMP>`$(variable2)'</SAMP>, a simple variable reference
+whose value is <SAMP>`Hello'</SAMP>.<P>
+A computed variable name need not consist entirely of a single variable
+reference.  It can contain several variable references, as well as some
+invariant text.  For example,
+<P>
+<PRE>
+a_dirs := dira dirb
+1_dirs := dir1 dir2
+
+a_files := filea fileb
+1_files := file1 file2
+
+ifeq "$(use_a)" "yes"
+a1 := a
+else
+a1 := 1
+endif
+
+ifeq "$(use_dirs)" "yes"
+df := dirs
+else
+df := files
+endif
+
+dirs := $($(a1)_$(df))
+</PRE>
+<P>
+will give <CODE>dirs</CODE> the same value as <CODE>a_dirs</CODE>, <CODE>1_dirs</CODE>,
+<CODE>a_files</CODE> or <CODE>1_files</CODE> depending on the settings of <CODE>use_a</CODE>
+and <CODE>use_dirs</CODE>.<P>
+Computed variable names can also be used in substitution references:
+<P>
+<PRE>
+a_objects := a.o b.o c.o
+1_objects := 1.o 2.o 3.o
+
+sources := $($(a1)_objects:.o=.c)
+</PRE>
+<P>
+defines <CODE>sources</CODE> as either <SAMP>`a.c b.c c.c'</SAMP> or <SAMP>`1.c 2.c 3.c'</SAMP>,
+depending on the value of <CODE>a1</CODE>.
+<P>
+The only restriction on this sort of use of nested variable references
+is that they cannot specify part of the name of a function to be called.
+This is because the test for a recognized function name is done before
+the expansion of nested references.  For example,
+<P>
+<PRE>
+ifdef do_sort
+func := sort
+else
+func := strip
+endif
+
+bar := a d b g q c
+
+foo := $($(func) $(bar))
+</PRE>
+<P>
+attempts to give <SAMP>`foo'</SAMP> the value of the variable <SAMP>`sort a d b g
+q c'</SAMP> or <SAMP>`strip a d b g q c'</SAMP>, rather than giving <SAMP>`a d b g q c'</SAMP>
+as the argument to either the <CODE>sort</CODE> or the <CODE>strip</CODE> function.
+This restriction could be removed in the future if that change is shown
+to be a good idea.
+<P>
+You can also use computed variable names in the left-hand side of a
+variable assignment, or in a <CODE>define</CODE> directive, as in:
+<P>
+<PRE>
+dir = foo
+$(dir)_sources := $(wildcard $(dir)/*.c)
+define $(dir)_print
+lpr $($(dir)_sources)
+endef
+</PRE>
+<P>
+This example defines the variables <SAMP>`dir'</SAMP>, <SAMP>`foo_sources'</SAMP>, and
+<SAMP>`foo_print'</SAMP>.
+<P>
+Note that <DFN>nested variable references</DFN> are quite different from
+<DFN>recursively expanded variables</DFN>
+(see section <A HREF="make_58.html#SEC57">The Two Flavors of Variables</A>), though both are
+used together in complex ways when doing makefile programming.<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_60.html">previous</A>, <A HREF="make_62.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

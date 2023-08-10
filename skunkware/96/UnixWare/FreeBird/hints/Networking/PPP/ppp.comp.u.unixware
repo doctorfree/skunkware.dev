@@ -1,0 +1,438 @@
+From bob@musem.earthlink.net Sun Nov 27 10:59:12 GMT 1994
+Article: 15720 of comp.unix.unixware
+Xref: uel comp.unix.unixware:15720
+Path: uel!demon!pipex!news.sprintlink.net!nntp.earthlink.net!bob
+From: bob@musem.earthlink.net (Bob Stewart)
+Newsgroups: comp.unix.unixware
+Subject: PPP setup doc vsn 1.1
+Date: 27 Nov 1994 06:13:21 GMT
+Organization: Earthlink Network, Inc.
+Lines: 422
+Message-ID: <3b9821$2b7@moon.earthlink.net>
+NNTP-Posting-Host: musem.earthlink.net
+X-Newsreader: TIN [version 1.2 PL0]
+
+
+This is version 1.1  of my PPP setup document.  Hopefully, I have
+learned a little more about PPP setup now, and this document will be
+more useful.  Specifically, references to /etc/gateways and /etc/networks
+have been removed, and replaced with procedures to setup a default
+route.  It's not a finished document yet, but I do believe it can be
+of help.  If you've run into something I should add, please let me know.
+
+Enjoy...Bob
+
+
+*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+This document is written to help new UNIXWARE users make a PPP 
+connection to an Internet provider.  This document is provided without
+warranty of any kind, express or implied, including but not limited
+to the warranties of merchantability, fitness for a particular 
+purpose and noninfringement.  In no event shall Robert W. Stewart,
+the author, nor your Internet provider be held liable for any claim,
+damages or other liability, whether in action of contract, tort or
+otherwise, arising from, out of, or in connection with the information
+provided herein, its use, or other dealings with this information.
+
+In other words, this is the way it works on my system, but not only
+may it not work on your system, it may cause harm; especially if 
+instructions are not followed.  Use this document at your own risk,
+and with an understanding of what you are doing at each step.
+
+This is version 1.1 of this document. 26-Nov-94.
+*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*
+
+
+Welcome to the trials and tribulations of setting up a PPP connection.
+This document will explain what I did to my system to get "on the net"
+via my Internet provider.  This document is geared toward users of 
+Novell's Unixware, and probably doesn't apply to other systems.
+
+
+Documentation:
+
+First of all, it would be preferable if you had a full set of Unixware
+manuals, specifically including the TCP/IP & NFS - TCP/IP Administration
+manual.  Failing that, you SHOULD go out and purchase the Novell's Guide
+to UnixWare 1.1 book. It's about two inches thick, and has most of the
+stuff you are ever likely to need to administer your Unixware system.
+
+You CAN perform the steps in this document without either of these books,
+but you may not understand some of the steps, and may damage your system
+by doing something incorrectly.
+
+
+
+Setup:
+
+The first step is to run pppconf.  There are man pages explaining this,
+and they can be accessed from flib as well.
+
+You must be the root user to run pppconf.
+$ su
+Password:xxxxxxx
+
+Run pppconf
+# pppconf
+
+
+PPP Configuration Menu
+
+1) Configure PPP hosts
+2) Configure incoming PPP parameters
+3) Configure PPP authentication parameters
+q)
+
+Enter choice: 1
+
+Configure PPP Hosts
+
+1) Add/modify PPP hosts
+2) Remove PPP hosts
+q) Quit
+
+Enter choice: 1
+
+Enter IP address for local PPP end: from the fax from provider Your IP Address
+
+Enter IP address for remote PPP end: 105.105.105.105
+
+Note: This was not supplied by provider on my fax.  I used a DOS comms
+program to try to log onto provider on my PPP ID, and looked at the
+output to see their PPP server ID.
+
+Enter netmask("-" for default) ... : 255.255.255.0
+
+..
+Enter UUCP name("-" for null) ...: dial-internet
+
+Note: The UUCP name is the name in the /etc/uucp/Systems file that you
+will be setting up to dial provider to make the PPP connection.
+
+Do you want to specify PPP negotiation parameters? (y/n) y
+
+PPP connection inactivity timeout in minutes("-" for forevere)...: 5
+
+Timeout per PPP protocol request in seconds [3]: press enter
+
+Maxium number of ppp configure requests [10]: press enter
+
+Maxium number of ppp termination requests [2]: press enter
+
+Maxium allowable number of remote PPP configure requests [10]: press enter
+
+Maxium receive unit size in bytes [???]: 1152
+
+Note: This number is pretty important.  It appears that it must be a
+multiple of 576 in order for routing to work through PPP.
+
+Async control character map in hex [00000000]: press enter
+
+PPP peer authentication timeout in minutes [1]: press enter
+
+PPP password authentication ("on" or "off") [off]: press enter
+
+Magic number negotation ("on" of "off") [on]: press enter
+
+LCP protocol field compression ("on" or "off") [off]: on
+
+HDLC address-control field compression ("on" or "off") [off]: on
+
+IP address negotiation ("on" or "off") [off]: press enter
+
+Old IP address negotiation (RFC1172) ("on" or "off") [off]: press enter
+
+Van Jacobson TCP header compression ("on" or "off") [off]: on
+
+Compatibility with old PPP ("on" or "off") [off]: press enter
+
+Do you want to add an entry for the remote host to /etc/hosts? (y/n) y
+
+
+1) Configure PPP hosts
+2) Remove PPP hosts
+q) Quit
+
+Enter choice: q
+
+PPP Configuration Menu
+
+1) Configure PPP hosts
+2) Configure incoming PPP parameters
+3) Configure PPP authentication parameters
+q) Quit
+
+Enter choice: q
+
+#
+
+This puts you back at the prompt, and the PPP configuration is complete.
+Actually, you need to reboot, but that will be done in the following
+steps.  The next step is to configure the IP driver to forward IP traffic.
+
+# cd /etc/conf/pack.d/ip
+# lc
+Driver.o space.c   stubs.c
+# cp space.c space.c.bak
+# vi space.c
+
+Note: This section assumes that you have knowledge of how to use the vi
+editor.  If you don't, STOP NOW, and GET HELP. You can also use another
+editor of your choice if you have an alternate editor available on your
+system.
+
+
+In the file space.c you will find the following line:
+
+#define IPFORWARDING 0
+
+
+Change the 0 to a 1 so that it reads:
+#define IPFORWARDING 1
+
+Now save the file, and quit from your editor.
+
+The next step is to rebuild the kernel.  You do this by making the 
+following entry:
+
+# /etc/conf/bin/idbuild -B
+
+This will take several minutes to complete.
+
+After the rebuild finishes, shut it down, and reboot it.  It should come
+up normally, with no new messages.
+
+
+PPP Connection:
+
+Note: In the following 105.105.105.105 is the IP address assigned to
+your UW machine by your Internet provider.
+
+The next step is to establish just which ppp connection is used for 
+provider.  To do this, type the following:
+
+$ su
+# Password: .....
+# ifconfig -a
+
+You will see something similar to the following:
+
+ppp0: flags=11<UP,POINTOPOINT>
+        inet 198.68.161.155 --> 105.105.105.105 netmask ffffff00
+
+Make note of the ppp connection number pointing to 105.105.105.105 
+and write its number down, in this case ppp0.
+
+Next enter the following:
+
+# ifconfig ppp0 down
+
+This shuts the ppp connection down for now.
+
+Now change to the /etc/rc2.d directory
+
+# cd /etc/rc2.d
+
+You will need to add another startup file to shut down the ppp connection
+each time the machine is booted.  Otherwise, the machine will go ahead
+and dial your Internet provider, and the cash register will start ringing
+for nothing.
+
+
+file: /etc/rc2.d/S99ppp0 contains 1 line:
+ifconfig ppp0 down
+
+
+Summary:
+At this point, you have the kernel rebuilt with forwarding turned on. This
+allows you to connect to other networks via DNS.  You also have PPP
+configured to allow you to connect to your Internet provider.
+
+In the next steps you will enable the comm port, and define your Internet
+provider in the Systems file.
+
+Comm Port:
+
+>From the desktop select System_Setup.
+>From within System_Setup select Dialup_Setup.
+>From within Dialup_Setup selct Actions and then Setup Devices.
+>From within Devices select Device and New.
+>From within Device Properties select Other.
+Now, if your mouse uses tty00 (com1) enter tty01h. If your mouse uses 
+tty01 (com2) enter tty00h.
+
+Note: You need to use ttynnh NOT ttynn, as the 'h' indicates hardware
+flow control.
+
+Select apply, and close all the windows opened for this operation.
+
+At this point, you have defined the device attached to the modem.
+
+
+System:
+
+Now we are going to setup the system in the Systems file.  There is a 
+way to do this via the desktop, but the desktop seems to have a bug in 
+that it always creates a uucp user, so we will use vi again.  The same
+caveats apply, if you don't know how to use vi, GET HELP.
+
+
+>From the command line type:
+$ su
+# vi /etc/uucp/Systems
+
+enter a line at the end of the Systems file as follows:
+
+
+dial-internet Any ACU 38400 number "" \r\d "" \r\d in:--in: Puser word: password
+
+Note: If you are connecting to a UW server, the UW manual specifies that you
+add yright after the password.  This is to cause PPP to search for the
+keyword Copyright before connecting, i.e:
+
+dial-internet Any ACU 38400 number "" \r\d "" \r\d in:--in: Puser word: password yright
+
+In the above:
+   38400:    the line speed, depends on your modem.
+   number:   the phone number you will dial to connect to provider.
+   Puser:    the userid assigned to you. Check your fax.
+   password: the password assigned to you. Check your fax.
+
+
+Save the Systems file, and we will finish things up with just a couple more
+files.
+
+
+PPP Control:
+
+These files control whether your system connects to your provider or not.
+Since your provider charges you by the minute you will want to disconnect
+whenever you are not actually using the Internet.  These are some 
+small files, and I am just going to list them and their contents.
+These files should all be created by root (su).
+
+Note: You will need to know the root password to execute internet.up and
+internet.down.
+
+file: /usr/bin/internet.up contains 2 lines:
+#! /sbin/sh
+su - root /usr/bin/ppp.up ppp0
+
+
+file: /usr/bin/internet.down contains 2 lines:
+#! /sbin/sh
+su - root /usr/bin/ppp.dn ppp0
+
+
+file: /usr/bin/ppp.up contains 3 lines:
+#! /sbin/sh
+/usr/sbin/ifconfig $1 up
+/usr/sbin/route add default providers.ip.address 1
+
+
+file: /usr/bin/ppp.dn contains 3 lines:
+#! /sbin/sh
+/usr/sbin/ifconfig $1 down
+/usr/sbin/route delete default providers.ip.address
+
+
+Watch out for the ' (single quote) and ` (unshifted ~). The single quotes
+surround the {print $2}, the others are unshifted tilde keystrokes.
+
+The internet.up and internet.down allows users to bring the ppp connection up
+and down.  However, they will have to know the root password to run them.
+If you don't want to give that out, you will have to bring the line up
+and down yourself, (recommended).
+
+The p0.up and p0.dn files first set the ppp connection up or down,
+and then either add or delete the default route.  This is needed because
+ppp seems to want to consider itself the same as a physical connection,
+rather than as a dialup.
+
+
+HANG IN THERE, IT'S ALMOST OVER!
+
+
+Create a new file as follows:
+
+file: /etc/resolv.conf has several lines, you will have to get the 
+values from your provider:
+domain provider.net
+nameserver 138.67.162.241
+nameserver 145.98.12.140
+nameserver 172.28.48.73
+
+
+file: /etc/hosts: add the following lines:
+138.67.162.3	provider.name
+
+
+Starting up TCP/IP:
+
+If you haven't already done so, it's time to start up TCP/IP.  Use the
+desktop again, and do the following:
+
+>From the desktop enter System_Setup.
+>From System_Setup enter Internet_Setup.
+Select System and New.
+Enter your machine name, and select Show Full Address.
+Enter the TCP/IP address supplied to you by provider, and select apply.
+
+It's finally time to start checking things out.  
+
+Enter the following:
+
+$ cu dial-internet
+
+Your modem should now dial up the provider system, and you should see a
+login prompt.  Enter the ppp userid given to you by provider.  The
+system will prompt you for a password.  Enter the one provided by 
+provider.
+
+The system should respond with a bunch of gibberish.  The first few
+characters of which should contain both your TCP/IP address and your
+provider's.  Verify that the provider's IP address matches what you
+were told it would be, and what you entered in pppconf.  Press ~. or 
+just close the window to close the connection.  Your modem should hang up.
+
+If everything is ok up to now, it's time to try out the ppp connection.
+
+
+Enter the following:
+
+$ internet.up
+
+After a few moments, your modem should dial the provider system and
+connect.  If not, ping your internet provider with the following entry
+(as root):
+
+ping -s providers.name
+
+Your machine should dial your provider and connect.  At this point you
+will be getting ping response messages, and you can kill the ping.
+
+Note: Normally, I just kick off Mosaic and tin, leaving them to cause the
+connection to start up.
+
+If this doesn't work for you, go back and check all the steps above.
+If it still doesn't work, consult your UW books or the Novell Guide I
+mentioned.  Like I said, this worked for me, and it probably will work
+for you.  However, PPP setup can be a pain depending on your provider, etc.
+
+When everything is working, the first ftp site you will probably want to 
+contact is:
+
+ftp.novell.de
+
+This is the German Novell site.  They have much more stuff than the US
+site.  Use ftp as the userid, and your mailid as your password.  Your 
+mailid is user@machine.domain.name. For example: joe@foo.abc.com.
+
+You will probably want to download tin, elm, Mosaic, and xarchie as your 
+first downloads.
+
+--
+Bob Stewart (KB9ZW)
+wk +1 310 335-7152
+
+

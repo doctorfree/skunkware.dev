@@ -1,0 +1,168 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from binutils.texi on 5 October 1995 -->
+
+<TITLE>The GNU Binary Utilities - ar scripts</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="binutils_1.html">first</A>, <A HREF="binutils_3.html">previous</A>, <A HREF="binutils_5.html">next</A>, <A HREF="binutils_19.html">last</A> section, <A HREF="binutils_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC3" HREF="binutils_toc.html#TOC3">Controlling <CODE>ar</CODE> with a script</A></H2>
+<P>
+<PRE>
+ar -M [ &#60;<VAR>script</VAR> ]
+</PRE>
+<A NAME="IDX25"></A>
+<A NAME="IDX26"></A>
+<P>
+If you use the single command-line option <SAMP>`-M'</SAMP> with <CODE>ar</CODE>, you
+can control its operation with a rudimentary command language.  This
+form of <CODE>ar</CODE> operates interactively if standard input is coming
+directly from a terminal.  During interactive use, <CODE>ar</CODE> prompts for
+input (the prompt is <SAMP>`AR &#62;'</SAMP>), and continues executing even after
+errors.  If you redirect standard input to a script file, no prompts are
+issued, and <CODE>ar</CODE> abandons execution (with a nonzero exit code)
+on any error.
+<P>
+The <CODE>ar</CODE> command language is <EM>not</EM> designed to be equivalent
+to the command-line options; in fact, it provides somewhat less control
+over archives.  The only purpose of the command language is to ease the
+transition to GNU <CODE>ar</CODE> for developers who already have scripts
+written for the MRI "librarian" program.
+<P>
+The syntax for the <CODE>ar</CODE> command language is straightforward:
+<UL>
+<LI>
+commands are recognized in upper or lower case; for example, <CODE>LIST</CODE>
+is the same as <CODE>list</CODE>.  In the following descriptions, commands are
+shown in upper case for clarity.
+
+<LI>
+a single command may appear on each line; it is the first word on the
+line.
+
+<LI>
+empty lines are allowed, and have no effect.
+
+<LI>
+comments are allowed; text after either of the characters <SAMP>`*'</SAMP>
+or <SAMP>`;'</SAMP> is ignored.
+
+<LI>
+Whenever you use a list of names as part of the argument to an <CODE>ar</CODE>
+command, you can separate the individual names with either commas or
+blanks.  Commas are shown in the explanations below, for clarity.
+
+<LI>
+<SAMP>`+'</SAMP> is used as a line continuation character; if <SAMP>`+'</SAMP> appears
+at the end of a line, the text on the following line is considered part
+of the current command.
+</UL>
+<P>
+Here are the commands you can use in <CODE>ar</CODE> scripts, or when using
+<CODE>ar</CODE> interactively.  Three of them have special significance:
+<P>
+<CODE>OPEN</CODE> or <CODE>CREATE</CODE> specify a <DFN>current archive</DFN>, which is
+a temporary file required for most of the other commands.
+<P>
+<CODE>SAVE</CODE> commits the changes so far specified by the script.  Prior
+to <CODE>SAVE</CODE>, commands affect only the temporary copy of the current
+archive.
+<P>
+<DL COMPACT>
+<DT><CODE>ADDLIB <VAR>archive</VAR></CODE>
+<DD><DT><CODE>ADDLIB <VAR>archive</VAR> (<VAR>module</VAR>, <VAR>module</VAR>, ... <VAR>module</VAR>)</CODE>
+<DD>Add all the contents of <VAR>archive</VAR> (or, if specified, each named
+<VAR>module</VAR> from <VAR>archive</VAR>) to the current archive.
+
+Requires prior use of <CODE>OPEN</CODE> or <CODE>CREATE</CODE>.
+
+<DT><CODE>ADDMOD <VAR>member</VAR>, <VAR>member</VAR>, ... <VAR>member</VAR></CODE>
+<DD>Add each named <VAR>member</VAR> as a module in the current archive.
+
+Requires prior use of <CODE>OPEN</CODE> or <CODE>CREATE</CODE>.
+
+<DT><CODE>CLEAR</CODE>
+<DD>Discard the contents of the current archive, cancelling the effect of
+any operations since the last <CODE>SAVE</CODE>.  May be executed (with no
+effect) even if  no current archive is specified.
+
+<DT><CODE>CREATE <VAR>archive</VAR></CODE>
+<DD>Creates an archive, and makes it the current archive (required for many
+other commands).  The new archive is created with a temporary name; it
+is not actually saved as <VAR>archive</VAR> until you use <CODE>SAVE</CODE>.
+You can overwrite existing archives; similarly, the contents of any
+existing file named <VAR>archive</VAR> will not be destroyed until <CODE>SAVE</CODE>.
+
+<DT><CODE>DELETE <VAR>module</VAR>, <VAR>module</VAR>, ... <VAR>module</VAR></CODE>
+<DD>Delete each listed <VAR>module</VAR> from the current archive; equivalent to
+<SAMP>`ar -d <VAR>archive</VAR> <VAR>module</VAR> ... <VAR>module</VAR>'</SAMP>.
+
+Requires prior use of <CODE>OPEN</CODE> or <CODE>CREATE</CODE>.
+
+<DT><CODE>DIRECTORY <VAR>archive</VAR> (<VAR>module</VAR>, ... <VAR>module</VAR>)</CODE>
+<DD><DT><CODE>DIRECTORY <VAR>archive</VAR> (<VAR>module</VAR>, ... <VAR>module</VAR>) <VAR>outputfile</VAR></CODE>
+<DD>List each named <VAR>module</VAR> present in <VAR>archive</VAR>.  The separate
+command <CODE>VERBOSE</CODE> specifies the form of the output: when verbose
+output is off, output is like that of <SAMP>`ar -t <VAR>archive</VAR>
+<VAR>module</VAR>...'</SAMP>.  When verbose output is on, the listing is like
+<SAMP>`ar -tv <VAR>archive</VAR> <VAR>module</VAR>...'</SAMP>.
+
+Output normally goes to the standard output stream; however, if you
+specify <VAR>outputfile</VAR> as a final argument, <CODE>ar</CODE> directs the
+output to that file.
+
+<DT><CODE>END</CODE>
+<DD>Exit from <CODE>ar</CODE>, with a <CODE>0</CODE> exit code to indicate successful
+completion.  This command does not save the output file; if you have
+changed the current archive since the last <CODE>SAVE</CODE> command, those
+changes are lost.
+
+<DT><CODE>EXTRACT <VAR>module</VAR>, <VAR>module</VAR>, ... <VAR>module</VAR></CODE>
+<DD>Extract each named <VAR>module</VAR> from the current archive, writing them
+into the current directory as separate files.  Equivalent to <SAMP>`ar -x
+<VAR>archive</VAR> <VAR>module</VAR>...'</SAMP>.
+
+Requires prior use of <CODE>OPEN</CODE> or <CODE>CREATE</CODE>.
+
+
+<DT><CODE>LIST</CODE>
+<DD>Display full contents of the current archive, in "verbose" style
+regardless of the state of <CODE>VERBOSE</CODE>.  The effect is like <SAMP>`ar
+tv <VAR>archive</VAR>'</SAMP>).  (This single command is a GNU <CODE>ld</CODE>
+enhancement, rather than present for MRI compatibility.)
+
+Requires prior use of <CODE>OPEN</CODE> or <CODE>CREATE</CODE>.
+
+<DT><CODE>OPEN <VAR>archive</VAR></CODE>
+<DD>Opens an existing archive for use as the current archive (required for
+many other commands).  Any changes as the result of subsequent commands
+will not actually affect <VAR>archive</VAR> until you next use <CODE>SAVE</CODE>.
+
+<DT><CODE>REPLACE <VAR>module</VAR>, <VAR>module</VAR>, ... <VAR>module</VAR></CODE>
+<DD>In the current archive, replace each existing <VAR>module</VAR> (named in
+the <CODE>REPLACE</CODE> arguments) from files in the current working directory.
+To execute this command without errors, both the file, and the module in
+the current archive, must exist. 
+
+Requires prior use of <CODE>OPEN</CODE> or <CODE>CREATE</CODE>.
+
+<DT><CODE>VERBOSE</CODE>
+<DD>Toggle an internal flag governing the output from <CODE>DIRECTORY</CODE>.
+When the flag is on, <CODE>DIRECTORY</CODE> output matches output from
+<SAMP>`ar -tv '</SAMP>....
+
+<DT><CODE>SAVE</CODE>
+<DD>Commit your changes to the current archive, and actually save it as a
+file with the name specified in the last <CODE>CREATE</CODE> or <CODE>OPEN</CODE>
+command. 
+
+Requires prior use of <CODE>OPEN</CODE> or <CODE>CREATE</CODE>.
+
+</DL>
+<P>
+<HR>
+Go to the <A HREF="binutils_1.html">first</A>, <A HREF="binutils_3.html">previous</A>, <A HREF="binutils_5.html">next</A>, <A HREF="binutils_19.html">last</A> section, <A HREF="binutils_toc.html">table of contents</A>.
+</BODY>
+</HTML>

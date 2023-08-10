@@ -1,0 +1,402 @@
+<HTML>
+<HEAD>
+<TITLE>xdaliclock</TITLE>
+</HEAD>
+<!--
+Light Blue Background
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+New Midnight Blue Background
+<BODY BGCOLOR=#00009C LINK=#00FFFF VLINK=#00C8C8 TEXT=#23D8FF ALINK=#00FF00>
+White Background
+<BODY BGCOLOR=#FFFFFF TEXT=#000000 LINK=#0000FF VLINK=#00009C ALINK=#00FF00>
+Black Background
+<BODY BGCOLOR=#000000  TEXT=#FFFFFF LINK=#0077FF VLINK=#FF3EE4 ALINK=#00FF00>
+-->
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+<H1>xdaliclock</H1>
+<HR>
+<PRE>
+<STRONG>NAME</STRONG>
+xdaliclock - melting digital clock
+
+<STRONG>SYNOPSIS</STRONG>
+<STRONG>xdaliclock</STRONG> [-<EM>toolkitoption</EM> ...] [-<EM>option</EM> ...]
+
+<STRONG>DESCRIPTION</STRONG>
+The <EM>xdaliclock</EM> program displays a digital clock; when a
+digit changes, it ``melts'' into its new shape.
+
+This program was inspired by the Alto and Macintosh programs
+of the same name, written by Steve Capps in 1983 or 1984.
+
+<STRONG>OPTIONS</STRONG>
+<EM>xdaliclock</EM> accepts all of the standard toolkit options, and
+also accepts the following options:
+
+<STRONG>-help</STRONG>   Print a brief summary of the allowed options on the
+	  standard error output.
+
+<STRONG>-12</STRONG>     Use a twelve hour clock.
+
+<STRONG>-24</STRONG>     Use a twenty-four hour clock.
+
+<STRONG>-seconds</STRONG>
+	  Update every second.
+
+<STRONG>-noseconds</STRONG>
+	  Update once per minute; don't display seconds at
+	  all.
+
+<STRONG>-cycle</STRONG>  Do color-cycling.
+
+<STRONG>-nocycle</STRONG>
+	  Don't do color-cycling.
+
+<STRONG>-visual</STRONG> <EM>visual</EM>
+	  Specify which visual to use.  Legal values are:
+
+	  <STRONG>best</STRONG>    Use the visual which supports the most
+			  writable color cells; this is the default.
+
+	  <STRONG>default</STRONG> Use the screen's default visual (the visual
+			  of the root window.)  This is not
+			  necessarily the most colorful visual, which
+			  is why it is not the default.
+
+	  <EM>class</EM>   One of <STRONG>StaticGray</STRONG>, <STRONG>StaticColor</STRONG>, <STRONG>TrueColor</STRONG>,
+			  <STRONG>GrayScale</STRONG>, <STRONG>PseudoColor</STRONG>, or <STRONG>DirectColor</STRONG>.
+			  Selects the deepest visual of the given
+			  class.
+
+	  <EM>number</EM>  A number (decimal or hex) is interpreted as
+			  a visual id number, as reported by the
+			  <STRONG>xdpyinfo</STRONG>(1) program; in this way you can
+			  select a shallower visual if desired.
+
+<STRONG>-shape</STRONG>  Use the Shape Extension, if it's available, to make
+	  the window background be transparent.
+
+	  This doesn't interact terribly well with the <EM>twm</EM> or
+	  <EM>tvtwm</EM> window managers, unless they have been
+	  configured to not put a titlebar on the <EM>xdaliclock</EM>
+	  window.  If this isn't specified in your .<EM>twmrc</EM> or
+	  .<EM>tvtwmrc</EM> file, then the window will flicker
+	  constantly, as the window manager tries to add and
+	  remove the titlebar ten times each second.
+
+	  Also, this turns most X servers into huge cycle
+	  hogs.  This is probably because of inefficient
+	  implementations of the Shape extension.
+
+<STRONG>-noshape</STRONG>
+	  Don't use the Shape Extension.
+
+<STRONG>-memory</STRONG> <STRONG>low</STRONG>
+	  Use high-bandwidth, low-memory mode.  If you have a
+	  very fast connection between the machine this
+	  program is running on and the X server it is
+	  displaying on, then <EM>xdaliclock</EM> can work correctly by
+	  simply making the drawing requests it needs when it
+	  needs them.  This is <EM>the</EM> <EM>elegant</EM> <EM>method</EM>.  However,
+	  the amount of data necessary to animate the display
+	  ends up being a bit over 10 kilobytes worth of X
+	  Protocol per second.  On a fast machine with a local
+	  display, or over a fast network, that's almost
+	  negligible, but (for example) an NCD X Terminal at
+	  38.4 kilobaud can't keep up.  That is the reason
+	  for:
+
+<STRONG>-memory</STRONG> <STRONG>medium</STRONG>
+	  Use high-memory, low-bandwidth mode.  In this mode,
+	  <EM>xdaliclock</EM> precomputes most of the frames that it
+	  will ever need.  This is <EM>the</EM> <EM>sleazy</EM> <EM>copout</EM> <EM>method</EM>.
+	  The bandwidth requirements are drastically reduced,
+	  because instead of telling the server what bits to
+	  draw where, it merely tells it what pixmaps to copy
+	  into the window.  Aside from the fact that I
+	  consider this to be <EM>cheating</EM>, the only downside of
+	  this method is that those pixmaps (about 170 of
+	  them, each the size of one character) are consuming
+	  server-memory.  This probably isn't a very big deal,
+	  unless you're using an exceptionally large font.
+
+<STRONG>-memory</STRONG> <STRONG>high</STRONG>
+	  With <EM>memory</EM> set to <EM>high</EM>, the cache is twice as large
+	  (the <STRONG>n</STRONG> -&gt; <STRONG>n</STRONG>+<STRONG>2</STRONG> transitions are cached as well as the
+	  <STRONG>n</STRONG> -&gt; <STRONG>n</STRONG>+<STRONG>1</STRONG> ones).  Even with memory set to <EM>medium</EM>,
+	  this program can seem sluggish when using the
+	  builtin font over a very slow connection to the
+	  display server.
+
+<STRONG>-font</STRONG> <EM>fontname</EM>
+	  Specifies the X font to use; <EM>xdaliclock</EM> can
+	  correctly animate any font that contains all the
+	  digits plus colon and slash, and in which the
+	  letters aren't excessively curly.
+
+	  The <EM>xdaliclock</EM> program contains a pair of builtin
+	  bitmapped fonts, which are larger and more
+	  attractive than the standard X fonts.  One of these
+	  fonts will be used if the -<EM>font</EM> option is given one
+	  of the fontnames <STRONG>BUILTIN</STRONG> or <STRONG>BUILTIN2</STRONG>.
+
+<STRONG>-builtin</STRONG>
+	  This is the same as specifying -<EM>font</EM> <EM>BUILTIN</EM>.
+
+<STRONG>-builtin2</STRONG>
+	  This is the same as specifying -<EM>font</EM> <EM>BUILTIN2</EM>.
+
+<STRONG>-fullscreen</STRONG>
+	  Make the window take up the whole screen.  When
+	  -<EM>fullscreen</EM> is specified, the displayed time will
+	  wander around a little, to prevent any pixels from
+	  being on continuously and causing phosphor burn-in.
+
+<STRONG>-root</STRONG>   Display the clock on the root window instead of in
+	  its own window.  This makes the digits wander around
+	  too.
+
+The following standard X Toolkit command line arguments are
+commonly used with <EM>xdaliclock</EM>:
+
+<STRONG>-display</STRONG> <EM>host</EM>:<EM>dpy</EM>
+	  This option specifies the X server to contact.
+
+<STRONG>-geometry</STRONG> <EM>geometry</EM>
+	  This option specifies the prefered size and position
+	  of the clock window.
+
+<STRONG>-bg</STRONG> <EM>color</EM>
+	  This option specifies the color to use for the
+	  background of the window.  The default is ``white.''
+
+<STRONG>-fg</STRONG> <EM>color</EM>
+	  This option specifies the color to use for the
+	  foreground of the window.  The default is ``black.''
+
+<STRONG>-bd</STRONG> <EM>color</EM>
+	  This option specifies the color to use for the
+	  border of the window.  The default is the same as
+	  the foreground color.
+
+<STRONG>-rv</STRONG>     This option indicates that reverse video should be
+	  simulated by swapping the foreground and background
+	  colors.
+
+<STRONG>-bw</STRONG> <EM>number</EM>
+	  This option specifies the width in pixels of the
+	  border surrounding the window.
+
+<STRONG>-xrm</STRONG> <EM>resourcestring</EM>
+	  This option specifies a resource string to be used.
+
+<STRONG>COMMANDS</STRONG>
+Clicking and holding any mouse button in the <EM>xdaliclock</EM>
+window will cause it to display the date while the button is
+held.
+
+Typing ``space'' at the <EM>xdaliclock</EM> window will toggle
+between a twelve hour and twenty-four hour display.
+
+Typing ``q'' or ``C-c'' at the window quits.
+
+If the <EM>xdaliclock</EM> window is iconified or otherwise unmapped,
+it will go to sleep until it is mapped again.
+
+<STRONG>X</STRONG> <STRONG>DEFAULTS</STRONG>
+As distributed in <B>SCO Skunkware 96</B>, the <EM>xdaliclock</EM> resource
+file <I>/usr/lib/X11/app-defaults/XDaliClock</I> contains the following :
+<PRE>
+
+XDaliClock*geometry: -20-10
+XDaliClock*shape: True
+XDaliClock*cycle: True
+XDaliClock*memory: Low
+XDaliClock*font: BUILTIN
+! Put one or both of the following in your $HOME/.Xdefaults file
+! to get rid of the title bar and borders the window manager puts
+! on xdaliclock. This makes the flashing go away and looks cleaner.
+! After doing so, you will need to restart the window manager.
+!
+! *XDaliClock.clientDecoration: -all
+! *XDaliClock.clientDecoration: none
+</PRE>
+<EM>xdaliclock</EM> understands all of the core resource names and
+classes as well as:
+
+<STRONG>seconds</STRONG> <STRONG>(</STRONG>class <STRONG>Seconds)</STRONG>
+	  Whether to display seconds.  If true, this is the
+	  same as the -<EM>seconds</EM> command line argument; if
+	  false, this is the same as -<EM>noseconds</EM>.
+
+<STRONG>cycle</STRONG> <STRONG>(</STRONG>class <STRONG>Cycle)</STRONG>
+	  Whether to do color cycling.  If true, this is the
+	  same as the -<EM>cycle</EM> command line argument; if false,
+	  this is the same as -<EM>nocycle</EM>.
+
+<STRONG>shape</STRONG> <STRONG>(</STRONG>class <STRONG>Shape)</STRONG>
+	  Whether to use the Shape Extension, if available.
+	  If true, this is the same as the -<EM>shape</EM> command line
+	  argument; if false, this is the same as -<EM>noshape</EM>.
+
+<STRONG>memory</STRONG> <STRONG>(</STRONG>class <STRONG>Memory)</STRONG>
+	  This must be <EM>high</EM>, <EM>medium</EM>, or <EM>low</EM>, the same as the
+	  -<EM>memory</EM> command-line option.
+
+<STRONG>font</STRONG> <STRONG>(</STRONG>class <STRONG>Font)</STRONG>
+	  The same as the -<EM>font</EM> command line option: the font
+	  to melt.  If this is the string <STRONG>BUILTIN</STRONG>, then the
+	  large builtin font is used.  If this is the string
+	  <STRONG>BUILTIN2</STRONG>, then the <EM>even</EM> <EM>larger</EM> builtin font is used.
+	  Otherwise, this must be the name of a valid X font.
+
+<STRONG>mode</STRONG> <STRONG>(</STRONG>class <STRONG>Mode)</STRONG>
+	  Whether to display 12-hour or 24-hour time.  If <STRONG>12</STRONG>,
+	  this is the same as the -<EM>12</EM> command line argument;
+	  if <STRONG>24</STRONG>, this is the same as -<EM>24</EM>.
+
+<STRONG>datemode</STRONG> <STRONG>(</STRONG>class <STRONG>DateMode)</STRONG>
+	  Specifies how the date should be printed when a
+	  mouse button is held down.  This may be one of the
+	  strings <STRONG>mm/dd/yy</STRONG>, <STRONG>dd/mm/yy</STRONG>, <STRONG>yy/mm/dd</STRONG>, <STRONG>yy/dd/mm</STRONG>,
+	  <STRONG>mm/yy/dd</STRONG>, or <STRONG>dd/yy/mm</STRONG>.  The default is <STRONG>mm/dd/yy</STRONG>.  If
+	  seconds are not being displayed, then only the first
+	  four digits will ever be displayed (<STRONG>mm/dd</STRONG> instead of
+	  <STRONG>mm/dd/yy</STRONG>, for example.)
+
+<STRONG>fullScreen</STRONG> <STRONG>(</STRONG>class <STRONG>FullScreen)</STRONG>
+	  The same as the -<EM>fullscreen</EM> command-line option.
+
+<STRONG>root</STRONG> <STRONG>(</STRONG>class <STRONG>Root)</STRONG>
+	  The same as the -<EM>root</EM> command-line option.
+
+<STRONG>visualID</STRONG> <STRONG>(</STRONG>class <STRONG>VisualID)</STRONG>
+	  The same as the -<EM>visual</EM> command-line option.
+
+<STRONG>ENVIRONMENT</STRONG>
+<STRONG>DISPLAY</STRONG>
+  to get the default host and display number.
+
+<STRONG>XENVIRONMENT</STRONG>
+  to get the name of a resource file that overrides the
+  global resources stored in the RESOURCE_MANAGER
+  property.
+
+<STRONG>TZ</STRONG>  to get the current time zone.  If you want to force the
+  clock to display some other time zone, set this variable
+  before starting it.  For example:
+
+	   $ TZ=GMT0 xdaliclock
+	   % ( setenv TZ PST8PDT ; xdaliclock )
+
+  You may notice that the format of the TZ variable (which
+  is used by the C library <STRONG>ctime</STRONG>(3) and <STRONG>localtime</STRONG>(3)
+  routines) is not actually documented anywhere.  The
+  fourth character (the digit) is the only thing that
+  really matters: it is the offset in hours from GMT.  The
+  first three characters are ignored.  The last three
+  characters are used to flag daylight savings time: their
+  presence effectively adds 1 to the zone offset.  (I am
+  not making this up...)
+
+<STRONG>SEE</STRONG> <STRONG>ALSO</STRONG>
+<STRONG>X</STRONG>(1), <STRONG>xrdb</STRONG>(1), <STRONG>xlsfonts</STRONG>(1), <STRONG>xclock</STRONG>(1), <STRONG>dclock</STRONG>(1), <STRONG>oclock</STRONG>(1),
+<STRONG>tclock</STRONG>(1), <STRONG>xscreensaver</STRONG>(1)
+
+<STRONG>BUGS</STRONG>
+Other system load will sometimes cause the second-display to
+increment by more than one second at a time, in order to
+remain synchronized to the current time.
+
+The -<EM>memory</EM> option is disgusting and shouldn't be necessary,
+but I'm not clever enough to eliminate it.  It has been said
+that hacking graphics in X is like finding <EM>sqrt(pi)</EM> with
+roman numerals.
+
+When using a small font (less than 48x56 or so) it's
+possible that shipping a bitmap to the server would be more
+efficient than sending a DrawSegments request (since the
+endpoints are specified using 16 bits each, when all that we
+really need is 6 or 7 bits.)
+
+Support for the Shared Memory Extension would be a good
+thing.
+
+It should display the day of the week somewhere.
+
+The color cycling should be less predictable; it should vary
+saturation and intensity as well, and should be more careful
+that foreground and background contrast well.
+
+Should have a -<EM>analog</EM> mode (maybe someday...)
+
+<STRONG>COPYRIGHT</STRONG>
+Copyright 8c9 1991, 1992, 1993, 1994, 1995 by Jamie Zawinski.
+Permission to use, copy, modify, distribute, and sell this
+software and its documentation for any purpose is hereby
+granted without fee, provided that the above copyright
+notice appear in all copies and that both that copyright
+notice and this permission notice appear in supporting
+documentation.  No representations are made about the
+suitability of this software for any purpose.  It is
+provided "as is" without express or implied warranty.
+
+<STRONG>AUTHOR</STRONG>
+Jamie Zawinski &lt;jwz@netscape.com&gt;, 18-sep-91.
+
+Please let me know if you find any bugs or make any
+improvements.
+
+Thanks to Ephraim Vishniac &lt;ephraim@think.com&gt; for
+explaining the format of the bitmap resources in the
+Macintosh version of this, so that I could snarf them for
+the -<EM>builtin</EM> fonts.
+
+And thanks to Steve Capps for the really great idea.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

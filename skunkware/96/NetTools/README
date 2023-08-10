@@ -1,0 +1,314 @@
+                         Network/Security Tools TLS 2.2
+                                  containing
+argus-1.5, arpwatch-1.7, courtney-1.3, sockinfo-2.7, ss-1.0, and tcpdump-3.0.4+
+
+This is the high level README which describes features common to all 
+programs.  More information can be found in the individual README in 
+each program's respective directory.
+
+This TLS contains argus-1.5, arpwatch-1.7, courtney-1.3, sockinfo-2.7, ss-1.0, 
+and tcpdump-3.0.4.  All but sockinfo were ported to the Open Server 
+Release 5.0.0 MDI environment.  All but sockinfo and ss are collectively 
+referred to as "these programs" in this document.  The binaries in this 
+TLS will not work on any SCO release prior to Open Server 5.0.0.
+
+tcpdump-3.0.4 has numerous enhancements.  See the file CHANGES for more 
+information.
+
+sockinfo does not require a dedicated NIC.  Multiple users can run sockinfo 
+at the same time.  There are two versions of sockinfo provided:  sockinfo 
+and sockinfo.prenetms.  "sockinfo.prenetms" is for OSR5 [ + release 
+supplement c or d ] but without the Network Supplement while "sockinfo" is 
+for machines that already have the Network Supplement installed.
+The Network Supplement is worth installing and can be found
+
+- at ftp.sco.com:/Supplmements/net100   
+- as part of the December 1995 quarterly SES subscription.
+
+Read the Requirements, Installation, and Environment Variables section before
+proceeding.
+
+
+                                REQUIREMENTS
+                                ------------
+Except for sockinfo, these programs can run on any network card as long as it 
+meets two requirements:
+
+1) The driver uses the Open Server Release 5 MDI architecture (LLI drivers 
+   running on Open Server Release 5 will not work) 
+
+2) THE CARD IS NOT IN USE BY ANY OTHER PROTOCOL STACK (IPX, TCP/IP, etc.) AT 
+   THE TIME. 
+
+This effectively means you must have a "spare" network card in the machine
+that you must devote to running these programs.  The card can run a protocol
+stack when not running these programs though.  This requirement is mandated 
+by the MDI specification.
+
+The card does not have to support promiscious mode, although if it doesn't
+this will limit the data received to broadcasts and specific traffic to 
+the card.  To receive all frames you must have a card and driver that support 
+promiscious mode:
+
+e3E  - 3Com EtherLink III  (3C509, 3C529, 3C579, 3C589)
+i3B  - Racal InterLan ES-3210 EISA
+i6E  - Racal InterLan EtherBlaster ISA (NI6510)
+sebm - SMC 82M32 Elite32 Ultra Adapter
+sme  - SMC 8216/8416 Adapter
+wdn  - Western Digital/SMC 8003/8013            - see "WDN patch" comment below
+
+
+                                INSTALLATION
+                                ------------
+
+sockinfo does not require any installation; just run the binary.
+
+For the other programs:
+
+First, configure the card with netconfig and reboot, making sure the card is 
+recognized when booting with a %cardname line.
+
+Netconfig automatically configures the card so that the protocol stack is 
+built when the kernel boots via ksl.  This is why you can ftp out of the
+machine in single user mode.  As stated earlier, MDI drivers only allow one 
+direct user of the card, and that is normally the dlpi STREAMS module.  
+From the MDI driver's point of view one consumer has opened the card and 
+the driver will not allow any further program (like tcpdump) to open the device.
+To ensure the card is not bound to the dlpi module, you must choose one of 
+the following after the card has been successfully added to the kernel 
+and recognized.  Option 2 is recommended since it allows you to use a stack
+on the card when not using these programs.  You may need to re-order the 
+ifconfig lines in /etc/rc2.d/S85tcp since this can affect the interface 
+used in the routing table.
+
+   a)remove line(s) pertaining to the card in /etc/strcf.d/05dlpi.
+   b)relink
+   c)reboot
+
+   ksl won't touch the card to bind the dlpi module to it, allowing 
+   tcpdump to use the card.
+
+- or -
+
+   a)add ksl.disable to /etc/default/boot DEFBOOTSTR 
+   b)delete or comment out (with a #) the line pertaining to the card in 
+     /var/opt/K/SCO/lli/5.0.0l/llimdi.  
+
+   c)mv /etc/rc2.d/S85tcp /etc/rc2.d/S83tcp.   This runs slink before
+     S84rpcinit and S85nis so NFS and NIS services can start (they require the
+     stack be built by slink since you added ksl.disable).  This fixes 
+     bug LTI-1-218.
+   d)reboot.
+
+   Commenting out the line in llimdi will produce an error from 
+   /etc/lli when going to run level 2: "Unable to open DLPI module (/dev/#net1)"
+   and other failure messages from slink and ifconfig (assuming TCP/IP 
+   is configured).  These can be ignored.
+   dlpid will run on the remaining cards and ignore the commented out card.
+
+If you choose option 2 above and you wish to run a protocol stack on the card
+when not running tcpdump, you can do the following:
+
+lli stop
+uncomment the line in llimdi you made earlier
+lli start [or lli restart]
+tcp start
+
+After these steps are completed, a command like
+
+hd /dev/mdi/wdn0
+
+should hang (press delete to get your prompt back) and not product an error 
+message like "Device busy".  If hd does produce a error message then don't 
+bother trying to run any of these programs -- each will fail with the 
+message "no cards available for use in /dev/mdi"
+
+The binaries can be installed in any directory.
+
+                           ENVIRONMENT VARIABLES
+                           ---------------------
+
+sockinfo does not use any of these environment variables.  See the sockinfo
+README for more information.
+
+For the other programs, you must set two environment variables prior to 
+running them: PCAP_IPADDR and PCAP_IPMASK.
+
+PCAP_IPADDR represents the IP address that this NIC would have if TCP/IP
+were running on it.
+
+PCAP_IPMASK represents the IP netmask that this NIC would have if TCP/IP
+were running on it.
+
+These variables are used to determine that the received IP frame is not from 
+the local network so it shouldn't bother to resolve the IP address to a 
+host name since it will take too long.
+
+These variables also allow arpwatch to decide if the received ARP or RARP 
+query was from the local network.
+
+Bourne shell example 
+--------------------
+# PCAP_IPADDR=132.147.144.1 ; export PCAP_IPADDR
+# PCAP_IPMASK=255.255.255.0 ; export PCAP_IPMASK
+
+You'll probably want to add these to your .profile so they will automatically 
+be set.
+
+The PCAP_FORCEUSERFILTER and PCAP_PRIORITY environment variables are optional.
+
+PCAP_FORCEUSERFILTER
+This forces tcpdump to perform user level filtering.  This useful if the 
+kernel "bpf" filter has been installed but you do not wish to use it.  
+Set to any value.
+
+PCAP_PRIORITY
+This instructs the kernel to use the POSIX realtime FIFO scheduler.  This will 
+give additional scheduling priority to tcpdump and arpwatch.  This can 
+be helpful in reducing STREAMS usage on a heavily loaded machine
+and network since tcpdump will be able to read the frames more often
+than it would if tcpdump ran with the same priority as other user processes.
+The value is an integer from 0 to 127, with 127 having the highest priority.
+Note that at 127 tcpdump will only be taken off of the run queue if 
+there is not a frame available and getmsg(S) blocks.  The kernel parameter
+MAXSLICE will not affect tcpdump with regard to other processes on the machine
+unless a process exists with a higher priority in the FIFO run queue.
+See sched_setscheduler(S) for more information.
+If PCAP_PRIORITY is not set then these programs behave as normal UNIX processes.
+
+
+THE REMAINDER OF THIS README DOES NOT APPLY TO SOCKINFO.
+
+
+                             OTHER ITEMS OF NOTE
+                             -------------------
+
+Increasing performance
+----------------------
+Consider running tcpdump with the -f (better) or -n (best) option.  This can 
+increase performance by reducing or eliminating lookups of remote host name 
+information.  Also see the PCAP_PRIORITY environment variable above.
+The other programs may also have an option to prevent calling 
+gethostbyaddr(SLIB).
+
+BPF
+---
+The Berkeley Packet Filter (the basis for packetfilter(SFF) and ipf(ADMP))
+has been ported to a STREAMS architecture.  It is _not_ necessary to install
+the kernel bpf driver to run these programs, although it is recommended as 
+filtering performance will increase and STREAMS usage will decrease when 
+using bpf.  The installbpf shell script will install the Driver.o into 
+your link kit.
+
+Running these programs with only one network card
+-------------------------------------------------
+At a minimum, you must have one network card already configured on the machine.
+This is not ideal as these programs want to print out remote host names from
+the IP address.  Since you cannot use TCP/IP on the card while these programs
+are running, DNS queries through gethostbyaddr cannot be used.  Specifically,
+your /etc/resolv.conf should show "local" first on the hostresorder line so
+that queries will use /etc/hosts for resolving IP addresses to 
+machine names.  Other solutions include putting 127.0.0.1 as the nameserver
+(since named binds to 127.0.0.1 which still functions while tcpdump is running)
+or setting the HOSTRESORDER environment variable.  See resolver(SFF).
+
+The resolver routines in tcpdump cannot try and use a name server located
+on another machine since TCP/IP cannot send any packets to that machine.
+Remember, TCP/IP (or any stack) can't run on the same card while tcpdump is
+running.  You must use /etc/hosts (not a resolv.conf pointing to PPP or SLIP 
+interfaces) or to an authoritative nameserver through the loopback interface
+for all host name lookups.  An easier solution is to run tcpdump with 
+the -n option to avoid calls to gethostbyaddr altogether..
+
+Promiscious mode
+----------------
+If the NIC does not support promiscious mode then you will only be able
+to view frames that are sent to the NIC's Ethernet address or are broadcast
+frames.  A table of NICs that support promiscious mode is in the Requirements
+section above.
+
+Remember that these programs must be run by root or be setuid root in order 
+to put the interface into promiscuous mode.  
+
+STREAMS usage
+-------------
+When in promiscuous mode your STREAMS buffers can be depleted quickly on a busy
+network.  You will need to increase the kernel parameter 
+NSTRPAGES (well) above 1000 on a busy network.
+
+Monitor netstat -m output to ensure you don't encounter any failures 
+while these programs are running.  Streams failures encountered by the 
+bpf kernel filter are included in the "packets dropped by kernel" statistic.  
+See the "tcpdump statistics" in tcpdump's README for more information.
+
+FDDI
+----
+FDDI is supported.
+
+PPP and SLIP
+------------
+While tcpdump can support viewing of PPP and SLIP frames, the SCO version 
+does not.  This may be added in a future release.
+
+WDN patch
+---------
+The supplied driver "wdn.Driver.o" fixes two problems (broken promiscuous mode 
+and a possible panic - SCO-236-343) found in the driver supplied with
+Open Server 5.0.0.  If you are using the wdn driver, type the following 
+lines as root to use the newer driver:
+
+mv /etc/conf/pack.d/wdn/Driver.o /etc/conf/pack.d/wdn/Driver.o.orig
+cp wdn.Driver.o /etc/conf/pack.d/wdn/Driver.o
+
+You will need to relink and reboot to use this new driver.
+
+Source code availability
+------------------------
+Source code for these programs is available at:
+
+ftp://ftp.sei.cmu.edu/pub/argus-1.5
+ftp://concert.cert.dfn.de/pub/tools/audit/courtney
+ftp://ftp.ee.lbl.gov/arpwatch-*.tar.Z
+ftp://ftp.ee.lbl.gov/tcpdump-*.tar.Z
+ftp://ftp.ee.lbl.gov/libpcap-*.tar.Z
+
+The actual source used in this TLS is not available from SCO at this time.
+
+Are there ports available for ODT2.0 or ODT3.0?
+-----------------------------------------------
+No.
+
+Proxy ARP
+---------
+While these programs run over the NIC, any frames that would normally be
+answered by the NIC will go unanswered since no stack is running on the NIC.
+Proxy ARP is of limited use since it will only allow a machine to send
+a frame to the NIC where these programs are running.  The protocol sending the 
+frame cannot expect a reply since these programs won't send one nor will
+these programs send the frame anywhere else.
+
+Comments
+--------
+I'm interested in hearing any comments (good or bad) you may have.  Send them
+via email to nathan@sco.com.
+
+In a future release...
+----------------------
+I'd like to add gabriel-1.0 (similar to courtney) and tcpview-1.0 (a Motif 
+front-end/replacment to tcpdump). 
+
+Legal stuff
+-----------
+
+THIS SOFTWARE IS PROVIDED BY THE THE SANTA CRUZ OPERATION ("SCO") ``AS IS'' 
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ARE DISCLAIMED.  IN NO EVENT SHALL SCO BE LIABLE FOR ANY DIRECT, INDIRECT, 
+INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT 
+NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF 
+THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+                                - THE END -

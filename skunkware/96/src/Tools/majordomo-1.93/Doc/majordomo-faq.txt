@@ -1,0 +1,987 @@
+
+Version: $Id: majordomo-faq.html,v 1.90 1995/11/10 16:32:16 barr Exp barr $
+Archive-Name: mail/list-admin/majordomo-faq
+Posting-Frequency: monthly
+
+   Table of Contents:
+    1. What is Majordomo and how can I get it?
+          + What is Majordomo?
+          + Where do I get it?
+          + How do I install it?
+          + How do I upgrade from an earlier release?
+          + Where do I report bugs or get help with Majordomo?
+          + Which is better, Majordomo or LISTSERV?
+    2. Problems setting up Majordomo
+          + What are the proper permissions and ownership of all
+            Majordomo files and directories?
+          + I get "Unknown mailer error" when majordomo runs
+          + I get "Permission denied at ..." when majordomo runs
+          + I get "shlock: open(">/some/path/...") when majordomo runs
+          + A file is visible via index, but can't 'get' it
+          + Majordomo seems to be taking many minutes to process commands
+          + I get an error "insecure usage" from the wrapper
+          + I get "majordomo: No such file or directory" from the wrapper
+          + I get an error "Can't locate majordomo.pl"
+          + I told my majordomo.cf where to archive the list, why isn't
+            it working?
+          + I'm accumulating lots of files called /tmp/resend.*.in and
+            .out,
+          + A list is visible via lists, but can't subscribe or 'get'
+            files
+          + I get "Out of Memory" when upgrading to 1.93
+          + I get warnings or errors when trying to compile 1.93's
+            wrapper
+          + Problems with 1.93's request-answer
+          + I get "Invalid archive directory. Aborting."
+    3. Setting up mailing lists and aliases
+          + How do I direct bounces to the right address?
+          + Semi-automated handling of bounced mail
+          + What's this Owner-List and List-Owner stuff? Why both?
+          + How should I configure resend for Reply-To headers?
+          + How can I hide lists so they can't be viewed by 'lists'?
+          + How can I restrict a list such that only subscribers can send
+            mail to the list?
+          + Can I have the list owner or approval person be changeable
+            without intervention from the Majordomo owner?
+          + What about all of these passwords starting in version 1.90?
+          + How do I tell majordomo to handle "get"-ing of binary files?
+          + How do I set up a moderated list?
+          + How do I set up a digested version of a list?
+    4. Miscellaneous mailer and other problems
+          + Address with blanks are being treated separately
+          + Why aren't my digests going out?
+          + Why do I get duplicate mail sent to the list?
+          + How do I gate my list to and/or from a newsgroup?
+          + How can I improve Majordomo's performance?
+          + How can I handle X.400 addresses?
+            
+   This FAQ is Copyright 1995 by David Barr and The Pennsylvania State
+   University. This document may be reproduced, so long as it is kept in
+   its entirety and in its original format.
+   
+   Credits:
+   This FAQ originally written by Vincent D. Skahan. Many thanks to the
+   members of the majordomo-workers and majordomo-users mailing lists for
+   many of the questions and answers found in this FAQ. Thanks to
+   fen@comedia.com (Fen Labalme) for getting an HTML version started.
+   
+   You can get an HTML version of this FAQ on the World Wide Web at
+   http://www.math.psu.edu/barr/majordomo-faq.html. You can request a
+   copy by email by sending a message to mail-server@rtfm.mit.edu, with
+   the following text in the body:
+   
+
+send usenet/comp.mail.list-admin.software/Majordomo_Frequently_Asked_Questions
+
+   If you have any questions or submissions regarding this FAQ, send them
+   to barr@math.psu.edu (David Barr).
+   
+   
+     _________________________________________________________________
+   
+   
+   
+Section 1: What is Majordomo and how can I get it?
+
+   
+   
+  WHAT IS MAJORDOMO?
+  
+   Majordomo is a program which automates the management of Internet
+   mailing lists. Commands are sent to Majordomo via electronic mail to
+   handle all aspects of list maintainance. Once a list is set up,
+   virtually all operations can be performed remotely, requiring no
+   intervention upon the postmaster of the list site.
+   
+     majordomo - n: a person who speaks, makes arrangements, or takes
+     charge for another. From latin "major domus" - "master of the
+     house". 
+     
+   
+   
+   Majordomo is written in Perl (at least 4.036). It should also work
+   under at least Perl 5.001a. It will not work with Perl 5.001!!! It has
+   reportedly worked with Perl 5.000 on some but not all platforms.
+   ftp://ftp.netlabs.com/pub/outgoing/perl5.0/perl5.001m.tar.gz is the
+   latest release from the author. However, with Perl 5 you must edit
+   majordomo and resend to look for instances of the "@" character inside
+   text strings "something@something". Change the "@" to "\@". The same
+   fix is also required if you want to run Majordomo under OSF/1 on the
+   DEC AXP systems with Perl 4 or 5. [from Jim Reisert]
+   
+   Many people have been having problems with DEC OSF/1 AXP systems with
+   Majordomo. Apparently Perl on the Alphas is not as stable as compared
+   to other platforms, and Majordomo tickles bugs in that port of Perl.
+   If you are having problems, please make sure you are running the very
+   latest version of Perl. If anyone has successfully gotten a recent
+   Majordomo to work on OSF/1 on the Alpha, please let the FAQ maintainer
+   know how.
+   
+   There have also been reported problems with the native compiler for
+   AIX 3.2.5. Perl compiled with that compiler will crash when running
+   Majordomo (even though it passes all the regression tests), however if
+   you compile Perl with gcc it will work.
+   
+   Majordomo was developed under UNIX based systems, but will probably
+   work on others. If you can get Perl to compile and run cleanly on your
+   system, and can send Internet mail by piping or calling an external
+   program (and that external program reads its list of recipients from a
+   plain text file), you can probably get Majordomo to work on a wide
+   variety of UNIX-based and non-UNIX based systems.
+   
+   Majordomo controls a list of addresses for some mail transport system
+   (like sendmail or smail) to handle. Majordomo itself performs no mail
+   delivery (though it has scripts to format and archive messages).
+   
+   Here's a short list of some of the features of Majordomo.
+   
+     * supports various types of lists, including moderated ones.
+     * List options can be set easily through a configuration file,
+       editable remotely.
+     * Supports archival and remote retrieval of messages.
+     * Supports digests.
+     * Written in Perl, - easily customizable and expandable.
+     * Modular in design.
+     * Includes support for FTPMAIL.
+       
+   
+   
+   There is a World Wide Web interface for Majordomo and other mail
+   servers, called "Mailserv". Check it out at
+   http://iquest.com/~fitz/www/mailserv/
+   
+   
+   
+  WHERE DO I GET IT?
+  
+   
+   
+   Via anonymous FTP at: ftp://ftp.greatcircle.com/pub/majordomo/
+   
+   If you don't have Perl, you can get it from:
+   
+   ftp://ftp.netlabs.com/pub/outgoing/perl5.0/perl5.001m.tar.gz
+   
+   Information about Perl can be found from:
+   
+   http://www.metronet.com/perlinfo/perl5.html
+   
+   The FTPMAIL package can be found in
+   ftp://src.doc.ic.ac.uk/packages/ftpmail or any comp.sources.misc
+   archive (volume 37).
+   
+   
+   
+  HOW DO I INSTALL IT?
+  
+   Majordomo comes with a rather extensive README. Read this file
+   completely. This FAQ is meant to be a supplement to Majordomo's
+   documentation, not a replacement for it. If you have any questions
+   that this FAQ doesn't cover, chances are that it is covered in the
+   README or other documentation in the Majordomo distribution. For
+   anyone who is going to run a list, you must read Doc/list-owner-info
+   before trying to do anything. If you don't have access to the system
+   where your list is being run, the Majordomo maintainer who set up your
+   list should have sent it to you. Bug him if he didn't.
+   
+   If you have permission problems unpacking the distribution, try using
+   the 'o' flag to ignore user/group information.
+   
+   
+   
+  HOW DO I UPGRADE FROM AN EARLIER RELEASE?
+  
+   Be sure to browse the "Changes" and "Changelog" files to get an idea
+   what has changed. There currently is no canned set of instructions for
+   upgrading from an earlier release. The most straightforward method is
+   to simply install the current release in a different directory, (with
+   the same list/archive/digest directories) and change the mail aliases
+   for each list to use the new Majordomo scripts as soon as you feel
+   comfortable with the new setup.
+   
+   
+   
+  WHERE DO I REPORT BUGS OR GET HELP WITH MAJORDOMO?
+  
+   If you need help, there is a mailing list
+   majordomo-users@greatcircle.com, which is frequented by lots of users
+   of Majordomo. Report bugs to majordomo-workers@greatcircle.com.
+   
+   Be sure always to include which version of Majordomo you are using.
+   You should also include what operating system you are using, what
+   version of Perl, and what mailer (sendmail, smail, etc) and version
+   you are using, especially if you can't get Majordomo to work at all.
+   But first, you must have thoroughly read the ALL documentation in the
+   Majordomo distribution and this FAQ. If you got this FAQ from the
+   Majordomo distribution, or anywhere except from the WWW site at the
+   top of this document don't expect it to be up-to-date. It's probably
+   not.
+   
+   Please don't ask the FAQ maintainer for help on Majordomo. I will
+   probably accidently delete your message. Let me say that about 90% of
+   the answers I give are from the documentation or this FAQ. Most of the
+   rest are answered by reading the source. It's really not that hard to
+   figure out.
+   
+   Do NOT ask questions about Majordomo on the
+   list-managers@greatcircle.com list. That list is for general
+   discussions about running mailing lists, not for help on specific
+   packages. The same goes for the Usenet group
+   comp.mail.list-admin.policy.
+   
+   There is a good guide for people running majordomo lists at
+   http://www.uchicago.edu/a.docs/Mail/majordomo.admin.html. 
+   
+  WHICH IS BETTER, MAJORDOMO OR LISTSERV?
+  
+   For a good comparison of various mailing list managers (MLM's)
+   there's a good FAQ by Norm Aleks. It is posted monthly to news.answers
+   and comp.mail.list-admin.software. It's also mirrored at the following
+   URL. ftp://ftp.uu.net/usenet/news.answers/mail/list-admin/software-faq
+   You can also request a copy via email, by sending the text "get
+   mlm-software faq" in the body of a mail message to
+   LISTSERV@listserv.net. Contact naleks@library.ummed.edu (Norm Aleks)
+   for more information. 
+   
+Section 2: Problems setting up Majordomo
+
+   
+   
+  WHAT ARE THE PROPER PERMISSIONS AND OWNERSHIP OF ALL MAJORDOMO FILES AND
+  DIRECTORIES?
+  
+   By far the biggest problem in setting up Majordomo is getting all the
+   permissions and ownerships right. In part this is due to the security
+   model that Majordomo uses, and it's also due to the fact that it's
+   hard to automate this process. That's due to improve in future
+   releases.
+   
+   Majordomo works by using a small C "wrapper" which works by allowing
+   Majordomo to always run as the "majordom" user and group that you
+   create. (note that the wrapper may disappear in a future release,
+   since its function could safely be replaced by features found in Perl
+   5) You can use a different name than "majordom" for your user and
+   group, but that is what is assumed for the explanations found in this
+   document. Because Majordomo does not run with any "special" (root)
+   priviliges, and because of the fact that Majordomo does a lot of
+   .lock-style locking (with shlock.pl), permissions on all files and
+   directories are critical to the correct operation of Majordomo.
+   
+    The wrapper
+    
+   The wrapper is compiled in one of two ways, by uncommenting the
+   correct section in the Makefile for your type of system. If you are
+   unsure if your system is POSIX or not, I would suggest you assume that
+   your system is not. (The default in 1.93 is POSIX) If things don't
+   work right (for example you get symptoms of permission problems or you
+   get an error from the wrapper saying to recompile using POSIX flags),
+   then try POSIX.
+   
+   Some systems which are BSD: SunOS 4.x, Ultrix, most BSD 4.2 and
+   4.3-based systems. POSIX systems include Solaris 2.x, IRIX 5.x, BSDI
+   (and presumably other 4.4 BSD-based systems), Linux.
+   
+   Make sure W_PATH is right in the Makefile. On IRIX 5.x, you need to
+   add /usr/bsd to the W_PATH to get the hostname (needed by Perl)
+   command. (IRIX doesn't have a /usr/ucb). If you are on a non-POSIX
+   system, the wrapper must be both suid and sgid (mode 6755) to
+   "majordom". It must not be setuid root!
+   
+   OR
+   
+   On a POSIX system the wrapper must be setuid root, and double-check
+   that W_UID and W_GID are the uid and gid of the "majordom" user and
+   group. Don't set W_UID to be 0!
+   
+   Then compile the wrapper and install it. Do not install the wrapper on
+   an NFS filesystem with the "nosuid" option set. This will prevent the
+   wrapper from working.
+   
+    Majordomo files
+    
+   All files that majordomo creates will be mode 660, user "majordom",
+   group "majordom" if it is running correctly. The Log file that
+   Majordomo writes logging information to must have this same permission
+   and ownership. Make sure any files you create by hand (.config,
+   subscription lists) have this same permission and ownership. (the can
+   also be mode 664 if you don't need the contents to be private to
+   others) The permissions/ownership of the Majordomo programs and
+   related files themselves aren't as critical, but the must all be
+   readable to the "majordom" user/group. All Majordomo programs
+   (majordomo, resend, etc.) must have the execute bit set.
+   
+    Majordomo directories
+    
+   All directories under Majordomo's control ($homedir, $listdir,
+   $digest_work_dir, $filedir, as defined in your majordomo.cf) must be
+   mode 770 (or 775). They should be user and group owned by "majordom".
+   If want to allow a local user to be able to directly modify files or
+   for example copy files into a list's archive directory, you may make
+   the directory or file owned by that user. However directories and
+   files must be group-"majordom" writeable. 
+   
+  I GET "UNKNOWN MAILER ERROR" WHEN MAJORDOMO RUNS
+  
+   If something is wrong with your setup, the wrapper will often exit
+   with various return codes depending on what the problem is. In order
+   to really understand what is going on, look at the session transcript
+   further down in the bounce message to see the error which is returned
+   from the wrapper or from Majordomo. You should always see some sort of
+   error message.
+   
+   For information purposes, here are the current return codes from the
+   wrapper:
+     * 1: Usage error
+     * 2: Insecure usage (argument to wrapper can't contain a '/')
+     * 3: malloc() failed (out of memory)
+     * 4: set[ug]id() failed, compile with POSIX instead of BSD flags
+     * 5: execve() failed
+     * >5: return code from perl
+       
+   
+   
+   [reported by Russell Street]
+   You may also get problems when messages to majordomo are queued (for
+   example if you change sendmail's behavior to always queue messages
+   rather than perform immediate delivery). The problem was that if
+   sendmail queues a message it smashes the case in command lines and
+   addresses when the queue gets processed. This is in spite of the lines
+   shown by mailq. This is sendmail 5.x on Solaris 2.3, but it might
+   apply to other versions of sendmail. 
+   
+  I GET "PERMISSION DENIED AT ..." WHEN MAJORDOMO RUNS
+  
+  I GET "SHLOCK: OPEN(">/SOME/PATH/..." WHEN MAJORDOMO RUNS
+  
+  A FILE IS VISIBLE VIA INDEX, BUT CAN'T 'GET' IT
+  
+  MAJORDOMO SEEMS TO BE TAKING MANY MINUTES TO PROCESS COMMANDS
+  
+   These are all symptoms of a permission or ownership problem. See the
+   previous question. The directory specified of any "shlock" errors
+   indicates a problem with that directory. A "get" problem means the
+   ownership or permission of archive directory for that list is wrong. 
+   
+  I GET AN ERROR "INSECURE USAGE" FROM THE WRAPPER
+  
+   The argument to "wrapper" should be simply be the command, not the
+   full path to the command. "wrapper" has where to look compiled in to
+   it (the "W_BIN" setting in the Makefile) and for security reasons will
+   not let you specify another directory.
+   
+   Your alias should say for example:
+   
+   |"/path/to/majordomo/wrapper majordomo"
+   
+   
+   
+  I GET "MAJORDOMO: NO SUCH FILE OR DIRECTORY" FROM THE WRAPPER
+  
+   Make sure that the #! statement at the beginning of all the Majordomo
+   Perl executables contain the correct path to the perl program (the
+   default is /usr/local/bin/perl). Note many UNIXes have a 32 character
+   limit on that path -- make sure it doesn't exceed this limit. Make
+   sure also that majordomo and all the related scripts are in the W_BIN
+   directory as defined in the Makefile when you compiled the wrapper.
+   
+   
+   
+  I GET AN ERROR "CAN'T LOCATE MAJORDOMO.PL"
+  
+   [from Brent Chapman]
+   Majordomo adds "$homedir" from the majordomo.cf file to the @INC array
+   before it goes looking for "majordomo.pl". Since it's not finding it,
+   I'd guess you have one of two problems:
+   
+   1) $homedir is set improperly (or not set at all; there is no default)
+   in your majordomo.cf file.
+   
+   2) majordomo.pl is not in $homedir, or is not readable.
+   
+   [from John P. Rouillard]
+   3) Note that the new majordomo.cf file checks to see if the
+   environment variable $HOME is set first, and uses that for $homedir.
+   Since the wrapper always sets HOME to the correct directory, you get a
+   nice default, unless you are running a previously built wrapper, in
+   which case you may get the wrong directory.
+   
+   [from Andreas Fenner]
+   4) I had the same problem when I installed majordomo (1.62). My
+   Problem was a missing ";" in the majordomo.cf file - just in the line
+   before setting homedir .... My hint for you: Check your perl-files
+   carefully.
+   
+   
+   
+  I TOLD MY MAJORDOMO.CF WHERE TO ARCHIVE THE LIST, WHY ISN'T IT WORKING?
+  
+   [From John Rouillard]
+   The archive variables in majordomo.cf aren't used to archive anything.
+   You have to use a separate archive program, or a sendmail alias to do
+   the archiving. The info is used to generate a directory where the
+   archive files are being placed by some other mechanism.
+   
+   You are telling majordomo to look in the directory:
+   /usr/local/mail/majordomo/archive/listname
+   
+   for files that it should allow to be gotten using the get command.
+   
+   Majordomo comes with three different archive programs that run under
+   wrapper, that do various types of archiving. Look in the contrib
+   directory.
+   
+   
+   
+  I'M ACCUMULATING LOTS OF FILES CALLED /TMP/RESEND.*.IN AND .OUT WHAT ARE
+  THESE AND HOW CAN I GET RID OF THEM?
+  
+   This is a known bug in Majordomo 1.92. There was a typo in resend on
+   line 347. Change the double-quotes to angle-brackets. (just like the
+   other calls to unlink())
+   
+   
+   
+  A LIST IS VISIBLE VIA LISTS, BUT CAN'T SUBSCRIBE OR 'GET' FILES
+  
+   [From Brent Chapman]
+   I'll bet your list name has capital letters in it... Majordomo smashes
+   all list names to all-lower-case before attempting to use the list
+   name as part of a filename. So, while it's OK to advertise (for
+   instance) "Majordomo-Users" and have the headers say
+   "Majordomo-Users", the file names and archive directory names
+   themselves all need to be in lower case. If you want to use mixed
+   case, simply configure the list using the lower-case names everywhere,
+   except put the mixed-case version in the "-l" and "-h" flags to
+   resend.
+   
+   
+   
+  I GET "OUT OF MEMORY" WHEN UPGRADING TO 1.93
+  
+   [summary of report from Matthew A. Braithwaite]
+   There appears to be a bug in error reporting in Majordomo 1.93. Under
+   certain circumstances, if the directory containing your Log file is
+   not writable by majordomo then it will get caught in an infinite
+   recursion, eventually allocating all the memory in the system. The fix
+   is to make sure that the directory containing your Log file is user
+   and group writeable, and user and group owned by your majordomo user
+   and group. This doesn't work in all cases. There have been reports
+   that some O/S have bugs in Perl's eval() routine causing this error.
+   This condition will also arise if the wrapper is configured or
+   installed improperly. Refer above for how to configure and install the
+   wrapper on your system.
+   
+   
+   
+  I GET WARNINGS OR ERRORS WHEN TRYING TO COMPILE 1.93'S WRAPPER
+  
+   You're probably trying to compile the wrapper using the default
+   Makefile on a non-POSIX system (like SunOS 4.x). As it says in the
+   Makefile, SunOS isn't POSIX -- you need to use the BSD rules.
+   
+   If you're having trouble compiling the wrapper under AIX, change the
+   line that says:
+
+char setgroups_used = "setgroups_was_included"; /* give strings a hint */
+
+   
+   
+   to
+
+char *setgroups_used = "setgroups_was_included"; /* give strings a hint */
+
+   
+   
+   The wrapper compilation may generate warnings under Linux and SunOS,
+   which you can safely ignore. Some systems (IRIX 5.x) also require an
+   #include<string.h>/tt> after stdio.h.
+   
+   
+   
+  PROBLEMS WITH 1.93'S REQUEST-ANSWER
+  
+   [ Summary by Yusef Pisan ]
+   There are a some known bugs in request-answer. If you get the error
+   'Undefined subroutine "main'lopen"' (or "main::lopen" for Perl 5), you
+   need to insert the line 'require "shlock.pl";' near the beginning of
+   request-answer. The syntax of the 'do_exec_sendmail' function is
+   different in majordomo than in majordomo.pl, so you need to change all
+   occurrences of 'do_exec_sendmail' in request-answer to something like
+   'do_exec_sendmail_in_request_answer'.
+   
+   On line 41 where it exec()'s sendmail, change the "-f$list-request" to
+   "-f$list-approval". 
+   
+  I GET "INVALID ARCHIVE DIRECTORY. ABORTING."
+  
+   archive2.pl, as a security feature, refuses to write to directories
+   other than ones "approved" for archiving. You need to edit the
+   variable "@archive_dirs" in your majordomo.cf to list all the
+   directories that you have set up for list archives.
+     _________________________________________________________________
+   
+   
+   
+   
+   
+Section 3: Setting up mailing lists and aliases
+
+   
+   
+  HOW DO I DIRECT BOUNCES TO THE RIGHT ADDRESS?
+  
+   You should use 'resend' to filter all messages. Make sure the
+   "sender" keyword in the config file points to "owner-listname" and
+   that you have defined the "owner-listname" alias to point to the owner
+   of the list.
+   
+   What this does is force outgoing mail to have the out-of-band envelope
+   FROM be "owner-listname", and thus all bounces will be redirected to
+   that address. (Users often see this mirrored in the message body as
+   the "From " or "Return-Path:" header). 'resend' also inserts a
+   "Sender:" line with the same address to help people identify where it
+   came from, but that header is not used for the bounce address.
+   
+   If you are using sendmail v8.x, you don't have to use 'resend' to do
+   the same thing. You simply have to define an alias like this:
+   
+   owner-sample: joe,
+   
+   Note the trailing comma is necessary to prevent sendmail from
+   resolving the alias first before putting it in the header. Without the
+   comma, it will put "joe" in the envelope from instead of
+   "owner-sample". Either address will work, of course, but the generic
+   address is preferred should the owner ever change.
+   
+   However if you choose not to use 'resend', you will have to do without
+   much of majordomo's other features like moderating, administravia
+   checks, and others.
+   
+   
+   
+  SEMI-AUTOMATED HANDLING OF BOUNCED MAIL
+  
+   [From John Rouillard]
+   Just create a mailing list called "bounces". I usually set mine up as
+   an auto list just to make life easier.
+   
+   All that "bounce" script does is create an email message to majordomo
+   that says:
+
+   approve [passwd] unsubscribe [listname] [address]
+   approve [passwd] subscribe bounces [address]
+
+   The [address] and [listname], are given on the command line to bounce.
+   The address of the majordomo, and the passwords are retrieved from the
+   .majordomo file in your home directory.
+   
+   A sample .majordomo file might look like (shamelessly stolen from the
+   comments at the top of the bounce script):
+
+   this-list       passwd1         Majordomo@This.COM
+   other-list      passwd2         Majordomo@Other.COM
+   bounces         passwd3         Majordomo@This.COM
+   bounces         passwd4         Majordomo@Other.COM
+
+   A command of "bounce this-list user@fubar.com" will mail the following
+   message to Majordomo@This.COM:
+
+   approve passwd1 unsubscribe this-list user@fubar.com
+   approve passwd3 subscribe bounces user@fubar.com (930401 this-list)
+
+   while a command of "bounce other-list user@fubar.com" will mail the
+   following message to Majordomo@Other.COM:
+
+   approve passwd2 unsubscribe other-list user@fubar.com
+   approve passwd4 subscribe bounces user@fubar.com (930401 this-list)
+
+   Note that the date and the list the user was bounced from are included
+   as a comment in the address used for the "subscribe bounces" command.
+   
+   
+   
+  WHAT'S THIS OWNER-LIST AND LIST-OWNER STUFF? WHY BOTH?
+  
+   [From David Barr]
+   The "standard" is spelled out in RFC 1211 - "Problems with the
+   Maintenance of Large Mailing Lists".
+   
+   It's here where the "owner-listname" and "listname-request" concepts
+   got their start. (well it was before this, but this is where it was
+   first spelled out)
+   
+   Personally, I don't use "listname-owner" anywhere. You don't really
+   have to put both, since the "owner" alias is usually only for bounces,
+   which you add automatically anyway with resend's "-f" flag, or having
+   Sendmail v8.x's "owner-listname" alias.
+   
+   (while I'm on the subject) The "-approval" is a Majordomo-ism, and is
+   only necessary if you want bounces and approval notices to go to
+   different mailboxes. (though you'll have to edit some code in
+   majordomo and request-answer if you want to get rid of the -approval
+   alias, since it's currently hardwired in)
+   
+   So, to answer your question, I'd say "no". You don't have to have
+   both. You should just have "owner-list".
+   
+   
+   
+  HOW SHOULD I CONFIGURE RESEND FOR REPLY-TO HEADERS?
+  
+   Whether you should have a "Reply-To:" or not depends on the charter
+   of your list and the nature of its users. If the list is a discussion
+   list and you generally want replies to go back to the list, you can
+   include one. Some people don't like being told what to do, and prefer
+   to be able to choose whether to send a private reply or a reply to the
+   list just by using the right function on their mail agent. Take note
+   that if you do use a "Reply-To:", then some mail agents make it much
+   harder for a person on the list to send a private reply.
+   
+   If you are using resend, use the '-r ' flag to set the Reply-To field
+   to the list, or use the 'reply_to' config keyword for 1.9x or greater.
+   
+   
+   
+   
+  HOW CAN I HIDE LISTS SO THEY CAN'T BE VIEWED BY 'LISTS'?
+  
+   That is what advertise and noadvertise are for. The two keywords take
+   regular expressions that are matched against the from address of the
+   sender. A list display follows the rules:
+   
+    1. If the from address is on the list, it is shown.
+    2. If the from address matches a regexp in noadvertise (e.g. /.*/)
+       the list is not shown.
+    3. If the advertise list is empty, the list is shown unless 2
+       applies.
+    4. If the advertise list is non-empty, the from address must match an
+       address in advertise. Otherwise the list is not shown. Rule 2
+       applies, so you could allow all hosts in umb.edu except hosts in
+       cs.umb.edu.
+       
+   
+   
+   
+   
+  HOW CAN I RESTRICT A LIST SUCH THAT ONLY SUBSCRIBERS CAN SEND MAIL TO THE
+  LIST?
+  
+   For pre-1.9x versions of majordomo, see the -I option to resend. For
+   1.9x this is the restrict_post keyword in the config file. Just set it
+   to the filename that holds the list of subscribers. Unfortunately this
+   means you probably will need help from the Majordomo maintainer in
+   setting it if you don't have access to the host machine. This is due
+   to be improved in a future release of Majordomo.
+   
+   However, there is a problem with either of these methods. Majordomo
+   works by filtering the messages coming in through the "listname"
+   alias, doing its dirty work, then passing the resulting message out to
+   another alias you define like "listname-outgoing". If you trust people
+   to not send mail directly to the "listname-outgoing" alias, then
+   you'll be fine. If however you're not trusting, there are several
+   steps to make sure people don't bypass the restrictions of the list.
+   
+   There are several methods. First you need to change your
+   "listname-outgoing" alias such that it is not obvious. Next, you need
+   to make it such that people can't find out what your -outgoing alias
+   is.
+   
+   You can use the "@filename" directive in resend to move the
+   command-line options of resend into a file readable only by the
+   majordomo user/group. This will make it such that you can't find out
+   the -outgoing address by connecting to your mailer and doing an EXPN
+   or VRFY. The "@filename" directive seems to have fallen into
+   undocumentation for some reason. This should be fixed in future
+   releases.
+   
+   Another more direct approach is to simply disable EXPN or VRFY
+   altogether. See the documentation for your mailer on how to do this.
+   However this doesn't prevent local reading if the aliases file.
+   
+   Sendmail 8.x will unfortunately log your -outgoing alias in the
+   "Received:" lines. To get around this you need to specify more than
+   one address for the list name argument to resend. The easiest way is
+   to simply put a comma after your -outgoing address. (for example
+   "mylist: :include:/var/lists/mylist,") For Sendmail 8.x you must not
+   define an alias 'owner-mylist-seekrit' to be something like
+   'owner-mylist,' (with the commma). Otherwise sendmail will set the
+   envelope address of outgoing mail to contain your secret outgoing
+   alias.
+   
+   Finally it should be noted that it is impossible with any method to
+   prevent people from forging mail as someone on the list, and sending
+   to the list that way.
+   
+   
+   
+  CAN I HAVE THE LIST OWNER OR APPROVAL PERSON BE CHANGEABLE WITHOUT
+  INTERVENTION FROM THE MAJORDOMO OWNER?
+  
+   Sure! Just make owner-listname and/or listname-approval be another
+   majordomo list. (probably hidden, for simplicity's sake)
+   
+   
+   
+  WHAT ABOUT ALL OF THESE PASSWORDS STARTING IN VERSION 1.90?
+  
+   Think of three separate passwords:
+    1. A master password that can be used by both resend and majordomo
+       contained in [listname].passwd. To be used by the master list
+       manager when using writeconfig commands etc. This allows someone
+       who handles a number of mailing lists all using the same password.
+    2. A password for the manager of this one list. The admin_passwd can
+       be used by subsidiary majordomo list maintainers.
+    3. A password for those concerned with the list content
+       (approve_passwd)
+       
+   This way the administration and moderation functions can be split. The
+   original reason for maintaining [listname].passwd was to allow a new
+   config file to be put in if the config file was trashed and the
+   admin_password was obliterated, and may still be useful to allow a
+   single password to be used for admin functions by the majordomo admin
+   or some other "superadmin".
+   
+   Note that the admin passwd in the config file is not a file name, but
+   the password itself. This is the only way that the list-maintainer
+   could change the password since they wouldn't have access to the file.
+   
+   
+   
+   
+  HOW DO I TELL MAJORDOMO TO HANDLE "GET"-ING OF BINARY FILES?
+  
+   Majordomo is not designed to be a general-purpose file-by-mail
+   system. If you want to do anything more than trivial "get"-ing of text
+   files (archives, etc) than you should get and install ftpmail.
+   Majordomo has hooks to allow transparent access to files via ftpmail
+   (see majordomo.cf). See the beginning of this FAQ for where to get
+   ftpmail.
+   
+   
+   
+  HOW DO I SET UP A MODERATED LIST?
+  
+   First, you need to tell Majordomo that the list is moderated. In the
+   configuration file for the list, you set "moderated = yes". If you're
+   using Majordomo 1.9x or greater, do not try to use the now-deprecated
+   "-A" option to resend. In fact if you're using 1.9x or greater, you
+   shouldn't be using ANY options to resend except "-h" and "-l".
+   
+   Any mail which is not "approved", gets bounced with "Approval
+   required". If the moderator wishes to approve the message for the
+   list, then you need to tag the message as "approved" and send it to
+   the list. The "approve" script which comes with Majordomo does this
+   for you. If you don't have access to "approve" (e.g. you're not on a
+   UNIX system with Perl), you have to do it by hand. The easiest way is
+   to forward the original message to the list, add the line "Approved:
+   approval-password" to the very first line of the body, leave a blank
+   line, and then the contents of the original message. (meaning there
+   should be a blank line before and after the "Approved:" line.) 
+   
+  HOW DO I SET UP A DIGESTED VERSION OF A LIST?
+  
+   [ Modified from explanation given by jmb@kryten.atinc.com (Jonathan
+   M. Bresler)]
+     * Create aliases for the mailing list and the digest. See section
+       2.2 of the README for an example.
+     * create an alias for the majordom(o) user, so that his cron
+       generated mail comes to me, rather than just piling up in
+       /usr/local/mail/majordom.
+     * create the list's and the digest's files, (widget, widget-digest,
+       widget.config, widget-digest.config, etc.). Edit the
+       widget-digest.config file and make sure all the digest options are
+       set to your tastes.
+     * create the digest directory and archive directory. See FAQ section
+       2 on how to set permissions on all majordomo files and
+       directories. You must have archives if you have digests so the
+       digester can make the digest. You can purge the archive after the
+       digest is generated.
+     * Add yourself to both the mailing list and its digest so you can
+       monitor what happens...at least for a while (not a bad idea to
+       create a dummy user, and subscribe him to both the mailing list
+       and its digest. This preserves a record of messages for debugging.
+       Don't forget to remove this account and unsubscribe it after
+       debugging.)
+     * Optionally you may add a crontab for majrodom, to push out a
+       digest at set intervals regardless of the number of queued
+       messages. Of course you can do this from any account not just
+       majordom, as long as the password is correct. See the question Why
+       aren't my digests going out?".
+       
+   
+     _________________________________________________________________
+   
+   
+   
+   
+   
+Section 4: Miscellaneous mailer problems
+
+   
+   
+  ADDRESS WITH BLANKS ARE BEING TREATED SEPARATELY
+  
+   If a subscriber to the list is
+   John Doe <jdoe@node.com>
+   
+    it gets treated these as the three addresses:
+   John
+   Doe
+   <jdoe@node.com>
+   
+   [From Alan Millar]
+   Majordomo does not treat these as three addresses. Apparently your
+   mailer does.
+   
+   Remember that all Majordomo does is add and remove addresses from a
+   list. Majordomo does not interpret the contents of the list for
+   message distribution; the system mailer (such as sendmail) does.
+   
+   I'm using SMail3 instead of sendmail, and it has an alternative (read
+   "stupid") view of how mixed angle-bracketed and non-angle-bracketed
+   addresses should be interpreted. I found that putting a comma at the
+   end of each line was effective to fix the problem, and I got to keep
+   my comments. So I patched Majordomo to add the comma at the end of
+   each address it writes to the list file.
+   
+   You can also add the $listname.strip option so that none of the
+   addresses are angle-bracketed. (the "strip" config option for 1.90)
+   
+   
+   
+  WHY AREN'T MY DIGESTS GOING OUT?
+  
+   
+
+>I'm not sure how to set up the digest feature of majordomo 1.92
+>to send digests out.  Currently, it is digesting incoming mail,
+>but that's all it's doing.
+
+   [from John Rouillard]
+
+  echo mkdigest [digest-name] [digest-password] | mail majordomo@...
+
+   This will force a digest to be created. Or you can set the max size in
+   the digest list config file down low, and force automatic generation.
+   There are some patches for 1.92 that will allow other ways of
+   specifying automatic digest sending. The patch is in the contrib
+   directory.
+   
+   
+   
+  WHY DO I GET DUPLICATE MAIL SENT TO THE LIST?
+  
+   I've you're running MMDF, read on: [From Gunther Anderson]
+   Well, I can tell you what happened to me recently. We use MMDF here,
+   which certainly colors the picture a little. What was happening here
+   was that MMDF was verifying the validity of the whole mailing list
+   before returning from the Submit call. The thing calling the Submit
+   would time out and close, but the Submit itself would still be running
+   somewhere. The calling routine would believe that the message had
+   failed in its delivery, but the Submit would eventually succeed. The
+   calling process would try again some time later. This, of course, is
+   bad. The larger the list got, the more addresses there were to verify
+   (verification was really just a DNS search on the target machine
+   name), the more likely, under load, that the message would duplicate.
+   We finally got so large, with so many international addresses (which
+   seem to timeout on DNS queries much more ofen than US addresses) that
+   we were always duplicating. Infinitely (until I killed the original
+   submitter).
+   
+   The solution for us was MMDF-specific. We used a different channel for
+   submission and delivery, one which deliberately doesn't verify the
+   addresses before accepting a job. We used the list-processor channel,
+   and only had to check that the listname-request name was set properly,
+   because list-processor insists on making listname-request the envelope
+   "From " header name.
+   
+   If you're running Sendmail, this is more rare. There have been
+   unconfirmed reports that on some systems having the queue process
+   interval set too short can cause problems, even though sendmail is
+   supposed to handle this. Workarounds are to increase your queue
+   process interval (-q flag), or decrease the interval between queue
+   checkpoints (OC flag in sendmail.cf).
+   
+   There have been many reports from Linux users complaining about
+   duplicate mail. The problem seems to be that flock() under Linux is
+   broken. This may be fixed in a future release, but for now in
+   sendmail's conf.h in the #ifdef __linux__ section add a line #define
+   HASFLOCK 0. There are also reports that some versions of the libc have
+   problems, and that linking with the libresolv.a from a recent BIND
+   version will work around the problem.
+   [ Please let me know if you have any more information --ed ] 
+   
+  HOW DO I GATE MY LIST TO AND/OR FROM A NEWSGROUP?
+  
+   The easiest method is to use a program called newsgate. Send mail to
+   rsalz@uunet.uu.net (Rich Salz) for a copy. Unless he tells you
+   otherwise, do not redistribute what he sends you. Installation
+   instructions are straightforward, it provides sample entires for your
+   newsfeeds/sys file and aliases entries. The newsgate package includes
+   news2mail and mail2news. 
+   
+  HOW CAN I IMPROVE MAJORDOMO'S PERFORMANCE?
+  
+   
+   
+    Mail to list throughput
+    
+   Majordomo does very little except pass each message to the list
+   through 'resend', and then pass it on to your mailer for distribution.
+   Improving your mailer is the first step to improving speed of delivery
+   of mail to the list. Upgrading your sendmail to version 8.x will
+   improve things greatly, as this version has a lot of enhancements
+   which use connections more efficiently. For most lists, this is
+   enough. Majordomo itself doesn't use very much resources except
+   perhaps memory. Adding more memory will help if your machine does a
+   lot of paging during mail delivery. Using other mailers instead of
+   sendmail like ZMailer has met with varying success.
+   
+   If your lists are very large you may try installing bulk_mailer, by
+   Keith Moore. It pre-sorts the list into chunks grouped by site, and
+   passes the resulting chunks off to individual sendmail processes for
+   delivery (see note next paragraph). Get it from
+   ftp://cs.utk.edu/pub/moore/bulk_mailer/. It installs simply by
+   replacing your usual -outgoing alias with (line wrapped for clarity):
+
+sample-outgoing: |"/path/to/bulk_mailer owner-sample@your.site
+    /path/to/lists/sample"
+
+   bulk_mailer has reportedly resulted in dramatic speedups in delivery
+   times, on the order of several times faster. Note this works just as
+   well on digested lists as well as normal lists. bulk_mailer did have
+   one problem. Until version 1.3 it didn't understand parenthesized
+   comments in addresses, resulting in incorrect sorting and reduced
+   performance. Your list must be configured with strip=yes in the
+   configuration file if you don't upgrade to 1.3.
+   
+   The restrict_post list option with large lists can cause a significant
+   slowdown in mail delivery, since resend has to do a sequential search
+   through the subscription list for each mail sent to the list (to
+   verify that the sender is subscribed to the list). Think twice about
+   using this option with very large lists.
+   
+    Majordomo command processing
+    
+   Most of the improvements in this are are experimental and not widely
+   available or not yet completed but scheduled for future releases. Some
+   areas include: improvements in shlock.pl to use exponential backoffs
+   to reduce contention and starvation of locks, using some sort of
+   dbz-style database for subscription lists to speed up subscribe and
+   unsubscribe commands, and changes in the configuration file system to
+   allow faster parsing and faster execution of certain commands such as
+   "lists". If you are interested in working on improvements in this
+   area, join the majordomo-workers list mentioned above. If you make any
+   specific patches or additions available, please let me know so I can
+   add references to it here. 
+   
+  HOW CAN I HANDLE X.400 ADDRESSES?
+  
+   Majordomo by default treats addresses starting with "/" as "hostile",
+   and won't let people subscribe. This is to prevent someone from
+   subscribing a majordomo-owned filename to the list, and being able to
+   write by sending mail to the list. Unfortunately, all X.400 addresses
+   begin with a "/". Starting in Majordomo 1.93, there are three
+   variables in the majordomo.cf which control how majordomo treats these
+   sorts of addresses. See the end of the sample.cf in the Majordomo 1.93
+   distribution for a complete explanation.

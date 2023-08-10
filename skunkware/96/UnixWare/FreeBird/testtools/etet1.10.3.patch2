@@ -1,0 +1,205 @@
+Subject: ETET1.10.3 Patch #2
+Summary: This is an official patch for etet 1.10.3 Patch Level1.Please apply it.
+Sender: andrew@novell.co.uk (ETET Coordinator)
+Organization: ETET Development group.
+
+
+part 1 of a 1 part patch set.
+
+This fixes the following bug reports against ETET1.10.3 , this is 
+a bug fix patch only AND MUST BE APPLIED AFTER PATCH LEVEL 1.
+
+
++ reference 1.10.3.1.0  class no change
+(this was not documented in the last patch notes but was there)
+
+Synopsis: perl api does not use tet_xres file
+Fix: a known problem with 1.10.3 fixed in 1.10.3 PL1, to fix
+    apply etet1.10.3.patch1 file
+
++ reference 1.10.3.1.1  class bug
+
+Synopsis:  tcc usage message is incorrect
+
+Resolution: change to show that one of -b -c -e are mandatory
+
+
+
++ reference 1.10.3.1.2 class enhancement
+
+Synopsis: 
+ETET should allow non-consecutive ic numbers in the iclist without complaint.
+
+Resolution : 
+Comment out code in ksh and xpg3sh api's
+
++ reference 1.10.3.1.3 class bug
+
+Synopsis:   SIGTERM changes cause problems on Solaris 2.x
+
+Resolution: Add an || defined (sparc) to the code.
+
+
+To apply the patch, save to a file, say patch
+
+	cat patch | patch -p -N -d DIR
+
+where DIR is the source directory, typically the current directory "." .
+
+
+regards
+Andrew
+
+	Andrew Josey
+	ETET Coordinator
+	Novell USG R&D Europe
+
+---cut here, including this line
+*** src/xpg3sh/api/tcm.sh.orig	Thu Jun 15 13:18:42 1995
+--- src/xpg3sh/api/tcm.sh	Thu Jun 15 13:19:58 1995
+***************
+*** 99,104 ****
+--- 99,107 ----
+  #
+  #	Andrew Josey, Novell UNIX System Labs, March 1994
+  #	Increment TET_VERSION number to 1.10.3
++ #
++ #	Andrew Josey, Novell UNIX Systems Group, June 1995
++ #	Remove code that warns about non continuous IC's
+  # ***********************************************************************
+  
+  #
+***************
+*** 507,515 ****
+  		then
+  			test -n "`eval echo \\${ic$TET_MEMBER}`" && \
+  				echo ic$TET_MEMBER
+! 		else
+! 			tet_error "IC $TET_MEMBER is not defined" \
+! 				"for this test case"
+  		fi
+  		TET_ICNO=`expr $TET_ICNO + 1`
+  	done >> $TET_TESTS
+--- 510,518 ----
+  		then
+  			test -n "`eval echo \\${ic$TET_MEMBER}`" && \
+  				echo ic$TET_MEMBER
+! #		else
+! #			tet_error "IC $TET_MEMBER is not defined" \
+! #				"for this test case"
+  		fi
+  		TET_ICNO=`expr $TET_ICNO + 1`
+  	done >> $TET_TESTS
+*** src/ksh/api/tcm.ksh.orig	Thu Jun 15 13:21:14 1995
+--- src/ksh/api/tcm.ksh	Thu Jun 15 13:21:03 1995
+***************
+*** 109,114 ****
+--- 109,117 ----
+  #		Increment TET_VERSION to 1.10.3
+  #		Andrew Josey, Novell UNIX System Labs, March 1994
+  #
++ #		Remove code that produces warning about non-continuous ICs
++ #		Andrew Josey, Novell UNIX Systems Group, June 1995
++ #
+  # ***********************************************************************
+  
+  if let TET_XXXXX=1
+***************
+*** 526,534 ****
+  		then
+  			test -n "`eval echo \\${ic$TET_MEMBER}`" && \
+  				echo ic$TET_MEMBER
+! 		else
+! 			tet_error "IC $TET_MEMBER is not defined" \
+! 				"for this test case"
+  		fi
+              let TET_ICNO=TET_ICNO+1
+  	done >> $TET_TESTS
+--- 529,537 ----
+  		then
+  			test -n "`eval echo \\${ic$TET_MEMBER}`" && \
+  				echo ic$TET_MEMBER
+! #		else
+! #			tet_error "IC $TET_MEMBER is not defined" \
+! #				"for this test case"
+  		fi
+              let TET_ICNO=TET_ICNO+1
+  	done >> $TET_TESTS
+*** src/posix_c/tcc/tcc.c.o	Thu Jun 15 13:27:23 1995
+--- src/posix_c/tcc/tcc.c	Thu Jun 15 13:28:42 1995
+***************
+*** 133,138 ****
+--- 133,141 ----
+  		Remove TET 1.10 code under #ifdef OLD_TMP
+  		Andrew Josey, Novell UNIX System Labs, March 1994
+  		
++ 		Correct synopsis since one of -b -c -e is mandatory
++ 		Andrew Josey, Novell UNIX Systems Group, June 1995
++ 
+  ************************************************************************/
+  
+  #include <tcc_env.h>
+***************
+*** 1598,1604 ****
+  #endif
+  
+      (void) fprintf(stderr, "\n%s\n%s\n%s\n%s\n%s\n\n",
+! "Usage: tcc [ -b ] [ -e ] [ -c ] [ -a Alt_exec_dir ] [ -f Clean_cfg_file ]",
+  "    [ -g Build_cfg_file ] [ -i Int_results_dir ] [ -j Journal_file]",
+  "    [ -l Scenario_line ] [ -p ] [ -n Search_string ] [ -s Scenario_file]",
+  "    [ -t Timeout ] [ -v Variable=value ] [ -x Exec_cfg_file ]",
+--- 1601,1607 ----
+  #endif
+  
+      (void) fprintf(stderr, "\n%s\n%s\n%s\n%s\n%s\n\n",
+! "Usage: tcc  -b | -e | -c  [ -a Alt_exec_dir ] [ -f Clean_cfg_file ]",
+  "    [ -g Build_cfg_file ] [ -i Int_results_dir ] [ -j Journal_file]",
+  "    [ -l Scenario_line ] [ -p ] [ -n Search_string ] [ -s Scenario_file]",
+  "    [ -t Timeout ] [ -v Variable=value ] [ -x Exec_cfg_file ]",
+*** src/posix_c/tcc/startit.c.o	Thu Jun 15 13:31:54 1995
+--- src/posix_c/tcc/startit.c	Thu Jun 15 13:31:44 1995
+***************
+*** 119,124 ****
+--- 119,126 ----
+  		testing in TET EXTENDED MODE. (see ref 1.10.3.1)
+  		Andrew Josey, Novell USG, December 1994
+  		
++ 		Put fix in for Solaris 2.x and SIGTERM
++ 		Andrew Josey, Novell USG, June 1995
+  
+  ************************************************************************/
+  
+***************
+*** 200,206 ****
+      err=errno;
+      alarm(0);
+      if ((result == -1) && (err == EINTR)) {
+! #if defined(SunOS41) ||  defined (SUNTEST)
+  	(void) kill(-pid,SIGTERM);
+  #else
+  	(void) kill(pid,SIGTERM);
+--- 202,208 ----
+      err=errno;
+      alarm(0);
+      if ((result == -1) && (err == EINTR)) {
+! #if defined(SunOS41) ||  defined (SUNTEST) || defined (sparc)
+  	(void) kill(-pid,SIGTERM);
+  #else
+  	(void) kill(pid,SIGTERM);
+***************
+*** 207,213 ****
+  #endif
+  	alarm(5);
+  	if (((result=waitpid(pid,stat_loc,0))==-1) && (errno == EINTR)) {
+! #if defined(SunOS41) ||  defined (SUNTEST)
+  	    (void) kill(-pid,SIGKILL);
+  #else
+  	    (void) kill(pid,SIGKILL);
+--- 209,215 ----
+  #endif
+  	alarm(5);
+  	if (((result=waitpid(pid,stat_loc,0))==-1) && (errno == EINTR)) {
+! #if defined(SunOS41) ||  defined (SUNTEST) || defined (sparc)
+  	    (void) kill(-pid,SIGKILL);
+  #else
+  	    (void) kill(pid,SIGKILL);

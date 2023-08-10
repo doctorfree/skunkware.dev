@@ -1,0 +1,1659 @@
+
+                 The Satellite Tracking Program SatTrack (V3.1)
+              ====================================================
+
+                               Manfred Bester
+                      1636 Martin Luther King Jr. Way #L
+                           Berkeley, CA 94709, USA
+
+                                March 15, 1995
+
+
+GENERAL OVERVIEW
+
+    SatTrack is a satellite tracking program that has been written in the 
+    'C' programming language on a Sun/UNIX workstation in order to provide an 
+    alternative to PC oriented programs like QuikTrak, InstantTrack, STSplus 
+    or OrbiTrack and others. It provides two different live displays, for 
+    single or multiple satellites, and two different orbit prediction 
+    facilities. Cursor controls used in both live displays are compatible with 
+    the VT100 standard, which allows the program to be run basically from any 
+    terminal. An X Window color graphics display with the typical world map 
+    tracking chart and a number of important features has been added in this 
+    version. In addition, a stand-alone demo program that shows the same 
+    graphics features and simulates an STS-Mir docking maneuver is included in 
+    this distribution. The orbit prediction can be run either interactively or 
+    in a batch mode. In the latter case all necessary parameters are specified 
+    on the command line. 
+
+    The program reads the NORAD/NASA two-line Keplerian element (TLE) sets 
+    directly and uses these to run the Simplified General Perturbations 
+    Version 4 (SGP4) orbit propagation algorithm for low-earth orbit 
+    satellites, or alternatively a simplified 'TLE Mean' model for satellites 
+    with an orbital period longer than 225 minutes. The latter model will be 
+    replaced by the Simplified Deep Space Perturbations Version 4 (SDP4) 
+    algorithm in another release int the near future. Other input files contain 
+    information on various default start-up parameters and satellite 
+    information like launch dates, attitudes, uplink and downlink frequencies, 
+    and transmission modes. Another file contains the data base for the ground 
+    stations and the nearest city display. 
+
+    The present version of SatTrack can track a single satellite and/or display 
+    multiple satellites for a single ground station. It also can also control 
+    suitable ground station hardware, like antennas and radio equipment, and 
+    has an autotrack mode in which it switches automatically between a number 
+    of specified satellites. For calibration purposes tracking of the Sun and 
+    the Moon are also provided. Future releases will have more options. The 
+    present version of SatTrack requires about 4.3 MB of disk space and less 
+    than 1.5 MB of memory at run time. For the single satellite mode, a 68030 
+    type of machine with a math co-processor is adequate. For running the 
+    program in the multi-satellite mode and for the graphics display, a machine 
+    of SPARCstation quality is recommended. 
+
+    SatTrack is not to be confused with two other programs with the same name. 
+    These were written by different authors on different computers. One, the 
+    Amiga based program, was written by Randy Stackhouse, N4RTL, and the other, 
+    the MacIntosh based program, by Mike Pflueger, WD8KPZ.
+
+
+INSTALLATION
+
+    WARNING: If you want to save some of your special resource files of a 
+    previous SatTrack version, these will have to be saved somewhere else 
+    temporarily, because the procedure described below will overwrite these. 
+    However, the format of some of the resource files needed to be changed to 
+    allow for extra features. The format of the new files may not be compatible 
+    any more with those from previous releases. 
+
+    To install SatTrack on a UNIX workstation, place the distribution file 
+    'sattrack.V3.1.tar.Z' into your home directory. Uncompress the file by 
+    typing 'uncompress sattrack.V3.1.tar.Z'. If the distribution file name 
+    ends with 'gz', use 'gunzip' instead of 'uncompress'. Unbundle the 
+    distribution file by typing 'tar xvpf sattrack.V3.1.tar'. This will create 
+    the following directories in your UNIX home directory:
+
+        SatTrack/data
+        SatTrack/doc
+        SatTrack/obj
+        SatTrack/pred
+        SatTrack/run
+        SatTrack/src/*
+        SatTrack/tle
+
+    All source code will be placed in 'SatTrack/src/*' and all auxiliary data 
+    files (see below) in 'SatTrack/data' and in 'SatTrack/tle'. To recompile 
+    SatTrack change into the 'src' directory and type first 'make clean' to 
+    delete all object code and the executables (these files may have been 
+    deleted already for the distribution of SatTrack). Edit the Makefile to 
+    make sure the compiler and linker flags are properly set for the type of 
+    machine being used. Also check other flags that may need to be configured 
+    by the user. The default configuration in the Makefile is for a Sun-4 
+    (SPARCstation 10) with SunOS 4.1.3. An attempt has been made to replace 
+    system calls that are only known to BSD systems, in order to make the 
+    software more portable. The compilation of this software package should 
+    work perfectly on at least the machines listed in the table below. These 
+    are the types of machines the program was tested on.  
+
+    -----------------------------------------------------------------------
+        Machine                      Operating system
+    -----------------------------------------------------------------------
+      Sun-3/80                     SunOS 4.0.3 / X11R4 / Mwm
+      Sun SPARCstation IPC         SunOS 4.1.1 / X11R4 / Mwm
+      Sun SPARCstation 10          SunOS 4.1.3 / Solaris 1.1 / X11R5 / Mwm
+      Sun SPARCstation 5           SunOS 5.4   / Solaris 2.4 / X11R5 / Mwm
+
+      IBM RS6000                   AIX
+
+      HP Apollo 9000 Series 700    HPUX 
+
+      i386                         NetBSD 0.9
+
+      i386                         FreeBSD
+
+      i386 (Toshiba 4600C)         Linux-1.1.50, Slackware 2.0
+
+      486DX33                      Linux, Slackware 2.0
+
+      486DX2/66                    Linux-1.1.75, gcc-2.5.8, fvwm-1.23, 
+                                   XFree86-3.1 (X11R6)
+    -----------------------------------------------------------------------
+
+    Apparently SunOS 4.x.x and SunOS 5.x systems require 'stdlib.h' to be NOT 
+    included. For this reason 'STDLIB' is defined in the Makefile as a 
+    compiler flag for both Sun-3's and Sun-4's. Other machines running NetBSD 
+    or FreeBSD need other include files. For more details look into the 
+    Makefile. 
+
+    Certain machines use C compilers different from 'cc'. If, for example, 
+    the default C compiler is 'gcc' (the Gnu C compiler), the user needs to 
+    make sure that the Makefile is configured properly. There are five lines 
+    for each of the machine/operating system configurations listed in the above 
+    table, and one more that specifies the location of the X11 include files. 
+    To select one of these, activate the five lines for that particular 
+    configuration and make sure the others are commented out. These lines 
+    can be readily identified as 
+
+        CPU      = ...
+        CC_CMACH = ...
+        CC_LMACH = ...
+        CC_LBSD  = ...
+        CC       = ...
+
+    and further below in the Makefile
+
+        X11      = ...
+
+    The default configuration is for a Sun SPARCstation 10 with SunOS 4.1.3 
+    (Solaris 1.1) and X11R5. 
+
+    Besides choosing the proper machine configuration in the Makefile, some 
+    other parameters in 'sattrack.h' and a variety of options in the Makefile 
+    can be configured by the user. If SatTrack is installed in the user's home 
+    directory, the flag 
+
+        -DHOMEDIR
+
+    has to be included. In this case the environment variable 'HOME' will 
+    be used to create all path names. If SatTrack is to be installed in some 
+    other directory, this flag has to be deleted, and instead the variable 
+    'SATDIR' (in 'sattrack.h') has to reflect where SatTrack is installed. 
+    Furthermore, a corresponding change needs to be made to the C shell 
+    scripts 'gettle' and 'getsts' in 'SatTrack/run', since they need to know 
+    where to put the files with the TLE data. 
+
+    If calculations of transits of satellites in front of the Sun are not 
+    needed, the flag
+
+        -DSUNTRANSITS
+
+    has to be commented out. This will suppress certain menu options. This 
+    will not affect the batch mode, however. 
+
+    If the user wishes to suppress the audible alerts (beep, bell), the flag 
+
+        -DNOBEEP
+
+    has to be included in the compiler options.
+
+    If your VT100 type terminal displays reverse video in an unacceptable way, 
+    the flag 
+
+        -DREVERSEVIDEO
+
+    should not be used. This will suppress reverse video, reverse blink video 
+    and underline characters. 
+
+
+    If the user is interested in visible observations of satellites only, the 
+    flag 
+
+        -DVISIBPASSES
+
+    has to be included in the compiler options. SatTrack will then list only 
+    those passes of satellites that are visible, i.e. the satellite is in the 
+    sunlight and the observer in darkness, in the short prediction form. In the 
+    long prediction format, the satellite's altitude is shown instead of the 
+    columns that are important for radio communications (Doppler shift, path 
+    loss, squint angle, mean anomaly and mode) for all passes, i.e. not only 
+    visible passes. 
+
+    SatTrack V3.1 now also has an X Window color graphics display with the 
+    typical world map tracking chart. But in order to allow the program to be 
+    used on machines without X Window (X11R5) capabilities, the flag 
+
+        -DXWINDOW
+
+    is used to switch the X Window option on or off at compile time. If the 
+    flag is included, make sure that the variable 'X11' in the Makefile is 
+    set properly, so that the compiler finds the X11 header files. 
+
+    The program logic and the precision of the tracking calculations was tried 
+    out on the ISI telescope system (see below in the Tracking Control 
+    section). There are certain interface functions that need to be linked for 
+    this purpose. However, normally these would not be required. To allow the 
+    source code to be compiled and linked without these functions, the compiler 
+    flag 
+
+        -DISI
+
+    has to be commented out. Corresponding changes were made to the Makefile 
+    already in order to allow straight forward compilation. 
+
+    In order to finally compile all code, type 'make all'. Once the compilation 
+    is accomplished the 'run' directory will contain the executable files and 
+    the 'obj' directory all object code. Edit your '.login' and/or '.cshrc' 
+    files to include '$HOME/SatTrack/run' in your path (or wherever else 
+    SatTrack is installed). The 'tle' directory contains the files with the 
+    NORAD/NASA TLE sets and the 'data' directory the data files 
+    'defaultsn.dat', 'modes.dat', 'cities.dat', and 'satlist_nnn.dat'. 
+    Predictions can be written into an output file with the name being that of 
+    the satellite. This file will be placed in the 'pred' directory. 
+
+    Previous releases of SatTrack have also been compiled by various users on 
+    different computers. An e-mail collection of patches for machines other 
+    than Sun workstations is provided in the 'doc' directory which contains all 
+    documentation on SatTrack. 
+
+
+INPUT DATA FILES
+
+    SatTrack requires five input data files, all in plain ASCII format:
+
+    tlex.dat         contains NORAD and/or NASA TLE sets
+
+    defaults0.dat    contains default start-up parameters 
+                     (there can be several files of this type besides this 
+                     file, like defaults1.dat, etc.)
+
+    cities.dat       contains data on about 825 cities and other special 
+                     locations around the globe
+
+    modes.dat        contains additional information on satellites (alias 
+                     names, launch dates, attitudes, uplink and downlink 
+                     frequencies, transmission modes, etc.)
+
+    satlist_nnn.dat  contains a list of satellite names for the multisat 
+                     live display ('nnn' denotes the satellite group); 
+                     there can be many customized files of this type like:
+
+                     satlist_all.dat:  all satellites (automatically generated)
+                     satlist_am.dat:   amateur satellites
+                     satlist_com.dat:  communications satellites
+                     satlist_glo.dat:  Glonass navigation satellites
+                     satlist_gor.dat:  Gorizont satellites
+                     satlist_gps.dat:  GPS navigation satellites
+                     satlist_mir.dat:  Mir complex and Mir debris
+                     satlist_noaa.dat: NOAA weather satellites
+                     satlist_sci.dat:  scientific research satellites
+                     satlist_sts.dat:  space shuttles
+                     satlist_tv.dat:   television satellites
+                     satlist_wx.dat:   weather satellites 
+
+
+    Example of a few entries in 'tlex.dat':
+
+        Mir        
+        1 16609U 86 17  A 92253.83202629  .00010821  00000-0  17200-3 0  5392
+        2 16609  51.6235 184.3926 0003511 132.9676 227.1601 15.53877561375443
+        COBE       
+        1 20322U 89 89  A 92253.56214384 -.00000059  00000-0 -26243-4 0  5574
+        2 20322  99.0083 266.1778 0008361 270.9185  89.1022 14.03352237143838
+        PACSAT     
+        1 20439U 90  5  D 92246.03439168  .00000070  00000-0  35288-4 0  4890
+        2 20439  98.6417 327.8611 0011066 315.7837  44.2460 14.29731036136265
+        DO-17      
+        1 20440U 90  5  E 92251.71853570  .00000070  00000-0  34955-4 0  4902
+        2 20440  98.6415 333.6363 0010985 298.5546  61.4530 14.29859354137082
+        TDRS 4     
+        1 21639U 91 54  B 92249.52615843  .00000111  00000-0  00000+0 0  2232
+        2 21639   0.0810 282.2753 0002729 241.6567 196.0869  1.00275770  2147
+        EUVE       
+        1 21987U 92 31  A 92232.33773712  .00002181  00000-0  10297-3 0    77
+        2 21987  28.4322 199.3801 0010738 262.4472  97.5038 15.15165949 11029
+        STS-47
+        1 22120U 92 61  A 92259.61569380 0.00076435  00000-0  25599-3 0   124
+        2 22120  56.9971  93.6720 0008801 289.1809  70.8314 15.89530661   497
+
+    The meanings of the numbers in each line are explained in the source code 
+    listing (see 'satelem.c'). TLE sets like the above can for example be 
+    obtained from 'archive.afit.af.mil' (129.92.1.66) via anonymous 'ftp'. 
+    Change into the directory '/pub/space' and get 'tle.new'. Then place this 
+    file as 'tle.dat' in the directory 'SatTrack/tle' and then run 'maketlex'. 
+    This procedure can be automated using 'cron' in the following way: use the 
+    command 'crontab -e' to create a crontab file with the following content:
+
+        0 15 * * *    $HOME/SatTrack/run/gettle
+
+    This will run 'gettle' every day at 15:00 h local time (in this example). 
+    The executable C shell script 'gettle' needs to be in the directory 
+    'SatTrack/run' and contains the following lines: 
+
+        #! /bin/csh
+        #
+        set ftphost=129.92.1.66
+        set userid=$USER@`hostname`.`domainname`
+        cd $HOME/SatTrack/tle
+        #
+        ftp -n $ftphost << !
+        user anonymous -$userid
+        cd /pub/space
+        get tle.new
+        get gorizont.tle
+        get other.tle
+        get tvro.tle
+        get visual.tle
+        quit
+        !
+        #
+        "cp" tle.dat tle.bak
+        "mv" tle.new tle.dat
+        "mv" gorizont.tle gorizont.dat
+        "mv" other.tle debris.dat
+        "mv" tvro.tle tvro.dat
+        "mv" visual.tle visual.dat
+        #
+        $HOME/SatTrack/run/maketlex
+        $HOME/SatTrack/run/maketles wx
+        #
+
+    After placing the data files into 'SatTrack/tle', program 'maketlex' 
+    is invoked. This program generates an extra file 'tlex.dat' with extended 
+    TLE sets that is basically a concatenation of several individual TLE 
+    files. Duplicate element sets will be filtered out on the basis of the 
+    object number, so that there is ONLY ONE ENTRY PER OBJECT, and this will 
+    be the first element set that is found for that particular object in the 
+    list of TLE files. The file 'tlex.dat' is then used as the default data 
+    base for SatTrack. The names of the data files being concatenated are 
+    specified in the input file 'tlelist.dat' in 'SatTrack/data'. The user 
+    needs to make sure that the order of the input files for 'maketlex' as 
+    specified in 'tlelist.dat' is chosen correspondingly, if a TLE set for 
+    a particular satellite occurs in more than one file. 
+
+    The last line in the above shell script invokes program 'maketles' with 
+    the command line argument 'wx' (in this example) that specifies the 
+    weather satellite group. This will produce the file 'tles.dat' which 
+    contains the TLE sets for those satellites specified in the data file 
+    'satlist_wx.dat'. The file 'tles.dat' is not used with SatTrack, but is 
+    useful for distribution to other users in the community who are interested 
+    only in a particular subset of all TLE sets, in this example those of 
+    weather satellites. The C shell script 'gettle' can also be invoked with 
+    the '-v' option in which case the entire 'ftp' session is monitored. 
+
+    The TLE sets can also be obtained from the Celestial Bulletin Board System 
+    via telephone by dialing (205) 409-9280 (300 - 9600 bps, 8+1, no parity). 
+    Latest element sets for space shuttle missions can also be obtained from 
+    'spacelink.msfc.nasa.gov' (192.149.89.61) via 'telnet' and 'ftp', or from 
+    an automatic e-mail service (see 'SatTrack/doc/info.tle_shuttle'). An 
+    element set for STS-47, for example, would be placed in 'SatTrack/tle' as 
+    'sts-47.dat'.
+
+    A similar C shell script, 'getsts', allows the user to get current TLE 
+    sets for upcoming or current space shuttle missions from the Marshall 
+    Space Flight Center in Huntsville, Alabama. The shell script needs to 
+    be properly configured for the STS number and the pre- or post-launch 
+    data sets (see header in 'run/getsts').
+
+
+    Example of 'defaults0.dat':
+
+        Site:              Berkeley, CA, USA
+        Call sign:         DL5KR
+        Satellite:         16609
+        Satellite group:   am
+        Element set TLE:   tlex.dat
+        Element set STS:   sts.dat
+        Element set type:  NASA
+        Live display type: M
+        Time zone:         PDT
+        Duration:          6.0
+        Min elevation:     0.0
+        Tracking:          0
+        Antenna:           /dev/ttyp7
+        Radio A:           /dev/ttyp8
+        Radio B:           /dev/ttyp9
+        Display lines:     24
+        X display lines:   34
+        X terminal type:   xterm
+        Pressure:          725.0
+        Temperature:       15.0
+        Humidity:          35.0
+
+    Amongst these parameters are the defaults that show up at the menu in <> 
+    brackets when SatTrack is started. The entry 'Call sign' specifies the 
+    call sign or other type of ground station identifier (up to 20 characters 
+    long). The satellite can be specified either with its name or with the 
+    object number. However, if the name is ambiguous (as in 'Mir' and 
+    'MIR DEB') the object number needs to be specified. If a satellite group 
+    'am' is specified as the default group for the multisat live display, then 
+    there needs to be a corresponding file called 'satlist_am.dat' with the 
+    names of the satellites in it. 
+
+    The next three lines deal with the two-line element sets. At program start
+    SatTrack reads the entire default data file, here specified as 'tlex.dat', 
+    and stores it in memory. If another data file is specified at the menu line
+    the program will add all satellites from that file to the memory list, as 
+    long as the maximum number of satellites (presently 600) as specified in 
+    'sattrack.h' is not exceeded. Data for satellites that are in the list 
+    already will not be read again. For space shuttle data sets it is important 
+    to specify the type of the element set, mainly because of the convention 
+    for the orbit number. The two possible options are 'NASA' and 'NORAD'.
+
+    The line 'Live display type' specifies if the default live display is the 
+    single satellite display ('S') or the multi satellite display ('M'). 
+
+    Options for the time zone are UTC, CEST, CEDT, EEST, EEDT, EST, EDT, 
+    CST, CDT, MST, MDT, PST, PDT, HST, and JST. If other time zones are needed 
+    these will have to be added to 'timeZoneList' and 'timeZoneHour' in 
+    'satstrings.h'. In case a time zone is entered at program start that is 
+    not in this list the time zone is automatically set to UTC. Alternatively, 
+    a time zone can be entered as the numerical value. In this case the local 
+    time is displayed as 'LOC'. SatTrack does not automatically check for 
+    daylight savings time when reading the system time, since it always reads 
+    the UTC system time, and the change over to and from daylight savings time 
+    depends upon the location of the ground station. Therefore the default 
+    start-up parameter for the time zone needs be edited by hand accordingly. 
+    Remember also to edit the shell scripts that run SatTrack in the batch mode 
+    ('passes', 'transits', and the data file 'batch.dat') when the time changes 
+    to or from daylight savings time. All calculations are performed in UTC, of 
+    course. All other time zones are used for convenience only in the live 
+    displays and in the prediction tables. 
+
+    The entries 'Duration' and 'Min elevation' are used for the orbit 
+    prediction mode. The duration is the time interval in days over which the 
+    predictions are performed, and the minimum elevation in degrees is the 
+    cut-off limit below which a pass is discarded. 
+
+    The entries 'Tracking', 'Antenna', 'Radio A' and 'Radio B' are used for 
+    controlling the antenna and radio interfaces. The default value for the 
+    tracking flag can be set to '0' or '1'. If set to '1', the tracking will 
+    be turned on automatically at program start, and otherwise it will be off. 
+    The three lines 'Antenna', 'Radio A' and 'Radio B' contain the information 
+    as to which interfaces on the computer the antenna controller and the 
+    radio(s) are connected. If one single radio is used for both uplink and 
+    downlink, it needs to be connected to the interface specified in 'Radio A'. 
+    If two different radios are used for uplink and downlink, the downlink 
+    radio needs to be connected to 'Radio A' and the uplink to 'Radio B'. Also, 
+    in the latter case the variable RADIOTYPE needs to be set to DUAL in 
+    'sattrack.h'. The user needs to modify the character strings that are sent 
+    out to all three interfaces, according to what type of equipment is being 
+    used. These changes can be made straight forwardly in 'satctrl.c'. 
+
+    If both the antenna and the radio(s) are controlled through a single 
+    device like the TrakBox, the ANTENNATYPE would have to specified as TRAKBOX 
+    (in this example) and the radio type as NONE (in 'sattrack.h'). The antenna 
+    interface would be the one the Trakbox is connected to, and the radio 
+    interface would be set to /dev/null (in 'defaults0.dat').
+
+    If the data are to be written into files instead of being sent out through 
+    an interface, the file names should be specified with the entire path name. 
+    In the example given above the tracking control sequences will be sent to 
+    three different 'xterm' windows. The default devices are '/dev/null', if 
+    nothing is specified in 'defaultsn.dat'. 
+
+    The following three lines deal with the type of terminal or window used for 
+    the two different live displays. If the environmental variable 'TERM' 
+    matches the entry in the line 'X terminal type' it is assumed that the 
+    terminal or window can display 132 characters per line and the number of 
+    lines specified in 'X display lines', which has to be at least 24 (if that 
+    number is smaller than 24, the single satellite display will be screwed 
+    up). Otherwise, the width of the terminal or window is assumed to be 80 
+    characters and the number of lines as specified in 'Display lines'. If the 
+    user wishes to always use an 80x24 terminal window, even in the X Window 
+    environment, the variable 'X terminal type' has to be set to something 
+    different from 'xterm', like 'yterm'. Weather or not the graphics window 
+    can be used is independent of these parameters, as long as the user is 
+    logged in on an X terminal. 
+
+    The entries in the three lines 'Pressure' [mmHg] (760 mmHg = 1013.2 mBar), 
+    'Temperature' [C] and 'Humidity' [%] are used to calculate the refraction 
+    in the atmosphere for tracking satellites visually with an optical 
+    telescope. 
+
+
+    Example of 'cities.dat':
+
+        `North Pole`,90,0,0
+        `South Pole`,-90,0,2835
+        `Abeche, Chad`,14.46,-20.68,0
+        `Aberdeen, SD, USA`,45.467,98.483,0
+        `Abilene, TX, USA`,32.465,99.713,0
+        `Abu Dhabi, United Arab Emirates`,24.47,-54.37,0
+        `Acapulco, Mexico`,16.85,99.92,0
+        `Accra, Ghana`,5.6,0.167,0
+        `Addis Ababa, Ethiopia`,9,-38.733,0
+
+    This example shows the first few entries in 'cities.dat'. The first two 
+    lines, i.e. the North and South Pole, have to remain unchanged. The name 
+    of the location has to be included in `` and can be up to 37 characters 
+    long. The following numbers are latitude [deg North], longitude [deg West], 
+    and altitude above sea level [m], all separated by commas. Note that some 
+    other tracking programs count the longitude positive in eastern direction. 
+    Here the convention of positive signs for western longitudes is used. On 
+    the other hand, SatTrack counts the time zone negative in western 
+    direction. More locations can be added to 'cities.dat', if desired. Note 
+    that the maximum number of entries allowed is 825 at present. If more 
+    entries are required the variable MAXCITIES in 'sattrack.h' needs to be 
+    changed accordingly and the source code needs to be recompiled. 
+
+    Data on cities in the United States can be obtained from a geographic data 
+    base via 'telnet martini.eecs.umich.edu 3000' (telnet 141.212.99.9 3000). 
+
+
+    Example of 'modes.dat':
+
+        Satellite: AO-13
+        Object:    19216
+        Alias:     Phase 3C
+        Attitude:  180.0   0.0 deg
+        Frequency: USB LSB   145.900 435.498 150 -1
+        Frequency: CW  CW    145.900 435.498 150 -1
+        Frequency: USB NONE  145.812       0   0  0
+        Frequency: USB USB  2400.730 435.621  36  1
+        Frequency: CW  CW   2400.730 435.621  36  1
+        Frequency: USB NONE 2400.664       0   0  0
+        Mode:      B     0 - 100
+        Mode:      BS  100 - 130
+        Mode:      Sb  130 - 132
+        Mode:      St  132 - 155
+        Mode:      Sb  155 - 160
+        Mode:      BS  160 - 180
+        Mode:      B   180 - 256
+
+        Satellite: PACSAT
+        Object:    20439
+        Alias:     AO-16
+        Frequency: USB FM 437.0513 145.900 0 0
+        Frequency: USB FM 437.0513 145.920 0 0
+        Frequency: USB FM 437.0513 145.940 0 0
+        Frequency: USB FM 437.0513 145.960 0 0
+
+        Satellite: Mir
+        Object:    16609
+        Frequency: FM FM   145.550 145.550 0 0
+        Frequency: FM NONE 143.625       0 0 0
+        Mode:      FM 0 - 256
+
+        Satellite: STS-65
+        Object:    23173
+        Alias:     Columbia
+        Launch:    08Jul94  16:43:00 UTC
+        Frequency: FM FM 145.550 144.490 0 0
+        Frequency: FM FM 145.550 144.910 0 0
+        Frequency: FM FM 145.550 144.930 0 0
+        Frequency: FM FM 145.550 144.950 0 0
+        Frequency: FM FM 145.550 144.970 0 0
+        Frequency: FM FM 145.550 144.990 0 0
+        Mode:      FM 0 - 256
+
+        Satellite: Meteor 3-4
+        Object:    21232
+        Frequency: FM NONE 137.300 0 0 0
+        Mode:      FM 0 - 256
+
+    Note that if a satellite is listed in 'modes.dat' its name in the line 
+    'Satellite:' has to exactly match the name in the NORAD TLE data file with 
+    lower and upper case letters. For example, AO-10 has to be entered as 
+    OSCAR 10 and AO-16 as PACSAT. An alias name with a maximum length of 15 
+    characters can be specified in the 'Alias:' line. This name will be used 
+    in addition to the NORAD satellite name for the live display and the 
+    prediction tables. The specification of the object number is needed to 
+    ensure the proper assignment of parameters, in case there are several 
+    matches for the satellite name, like 'Mir' and 'MIR DEB'. On the other 
+    hand, if for instance the satellite name is specified as 'GPS' and NO 
+    object number is specified, then entries like the frequencies will be used 
+    for all satellites whose names in this case begin with 'GPS'. In other 
+    words, for a group of identical satellites, like 'GPS' or 'Glonass', only 
+    one entry in 'modes.dat' is necessary. 
+
+    If a launch date is specified the live display will show the mission 
+    elapsed time (MET). The prediction tables will show the MET for the space 
+    shuttle only. 
+
+    The entries in the 'Frequency:' line are the transmission mode for the 
+    downlink and uplink (in this order!) the downlink and uplink frequency in 
+    MHz (in this order!), the transponder bandwidth in kHz, and the sign of 
+    the transponder's frequency translation (-1 for inverting, and 1 for 
+    non-inverting). If the satellite has no transponder, but a single 
+    frequency repeater or packet robot or the like, the bandwidth and sign 
+    have to be set to zero. If the satellite has a downlink channel or beacon 
+    only, the uplink mode has to be set to 'NONE' and the uplink frequency has 
+    to be set to zero. For details see the examples given above. 
+
+    If the satellite to be tracked is not listed in 'modes.dat', or if no 
+    downlink frequency is specified, the program will use a default value of 
+    146.000 MHz and 'FM' as the downlink mode. 
+
+    REMARK: The space shuttle frequencies specified in 'modes.dat' are for 
+    users in the United States. Some of these frequencies are different for 
+    other parts of the world and may have to be changed, depending upon the 
+    location of the ground station. 
+
+
+    Example of 'satlist_am.dat':
+
+        16609
+        OSCAR 10
+        AO-13
+        PACSAT
+        WO-18
+        LO-19
+        DO-17
+        FO-20
+        AO-21
+        UO-22
+        KO-23
+        KO-25
+        IO-26
+        AO-27
+        PO-28
+        RS-10/11
+        RS-12/13
+        RS-15
+
+    Note that the satellites' names need to match those in the TLE data file. 
+    If there are ambiguous entries in the TLE file, like 'Mir' and 'MIR DEB', 
+    the object number needs to be specified instead of the name, like '16609' 
+    for Mir. In case of the space shuttle the correct specification of the 
+    object number is rather important since there are pre-launch TLE sets with 
+    a preliminary object number. For instance, in the case of STS-64, the 
+    object numbers used were '64' or '99964' for the pre-launch element sets, 
+    and '23251' for the post-launch element sets. It is VERY IMPORTANT that 
+    the object number matches in all resource files. In case of STS-64 these 
+    are the three files 'sts-64.dat', 'satlist_am.dat' (and for that matter 
+    all other files of the type 'satlist_nnn.dat' that contain STS-64's object 
+    number) and 'modes.dat'. After launch, when the new post-launch object 
+    number is issued, all these resource files need to be edited 
+    correspondingly. 
+
+
+PROGRAM START
+
+    To start the program type: 
+
+         sattrack [-b] [-d] [-fn] [-g] [-m] [-q] [-t] [-v]
+
+    Remark: It is possible to combine several options. However, it is NOT 
+    POSSIBLE to combine them in one argument, like 'sattrack -vtq'. The 
+    command line options are as follows:
+
+    -b   enables the BATCH mode for orbit predictions. All parameters have to 
+         be entered on the command line ( for example see shell script 
+         'passes' in the run directory). This option cannot be used in 
+         combination with any other option.
+
+    -d   enables the DEBUG mode. In this case various intermediate results 
+         and other debugging information will be displayed.
+
+    -fn  allows to specify an alternate defaults data FILE (defaultsn.dat)
+         (if unspecified the program will use 'defaults0.dat')
+
+    -g   starts up the graphics window immediately (if possible) 
+
+    -m   performs all calculations with the simplified MEAN Keplerian 
+         propagation model for both low-earth and deep space objects. 
+         As long as the SDP4 model is not installed yet, the simplified model 
+         will be automatically used for all deep space objects.
+
+    -q   starts up SatTrack QUICKLY into the either the single satellite or the 
+         multisat live display, depending upon the setting of the default 
+         parameter 'Live display type' in the resource file 'defaultsn.dat', 
+         with all other parameters as specified in that file --- no questions 
+         asked. 
+
+    -t   allows specification of another TIME zone instead of the default time 
+         zone as listed in 'defaultsn.dat'. This is useful to quickly run off a 
+         prediction for a site anywhere in the world without having to change 
+         the default data file. 
+
+    -v   enables the VERBOSE mode. All default parameters, ground station data 
+         and detailed orbital elements will be displayed at program start. 
+
+    For all keyboard entries the default parameters are shown in <>. Hitting 
+    <CR> each time will use these. Otherwise, both lower and upper case 
+    letters will be accepted. When entering the site and the satellite names a 
+    fraction of the name will be sufficient, as long as they are unambiguous. 
+    Otherwise all ambiguities will be displayed. For the ground station the 
+    Maidenhead locator will be shown. Also, instead of a ground station name, 
+    a Maidenhead locator can be entered. 
+
+    It should be noted here that SatTrack reads the entire file 'tlex.dat' with 
+    all available two-line element sets at program start, even if another file 
+    is specified at the 'Two line elements' entry line. If a file other than 
+    'tlex.dat' is specified at this entry, data ONLY FOR THOSE SATELLITES THAT 
+    HAVE NOT BEEN READ YET from 'tlex.dat' will be added to the in-memory data 
+    base. This is an important point! If for example the user prepares a 
+    TLE data file, say 'sts-65.dat', from a fresh set of NASA TLE sets for 
+    STS-65, and that file name is then entered, one needs to make sure that 
+    there are no older data for STS-65 in the data file 'tle.dat' which is 
+    the one FTP'ed from the US Space Command (formerly NORAD). Instead of 
+    the new TLE set SatTrack would already have read a TLE set for STS-65 
+    in this case and would therefore ignore the one from the input file 
+    'sts-65.dat'. To prevent this circumstance from happening, the best to 
+    do is to make sure that 'sts-65.dat' is included in the file 'tlelist.dat' 
+    which is read by 'tlexgen' to create the concatenated TLE sets 'tlex.dat'. 
+    Make sure that in this particular case 'sts-65.dat' is LISTED BEFORE 
+    'tle.dat'. If you are not sure what element set is being used, invoke 
+    SatTrack with the verbose option, and it will show all data. If SatTrack 
+    is not invoked with the verbose option, it will still show how old the 
+    TLE set is. In any case, if a new data file 'tlex.dat' was generated, 
+    SatTrack has to be quit and restarted again in order to read this file 
+    again. 
+
+    The following chapters describe the two different live displays and the 
+    two different orbit prediction features. 
+
+
+MAIN MENU 
+
+    Upon program start the user is asked to enter the time zone (only if 
+    SatTrack is invoked with the '-t' option), the ground station name, or 
+    alternatively the Maidenhead locator of the ground station, the name or 
+    object number of a preferred satellite, the name of the file with the 
+    TLE sets, and in case the preferred satellite is one of the space shuttles, 
+    the type of the TLE set (NASA or NORAD). Then the main menu is presented 
+    with the following options:
+
+        Live Display     : D
+        Orbit Prediction : P
+        Restart          : R
+        Quit             : Q
+        State Vector Test: T  (not shown as a menu option)
+
+    The state vector test allows verification of the calculations with the 
+    SGP4 and SDP4 models against the numerical examples given in the 
+    Spacetrack Report (see source code of 'sattest.c' for exact reference). 
+    The TLE sets needed for these tests are in 'SatTrack/tle/test.dat'. For 
+    testing the SGP4 model specify the satellite name, i.e. the object number 
+    as '40' and the TLE file name as 'test.dat'. For testing the SDP4 model, 
+    the object number needs to be specified as '41' and the TLE file again is 
+    'test.dat' (once the SDP4 model is installed). The results of this test 
+    are described below in the PRECISION section. 
+
+
+LIVE DISPLAY FOR SINGLE AND MULTIPLE SATELLITES
+
+    In the live display mode the user can choose between a simultaneous 
+    display for a number of satellites with a shorter list of tracking 
+    parameters, i.e. one line per satellite, or a single satellite with the 
+    full set of tracking parameters, i.e. the full screen. In either case 
+    both the antenna and the radio equipment can be controlled. In the multiple 
+    satellite display the cursor ">" can be moved to choose the satellite 
+    being tracked. This satellite is then called the SELECTED one. The default 
+    cursor position is on the line of the satellite that was chosen at the main 
+    menu. If that satellite is not in the specified group list it will be added 
+    to it. The keyboard commands for the multisat live display are also allowed 
+    in the single satellite display, although those that change the cursor 
+    position will not be effective. The allowed single key commands are: 
+
+    t: toggles TRACKING "On" and "Off"
+    T: toggles TRACKING between "Auto" and "Off"
+
+    a: moves cursor AUTOMATICALLY to satellite with the next AOS time 
+       (same with "A")
+
+    d: moves cursor DOWN one line
+    D: moves cursor DOWN 10 lines (if less than 10 lines, to bottom of list)
+
+    u: moves cursor UP one line
+    U: moves cursor UP 10 lines (if less than 10 lines, to top of list)
+
+    j: moves one page down (if satellite list is longer than one page)
+    J: moves to bottom page
+    
+    k: moves one page up (if satellite list is longer than one page)
+    K: moves to top page
+
+    l: adds or deletes a satellite to/from autotrack LIST (marked "-" or ">")
+    L: adds all unmarked and deletes all marked satellites to/from the 
+       autotrack LIST
+
+    n: moves cursor to a new satellite by NAME (or fraction thereof) 
+       (same with "N")
+
+    o: moves cursor to a new satellite by OBJECT number (same with "O")
+
+    s: changes instantaneously from multisat to SINGLE satellite live display 
+       (same with "S") (also refreshes single satellite display)
+
+    m: changes instantaneously from single satellite to MULTISAT live display 
+       (same with "M") (also refreshes multisat live display)
+
+    r: REFRESHES either live display screen (same with "R")
+
+    g: turns GRAPHICS display on and off (same with "G")
+
+    e: adds an EXTRA (secondary) ground station in graphics window 
+       (up to 9 total) (entries can be made while being in multi satellite 
+       display only)
+    E: deletes all EXTRA (secondary) ground stations in graphics window
+       (only while being in multi satellite display)
+
+    x: cycles to next higher XPONDER (transponder/repeater/beacon) frequency, 
+       as specified in 'modes.dat'
+    X: cycles to next lower XPONDER (transponder/repeater/beacon) frequency, 
+       as specified in 'modes.dat'
+
+    c: CLEARS frequency offset that was entered manually, and resets frequency 
+       step to 100 Hz (same with "C")
+
+    >: changes frequency step from 10 to 1 kHz or from 1 kHz to 100 Hz or from 
+       100 Hz to 10 Hz
+
+    <: changes frequency step from 1 to 10 kHz or from 100 Hz to 1 kHz or from 
+       10 Hz to 100 Hz
+
+    +: increases downlink frequency by the programmed frequency step 
+       (only if transponder bandwidth is specified as non-zero) (same with "=")
+
+    -: decreases downlink frequency by the programmed frequency step 
+       (only if transponder bandwidth is specified as non-zero) (same with "_")
+
+    0: (zero) enables tracking of the active satellite (only in single 
+       satellite live display, turns off tracking of the Sun or the Moon)
+
+    1: enables tracking of the Sun (only in single satellite live display)
+
+    2: enables tracking of the Moon (only in single satellite live display)
+
+    h: HELP; displays all single character commands (same with "H" and "?")
+
+    q: QUIT SatTrack (back to UNIX prompt) (same with "Q")
+
+    CR, LF, ESC: interrupt either live display (go back to main menu)
+
+
+    Depending upon the type of terminal used, the multisat live display can  
+    show the orbit prediction model used (the 'M' column), and the ground track 
+    location. This is the case if the terminal is an X Window terminal 
+    (assuming that the window in which the program is started has been set to 
+    a width of 132 characters). Otherwise this part of the live display is 
+    omitted. This feature depends upon the setting of the default parameter 
+    'X display type' in the 'defaultsn.dat' file. If the entry chosen is for 
+    example 'xterm' and the user logs in on an X Window terminal, the program 
+    assumes that the window is set to a size of 132x64 characters. The default 
+    length (i.e. number of lines) can also be set in 'defaultsn.dat'. 
+
+    Satellites are shown in the order of the time of AOS if they are below the 
+    horizon, or in reverse order of the time of LOS if they are above the 
+    horizon. An asterisk next to the maximum elevation (MEL) of the next pass 
+    indicates a 'good' pass, i.e. one with an elevation of more than 40 deg. 
+    The symbol to the right of the instantaneous satellite elevation indicates, 
+    if the satellite is currently ascending or descending. The letter in the 
+    'M' column shows the type of propagation model used for that satellite. The 
+    three different models used are the SGP4 model ('G'), the SDP4 model ('D'), 
+    or the simplified TLE Mean model ('M'). The latter model is automatically 
+    used for all satellites when SatTrack is invoked with the '-m' flag. 
+    Otherwise SatTrack chooses between the SGP4 and SDP4 model, depending upon 
+    the satellite's orbital period. However, in the present release the SDP4 
+    model is not yet installed and SatTrack always uses the TLE Mean model for 
+    deep space objects. 
+
+    REMARK: If a satellite is above the horizon already when SatTrack is 
+    started, the displayed AOS time is the present time. If the satellite is 
+    beyond the maximum elevation already at that time, then the maximum 
+    elevation shown is the one it has at that time. Since SatTrack does not 
+    calculate fractions of a pass that happened in the past, this is what the 
+    display means in these cases. This is also true for the prediction tables 
+    and is considered a "feature" rather than a "bug".
+
+    When a satellite is above the horizon, the entire line is displayed in 
+    reverse video. When a satellite is below the horizon, but above -3 degrees 
+    in elevation, only the satellite's name is shown in reverse. That will 
+    also be the case for a satellite that gets close to the horizon, but 
+    doesn't quite make it in the current orbit. This feature is useful since 
+    sometimes one can hear a satellite even when it is below the horizon, due 
+    to refraction in the atmosphere or ionosphere. The display line will be 
+    blinking when a satellite is within 1 minute of LOS or AOS.
+
+    The multisat live display can be very slow if the computer is not of a 
+    SPARCstation quality and if the number of satellites chosen is large. In 
+    this case the computing power will not be sufficient to ensure timely 
+    control of the antenna or the radio. SatTrack has to find the circumstances 
+    of the next pass for each satellite before the first display update occurs. 
+
+    In the live display mode for single satellites the program cycles through 
+    a full computation every 5 or 10 seconds and sleeps in between. This time 
+    can be changed, of course, by setting the variables FASTUPDATEINT, 
+    MEDUPDATEINT and SLOWUPDATEINT in 'sattrack.h'. Whenever the environment 
+    variable 'TERM' corresponds to the default parameter 'X display type' in 
+    'defaultsn.dat', the fast update is chosen. This allows the user to login 
+    on a fast console and have the display updated with the fast update time, 
+    whereas on a 9600 Bd type terminal the slow update time is used for the 
+    multisat display and the medium one still for the single satellite display. 
+
+    In a strict sense, the live displays are not real-time displays since the 
+    program runs under UNIX (this will most likely change in the future). For 
+    most applications, however, this is not a disadvantage. For near real-time 
+    performance it is important that the UNIX system clock is set correctly, 
+    though. Examples of the screen layouts for both live displays are shown 
+    below. 
+
+    The singlesat live display is rather self-explanatory. The top center of 
+    the display shows the date and time, in the specified time zone. 
+
+    In case of the space shuttle, the computation of the orbit number is 
+    different from all other satellites. For the shuttle, the orbit 
+    number increments each time it crosses the ascending node. The shuttle is 
+    launched into orbit #1. If the space shuttle is tracked, the source of the 
+    element set, i.e. the element set type has to be specified, since there is 
+    a difference in the convention for definition of the reference orbit 
+    between NASA and NORAD. For satellites other than the space shuttle the 
+    NORAD convention is used and the orbit number increments when the satellite 
+    passes through the perigee. Note that in case of the space shuttle, the 
+    results of the live calculations are displayed only if the current time is 
+    past the epoch time of the element set used. If the current time is between 
+    the launch time and the epoch time of the element set, the display will 
+    show 'Ascending to Orbit'. 
+
+    The visibility display to the right of the percentage of the current orbit 
+    indicates if the satellite is in the day ('D') or night ('N') part of its 
+    orbit. If the satellite is above the horizon and in the day part of its 
+    orbit and at the same time the Sun is below the nautical twilight limit 
+    (-6 deg elevation), then the display shows 'V' (visible), since the 
+    satellite will be visible "to the naked eye", at least for the larger 
+    satellites. However, the apparent brightness depends on the relative 
+    angles between the Sun, the satellite and the ground station, and on the 
+    shape, size, attitude and distance (range) of the satellite. 
+
+    The eclipse and visibility conditions are also indicated by 'D', 'N' or 
+    'V' in the lower right corner of the display for the circumstances of the 
+    next pass, i.e. acquisition of signal (AOS), maximum elevation (MEL) and 
+    loss of signal (LOS) of the satellite. 
+
+    Azimuth and elevation angles of the Sun and the Moon are shown for the 
+    location of the ground station. If tracking of the Sun or the Moon is 
+    enabled the azimuth and altitude displays reserved for the satellite then 
+    also show the bearing of the Sun or the Moon, respectively. All other 
+    entries in the single satellite live display still refer to the satellite 
+    being tracked. The elevation angles for the Sun, the Moon, and the 
+    satellite are corrected for refraction in the Earth's atmosphere using the 
+    atmospheric parameters in 'defaultsn.dat'. This facilitates observations of 
+    satellites with an optical telescope. 
+
+    The Doppler shift is calculated for both uplink and downlink frequencies,  
+    as specified in 'modes.dat'. The displayed frequencies are the ones 
+    corrected for the Doppler shift. If a transponder bandwidth is specified 
+    for a certain downlink and uplink frequency pair, the downlink frequency 
+    can be stepped up or down in certain steps within the bandwidth interval, 
+    using the "+" and "-" keys. The default step width is 100 Hz (as defined 
+    by FREQSTEP in 'sattrack.h'), but it can be changed to 10 kHz, 1 kHz or 
+    10 Hz with the "<" and ">" keys. The uplink frequency is altered 
+    automatically. The frequency offset and step width are reset to their 
+    default values with the "c" key. The "x" key switches to the next frequency 
+    pair. These keys are active only in the single satellite live display. If 
+    the satellite cursor is moved in the multisat display, the offset and step 
+    width are reset as well, and the frequency selected is the first one listed 
+    in 'modes.dat' for that particular satellite. 
+
+    REMARK: The above described manual tuning is foreseen only for satellites 
+    with transponders. However, if the user wishes to also be able to slightly 
+    tune the frequencies for single-frequency downlink channels to make some 
+    corrections to imperfect Doppler compensations, one can make some changes 
+    to the entries in 'modes.dat'. As an example, PACSAT is shown below: 
+
+        Satellite: PACSAT
+        Object:    20439
+        Alias:     AO-16
+        Frequency: USB FM 437.0513 145.900 2 0
+        Frequency: USB FM 437.0513 145.920 2 0
+        Frequency: USB FM 437.0513 145.940 2 0
+        Frequency: USB FM 437.0513 145.960 2 0
+
+    The last but one column has been modified for this purpose. The '2' 
+    indicates a tuning bandwidth up to 2 kHz (i.e. +/- 1 kHz from the center 
+    frequency). This will affect only the downlink frequency. 
+
+    The free-space path loss can be used for link quality calculations. If the 
+    attitude of the satellite is specified in 'modes.dat', the display shows 
+    the squint or off-pointing angle, and otherwise the Sun angle, i.e. the 
+    angle between the ground station, the satellite and the Sun. The latter 
+    angle is particularly important for visual observations of satellites.
+
+    The satellite mode depends on the phase of the satellite (the mean anomaly 
+    in units of 0-256), as specified in 'modes.dat'. If no satellite mode is 
+    specified, the display shows blank. 
+
+    The letters to the right of the elevation and latitude display indicate 
+    if the satellite is on the ascending ('/') or descending ('\') part 
+    of its pass or orbit, respectively. 
+
+    In case of the space shuttle, distances are displayed in nautical miles 
+    (nm), and otherwise they are in kilometers. Accordingly, velocities are 
+    in nm/s or km/s.  
+
+    The state vector of the satellite (position and velocity in Cartesian 
+    coordinates) is displayed below the bearing and ground track information. 
+
+    The circumstances of the next pass are calculated and displayed in the 
+    lower part of the screen. If the next pass has a maximum elevation of more 
+    than 40 deg the maximum elevation and range at maximum elevation are shown 
+    in reverse video, since this would be considered a "good pass". The 
+    countdown time represents the time until next AOS or next LOS. One minute 
+    before AOS and during a satellite pass the countdown time is displayed in 
+    reverse video. 
+
+    Rise and set times are not calculated for geostationary satellites. 
+    However, one needs to make some kind of distinction between geosynchronous 
+    and geostationary satellites. SatTrack uses two parameters for this 
+    purpose, a limit on the mean motion and a limit on the inclination. If the 
+    mean motion is 1.0 +- 0.05 rev/day the satellite is considered 
+    geosynchronous, and if in addition the inclination is less than 10 degrees, 
+    it is also considered geostationary. Both parameters, GEOSYNCMOT and 
+    GEOSTATINC, are defined in the include file 'sattrack.h'. They can be 
+    changed before recompilation, if necessary. There are quite a few 
+    satellites with inclinations in the range below 10 degrees. If for instance 
+    the ground station is in North America, some of these will never set. On 
+    the other hand, if the ground station is at the South Pole, they will both 
+    rise and set. Specifying the inclination limit is therefore important for 
+    the algorithm that searches for the circumstances of the next pass. The 
+    time limits for rise and set time searches are specified in 'sattrack.h' 
+    by the parameters MAXDAYS and MAXDAYSSYNC for non-geosynchronous and 
+    geosynchronous satellites, respectively. 
+
+    The mission elapsed time (MET) will be displayed if the launch date and 
+    time are specified in 'modes.dat'. 
+
+    The ground track location indicates the location of the sub-satellite 
+    point with respect to the nearest location in the city data base 
+    ('cities.dat'). 
+
+    An alarm (beep) is generated for each screen update within one minute of 
+    either AOS or LOS. When the satellite being tracked is above the horizon 
+    several numbers on the screen show up in reverse video (the header line, 
+    azimuth, elevation, range, Doppler shift and path loss). 
+
+    Once the program is running in the live display mode, the screen can be 
+    frozen and unfrozen with ^S and ^Q, respectively. 
+
+
+TRACKING CONTROL
+
+    The tracking feature can be used in both live displays. Tracking is 
+    automatically turned off when the cursor is moved from one satellite to 
+    another in the multisat display, but stays active when switching back and 
+    forth between the two live displays. When the tracking is enabled the 
+    satellite orbit calculations will be performed for a time ahead of the 
+    present. The time offset and also the interval at which the calculations 
+    are repeated are specified by the variables TRACKINT and TRACKTIMEAHED 
+    in 'sattrack.h'. Default values are 1 and 10 seconds, respectively. If the 
+    computer that performs both the calculations and the live display does 
+    also the controlling of the ground station hardware, the parameter 
+    TRACKTIMEAHEAD needs to be set to zero. Even though the live display may 
+    only be updated every 5, 10 or 15 seconds, depending upon the setting of 
+    the variables FASTUPDATEINT, MEDUPDATEINT and SLOWUPDATEINT in 
+    'sattrack.h', the tracking calculations and ground station control 
+    commands are still performed every TRACKINT seconds. 
+
+    If the tracking calculations and control of ground station equipment are 
+    performed on different machines, the calculations may have to be 
+    accomplished several seconds ahead of time to allow for transfer of the 
+    tracking information to the second computer and therefore timely antenna 
+    and radio tracking. This is the case with the Infrared Spatial 
+    Interferometer (ISI), a two-telescope infrared telescope system, on which 
+    this software was tried out. This system has its own antenna/telescope 
+    control computers with the VxWorks real-time operating system (Wind River 
+    Systems) and receives the tracking information from a Sun workstation once 
+    per second and 10 seconds ahead of time via remote procedure calls (RPC) 
+    on the Ethernet. The particular interface code for these RPCs can be found 
+    in 'sattele.c'. If 'ISI' is undefined in the Makefile, the RPC interface 
+    functions will be inactive and the source code can be compiled on other 
+    machines that do not have the interface code for the ISI system. 
+
+    In the autotrack mode, the program will automatically switch between 
+    those satellites in the multisat live display that have been marked to 
+    be in the autotrack list ('>' or '-'). Once the currently tracked 
+    satellite passes below the horizon, the program automatically switches to 
+    the next satellite in the list, i.e. the one with the next set time, or, 
+    if none of the marked satellites is above the horizon, the one with the 
+    nearest rise time. Satellites can be marked or cancelled from the 
+    autotrack list using the 'l' or 'L' commands (see above). The autotrack 
+    mode works only while in the multisat live display. If the user switches 
+    to the single satellite live display while autotracking is enabled, the 
+    program will not switch satellites. 
+
+    The devices to which the antenna and radio interfaces are connected is 
+    specified in 'defaultsn.dat'. One can specify devices like '/dev/ttyp1' 
+    and '/dev/ttyp2', for example, to direct the tracking commands to some 
+    'xterm' windows. To control particular ground station equipment the program 
+    code needs to be adapted by the user (see 'satctrl.c' and 'sattrack.h'). 
+
+    It should be noted that the tracking will not work right if the computer 
+    is overloaded. If, for instance the multisat live display is used with 
+    500 satellites (specify satellite group as 'all'), even a SPARCstation IPC 
+    will not be able to perform the tracking calculations on time. The number 
+    of satellites in the multisat live display should be kept small, i.e. of 
+    the order 20, to insure that the tracking calculations can be performed on 
+    time. 
+
+
+ORBIT PREDICTIONS
+
+    The orbit prediction mode allows the calculation of satellite passes for 
+    a given ground station. The data will be either displayed on the video 
+    terminal or written into a file in the 'pred' directory which can 
+    later be obtained as a hardcopy. The program generates tables in a short 
+    and in a long form. The short form listing consists of one table per day 
+    with one line per pass, indicating the time at AOS, MEL and LOS, the 
+    duration of the pass, the azimuth at AOS, MEL and LOS, the maximum 
+    elevation of the pass, the visibility code for AOS, MEL and LOS, and 
+    number of the orbit in which the satellite is at AOS. Also, for the space 
+    shuttle, if a launch date is specified in 'modes.dat' an additional column 
+    shows the MET at AOS. Passes with a maximum elevation of more than 40 deg 
+    are marked with an asterisk next to the MEL value. 
+
+    The prediction in the long format consists of 11 columns. The first column 
+    is the time in specified fixed increments from line to line. Most of the 
+    table is self-explanatory. The column labeled 'Sun Ang' is the phase angle 
+    of the satellite, i.e. the angle between the ground station, the satellite 
+    and the Sun. Optimum viewing occurs if this angle is smaller than a certain 
+    value, for instance 120 degrees, and if the satellite is in the sunlight 
+    and more than for instance 15 degrees above the horizon, and if the Sun is 
+    below the twilight limit from the viewpoint of the ground station. If all 
+    these conditions are true, an asterisk is printed at the end of the line. 
+    Both the limits for the Sun phase angle, VISPHSLIMIT, and for the 
+    elevation, VISELELIMIT, are specified in 'sattrack.h'. The column labeled 
+    'Loss' is the free-space path loss in dB. The squint or off-pointing angle 
+    ('SquAng') is calculated if the satellite's attitude is specified in 
+    'modes.dat'. The column labeled 'Phs' is the orbital phase of the 
+    satellite, i.e. the mean anomaly running from 0 through 256. The 'Md' 
+    column is the satellite mode, derived from the phase and the entries in 
+    'modes.dat'. This column will be blank if no modes are specified in 
+    'modes.dat'. The last column is the visibility code of the satellite 
+    ('D', 'N' or 'V', see above). 
+
+    A special feature of the orbit prediction in the long format is the 
+    computation of transits of a given satellite in front of the solar disk. 
+    In this case the output format of the prediction table is different. 
+    The symbol '###' at the end of a line in the prediction table indicates if 
+    the satellite is in front of the solar disk, i.e. less than 15 arcmin from 
+    the center of the Sun. 
+
+    An example for prediction tables in the short and long forms, and for 
+    solar transits are given in Figures 5.-7. below. 
+
+    For users that are interested in observations of visible satellite passes 
+    the code can be compiled with the flag '-DVISIBPASSES' (see above and 
+    Makefile). In this case the format of the prediction tables is different. 
+    The columns that important for radio communications are then dropped and 
+    other columns are added. It should be noted that the perigee and apogee 
+    height shown in the line 'Orbit Geometry' have been obtained by subtracting 
+    the EQUATORIAL radius of the Earth. However, the satellite's height is 
+    otherwise calculated as the height above the real Earth, using the geoid 
+    model. Therefore, the user should not be surprised that the real height can 
+    be smaller than the perigee height (by up to 21 km). 
+    
+    The orbit prediction in both short and long form can also be run in the 
+    batch mode. All parameters have to be entered on the command line with 
+    a fixed format. An example for shell scripts that run SatTrack in the 
+    batch mode for a number of satellites are given in 'SatTrack/run' as 
+    'passes' or 'transits', for the prediction of passes over a specified 
+    ground station or transits in front of the Sun, respectively. If SatTrack 
+    is invoked in the batch mode, all other command line options are turned off 
+    automatically. 
+
+    Another shell script, 'passesx', is equivalent to 'passes', except that 
+    it is generated automatically by a program, 'makepassesx'. This program 
+    reads a satlist file and makes a batch mode entry in 'passesx' for all 
+    satellites in that list, so that in turn 'passesx' can be run to predict 
+    passes for a large number of satellites over a given ground station. Except 
+    for the satellite's names, all other command line parameters need to be 
+    specified in 'batch.dat' in 'SatTrack/data'. 
+
+    The default print command for obtaining a hardcopy of the prediction tables 
+    is 'enscript'. If the user wishes to use a different print command, this 
+    can be specified in the variable PRINTCMD in 'sattrack.h'. If, for example, 
+    'lpr' is used, the option PRINTOPT may have to be set to something like 
+    '-Plwa' and the point sizes and font may need to be set to something like 
+    '-1' and 'Courier', respectively. Check the man pages for 'lpr' for proper 
+    usage and invoke SatTrack with the '-v' option to see if the print command 
+    is configured properly (the complete print command will be displayed when 
+    it is invoked). Remember to recompile all code if 'sattrack.h' has been 
+    altered. 
+
+
+PRECISION
+
+    The results from SatTrack, namely the latitude and longitude of the 
+    sub-satellite point and the azimuth and elevation angles of a satellite 
+    were compared with those calculated with QuikTrak, InstantTrack, STSplus 
+    and MacSat. It was found that all programs agree with each other within 
+    a few tens of a degree. The precision obtained depends amongst other 
+    things on the particular model of the Earth used. SatTrack uses a 
+    non-spherical geoid model. Also, the precision depends on the level of 
+    sophistication used for the astronomical coordinate transformations, i.e. 
+    the motion of the Earth within the solar system. Of course, the precision 
+    also depends on the quality of the set of orbital elements for the orbit 
+    simulation and the level at which the periodic variations of the SGP4 and 
+    SDP4 orbital models are taken into account. The NORAD TLE sets are mean 
+    values with periodic variations removed in a particular way. For high 
+    precision tracking, these variations have to be reintroduced by the 
+    tracking program in the same way they were removed, depending upon what 
+    model was used. This current version of SatTrack does reintroduce these 
+    periodic variations only for low-earth objects, i.e. those with an orbital 
+    period of 225 minutes or less. This is accomplished by using the SGP4 
+    propagation model. 
+
+    Using the NORAD state vector test mentioned above, the precision of the 
+    calculations of the SatTrack SGP4 state vectors were compared with those 
+    tabulated in the Spacetrack Report No. 3 (F. R. Hoots and R. L. Roehrich, 
+    December 1980). After a propagation time of 1440 minutes (one day) the 
+    agreement of the X, Y and Z coordinates is 3 m in X, 1 m in Y, and 10 m 
+    in Z direction, which is less than a third the size of the space shuttle. 
+    The velocities agree after one day within 1 cm/s in all three axes. These 
+    discrepancies can arise from either a smallish bug in the C language 
+    implementation of the NORAD code, or from a somewhat different, i.e. more 
+    precise choice of the numerical constants like PI in SatTrack. Remember 
+    that the space shuttle typically travels about 75 m in 1/100 seconds! In 
+    any case are these differences small compared with the precision of the 
+    published Keplerian elements for a particular object, once these are a day 
+    old. 
+
+    By tracking HST, GRO and Mir visually with the ISI telescopes it was found 
+    that the blind pointing accuracy for satellites in low-earth orbit is 
+    usually better than 15 arcmin in azimuth and elevation angles. The TLE 
+    sets used were only a few days old. It is very difficult to achieve an 
+    accuracy better than this, however. It should be noted that the error 
+    arising from the published TLE sets can be much larger. The TLE sets are 
+    updated only if a satellite is more than 5 km away from its predicted 
+    position, mainly in the direction of travel (see explanation by T. S. Kelso 
+    in the file 'SatTrack/doc/info.tle.general'). For a LEO satellite like the 
+    space shuttle, passing overhead at an altitude of 250 km, this error 
+    amounts up to 1.15 deg. This assumes, however, that there are no other 
+    tracking errors involved. If for instance the computer clock is off by one 
+    second and the satellite travels at a speed of 7.5 km/s, another error of 
+    1.7 degrees is introduced. Therefore it is important to set the computer 
+    clock as accurately as possible. Of course, the calculation of the Doppler 
+    correction also relies on the proper time and knowledge of the orbital 
+    elements. 
+
+    For deep space objects, i.e. those with an orbital period longer than 
+    225 minutes, a simpler propagation model, called the 'TLE Mean Model' is 
+    presently used (the SDP4 model is still under construction). However, 
+    the precision of SatTrack should still be high enough to properly aim 
+    antennas with a gain of 30 dBi or less (beam width of 6.5 deg or larger) 
+    at a satellite. The agreement between the TLE Mean Model and the example 
+    of the SDP4 model in the Spacetrack Report is 1.65 deg after one day. 
+    The position of a number of GPS satellites as calculated from SatTrack 
+    was compared with those given by a GPS receiver, and they all agreed 
+    within 1 degree in azimuth and elevation. 
+
+    The precision of the calculation of the positions of the Sun and the Moon
+    were tested on May 10, 1994 with the annular solar eclipse for a ground 
+    station in El Paso, Texas, which was in the center of the shadow path. It 
+    was found that the differential angle between the Sun and the Moon was 
+    smaller than 1.5 arcmin, or 1/20 of the diameter of either object. This 
+    suggests that the absolute precision is about half that value, or 
+    45 arcsec. Furthermore, tracking of the Moon was also checked with an 
+    astronomical telescope, namely one of the 1.65 m telescopes of the Infrared
+    Spatial Interferometer (ISI) at Mt. Wilson Observatory. It was found that 
+    the precision again is of the order 45 arcsec. 
+
+
+AUXILIARY PROGRAMS
+
+    Four of the following seven programs are not used with SatTrack, but are 
+    rather useful for other purposes. These are 'fixchecksum', 'makeamsat', 
+    'maketles', and 'xdemo'. The other four programs are used with SatTrack 
+    to create various input files and shell scripts, and to set the system 
+    clock. 
+
+    fixchecksum    generates two-line element sets with the old NORAD checksum 
+                   convention needed with InstantTrack V1.0. The input file 
+                   is for example 'tle.dat' and the corresponding output file 
+                   is 'tle.chk', also created in 'SatTrack/tle'.
+
+    makeamsat      generates the data file 'amsat.dat' in 'SatTrack/data' with 
+                   orbital elements in the AMSAT format from a data file with 
+                   orbital elements in the NORAD two-line format.
+
+    makepassesx [group]
+                   generates the C shell script 'passesx' that can then be 
+                   used in turn to predict passes for all satellites listed in 
+                   the file 'satlist_group.dat', where 'group' is the specified 
+                   satellite group. Command line parameters for the SatTrack 
+                   batch mode are read from 'batch.dat'. If you want to keep 
+                   your machine busy for a while, invoke 'makepassesx all' 
+                   and in turn 'passesx'. This will run the orbit prediction 
+                   for something like 500 satellites, or however many entries 
+                   there are in 'tlex.dat'. 
+
+    maketles [-v]  generates a data file 'tles.dat' with a selected number of 
+                   TLE sets from 'tle.dat'. The names of the satellites to be 
+                   selected are read from 'satlist_nnn.dat', where 'nnn' needs 
+                   to be one of the satellite groups for which a satlist file 
+                   exists (e.g. 'am', 'com', 'glo', 'gps', 'sci', 'wx', 'all' 
+                   or anything supplied by the user).  
+
+    maketlex [-v]  concatenates several files with two-line Keplerian element 
+                   sets into one file, 'tlex.dat'. Duplicate entries are 
+                   filtered out, using the object numbers as a the designator 
+                   rather than the satellite names. The TLE input files and the 
+                   order in which they are processed are specified in 
+                   'SatTrack/data' in the file 'tlelist.dat'. This program also 
+                   produces two other output files, namely 'satlist_all.dat' 
+                   with the object numbers of all satellites in 'tlex.dat', and 
+                   'index.dat' which serves as a reference between object 
+                   numbers and satellite names. The latter file is not used by 
+                   any program, but is rather meant to be a user friendly 
+                   look-up table. 
+                   MAKETLEX HAS TO BE RUN WHENEVER ANY OF THE TLE FILES HAVE 
+                   BEEN UPDATED OR EDITED.
+
+    satfilter [group]  
+                   creates a file of the type 'satlist_nnn.dat' with object 
+                   numbers of those satellites that have inclinations and 
+                   orbital periods within a certain range. Three default 
+                   arguments 'group' are possible: 'leoe' for LEO satellites 
+                   with an inclination below 35 degrees, 'leom' for satellites 
+                   with inclinations between 35 and 65 degrees, and 'leop' for 
+                   satellites with inclinations above 65 degrees. The 
+                   corresponding output files are 'satlist_leoe.dat', 
+                   'satlist_leom.dat' and 'satlist_leop.dat'. If no argument 
+                   is specified, the user will be asked to enter the range 
+                   of inclination and orbital period, as well as the name 
+                   of the satlist file extension ('nnn'). 
+
+    xdemo [-v]     is a demo program to show the features for the X11 style 
+                   graphics display in SatTrack V3.1 (see below).
+
+
+    The following table shows how these programs and shell scripts use certain 
+    input files and what output files are created and how these will be used in 
+    turn. Only the principal input and output files are shown here in order to 
+    not confuse the issue. The symbol "->" means "is read by" or "writes", and 
+    ">>" means "invokes". The symbol "*" denotes the executables. 
+
+
+    ----------------------------------------------------------------------------
+     gettle* -> tle.dat
+     gettle* >>                maketlex*   -> tlex.dat          -> sattrack*
+
+     getsts* -> sts-nn.dat
+     getsts* >>                maketlex*   -> tlex.dat          -> sattrack*
+
+                tlelist.dat -> maketlex*    -> tlex.dat         -> sattrack*
+                tlex.dat    -> maketles*    -> tles.dat
+                tles.dat    -> makeamsat*   -> amsat.dat
+                tlex.dat    -> satfilter*   -> satlist_nnnn.dat -> sattrack*
+                tlex.dat    -> fixchecksum* -> tlex.chk
+
+                batch.dat   -> makepassesx* -> passesx*         >> sattrack* -b
+
+                                               passes*          >> sattrack* -b
+                                               transits*        >> sattrack* -b
+    ----------------------------------------------------------------------------
+
+
+X WINDOW GRAPHICS
+
+    The present distribution of SatTrack contains an X11 demo program called 
+    'xdemo' that shows the typical world map and a number of features like the 
+    ground track, circle of visibility of the satellite and the ground station, 
+    the terminator and some surprises. The spacecraft lighting conditions are 
+    toggled in this demo version with every display refresh. 
+
+    There are eight world maps supplied with this distribution, four in the 
+    'line' format, and four in the 'fill' format. In the 'line' format, the 
+    continents and other land areas are outLINED", whereas in the 'fill' format 
+    they are FILLED. The map sizes are as follows:
+
+        world_lines_0.xbm        612 x 372 pixels      360 x 180 degrees
+        world_lines_1.xbm        612 x 432 pixels      360 x 180 degrees
+        world_lines_2.xbm        700 x 490 pixels      360 x 180 degrees
+        world_lines_3.xbm        860 x 430 pixels      360 x 180 degrees
+
+        world_fill_0.xbm         500 x 250 pixels      360 x 180 degrees
+        world_fill_1.xbm         600 x 300 pixels      360 x 180 degrees
+        world_fill_2.xbm         700 x 350 pixels      360 x 180 degrees
+        world_fill_3.xbm         860 x 430 pixels      360 x 180 degrees
+
+    All maps are in cylindrical projection. The color scheme for the 'line' 
+    maps is different from the 'fill' maps. The user can choose a certain map 
+    type and map size, depending upon personal taste, size of the screen, and 
+    available computer memory and bandwidth, by copying one of the above eight
+    X11 bitmap files in the 'src/include' directory to 'world.xbm'. The code 
+    needs then to be recompiled. 
+
+    The demo program requires about 1 MB memory at run time and was used to 
+    develop all the tools and functions needed for the implementation into 
+    SatTrack V3.0. It would be good to know if for instance the sizes of the 
+    graphics windows fit conveniently on the screen of a Linux laptop computer. 
+    It also would be interesting to know if the required computing bandwidth 
+    and speed are adequate on i486 machines, and if the chosen colors are 
+    acceptable. Any additional ideas and thoughts would be appreciated. For the 
+    compilation of 'xdemo' the user may have to change the variable 'X11' in 
+    the Makefile that defines the directory for the X11 include files. It 
+    should be noted that for this graphics application only basic X11 functions 
+    and X11 Toolkit functions were used, but not the Motif widget set, in order 
+    to make the program more portable. 
+
+    The graphics window in SatTrack shows the same features as the demo 
+    program, except that it is of course tied to the live calculations. The 
+    graphics window is turned on and off with the 'g' option from the keyboard. 
+    It is turned on automatically if SatTrack is invoked with the '-g' option. 
+    The user has the same choice for a particular type and size of the world 
+    map as in the demo program. The selected and marked satellites are shown in 
+    light blue, whereas the unmarked ones are in yellow. The brightness of the 
+    satellite markers reflects the present lighting conditions. The circle of 
+    visibility (foot print) around a selected or marked satellite is shown in 
+    white. The ground track is pre-calculated for three orbits for the selected 
+    satellite only and is shown in light blue. The information in the header 
+    and footer lines also correspond to the selected satellite. 
+
+    The ground station and its local circle of visibility are shown in red. 
+    This "circle" always refers to the selected satellite and its instantaneous 
+    height above ground, and therefore changes in size for satellites on 
+    elliptical orbits. If a ground station ID is provided in 'cities.dat' 
+    (like 'DGS' for Diego Garcia) that ID is shown near the ground station 
+    marker. The ground station ID must be included in round brackets and must 
+    NOT be the last part of the ground station name. The latter condition is 
+    important because the last part of the name is reserved for the nation it 
+    belongs to, and is also enclosed in round brackets if the location is an 
+    overseas territory. The ground station ID would typically be a radio call 
+    sign, or a three-letter code for the nearest airport, or some other 
+    abbreviation. Valid examples are: 
+
+        `Cologne (DL5KR), Germany`,50.943,-6.948,50
+        `Diego Garcia (DGS) (UK)`,-7.33,-72.4,0
+        `Edwards (EAFB), CA, USA`,34.94,117.86,200
+        `Merritt Island (MIL), FL, USA`,28.608,80.604,15
+
+    If no ground station ID is specified, the display shows the first part of 
+    the ground station location (up to the first comma). In addition to the 
+    primary ground station up to nine more secondary ground stations can be 
+    added in the graphics display (see above). They can be entered either by 
+    their name or by their Maidenhead locator, in case their name is not in 
+    the city data base. The secondary ground stations are also shown in red 
+    with their local circle of visibility for the selected satellite and with 
+    a smaller square. If a ground station ID is specified in 'cities.dat', it 
+    will be shown next to the mark on the screen. Otherwise, the Maidenhead 
+    locator will be shown. Yet another smaller red square marks the location 
+    of the nearest city or ground station with respect to the sub-satellite 
+    point. The Sun is marked as a yellow "*" and the terminator is shown as a 
+    yellow line. Grid lines are spaced 30 degrees in latitude and longitude. 
+
+    For NASA missions that involve communications through the TDRS satellites, 
+    the graphics display shows the zone of exclusion (ZOE) within which there 
+    is no communication through either the eastern or the western satellite. 
+    In order to show these features, the satellite list for the multisat 
+    display has to be set up in a particular way. The file 'satlist_nnnn.dat' 
+    (for example 'satlist_nasa.dat') has to include the two operational TDRS 
+    satellites, for instance 'TDRS 3' and 'TDRS 4', as well as the other 
+    satellites that are to be shown in the display, like '23340' (STS-66), or 
+    even 'HST' or 'GRO', and also '16609' (Mir) for STS-Mir docking missions. 
+    The TDRS satellites should be listed first to prevent that the ZOE lines 
+    are painted on top of the space shuttle icon. All these satellites are 
+    then shown in the multisat display, and the ZOE is valid for the currently 
+    selected satellite and its instantaneous height above the Earth. The ZOE 
+    is the 'medium grey' vertical oblong feature over the Indian Ocean. Another 
+    interesting feature occurs, if one of the TDRS satellites is selected with 
+    the cursor to be the active satellite. A small grey circle then shows the 
+    ZOE of the other TDRS satellite with respect to the first one, if the first 
+    one could move. If a TDRS satellite is marked or selected, the display 
+    shows its foot print rather than its visibility as seen from another 
+    selected satellite.
+
+    If more than one space shuttle is in the multisat list, their mission 
+    numbers are shown next to the space shuttle icon. If a space shuttle is 
+    in the list and it has not been launched yet, it is shown located at 
+    Kennedy Space Center, in launch position (without external tank and SRBs, 
+    though). If this shuttle is selected with the cursor the ground track 
+    represents the first three orbits after launch, or more precisely after 
+    the epoch of the pre-launch element set, which is usually the time of the 
+    beginning of orbit 2. During the time period between launch and start of 
+    the second orbit, the shuttle icon will be placed at the intersection of 
+    the equator and the zero meridian. 
+
+    Last not least, the user might ask why the shuttle in the launch position 
+    is not shown in 'grey' when it is dark in Florida. Well, one has 
+    to imagine that it is the time of the night viewing and the shuttle it lit 
+    up with high power xenon lights (this is also considered a feature, not a 
+    bug!). 
+
+    If the error message 'Bad environment variable DISPLAY' occurs when the 
+    graphics window is turned on, this indicates that DISPLAY is ill defined. 
+    It is not sufficient to specify DISPLAY as ":0.0" because this lead to 
+    program crashes on various systems when the graphics window was turned off 
+    and on repeatedly. The DISPLAY variable has to be set to something like 
+    "host:0.0". 
+
+
+BUGS AND IMPERFECTIONS
+
+    Some minor bugs from the V2.0 release have been fixed. If additional bugs 
+    are discovered after the V3.0 release, those will be fixed in a subsequent 
+    version of SatTrack. SatTrack has been carefully tested on SPARCstations 
+    with SunOS 4.1.3 or Solaris 2.4, and X11R5.
+
+    It was noticed, though, that the graphics window is not safe on a Sun-3 
+    with SunOS 4.1.1 and X11R4, using the Sun C compiler. When the graphics 
+    window is turned off and then on again a second time by typing 'g' on the 
+    keyboard, the program crashes with a segmentation fault and core dump. 
+
+    It seems that when the graphics window is turned off and back on again, 
+    SatTrack uses more memory, each time this is done. This indicates that 
+    the clean-up procedure for destroying the graphics window is not done 
+    perfectly right yet.
+
+    There are some imperfections arising from the fact that SatTrack is not 
+    a pure X Window application. The idea is to keep the main body of SatTrack 
+    general in the sense that it should run on any VT100 type terminal. Two 
+    different keyboard input drivers are presently used, depending upon the 
+    graphics display being turned on or off. If the graphics window is turned 
+    on, the keyboard input driver is a "custom made" one and uses 'BS'. If the 
+    graphics display is turned off, the input driver is 'fgets' and uses 'DEL' 
+    as the delete character. This was done to insure that the graphics display 
+    can be refreshed while the program is waiting for input and the user 
+    at this time exposes the graphics window. Even though this situation is not 
+    ideal, it is not really bothersome either. It will be improved, however, in 
+    a later release. 
+
+    Also, the event handling needs more work to prevent 'flicker' in case 
+    multiple 'exposure' or 'visibility change' events occur.
+
+    It should be mentioned that when the program is running under the X Window 
+    system, with or without the graphics window, SatTrack will be suspended by 
+    the window manager (as are all other programs) while the user is moving or 
+    resizing a window, or more generally, while certain mouse buttons are 
+    depressed. Especially when the tracking is turned on, one should not use 
+    the mouse too often, or at least keep the necessary activities short. 
+    
+    It also should be mentioned that the graphics display has been written in 
+    a rather straight forward way. With every display refresh every single 
+    feature in the map is redrawn, one on top of the other. This is in a 
+    certain way a waste of computing bandwidth, but much easier to program 
+    than keeping track of every single pixel and its present color. The author 
+    figured that during times when a computer is already obsolete by the time 
+    it is purchased, it is easier to not spend too much time on optimizing the 
+    software with respect to bandwidth, because by the time this job would be 
+    accomplished, much faster machines are available already for the same 
+    price. 
+
+    It seems at times to be difficult to install this software on UNIX machines 
+    other than Sun workstations, because some of the libraries have different 
+    names or are bundled differently. There also seem to be various problems 
+    with the compilation on machines with different versions of UNIX. A 
+    substatial effort has been made, with the help of a number of users of 
+    different machines, in order to make the code as easily portable as 
+    possible. 
+
+    The author would appreciate to be made aware of bugs or other imperfections 
+    discovered by any users. In this case, or if you have any suggestions, 
+    please send a note to 'Manfred@SSL.Berkeley.Edu'. 
+
+
+REGISTRATION
+
+    When starting up SatTrack for the first time, you will be asked if you wish
+    to register your copy of SatTrack with the author. In case you would like
+    to register SatTrack and your computer is able to send electronic mail, a
+    message will be sent to the author that contains the version number and
+    (default) license number of SatTrack.
+
+    If you DO NOT wish to register your copy of SatTrack with the author, 
+    since you are using SatTrack privately for non-commercial purposes, you 
+    need to create a file '.sattrack' in your home directory. This will 
+    suppress the 'registration via email' process. However, the author would 
+    appreciate to be able to estimate how many copies of SatTrack are in use 
+    world-wide, in order to feel encouraged to further support and improve the 
+    software and add more features to future releases. 
+
+    IF YOU WISH TO USE SATTRACK OR EVEN PARTS OF IT COMMERCIALLY YOU HAVE TO 
+    OBTAIN A LICENSE FROM THE AUTHOR (see Copyright below). 
+
+    
+ACKNOWLEDGEMENTS
+
+    The author wishes to thank a number of individuals, in particular
+    D. Braun, G. Clark II (N5VMF), N. Clifford, C. Degiacomi,
+    R. Engberg (K0MVL), R. Frohne (KL7NA), J. Johnson (N3NPQ), B. Jones,
+    K. Kudielka (OE1KIB), R. Kupiec (N3MML), E. Lipman, W. Marchant (KC6ROL), 
+    S. Miller (DL6SEU/N7APC), D. Packman, C. Panek (KX7L), J. Perry (KG5RG), 
+    K. Richards, S. Rucinski, U. Watson, S. Wilson, K. Yamada (JR1EDE), 
+    I. Youn (G7III) and PE1CHL for suggestions to improve SatTrack and/or help 
+    with fixing problems of compilation of this software on various machines. 
+    Also many thanks to T. S. Kelso and the JSC/AMSAT SAREX team who make 
+    available the two-line Keplerian element sets. Without these input data 
+    SatTrack would be completely useless.
+
+
+COPYRIGHT
+
+    SatTrack is Copyright (c) 1992, 1993, 1994, 1995 by Manfred Bester. 
+    All Rights Reserved.
+
+    Permission to use, copy, and distribute SatTrack and its documentation in 
+    its entirety for educational, research and non-profit purposes, without 
+    fee, and without a written agreement is hereby granted, provided that the 
+    above copyright notice and the following three paragraphs appear in all 
+    copies. SatTrack may be modified for personal purposes, but modified 
+    versions may NOT be distributed without prior consent of the author. 
+
+    Permission to incorporate this software into commercial products may be 
+    obtained from the author, Dr. Manfred Bester, 1636 Martin Luther King Jr. 
+    Way, Suite L, Berkeley, CA 94709, USA. Note that distributing SatTrack 
+    'bundled' in with ANY product is considered to be a 'commercial purpose'. 
+
+    IN NO EVENT SHALL THE AUTHOR BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, 
+    SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OF 
+    THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF THE AUTHOR HAS BEEN ADVISED 
+    OF THE POSSIBILITY OF SUCH DAMAGE. 
+
+    THE AUTHOR SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT 
+    LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A 
+    PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON AN "AS IS" 
+    BASIS, AND THE AUTHOR HAS NO OBLIGATIONS TO PROVIDE MAINTENANCE, SUPPORT, 
+    UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+
+
+
+(the postscript files are not included in all distributions to save space)
+
+Fig. 1:  Example of several live displays on the X Window screen 
+         (see postscript file 'sattrack_xscreen.ps')
+
+
+Fig. 2:  Example of the single satellite live display
+         (see postscript file 'sattrack_singlesat_disp.ps')
+
+
+Fig. 3:  Example of the multi satellite live display
+         (see postscript file 'sattrack_multisat_disp.ps')
+
+
+Fig. 4:  Example of the X Window graphics display for multiple satellites
+         (see postscript file 'sattrack_graphics.ps')
+
+
+Fig. 5:  Example of a prediction table in short form
+         (see postscript file 'sattrack_short_pred.ps')
+
+
+Fig. 6:  Example of a prediction table in long form
+         (see postscript file 'sattrack_long_pred.ps')
+
+
+Fig. 7:  Example of a prediction table for solar transits
+         (see postscript file 'sattrack_solar_transit.ps')
+
+

@@ -1,0 +1,111 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Static Usage</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_38.html">previous</A>, <A HREF="make_40.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX200"></A>
+<A NAME="IDX201"></A>
+<H3><A NAME="SEC38" HREF="make_toc.html#TOC38">Syntax of Static Pattern Rules</A></H3>
+<P>
+Here is the syntax of a static pattern rule:
+<P>
+<PRE>
+<VAR>targets</VAR> ...: <VAR>target-pattern</VAR>: <VAR>dep-patterns</VAR> ...
+        <VAR>commands</VAR>
+        ...
+</PRE>
+<P>
+The <VAR>targets</VAR> list specifies the targets that the rule applies to.
+The targets can contain wildcard characters, just like the targets of
+ordinary rules (see section <A HREF="make_22.html#SEC21">Using Wildcard Characters in File Names</A>).
+<A NAME="IDX202"></A>
+<A NAME="IDX203"></A>
+<P>
+The <VAR>target-pattern</VAR> and <VAR>dep-patterns</VAR> say how to compute the
+dependencies of each target.  Each target is matched against the
+<VAR>target-pattern</VAR> to extract a part of the target name, called the
+<DFN>stem</DFN>.  This stem is substituted into each of the <VAR>dep-patterns</VAR>
+to make the dependency names (one from each <VAR>dep-pattern</VAR>).
+<P>
+Each pattern normally contains the character <SAMP>`%'</SAMP> just once.  When the
+<VAR>target-pattern</VAR> matches a target, the <SAMP>`%'</SAMP> can match any part of
+the target name; this part is called the <DFN>stem</DFN>.  The rest of the
+pattern must match exactly.  For example, the target <TT>`foo.o'</TT> matches
+the pattern <SAMP>`%.o'</SAMP>, with <SAMP>`foo'</SAMP> as the stem.  The targets
+<TT>`foo.c'</TT> and <TT>`foo.out'</TT> do not match that pattern.<A NAME="IDX204"></A>
+<P>
+The dependency names for each target are made by substituting the stem
+for the <SAMP>`%'</SAMP> in each dependency pattern.  For example, if one
+dependency pattern is <TT>`%.c'</TT>, then substitution of the stem
+<SAMP>`foo'</SAMP> gives the dependency name <TT>`foo.c'</TT>.  It is legitimate
+to write a dependency pattern that does not contain <SAMP>`%'</SAMP>; then this
+dependency is the same for all targets.
+<A NAME="IDX205"></A>
+<A NAME="IDX206"></A>
+<A NAME="IDX207"></A>
+<A NAME="IDX208"></A>
+<A NAME="IDX209"></A>
+<P>
+<SAMP>`%'</SAMP> characters in pattern rules can be quoted with preceding
+backslashes (<SAMP>`\'</SAMP>).  Backslashes that would otherwise quote <SAMP>`%'</SAMP>
+characters can be quoted with more backslashes.  Backslashes that quote
+<SAMP>`%'</SAMP> characters or other backslashes are removed from the pattern
+before it is compared to file names or has a stem substituted into it.
+Backslashes that are not in danger of quoting <SAMP>`%'</SAMP> characters go
+unmolested.  For example, the pattern <TT>`the\%weird\\%pattern\\'</TT> has
+<SAMP>`the%weird\'</SAMP> preceding the operative <SAMP>`%'</SAMP> character, and
+<SAMP>`pattern\\'</SAMP> following it.  The final two backslashes are left alone
+because they cannot affect any <SAMP>`%'</SAMP> character.<P>
+Here is an example, which compiles each of <TT>`foo.o'</TT> and <TT>`bar.o'</TT>
+from the corresponding <TT>`.c'</TT> file:
+<P>
+<PRE>
+objects = foo.o bar.o
+
+$(objects): %.o: %.c
+        $(CC) -c $(CFLAGS) $&#60; -o $@
+</PRE>
+<P>
+Here <SAMP>`$&#60;'</SAMP> is the automatic variable that holds the name of the
+dependency and <SAMP>`$@'</SAMP> is the automatic variable that holds the name
+of the target; see section <A HREF="make_95.html#SEC94">Automatic Variables</A>.
+<P>
+Each target specified must match the target pattern; a warning is issued
+for each target that does not.  If you have a list of files, only some of
+which will match the pattern, you can use the <CODE>filter</CODE> function to
+remove nonmatching file names (see section <A HREF="make_74.html#SEC73">Functions for String Substitution and Analysis</A>):
+<P>
+<PRE>
+files = foo.elc bar.o lose.o
+
+$(filter %.o,$(files)): %.o: %.c
+        $(CC) -c $(CFLAGS) $&#60; -o $@
+$(filter %.elc,$(files)): %.elc: %.el
+        emacs -f batch-byte-compile $&#60;
+</PRE>
+<P>
+In this example the result of <SAMP>`$(filter %.o,$(files))'</SAMP> is
+<TT>`bar.o lose.o'</TT>, and the first static pattern rule causes each of
+these object files to be updated by compiling the corresponding C source
+file.  The result of <SAMP>`$(filter %.elc,$(files))'</SAMP> is
+<TT>`foo.elc'</TT>, so that file is made from <TT>`foo.el'</TT>.<P>
+Another example shows how to use <CODE>$*</CODE> in static pattern rules:
+<A NAME="IDX210"></A>
+<P>
+<PRE>
+bigoutput littleoutput : %output : text.g
+        generate text.g -$* &#62; $@
+</PRE>
+<P>
+When the <CODE>generate</CODE> command is run, <CODE>$*</CODE> will expand to the
+stem, either <SAMP>`big'</SAMP> or <SAMP>`little'</SAMP>.
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_38.html">previous</A>, <A HREF="make_40.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

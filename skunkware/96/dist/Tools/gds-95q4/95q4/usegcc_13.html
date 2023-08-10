@@ -1,0 +1,298 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Debugging Options</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_12.html">previous</A>, <A HREF="usegcc_14.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX75"></A>
+<A NAME="IDX76"></A>
+<H2><A NAME="SEC16" HREF="usegcc_toc.html#TOC16">Options for Debugging Your Program or GNU CC</A></H2>
+<P>
+GNU CC has various special options that are used for debugging
+either your program or <CODE>gcc</CODE>:
+<P>
+<DL COMPACT>
+<DT><CODE>-g</CODE>
+<DD>Produce debugging information in the operating system's native format
+(stabs, COFF, XCOFF, or DWARF).  GDB can work with this debugging
+information.
+
+On most systems that use stabs format, <SAMP>`-g'</SAMP> enables use of extra
+debugging information that only GDB can use; this extra information
+makes debugging work better in GDB but will probably make other debuggers
+crash or
+refuse to read the program.  If you want to control for certain whether
+to generate the extra information, use <SAMP>`-gstabs+'</SAMP>, <SAMP>`-gstabs'</SAMP>,
+<SAMP>`-gxcoff+'</SAMP>, <SAMP>`-gxcoff'</SAMP>, <SAMP>`-gdwarf+'</SAMP>, or <SAMP>`-gdwarf'</SAMP>
+(see below).
+
+Unlike most other C compilers, GNU CC allows you to use <SAMP>`-g'</SAMP> with
+<SAMP>`-O'</SAMP>.  The shortcuts taken by optimized code may occasionally
+produce surprising results: some variables you declared may not exist
+at all; flow of control may briefly move where you did not expect it;
+some statements may not be executed because they compute constant
+results or their values were already at hand; some statements may
+execute in different places because they were moved out of loops.
+
+Nevertheless it proves possible to debug optimized output.  This makes
+it reasonable to use the optimizer for programs that might have bugs.
+
+The following options are useful when GNU CC is generated with the
+capability for more than one debugging format.
+
+<DT><CODE>-ggdb</CODE>
+<DD>Produce debugging information in the native format (if that is supported),
+including GDB extensions if at all possible.
+
+<DT><CODE>-gstabs</CODE>
+<DD>Produce debugging information in stabs format (if that is supported),
+without GDB extensions.  This is the format used by DBX on most BSD
+systems.  On MIPS, Alpha and System V Release 4 systems this option
+produces stabs debugging output which is not understood by DBX or SDB.
+On System V Release 4 systems this option requires the GNU assembler.
+
+<DT><CODE>-gstabs+</CODE>
+<DD>Produce debugging information in stabs format (if that is supported),
+using GNU extensions understood only by the GNU debugger (GDB).  The
+use of these extensions is likely to make other debuggers crash or
+refuse to read the program.
+
+<DT><CODE>-gcoff</CODE>
+<DD>Produce debugging information in COFF format (if that is supported).
+This is the format used by SDB on most System V systems prior to
+System V Release 4.
+
+<DT><CODE>-gxcoff</CODE>
+<DD>Produce debugging information in XCOFF format (if that is supported).
+This is the format used by the DBX debugger on IBM RS/6000 systems.
+
+<DT><CODE>-gxcoff+</CODE>
+<DD>Produce debugging information in XCOFF format (if that is supported),
+using GNU extensions understood only by the GNU debugger (GDB).  The
+use of these extensions is likely to make other debuggers crash or
+refuse to read the program, and may cause assemblers other than the GNU
+assembler (GAS) to fail with an error.
+
+<DT><CODE>-gdwarf</CODE>
+<DD>Produce debugging information in DWARF format (if that is supported).
+This is the format used by SDB on most System V Release 4 systems.
+
+<DT><CODE>-gdwarf+</CODE>
+<DD>Produce debugging information in DWARF format (if that is supported),
+using GNU extensions understood only by the GNU debugger (GDB).  The
+use of these extensions is likely to make other debuggers crash or
+refuse to read the program.
+
+<DT><CODE>-g<VAR>level</VAR></CODE>
+<DD><DT><CODE>-ggdb<VAR>level</VAR></CODE>
+<DD><DT><CODE>-gstabs<VAR>level</VAR></CODE>
+<DD><DT><CODE>-gcoff<VAR>level</VAR></CODE>
+<DD><DT><CODE>-gxcoff<VAR>level</VAR></CODE>
+<DD><DT><CODE>-gdwarf<VAR>level</VAR></CODE>
+<DD>Request debugging information and also use <VAR>level</VAR> to specify how
+much information.  The default level is 2.
+
+Level 1 produces minimal information, enough for making backtraces in
+parts of the program that you don't plan to debug.  This includes
+descriptions of functions and external variables, but no information
+about local variables and no line numbers.
+
+Level 3 includes extra information, such as all the macro definitions
+present in the program.  Some debuggers support macro expansion when
+you use <SAMP>`-g3'</SAMP>.
+
+<A NAME="IDX77"></A>
+<DT><CODE>-p</CODE>
+<DD>Generate extra code to write profile information suitable for the
+analysis program <CODE>prof</CODE>.  You must use this option when compiling
+the source files you want data about, and you must also use it when
+linking.
+
+<A NAME="IDX78"></A>
+<DT><CODE>-pg</CODE>
+<DD>Generate extra code to write profile information suitable for the
+analysis program <CODE>gprof</CODE>.  You must use this option when compiling
+the source files you want data about, and you must also use it when
+linking.
+
+<A NAME="IDX79"></A>
+<DT><CODE>-a</CODE>
+<DD>Generate extra code to write profile information for basic blocks, which will
+record the number of times each basic block is executed, the basic block start
+address, and the function name containing the basic block.  If <SAMP>`-g'</SAMP> is
+used, the line number and filename of the start of the basic block will also be
+recorded.  If not overridden by the machine description, the default action is
+to append to the text file <TT>`bb.out'</TT>.
+
+This data could be analyzed by a program like <CODE>tcov</CODE>.  Note,
+however, that the format of the data is not what <CODE>tcov</CODE> expects.
+Eventually GNU <CODE>gprof</CODE> should be extended to process this data.
+
+<DT><CODE>-fprofile-arcs</CODE>
+<DD>Instrument <DFN>arcs</DFN> during compilation.  For each function of your
+program, GNU CC creates a program flow graph, then finds a spanning tree
+for the graph.  Only arcs that are not on the spanning tree have to be
+instrumented: the compiler adds code to count the number of times that these
+arcs are executed.  When an arc is the only exit or only entrance to a
+block, the instrumentation code can be added to the block; otherwise, a
+new basic block must be created to hold the instrumentation code.
+
+Since not every arc in the program must be instrumented, programs
+compiled with this option run faster than programs compiled with
+<SAMP>`-a'</SAMP>, which adds instrumentation code to every basic block in the
+program.  The tradeoff: since <CODE>gcov</CODE> does not have
+execution counts for all branches, it must start with the execution
+counts for the instrumented branches, and then iterate over the program
+flow graph until the entire graph has been solved.  Hence, <CODE>gcov</CODE>
+runs a little more slowly than a program which uses information from
+<SAMP>`-a'</SAMP>.
+
+<SAMP>`-fprofile-arcs'</SAMP> also makes it possible to estimate branch
+probabilities, and to calculate basic block execution counts.  In
+general, basic block execution counts do not give enough information to
+estimate all branch probabilities.  When the compiled program exits, it
+saves the arc execution counts to a file called
+<TT>`<VAR>sourcename</VAR>.da'</TT>.  Use the compiler option
+<SAMP>`-fbranch-probabilities'</SAMP> (see section <A HREF="usegcc_14.html#SEC17">Options That Control Optimization</A>) when recompiling, to optimize using estimated
+branch probabilities.
+
+<DT><CODE>-ftest-coverage</CODE>
+<DD>Create data files for the <CODE>gcov</CODE> code-coverage utility
+(see section <A HREF="usegcc_109.html#SEC112"><CODE>gcov</CODE>: a Test Coverage Program</A>).
+The data file names begin with the name of your source file:
+
+<DL COMPACT>
+<DT><CODE><VAR>sourcename</VAR>.bb</CODE>
+<DD>A mapping from basic blocks to line numbers, which <CODE>gcov</CODE> uses to
+associate basic block execution counts with line numbers.
+
+<DT><CODE><VAR>sourcename</VAR>.bbg</CODE>
+<DD>A list of all arcs in the program flow graph.  This allows <CODE>gcov</CODE>
+to reconstruct the program flow graph, so that it can compute all basic
+block and arc execution counts from the information in the
+<CODE><VAR>sourcename</VAR>.da</CODE> file (this last file is the output from
+<SAMP>`-fprofile-arcs'</SAMP>).
+</DL>
+
+<DT><CODE>-d<VAR>letters</VAR></CODE>
+<DD>Says to make debugging dumps during compilation at times specified by
+<VAR>letters</VAR>.  This is used for debugging the compiler.  The file names
+for most of the dumps are made by appending a word to the source file
+name (e.g.  <TT>`foo.c.rtl'</TT> or <TT>`foo.c.jump'</TT>).  Here are the
+possible letters for use in <VAR>letters</VAR>, and their meanings:
+
+<DL COMPACT>
+<DT><SAMP>`M'</SAMP>
+<DD>Dump all macro definitions, at the end of preprocessing, and write no
+output.
+<DT><SAMP>`N'</SAMP>
+<DD>Dump all macro names, at the end of preprocessing.
+<DT><SAMP>`D'</SAMP>
+<DD>Dump all macro definitions, at the end of preprocessing, in addition to
+normal output.
+<DT><SAMP>`y'</SAMP>
+<DD>Dump debugging information during parsing, to standard error.
+<DT><SAMP>`r'</SAMP>
+<DD>Dump after RTL generation, to <TT>`<VAR>file</VAR>.rtl'</TT>.
+<DT><SAMP>`x'</SAMP>
+<DD>Just generate RTL for a function instead of compiling it.  Usually used
+with <SAMP>`r'</SAMP>.
+<DT><SAMP>`j'</SAMP>
+<DD>Dump after first jump optimization, to <TT>`<VAR>file</VAR>.jump'</TT>.
+<DT><SAMP>`s'</SAMP>
+<DD>Dump after CSE (including the jump optimization that sometimes
+follows CSE), to <TT>`<VAR>file</VAR>.cse'</TT>.
+<DT><SAMP>`L'</SAMP>
+<DD>Dump after loop optimization, to <TT>`<VAR>file</VAR>.loop'</TT>.
+<DT><SAMP>`t'</SAMP>
+<DD>Dump after the second CSE pass (including the jump optimization that
+sometimes follows CSE), to <TT>`<VAR>file</VAR>.cse2'</TT>.
+<DT><SAMP>`f'</SAMP>
+<DD>Dump after flow analysis, to <TT>`<VAR>file</VAR>.flow'</TT>.
+<DT><SAMP>`c'</SAMP>
+<DD>Dump after instruction combination, to the file
+<TT>`<VAR>file</VAR>.combine'</TT>.
+<DT><SAMP>`S'</SAMP>
+<DD>Dump after the first instruction scheduling pass, to
+<TT>`<VAR>file</VAR>.sched'</TT>.
+<DT><SAMP>`l'</SAMP>
+<DD>Dump after local register allocation, to
+<TT>`<VAR>file</VAR>.lreg'</TT>.
+<DT><SAMP>`g'</SAMP>
+<DD>Dump after global register allocation, to
+<TT>`<VAR>file</VAR>.greg'</TT>.
+<DT><SAMP>`R'</SAMP>
+<DD>Dump after the second instruction scheduling pass, to
+<TT>`<VAR>file</VAR>.sched2'</TT>.
+<DT><SAMP>`J'</SAMP>
+<DD>Dump after last jump optimization, to<BR> <TT>`<VAR>file</VAR>.jump2'</TT>.
+<DT><SAMP>`d'</SAMP>
+<DD>Dump after delayed branch scheduling, to <TT>`<VAR>file</VAR>.dbr'</TT>.
+<DT><SAMP>`k'</SAMP>
+<DD>Dump after conversion from registers to stack, to <TT>`<VAR>file</VAR>.stack'</TT>.
+<DT><SAMP>`a'</SAMP>
+<DD>Produce all the dumps listed above.
+<DT><SAMP>`m'</SAMP>
+<DD>Print statistics on memory usage, at the end of the run, to
+standard error.
+<DT><SAMP>`p'</SAMP>
+<DD>Annotate the assembler output with a comment indicating which
+pattern and alternative was used.
+</DL>
+
+<DT><CODE>-fpretend-float</CODE>
+<DD>When running a cross-compiler, pretend that the target machine uses the
+same floating point format as the host machine.  This causes incorrect
+output of the actual floating constants, but the actual instruction
+sequence will probably be the same as GNU CC would make when running on
+the target machine.
+
+<DT><CODE>-save-temps</CODE>
+<DD>Store the usual "temporary" intermediate files permanently; place them
+in the current directory and name them based on the source file.  Thus,
+compiling <TT>`foo.c'</TT> with <SAMP>`-c -save-temps'</SAMP> would produce files
+<TT>`foo.i'</TT> and <TT>`foo.s'</TT>, as well as <TT>`foo.o'</TT>.
+
+<DT><CODE>-print-file-name=<VAR>library</VAR></CODE>
+<DD>Print the full absolute name of the library file <VAR>library</VAR> that
+would be used when linking--and don't do anything else.  With this
+option, GNU CC does not compile or link anything; it just prints the
+file name.
+
+<DT><CODE>-print-prog-name=<VAR>program</VAR></CODE>
+<DD>Like <SAMP>`-print-file-name'</SAMP>, but searches for a program such as <SAMP>`cpp'</SAMP>.
+
+<DT><CODE>-print-libgcc-file-name</CODE>
+<DD>Same as <SAMP>`-print-file-name=libgcc.a'</SAMP>.
+
+This is useful when you use <SAMP>`-nostdlib'</SAMP> or <SAMP>`-nodefaultlibs'</SAMP>
+but you do want to link with <TT>`libgcc.a'</TT>.  You can do
+
+<PRE>
+gcc -nostdlib <VAR>files</VAR>... `gcc -print-libgcc-file-name`
+</PRE>
+
+<DT><CODE>-print-search-dirs</CODE>
+<DD>Print the name of the configured installation directory and a list of
+program and library directories <CODE>gcc</CODE> will search--and don't do anything else.
+
+This is useful when <CODE>gcc</CODE> prints the error message
+<PRE>
+installation problem, cannot exec cpp:
+   No such file or directory
+</PRE>
+To resolve this you either need to put <TT>`cpp'</TT> and the other compiler
+components where <CODE>gcc</CODE> expects to find them, or you can set the environment
+variable <CODE>GCC_EXEC_PREFIX</CODE> to the directory where you installed them.
+Don't forget the trailing '/'.
+See section <A HREF="usegcc_41.html#SEC44">Environment Variables Affecting GNU CC</A>.
+</DL>
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_12.html">previous</A>, <A HREF="usegcc_14.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

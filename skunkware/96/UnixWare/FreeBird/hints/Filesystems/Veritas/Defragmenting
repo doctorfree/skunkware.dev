@@ -1,0 +1,26 @@
+After a while, the performance of your hard disk may deteriorate.  This is
+because the disk is getting fragmented.
+
+If you have the advanced veritas package you can run this script once a week to
+keep your disk in good condition (run from cron) :-
+
+#!/bin/sh
+#
+# script to defragment
+#
+if [ -f /etc/fs/vxfs/fsadm ]
+then
+  FSADM=/etc/fs/vxfs/fsadm
+else
+  FSADM=/usr/sbin/fsadm
+fi
+
+outfile=/usr/spool/fsadm/out.`/bin/date +'%m%d'`
+for i in `/etc/mount -v | grep "type vxfs" | cut -f3 -d\ `
+do
+  /bin/echo "Reorganizing $i"
+  /bin/timex $FSADM -e -E -s $i
+  /bin/timex $FSADM -d -D $i
+done > $outfile 2>&1
+
+

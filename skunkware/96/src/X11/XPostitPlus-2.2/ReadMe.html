@@ -1,0 +1,646 @@
+<HTML>
+<HEAD>
+<TITLE>xpostit</TITLE>
+</HEAD>
+<!--
+Light Blue Background
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+New Midnight Blue Background
+<BODY BGCOLOR=#00009C LINK=#00FFFF VLINK=#00C8C8 TEXT=#23D8FF ALINK=#00FF00>
+White Background
+<BODY BGCOLOR=#FFFFFF TEXT=#000000 LINK=#0000FF VLINK=#00009C ALINK=#00FF00>
+Black Background
+<BODY BGCOLOR=#000000  TEXT=#FFFFFF LINK=#0077FF VLINK=#FF3EE4 ALINK=#00FF00>
+-->
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+<H1>xpostit</H1>
+<HR>
+<PRE>
+<STRONG>NAME</STRONG>
+  xpostit - X window system Post-it(r) notes
+
+<STRONG>SYNOPSIS</STRONG>
+  <STRONG>xpostit</STRONG> [ -<EM>toolkitoptions</EM> ... ] [ -<EM>options</EM> ... ]
+
+<STRONG>DESCRIPTION</STRONG>
+  <EM>Xpostit</EM> provides a mechanism for manipulating on-screen
+  Post-it(r) notes.  All six sizes of Post-it notes may be
+  displayed, edited, and saved to disk files.  In addition,
+  any on-screen note may be resized to any arbitrary size
+  either when it is created or at a later time.
+
+  All notes can be "hidden" - the notes are still available
+  but not shown on the screen until requested by the user.
+  Hidden notes will stay hidden when xpostit is exited and
+  then restarted (as long as the user saves all notes before
+  exiting).
+
+  When <EM>xpostit</EM> is first invoked, it creates a small window
+  with a plaid background.  This is the control window for
+  <EM>xpostit</EM>.  Additionally, if any notes were stored in the save
+  directory (see below), these will be placed on the screen at
+  their last locations, unless they were hidden when saved
+  (see below).  Each Post-it note, when created, makes another
+  window on the screen.  <EM>Xpostit</EM> is controlled using the mouse
+  buttons and a menu.  The Post-it notes are controlled by
+  using a drop down menu.
+
+<STRONG>OPTIONS</STRONG>
+  <EM>Xpostit</EM> accepts all of the standard X Toolkit command line
+  options along with the additional options listed below.
+
+  <STRONG>-bs</STRONG> <EM>number</EM>
+		  Specifies the size of the character buffer in which
+		  to save each Post-it note.  A note may not contain
+		  more than this number of characters, including
+		  newlines.  The default is 1024.
+
+  <STRONG>-nw</STRONG> <EM>pixels</EM>
+		  Allows the user to specify the width, in pixels, for
+		  a single character of text.  This is dependent on
+		  the font being used, but the Athena Widget set and
+		  the Xt Intrinsics apparently doesn't allow a program
+		  to determine this value at run time.  This value is
+		  used to determine the width of the Name dialog box,
+		  which is used to provide a title for a given note.
+		  The default value for this option is 10 pixels.
+
+  <STRONG>-ao</STRONG> <EM>offset</EM>
+		  The offset is specified in pixels and is used to
+		  determine the X and Y offsets from an anchor note
+		  for a note being cascaded.  The default value is 15
+		  pixels.
+
+  <STRONG>-dir</STRONG> <EM>path</EM>
+		  Specifies the path name of the directory in which to
+		  store saved Post-it notes.  If <EM>path</EM> begins with a
+		  `/' it is taken as-is; if it does not begin with a
+		  `/', the path is taken relative to the home
+		  directory.  If the named directory does not already
+		  exist, then <EM>xpostit</EM> attempts to create it.  The
+		  default is .<EM>postitnotes</EM>.
+
+  <STRONG>-tmpdir</STRONG> <EM>path</EM>
+		  Specifies the path name of the directory to use for
+		  temporary files.  By default ``/tmp'' is used.
+
+  <STRONG>-printcmd</STRONG> <EM>cmd</EM>
+		  This must be a quoted command string that can be
+		  used as the format string to sprintf().  It must
+		  include "%s" for the temporary file name used when
+		  printing a note.  The buffer created with sprintf(),
+		  this option value, and the temporary file name is
+		  passed to the system() call to print the note.  By
+		  default, the printcmd value is ``lpr %s''.
+
+  <STRONG>-calendarcmd</STRONG> <EM>cmd</EM>
+		  This is the command used to produce a calendar for
+		  the current month.  On most Unix systems this will
+		  be ``cal'', which is the default.  The output from
+		  this command is redirected to a temporary file and
+		  then inserted into a note at the current cursor
+		  location.
+
+  <STRONG>-emailcmd</STRONG> <EM>cmd</EM>
+		  The "Email" option from the notes menu will pop up a
+		  window prompting for an email address.  The
+		  -emailcmd command line option or .emailCmd resource
+		  can be set to your systems mailer command.  The
+		  mailer must accept the text of the mail via standard
+		  input (actually as a pipe from "cat tmpfile").
+		  "cmd" must be a Unix style command in printf()
+		  format.  See the section on <EM>Configuring</EM> <EM>the</EM> <EM>mailer</EM>.
+
+  <STRONG>-sb</STRONG>     Enables scroll-bars.  If specified, a scroll bar
+		  will be attached to each Post-it note.
+
+  <STRONG>-sv</STRONG>     Enables save-on-exit.  When specified, this option
+		  tells <EM>xpostit</EM> to save all Post-it notes to disk
+		  files when exiting.  If not specified, notes can be
+		  saved to disk files manually by the user or via the
+		  autosave feature.  It is useful to specify this
+		  option since hidden notes cannot be saved unless
+		  either the "Save All Notes" option is used or the
+		  autosave option has not been disabled.  Its also to
+		  use this option since its not guaranteed that the
+		  autosave feature will have saved all notes since
+		  their last updates when xpostit exits.
+
+  <STRONG>-c</STRONG>      Enables compatibility mode.  Initially this is for
+		  notes created using the %! magic cookie.  In version
+		  2.2 this was changed to %%!! because the original
+		  cookie was the one being used for Postscript files.
+		  In the future this mode may cover other items that
+		  are not compatible between versions/releases.
+
+  <STRONG>-ns</STRONG>     Disables the autosave feature.
+
+  <STRONG>-na</STRONG>     Disables alarms.
+
+  <STRONG>-interval</STRONG>
+		  Sets the timeout interval (in seconds) for when the
+		  autosave timeout should expire.  When this timer
+		  expires, all notes are automatically saved to disk.
+		  The default value is 10 minutes.
+
+  <STRONG>-help</STRONG>   Displays a usage message.
+
+<STRONG>WIDGET</STRONG> <STRONG>USAGE</STRONG>
+  <EM>Xpostit</EM> uses several widget types to construct the objects
+  it uses.
+
+  The control window is a Plaid widget called ``Plaid''.  This
+  is a widget designed by David A. Curry, the original author
+  of <EM>xpostit</EM>.
+
+  The menu is a pop-up shell called ``Menu'' containing a
+  SimpleMenu widget.  From this menu the hidden notes menu can
+  be popped up.  The hidden notes menu is also a SimpleMenu
+  widget.
+
+  Each Post-it note is a pop-up shell called ``PostItNote'',
+  containing a Form widget called ``Note'' which contains a
+  Text widget called ``NoteText'', and a MenuButton widget
+  called "Options".  The Options button, when selected, pops
+  up a drop-down menu called "OptionsMenu" (see the Xpostit.ad
+  application defaults file).  Inside of this menu are five
+  menu items called ``Save'', ``Erase'', ``Destroy'',
+  ``Hide'', and ``Name''.
+
+  The confirmation box is a pop-up shell called ``Confirm'',
+  containing a Form widget called ``Buttons'' which contains
+  two Command widgets called ``Confirm'' and ``Cancel''.
+  There is also dialog box which pops up when the Name menu
+  item is selected which is called "Dialog".
+
+<STRONG>RESOURCES</STRONG>
+  <EM>Xpostit</EM> understands all of the core X Toolkit resource names
+  and classes as well as those listed below, which are all of
+  class <STRONG>Xpostit</STRONG>.
+
+  <STRONG>.bufSize</STRONG>
+		  Specifies the size of the character buffer used to
+		  store a Post-it note.  The default is 1024.
+
+  <STRONG>.nameWidth</STRONG>
+		  See the -nw command line option.  The default value
+		  for this resource is 10.
+
+  <STRONG>.noteDir</STRONG>
+		  Specifies the path name of the directory in which to
+		  store saved notes.  The default is .<EM>postitnotes</EM>.
+
+  <STRONG>.tmpDir</STRONG> Specifies the path name of the directory to use for
+		  temporary files.  By default ``/tmp'' is used.
+
+  <STRONG>.printCmd</STRONG>
+		  This must be a quoted command string that can be
+		  used as the format string to sprintf().  It must
+		  include "%s" for the temporary file name used when
+		  printing a note.  The buffer created with sprintf(),
+		  this option value, and the temporary file name is
+		  passed to the system() call to print the note.  By
+		  default, the printcmd value is ``lpr %s''.
+
+  <STRONG>.calendarCmd</STRONG>
+		  This is the command used to produce a calendar for
+		  the current month.  On most Unix systems this will
+		  be ``cal'', which is the default.  The output from
+		  this command is redirected to a temporary file and
+		  then inserted into a note at the current cursor
+		  location.
+
+  <STRONG>.emailCmd</STRONG>
+		  The "Email" option from the notes menu will pop up a
+		  window prompting for an email address.  The
+		  -emailcmd command line option or .emailCmd resource
+		  can be set to your systems mailer command.  The
+		  mailer must accept the text of the mail via standard
+		  input (actually as a pipe from "cat tmpfile").
+		  "cmd" must be a Unix style command in printf()
+		  format.  See the section on <EM>Configuring</EM> <EM>the</EM> <EM>mailer</EM>.
+
+  <STRONG>.saveNotes</STRONG>
+		  Controls the state of the save-on-exit option.  The
+		  default is <STRONG>false</STRONG>.
+
+  <STRONG>.scrollBar</STRONG>
+		  Controls placing scroll bars on Post-it notes.  The
+		  default is <STRONG>false</STRONG>.
+
+  <STRONG>.compatibility</STRONG>
+		  Enables compatibility mode.  This shouldn't really
+		  be set in the app-defaults file.  If you wish to use
+		  this feature, use the -c option.
+
+  <STRONG>.interval</STRONG>
+		  Sets the timeout interval (in seconds) for when the
+		  autosave timeout should expire.  When this timer
+		  expires, all notes are automatically saved to disk.
+
+  <STRONG>.anchorOffset</STRONG>
+		  The offset is specified in pixels and is used to
+		  determine the X and Y offsets from an anchor note
+		  for a note being cascaded.  The default value is 15
+		  pixels.
+
+  <STRONG>.noSave</STRONG> If set to true then the auto-save feature is turned
+		  off.
+
+  <STRONG>.noAlarm</STRONG>
+		  If set to true then the alarms feature is turned
+		  off.  This will have the effect of graying out the
+		  ``Set Alarm'' and ``Unset Alarm'' options from each
+		  Notes pull down menu.
+
+<STRONG>ACTIONS</STRONG>
+  It is possible to rebind the mouse buttons in the Plaid
+  widget to perform different functions by changing the
+  widget's translations.  It is not recommended that other
+  actions (as specified in the application defaults file) be
+  changed, however.  The <EM>raise</EM>() action, normally bound to the
+  left mouse button, raises all notes.  The <EM>lower</EM>() action,
+  normally bound to the middle mouse button, lowers all notes.
+  The menu raising function, normally bound to the right mouse
+  button, is performed by calling the actions
+  <EM>XawPositionSimpleMenu(Menu)</EM> and <EM>MenuPopup(Menu)</EM>.
+
+  This can now be configured by changing the following lines
+  in the Xpostit.ad file:
+
+  Xpostit*Plaid.Translations: #replace\n \
+	 &lt;Btn1Down&gt;: raise()  \n\
+	 &lt;Btn2Down&gt;: lower()  \n\
+	 &lt;Btn3Down&gt;: XawPositionSimpleMenu(Menu) MenuPopup(Menu)
+
+  to the following:
+
+  Xpostit*Plaid.Translations: #replace\n \
+	 &lt;Btn3Down&gt;: raise()  \n\
+	 &lt;Btn2Down&gt;: lower()  \n\
+	 &lt;Btn1Down&gt;: XawPositionSimpleMenu(Menu) MenuPopup(Menu)
+
+<STRONG>THE</STRONG> <STRONG>CONTROL</STRONG> <STRONG>WINDOW</STRONG>
+  <EM>Xpostit</EM> allows three operations to be performed from its
+  control window.  Pressing the left mouse button in the
+  control window will cause all Post-it notes on the screen to
+  be raised to the top.  Pressing the middle mouse button in
+  the control window will cause all Post-it notes on the
+  screen to be lowered to the bottom.  Pressing the right
+  mouse button in the control window raises the <EM>xpostit</EM> menu.
+
+<STRONG>THE</STRONG> <STRONG>PLAID</STRONG> <STRONG>MENU</STRONG>
+  The <EM>xpostit</EM> plaid menu provides the following selections:
+
+  <STRONG>Create</STRONG> <STRONG>1.5x2</STRONG> <STRONG>Note</STRONG>
+		  Create a new Post-it note, 1.5 inches tall by 2
+		  inches wide.  The window will normally need to be
+		  positioned using the window manager.
+
+  <STRONG>Create</STRONG> <STRONG>2x3</STRONG> <STRONG>Note</STRONG>
+		  Create a new Post-it note, 2 inches tall by 3 inches
+		  wide.
+
+  <STRONG>Create</STRONG> <STRONG>3x3</STRONG> <STRONG>Note</STRONG>
+		  Create a new Post-it note, 3 inches square.
+
+  <STRONG>Create</STRONG> <STRONG>3x4</STRONG> <STRONG>Note</STRONG>
+		  Create a new Post-it note, 3 inches tall by 4 inches
+		  wide.
+
+  <STRONG>Create</STRONG> <STRONG>3x5</STRONG> <STRONG>Note</STRONG>
+		  Create a new Post-it note, 3 inches tall by 5 inches
+		  wide.
+
+  <STRONG>Create</STRONG> <STRONG>4x6</STRONG> <STRONG>Note</STRONG>
+		  Create a new Post-it note, 4 inches tall by 6 inches
+		  wide.
+
+  <STRONG>Raise</STRONG> <STRONG>All</STRONG> <STRONG>Notes</STRONG>
+		  Raise all Post-it notes to the top.  This is
+		  equivalent to pressing the left mouse button in the
+		  control window.
+
+  <STRONG>Lower</STRONG> <STRONG>All</STRONG> <STRONG>Notes</STRONG>
+		  Lower all Post-it notes to the bottom.  This is
+		  equivalent to pressing the middle mouse button in
+		  the control window.
+
+  <STRONG>Unhide</STRONG> <STRONG>All</STRONG> <STRONG>Notes</STRONG>
+		  All notes that have been hidden will be unhidden.
+
+  <STRONG>Save</STRONG> <STRONG>All</STRONG> <STRONG>Notes</STRONG>
+		  Save all Post-it notes to disk files in the save
+		  directory.
+
+  <STRONG>Hidden</STRONG> <STRONG>Notes</STRONG>
+		  Pops up another menu which lists all the notes that
+		  are currently hidden.  The list contains the names
+		  of the notes so it is wise to give a note a
+		  meaningful name (using the Name option from the
+		  pull-down menu of each note) before it is hidden.
+
+  <STRONG>Cascade</STRONG> <STRONG>Notes</STRONG>
+		  Each note can be "anchored".  If one or more notes
+		  are anchored and the "Cascade" option is chosen from
+		  the xpostit menu, then all the visible notes are
+		  cascaded onto the anchored notes.  An attempt is
+		  made to distribute all visible notes evenly amongst
+		  all the anchored notes.  Each note also has an
+		  "unanchor" option as well.  Only one of "anchor" or
+		  "unanchor" is sensitive for any given note.  Hidden
+		  notes are not affected by the cascade feature.  The
+		  default offset for cascaded notes (from the anchor)
+		  is 15 pixels.  This can be changed with the -ao
+		  option or the .anchorOffset resource.
+
+  <STRONG>Find</STRONG> <STRONG>A</STRONG> <STRONG>Note</STRONG>
+		  If you "lose" a note and want to bring it up at the
+		  cursor, select ``Find A Note'' from the plaid menu.
+		  A pop up window of all notes will be presented.
+		  Select the note you want and if its not hidden it
+		  will pop up at the cursor.  If it is hidden it will
+		  pop up in the appropriate spot.  The ``Cancel''
+		  button will close the pop up if no note is selected.
+
+  <STRONG>Exit</STRONG>    Exit <EM>xpostit</EM>. If the <STRONG>-sv</STRONG> command line option was
+		  given, or the <STRONG>saveNotes</STRONG> resource is <STRONG>true,</STRONG> all Post-
+		  it notes will be saved to disk first.
+
+  To select an item from the menu, drag the mouse cursor to
+  that item and release the mouse button.
+
+<STRONG>THE</STRONG> <STRONG>HIDDEN</STRONG> <STRONG>NOTES</STRONG> <STRONG>MENU</STRONG>
+  This menu pops up from the ``Hidden Notes'' option of the
+  plaid menu.  It functions the same as the plaid menu except
+  the menu does not disappear until either a menu option is
+  selected or the label (at the top of the menu) is clicked
+  on.
+
+<STRONG>THE</STRONG> <STRONG>POST-IT</STRONG> <STRONG>NOTE</STRONG>
+  Each Post-it note is made up of three parts (plus an
+  optional scroll bar): a Title bar, a text window where the
+  text of the note is stored, and an Options pull-down menu.
+  To enter text into a Post-it note, simply move the mouse
+  cursor into the text window and start typing.  Since the
+  text window is actually a Text widget, all the Text widget
+  translations are accepted.  Essentially, this means you can
+  use most of the EMACS control keys in the window.
+  Additionally, the various mouse buttons used for
+  manipulating the selections and cut buffer are understood.
+
+  After entering text in the Post-it note, you may wish to
+  save the note in a disk file.  This way, if the machine goes
+  down, or if you exit <EM>xpostit</EM>, the Post-it note can be
+  restored when you restart <EM>xpostit</EM>.  (Post-it notes are also
+  saved automatically (if <STRONG>saveNotes</STRONG> is true) if a SIGHUP,
+  SIGINT, SIGTERM, or SIGQUIT signal is received.) To save the
+  note to a disk file, click on the Options button and drag
+  the mouse cursor to the menu item labeled ``Save'', then
+  release the mouse button.  The note will be saved as the
+  file ``note<STRONG>n</STRONG>'' in your save directory, where <STRONG>n</STRONG> is some
+  sequence number.  Note that the ``Save'' menu item will not
+  allow you to save unless something have been typed in the
+  Text of the note, the name of the note has been changed, or
+  the text of the note has been erased.  This is a good way
+  for checking if you've made changes to the note.  If the
+  Save menu item is "insensitive" (grayed-out) then you
+  haven't made any changes to the Text of the note.  <STRONG>NOTE</STRONG>: it
+  is important to remember that until you have pressed the
+  ``Save'' button, any changed data in the Post-it note is not
+  saved on disk and can be lost if the system goes down or
+  <EM>xpostit</EM> exits.
+
+  To erase the entire contents of the text window, you can
+  click on the Options button and select the ``Erase'' menu
+  item.  This will bring up a confirmation window, which has
+  two buttons labeled ``Confirm'' and ``Cancel''.  If you
+  press the ``Confirm'' button, the text will be erased.  If
+  you press the ``Cancel'' button, the operation is canceled,
+  and nothing will happen.  <STRONG>NOTE</STRONG>: erasing the text in the
+  window does not affect any contents of the note you have
+  saved on disk unless you press the ``Save'' button again.
+
+  To destroy a Post-it note, getting rid of its window on the
+  screen and the disk file it is saved in, click on the
+  Options button and select the ``Destroy'' menu item.  This
+  will bring up a confirmation window as described above.  If
+  you confirm the operation, the Post-it note will disappear
+  from the screen and the disk file it was saved in will be
+  deleted.
+
+  To rename a note, you can click on the Options button and
+  select the ``Name'' menu item.  This will bring up a dialog
+  box, which has two buttons labeled ``Confirm'' and
+  ``Cancel'' as well as a field to enter text for the new
+  name.  If you press the ``Confirm'' button, the new name
+  will be placed in the title bar of the note.  If you press
+  the ``Cancel'' button, the operation is canceled.
+
+  To hide a note, you can click on the Options button and
+  select the ``Hide'' menu item.  This will cause the note to
+  disappear from the screen.  To bring the note back, select
+  the ``Hidden Notes'' option from the plaid pull-down menu.
+  Then select the note you wish to bring back up.  <STRONG>NOTE</STRONG>: The
+  hidden notes will not stay hidden between <EM>xpostit</EM> sessions
+  unless you first select the "Save All Notes" option from the
+  plaid menu or options to save on exit (see discussion above)
+  have been set.
+
+  To anchor a note you can click on the Options button and
+  select the ``Anchor'' menu item.  This will mark the note as
+  an anchor note.  Anchor notes are the bottom note, the
+  "anchor", when the Cascade option is chosen from the xpostit
+  menu.
+
+  To unanchor a note you can click on the Options button and
+  select the ``UnAnchor'' menu item.  This will remove the
+  note from the list of anchor notes.
+
+  Note that only one of the ``Anchor'' or ``UnAnchor'' options
+  will be sensitive (allow user selection) at any time.  They
+  are mutually exclusive options.
+
+  To print a note, you must have configured xpostit with a
+  valid print command (via the -printcmd command line option
+  or the .printCmd resource).  Select the ``Print'' option
+  from a notes pull down menu.  The text of the note is
+  printed.
+
+  To email a note use the ``Email'' option.  This option from
+  will pop up a window prompting for an email address. Fill in
+  the text field and select ``Accept'' to send the message.
+  The notes title will be used as the subject line.  Select
+  ``Cancel'' to cancel sending the message.
+
+  To set a notes alarm, select ``Set Alarm'' from the notes
+  Options pull down menu.  A window pops up with month, day,
+  hour and minute fields.  Set each of these for the day and
+  time you wish the alarm to go off.  If you wish to save this
+  value between invokations you should use either the notes
+  ``Save'' option or the ``Save All Notes'' option from the
+  plaid windows menu.  When a notes alarm is set an icon of a
+  clock will be visible next to the Options menu button in the
+  notes menu bar.
+
+  To turn off the a notes alarm, select ``Unset Alarm'' from
+  the Options pull down menu.  This will disable the alarm for
+  that note and remove the clock icon from the menu bar.
+
+  To insert a copy of the current calendar month in the text
+  select the "Insert Calendar" option from the notes menu.
+  The text will be inserted at the current cursor location, so
+  you should be sure to position the cursor first.  You can
+  position the cursor by just clicking in the text window of
+  the note.
+
+<STRONG>CONFIGURING</STRONG> <STRONG>THE</STRONG> <STRONG>MAILER</STRONG>
+  In order to use your systems mailer with the Email feature
+  of xpostit, you need to configure the appropriate mailer
+  command using either the -emailcmd command line option or
+  the .emailCmd resource.   The format for both of these is
+  the same:  a double-quoted string which contains the name of
+  the mailer command, the option for providing the subject
+  line, and the addressee.  By default the Unix command "mail"
+  is used.  It is defined in the Xpostit.ad (and in the source
+  code fallback resources) as:
+
+
+			"mail -s\"%s\" %s"
+
+
+  The format is the standard format used by printf().  The
+  first string parameter is the subject line.   The
+  backslashes are required so that the following double quotes
+  are passed properly to the shell.  If these are left out the
+  subject will be truncated to the first word of the first
+  string parameter and an attempt will be made by the mailer
+  to send mail to non-existant recipients.
+
+  The second string is the addressee.  The order of the string
+  parameters is required (subject first, addressee second).
+  The mailer command accpets the text of the mail via standard
+  input.  This too is required.
+
+  If you use elm, you might want to change this to:
+
+
+			"elm -s\"%s\" %s &gt; /dev/null"
+
+
+  The difference here is that elm prints out a few messages
+  when it runs in batch mode and you should send those to
+  /dev/null.
+
+<STRONG>SEE</STRONG> <STRONG>ALSO</STRONG>
+  X(1)
+
+<STRONG>BUGS</STRONG>
+  The sizes of the Post-it notes are only as accurate as the
+  display dimension and resolution returned by the server.  On
+  the Sun server and possibly others, this means they aren't
+  all that accurate.
+
+  On Linux systems the word wrap feature of the Text Widget
+  appears broken.  The words get wrapped to the next line but
+  they do not get erased from the previous line.  I'm not sure
+  how to fix this.  You can resize the note using the window
+  manager to clear the problem, or scroll the note window.
+
+  There was a Warning that writes to stdout regarding a null
+  child being managed in the 2.1 version.  I think I found
+  what was causing it.  It didn't seem to cause any problems
+  before, so if its not fixed, its no big deal.
+
+  The message: ``Warning: XtRemoveGrab asked to remove a
+  widget not on the list'' may be written to stdout after an
+  alarm popup is dismissed.  This is a timing issue in the X
+  libs, I think, and doesn't appear to cause any problems.
+
+  The Dialog used to name a note doesn't limit the number of
+  characters that can be used in a name, although it does
+  prevent (by use of translations) a user from putting a
+  newline in the text.  The drawback to not limiting the
+  length of the name is that the dialog box's text field won't
+  resize or scroll to the right as characters are typed off
+  the right hand edge of the field.  Bummer dude.  This might
+  be fixable if key events force a resize on each keystroke.
+  Hmmm.  I'll have to think about that one.
+
+  The Hidden Notes menu, if it has no entries, can be fairly
+  small (with only a title).  Since this menu doesn't go away
+  unless you click on it, it can get hidden under other
+  windows running under a window manager which uses autoraise.
+  You could probably change this with translations, but I like
+  having the menu stay up till I tell it to go away.  Under
+  Linux and fvwm, I have one desktop devoted to Post-It notes
+  so I don't worry too much about other windows hiding the
+  menu.
+
+  The -c option has been reported to not read in old notes
+  properly.  It eats the first line.  This can be worked
+  around by adding a blank line to the old notes.  However, I
+  couldn't reproduce this problem.  I suggest creating a
+  backup of your old notes before trying to run with the -c
+  option, just in case.
+
+  Without a color display for canary yellow notes and red
+  plaid, the aesthetic value of <EM>xpostit</EM> cannot be fully
+  appreciated.
+
+<STRONG>AUTHOR</STRONG>
+  Originally by David A. Curry, SRI International.
+
+  Name, Save (sensitivity), Hidden Notes, changes to buttons
+  (to make them menus), Email, Print, and all other
+  enhancements (from version 2.0 on) by Michael J. Hammel
+  (mjhammel@csn.net).
+
+  ``Post-it'' and the plaid design are registered trademarks
+  of 3M.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

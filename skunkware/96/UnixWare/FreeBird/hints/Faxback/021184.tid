@@ -1,0 +1,77 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:
+TITLE:  Redirecting Console Output to a Serial Port
+DOCUMENT ID:  TID021184
+DOCUMENT REVISION:  A
+DATE:  27SEP93
+AUTHOR:  BAMUNDSO
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Drivers
+
+ABSTRACT:
+
+If you need to redirect the console to a serial port, the following explains the procedure.
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+ISSUE
+
+1)	vi /etc/default/login
+
+	In this file, comment out the CONSOLE line with a #, or replace /dev/console with the serial device; that is, /dev/tty00
+
+2)	vi /etc/conf/init.d/kernel  and  /etc/inittab
+
+	Make changes to both, by replacing /dev/console with the serial device in the line that defines the Console Login ttymon.
+
+3)	vi /etc/syslog.conf
+
+	This will probably not already exist, so put in the following information, where serial_device is the serial device name:
+
+		*.emerg    serial_device
+		*.alert	serial_device
+		*.crit     serial_device
+		*.warning  serial_device
+		*.notice   serial_device
+		*.info     serial_device
+		*.debug    serial_device
+
+4)	vi /etc/rc2.d/S99syslog
+
+	Again this file will not exist, so just place the following line into the file:
+
+	/usr/sbin/syslogd
+
+5)	The properties for the serial device or terminal acting as the console will be 7 Data, 1 Stop, Odd parity. (71O).  If you feel the need to modify this, you can do it in /etc/ttydefs under the console definition.
+
+	NOTE:  You may see additional messages on your new serial console when the machine is booting.  Don't be alarmed.  Most of these messages are not reporting problems; they are just informational.
+
+	Next time you reboot, your console will appear on your serial port.
+
+REFERENCE: scon0927.tf, General Info
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+
+
+
+

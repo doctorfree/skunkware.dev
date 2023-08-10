@@ -1,0 +1,165 @@
+
+
+This article carries some netnews discussions on the Timezone
+support in UNIX SVR4 (also UnixWare).
+========================================================================
+
+Subject: TZ
+Keywords: locales, timezones
+
+>   I have a SVR4 question.  In the /usr/lib/locale/TZ subdirectory in
+>the SVR4 systems I have seen there exist files which give rules for
+>locale related timezones, the relationship with GMT, the rules for
+>daylight savings time and so on.  My question relates to the purpose
+>of these databases and whether some process, function or command makes
+>use of the information, or if the information must be used manually.
+
+With SVR4, System V joins other UNIX systems that have picked up the
+"Arthur Olson" time zone code, which beats the living hell out of the
+older SIII/SV time zone code, as well as the kernel-based code from V7
+and the variants in older BSDs (newer BSDs have the "Arthur Olson"
+code).
+
+If the TZ environment variable's value begins with ":", the rest of it
+is treated as a pathname; if it begins with "/", it's an absolute
+pathname, otherwise it's a pathname relative to "/usr/lib/locale/TZ". 
+If "tzset()" is called explicitly by a program, or implicitly by
+"localtime()" or "mktime()" being called, and TZ begins with a ":", the
+file to which TZ refers is loaded up.
+
+NOTE: if the files in that directory are text files, they *aren't* the
+files that "tzset()" loads.  "tzset()" loads binary files (in a
+byte-order-independent and word-size independent format, unless the
+person who ported the Olson code to a particular implementation screwed
+up, which they probably didn't, at least on 32-bit machines); the "zic"
+command compiles the text files into binary files loadable by "tzset()".
+
+The timezone/daylight savings time rules are used by "localtime()" to
+convert UNIX time to local time, and by "mktime()" to convert local time
+to UNIX time.
+
+Any program on the system that uses "localtime()" or "mktime()" should
+automatically pick up the data from those files - assuming they've been
+compiled by "zic".  (I.e., it won't pick up the data from the text
+files; you have to run the text files through "zic" first.)
+
+The data in the text files may or may not be up to date.  Any errors
+should be forwarded 1) to the vendor of the system and 2) to Arthur
+Olson, "ado@elsie.nci.nih.gov", although he may just say "that's not the
+latest version of the file" and send you or point you at the latest data.
+
+(The whole reason that stuff *is* in files is so that UNIX machines can
+cope with legislatures' tendency to change the rules every now and then
+for various reasons, including, allegedly, "company XXX wants to sell
+more charcoal briquets, so let's make daylight savings time start
+earlier in the year so people will barbequeue more often" - and do so
+without having a complicated TZ variable setting that has to be changed
+every year, or a complicated TZ variable setting that assumes the rules
+follow some regular pattern.  Except at times when the rules are changed
+by a government, the Olson code is basically "set it and forget it".)
+
+
+
+Subject: Re: Daylight Savings time in the UK
+Keywords: daylight time localtime
+
+tgcpwd@rwc.urc.tue.nl (Wim van Dorst) asks ``What is the Olson scheme/code?''
+
+The Olson method is referred to in the Posix standard (see Posix
+1003.1-1990 section B.8.1.1).  It's an excellent package, and is
+becoming the standard in modern Unix systems.  It uses the TZ
+environment variable as an index into a table on disk that contains
+rules that are sensitive to the year to which they are applied.  The
+table is compiled from a human-readable text file.  The package can
+handle a wide variety of time zone anomalies, including
+double-daylight, leap seconds, different rules for different years, and
+so forth.  If your government changes your timekeeping rules, all you
+need to do is write up the new rules, run the `zic' program on them,
+and your programs can use the new rules without recompilation or relinking.
+
+You can FTP the Olson code from elsie.nci.nih.gov in pub/tz92.tar.Z.
+
+To give you a feeling of what the Olson format rules look like,
+(and how much politics influences timekeeping!),
+here are the rules for TZ=GB-Eire as published in tz92.
+
+
+# [British Summer Time] is fixed annually by Act of Parliament.
+# If you can predict what Parliament will do, you should be in
+# politics making a fortune, not computing.
+
+# Zone	NAME		GMTOFF	RULES/SAVE	FORMAT	[UNTIL]
+Zone	GB-Eire		0:00	GB-Eire		%s	1968 Oct 27 1:00s
+			1:00	-		BST	1971 Oct 31 1:00s
+			0:00	GB-Eire		%s
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+# 1916 to 1925--irregular
+Rule	GB-Eire	1916	only	-	Mar	21	1:00s	1:00	BST
+Rule	GB-Eire	1916	only	-	Oct	1	1:00s	0	GMT
+Rule	GB-Eire	1917	only	-	Apr	8	1:00s	1:00	BST
+Rule	GB-Eire	1917	only	-	Sep	17	1:00s	0	GMT
+Rule	GB-Eire	1918	only	-	Mar	24	1:00s	1:00	BST
+Rule	GB-Eire	1918	only	-	Sep	30	1:00s	0	GMT
+Rule	GB-Eire	1919	only	-	Mar	30	1:00s	1:00	BST
+Rule	GB-Eire	1919	only	-	Sep	29	1:00s	0	GMT
+Rule	GB-Eire	1920	only	-	Mar	28	1:00s	1:00	BST
+Rule	GB-Eire	1920	only	-	Oct	25	1:00s	0	GMT
+Rule	GB-Eire	1921	only	-	Apr	3	1:00s	1:00	BST
+Rule	GB-Eire	1921	only	-	Oct	3	1:00s	0	GMT
+Rule	GB-Eire	1922	only	-	Mar	26	1:00s	1:00	BST
+Rule	GB-Eire	1922	only	-	Oct	8	1:00s	0	GMT
+Rule	GB-Eire	1923	only	-	Apr	22	1:00s	1:00	BST
+Rule	GB-Eire	1923	only	-	Oct	16	1:00s	0	GMT
+Rule	GB-Eire	1924	only	-	Apr	30	1:00s	1:00	BST
+Rule	GB-Eire	1924	only	-	Sep	21	1:00s	0	GMT
+# 1925 to 1939 start--regular
+Rule	GB-Eire	1925	1939	-	Apr	Sun>=15	1:00s	1:00	BST
+Rule	GB-Eire	1925	1938	-	Oct	Sun>=1	1:00s	0	GMT
+# 1939 end to 1947--irregular, and with double summer time
+Rule	GB-Eire	1939	only	-	Nov	19	1:00s	0	GMT
+Rule	GB-Eire	1940	only	-	Feb	25	1:00s	1:00	BST
+Rule	GB-Eire	1941	only	-	May	4	1:00s	2:00	DST
+Rule	GB-Eire	1941	only	-	Aug	10	1:00s	1:00	BST
+Rule	GB-Eire	1942	only	-	Apr	5	1:00s	2:00	DST
+Rule	GB-Eire	1942	only	-	Aug	9	1:00s	1:00	BST
+Rule	GB-Eire	1943	only	-	Apr	4	1:00s	2:00	DST
+Rule	GB-Eire	1943	only	-	Aug	15	1:00s	1:00	BST
+Rule	GB-Eire	1944	only	-	Apr	2	1:00s	2:00	DST
+Rule	GB-Eire	1944	only	-	Sep	17	1:00s	1:00	BST
+# Double daylight starts on a Monday in 1945?
+Rule	GB-Eire	1945	only	-	Apr	2	1:00s	2:00	DST
+Rule	GB-Eire	1945	only	-	Jul	15	1:00s	1:00	BST
+Rule	GB-Eire	1945	only	-	Oct	7	1:00s	0	GMT
+Rule	GB-Eire	1946	only	-	Apr	14	1:00s	1:00	BST
+Rule	GB-Eire	1946	only	-	Oct	6	1:00s	0	GMT
+Rule	GB-Eire	1947	only	-	Mar	16	1:00s	1:00	BST
+Rule	GB-Eire	1947	only	-	Apr	13	1:00s	2:00	DST
+Rule	GB-Eire	1947	only	-	Aug	10	1:00s	1:00	BST
+Rule	GB-Eire	1947	only	-	Nov	2	1:00s	0	GMT
+# So much for double saving time.  1948 and 1949, irregular.
+Rule	GB-Eire	1948	only	-	Mar	14	1:00s	1:00	BST
+Rule	GB-Eire	1948	only	-	Oct	31	1:00s	0	GMT
+Rule	GB-Eire	1949	only	-	Apr	3	1:00s	1:00	BST
+Rule	GB-Eire	1949	only	-	Oct	30	1:00s	0	GMT
+# 1950 through start of 1953, regular.
+Rule	GB-Eire	1950	1953	-	Apr	Sun>=14	1:00s	1:00	BST
+Rule	GB-Eire	1950	1952	-	Oct	Sun>=21	1:00s	0	GMT
+# 1954 to 1980, starting rules
+Rule	GB-Eire	1954	only	-	Apr	11	1:00s	1:00	BST
+Rule	GB-Eire	1955	1959	-	Apr	Sun>=14	1:00s	1:00	BST
+Rule	GB-Eire	1960	only	-	Apr	10	1:00s	1:00	BST
+Rule	GB-Eire	1961	1963	-	Mar	lastSun	1:00s	1:00	BST
+Rule	GB-Eire	1964	1967	-	Mar	Sun>=19	1:00s	1:00	BST
+Rule	GB-Eire	1968	only	-	Feb	18	1:00s	1:00	BST
+Rule	GB-Eire	1972	1980	-	Mar	Sun>=16	1:00s	1:00	BST
+# 1953 to 1971, ending rules
+Rule	GB-Eire	1953	1960	-	Oct	Sun>=1	1:00s	0	GMT
+Rule	GB-Eire	1961	1967	-	Oct	Sun>=23	1:00s	0	GMT
+Rule	GB-Eire	1971	only	-	Oct	31	1:00s	0	GMT
+# Current rules
+Rule	GB-Eire	1981	max	-	Mar	lastSun	1:00s	1:00	BST
+Rule	GB-Eire	1972	max	-	Oct	Sun>=23	1:00s	0	GMT
+
+
+

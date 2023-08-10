@@ -1,0 +1,1197 @@
+Newsgroups: comp.unix.unixware.misc
+Subject: UnixWare Frequently Asked Questions (howto Setup Networking)
+Followup-To: comp.unix.unixware.misc
+Supersedes: <Dp4n90.1KG@tamarix.demon.co.uk>    
+Expires: Wed, 15 May 1996 00:00:00 GMT
+Summary: Answers to questions frequently asked on Howto setup SCO UnixWare
+
+Archive-name: unix-faq/unixware/howto-net
+Posting-Frequency: monthly
+Last-modified: April 14 1996
+Version: Draft for comment   
+
+UnixWare Frequently Asked Questions List (Howto Setup Networking)
+
+Introduction
+
+This is the Howto section of the UnixWare Frequently Asked Questions
+file maintained on the Internet for the Usenet newsgroup
+comp.unix.unixware.misc. Its maintainer is Andrew Josey
+(andrew@tamarix.demon.co.uk). Suggestions and contributions are always welcome.
+
+This is a draft FAQ for comment. Please let me know what you think
+and what additional questions you want added (please try and provide
+the answer). This FAQ should be read in conjunction with the
+Miscellaneous Troubleshtooting FAQ.  
+
+Small print: This file is freely copyable. Many proper names of
+companies and software mentioned in these files are trademarks
+of their respective owners.  All views are those of the
+individual contributors and not of their employers.
+
+This FAQ contains the following questions and answers:
+
+N1) Howto setup Domain Name Service setup on UnixWare?
+N2) Howto setup Netnews via PPP
+N3) Howto setup TCP Wrappers?
+N4) Howto setup a WWW Server on UnixWare?
+N5) Howto setup syslog?
+N6) Howto Setup Anonymous FTP ?
+N7) Howto add a LAN to the internet thru UnixWare PPP Gateway?
+
+Subject N1) How Do I setup Domain Name Service setup on UnixWare?
+
+(related files in Freebird  hints/Networking/DNS/dnstools.shar)
+
+This short guide explains how to setup a DNS server using a tool
+called h2n which greatly simplifies the process - h2n is part 
+of the set of tools from ftp.ora.com:/pub/examples/nutshell/dnsbind
+that accompany the O'Reilly book DNS and Bind - this is ESSENTIAL
+reading if you want to really understand what's going on or do
+more advanced DNS setup.
+
+PLEASE NOTE THIS IS NOT INTENDED TO BE AN IN-DEPTH DESCRIPTION
+OF HOW DNS WORKS, BUT IS INTENDED TO GET DNS WORKING AS SIMPLY
+AS POSSIBLE.
+
+The following multi-point plan will get DNS running on your machine.
+
+Before you start please make a note of the following:
+
+(a) Your IP network number, i.e. 192.9.200
+(b) Your Domain address, i.e. mydom.com  (note this can be
+a three level one if you like, for example mydom.biggerdom.com,
+just replace mydom.com with the mydom.biggerdom.com in the examples
+below).
+(c) Your internet providers domain and address
+
+1a. Edit /etc/inet/rc.inet  (for UnixWare 1.x)
+
+To enable starting of the named daemon on your machine uncomment the 
+following section of the file /etc/inet/rc.inet
+
+#
+#  Run the DNS server if a configuration file is present
+#
+#if [ -f /etc/inet/named.boot -a -x /usr/sbin/in.named ]
+#then
+#     /usr/sbin/in.named
+#fi    
+
+1b. For UnixWare 2.0 /etc/inet/rc.inet is no longer used, but the
+file /etc/inet/config, which has by default an entry:
+
+5:/usr/sbin/in.named::y:/etc/inet/named.boot::
+
+This state line means that when the file /etc/inet/named.boot exists
+then the system should auto start the in.named process if it exists
+and is executable 
+
+
+2. Obtain the dnstools file from the mail-server@novell.co.uk
+
+	send the following message 
+
+	begin
+	send dnstools.shar.Z
+	end
+
+If you have internet connectivity, ftp to ftp.abs.net
+/unixware/freebird/hints/Networking/DNS
+
+
+3. Make a directory to contain the DNS setup files, and chown that
+   directory to yourself
+
+	su 
+	mkdir /var/named
+	chown andrew /var/named 
+
+	
+4. Unwind dnstools.shar.Z file in /var/named directory
+
+	cd /var/named
+	compress -d dns_tools.shar
+	sh dns_tools.shar
+
+5. Make sure that the h2n file is executable
+
+	chmod +rx  h2n
+
+(note that h2n is written in perl and assumes that perl is in
+/usr/gnu/bin/perl. If its not, then obtain perl from the mail-server
+and edit the first line of h2n to the correct location for perl).
+
+6. Edit the file file named.boot and edit in your Domain & IP address
+
+; The following example is for domain mydom.com
+; (1) Change mydom.com to your domain address, and change the db file
+; so that its the first word before a .  for example, 
+; novtest.demon.co.uk , has a db file of db.novtest.
+; (2) Change the IP address of 192.9.200   (replace this with your real addr)
+; note the first number in the IN-ADDR.ARPA line has the addr in reverse 
+
+directory /var/named
+
+primary 0.0.127.IN-ADDR.ARPA db.127.0.0
+primary mydom.com db.mydom
+primary 200.9.192.IN-ADDR.ARPA db.192.9.200
+cache   . db.cache    
+
+
+Optionally, you may also want to add a Forwarders line. Typically
+you'd do this if you were behind a firewall, and would forward to
+a machine that is a firewall gateway, for example
+
+forwarders      137.65.1.1 147.2.200.5 128.110.124.120
+
+This would go before the cache entry.
+
+
+You may also want to consider moving the cache line to be the first
+entry in the file after the directory entry, some sites can get
+improved performance from this - for our site behind a firewall we
+don't.
+
+
+7. ln  /var/named/named.boot to /etc/inet/named.boot
+
+	su
+	cd /etc/inet
+	ln -s /var/named/named.boot named.boot
+
+
+8. Edit h2n.script - this file is a shell script that calls the h2n
+perl script to generate DNS data files from the hosts file entry.
+
+Change the following parameters:
+
+DOMAIN=mydom.com
+IPADDR=192.9.200
+NETMASK=255.255.255.0
+PRIMARY=`uname -n`
+SECONDARY=myprovider.com
+CONTACT=andrew.${PRIMARY}.${DOMAIN}      
+
+
+The values for DOMAIN and IPADDR should be the same as those
+used in /var/named.
+The CONTACT is for the SOA field and should be a valid
+email address except that the "@" sign has been replaced by
+a ".".
+
+If you decide you want to have your contact address as a two
+level domain address (i.e. user@mccc.edu rather than user@tecoma.mccc.edu)
+then change the CONTACT line to  CONTACT=user.mccc.edu
+
+
+9. Edit /etc/hosts and setup hosts for the network.
+
+192.9.200.1	prime prime.mydom.com ns
+192.9.200.2 another # [no smtp]
+
+
+Note that the comment # [no smtp] indicates to h2n not to generate
+an MX record for that host.
+
+10. Run the shell script  h2n.script in /var/named to generate the
+DNS data files based on the host file.
+
+	sh h2n.script
+
+At this time answer N to restart the named process
+
+sh h2n.script
+    root 12686     1  0 07:30:44 ?        0:00 /usr/sbin/in.named
+    root 12749 12743  2 07:46:25 pts/4    0:00 grep named
+do a kill -HUP to the named process, then an nslookup to check:
+kill -HUP 12686? [y]    n
+
+
+(after you've got DNS running the first time, further updates
+can be made to the host file, and then the h2n.script rerun,
+each time saying Y will then restart in.named and automatically
+run nslookup so you can check the configuration).
+
+11. Start the in.named daemon by hand
+
+
+	su
+	/usr/sbin/in.named
+
+
+12. Edit the file /etc/resolv.conf
+
+Resolv.conf 
+
+domain	mydom.com
+nameserver 127.0.0.1		# this is the localhost 
+
+
+13.  Test the named using nslookup
+
+nslookup
+
+Default Server:  localhost
+Address:  127.0.0.1
+
+>   prime.mydom.com
+Server:  localhost
+Address:  127.0.0.1
+
+Name:    prime.mydom.com
+Addresses:  192.9.200.1
+             
+
+
+14. Do you just want a cacheonly DNS server?
+
+Just copy boot.cacheonly to named.boot and restart the in.named
+with a kill -HUP.
+
+
+15. What do you need for other clients in your cluster
+just edit /etc/resolv.conf
+
+; sample /etc/resolv.conf for client
+domain mydom.com
+nameserver 192.9.200.1
+
+
+Troubleshooting
+---------------
+Firstly: PLEASE CONSIDER getting the O'Reilly book 
+DNS and Bind ISBN 1-56592-010-4.
+It's essential reading and explains fully how best to use the h2n tool
+and much much more. 
+
+
+Symptom: in.named refuses to start. 
+
+Resolution: check that the symlink to /etc/inet/named.boot is in place
+
+
+
+=================================================================
+Starting and Stopping the in.named
+
+Your DNS is now setup.  To start your DNS, you will need to stop
+and start the in.named process.  Once restarted, in.named will
+automatically detect the named.boot file in the /etc/inet directory
+and start your DNS.  To stop the in.named process execute the
+following commands as root:
+
+ps -ef | grep in.named
+
+The PID# will be found in column two.  Kill the process with the
+following command.  Replace PID# with the number you saw 
+in column
+ two.
+
+kill -1 PID#
+
+To start the in.named process type "/usr/sbin/in.named".  This
+process will start automatically when you reboot. Once 
+in.named is running with the new configuration you will need to test 
+your DNS. Use the ping and nslookup commands to test your DNS. 
+Both of these programs are found in /usr/sbin.
+
+Subject N2) Howto setup Netnews via PPP
+
+I recently setup my home machine for reaching netnews over PPP,
+attached are some notes on what i did to make this work (my system
+is UW2.03 on a Dell Optiplex XMT590).
+
+You have a couple of choices for reading netnews:
+
+	(1) Either read news directly over nntp from your ISP. The
+advantage here is that you don't have any overhead in administering
+any kind of local news system. The disadvantages are the online
+costs of holding the phone up, and the slow speed of some news
+readers who like to periodically check the 15,000 line active file.
+
+Alternately (2), which is what i do, is to run your own netnews
+system locally. I use Cnews (the news database engine), nntp (for
+accessing the news database locally and for transmitting
+outbound postings via nntpxmit) and slurp (to download the newsgroups
+over nntp from my ISP).
+
+These three pieces of software are all on
+	ftp.abs.net:/unixware/freebird/netnews/server
+	ftp.novell.co.uk:/pub/unixware/freebird/netnews/server
+(Be sure to read the README's in that directory also.)
+
+In my case I feed the news from news.demon.co.uk (and also pubnews.demon.co.uk
+in case one server is down) - the news protocol is sufficiently smart to
+recognise  duplicates so multiple feeds is not a bad idea.
+After installing the pkgadd software, the following files needed
+tuning for the local installation:
+
+/usr/lib/news/sys
+/usr/lib/news/batchparms
+/usr/lib/news/explist
+/usr/lib/news/slurp.sys
+/usr/lib/news/slurp.news.demon.co.uk
+/usr/lib/news/donews
+/usr/lib/newsbin/inject/pnews
+/var/spool/news/out.going/*
+
+These are discussed below. 
+
+The "sys" file tells the News system what to receive, and what to
+pass on, for receiving local news and sending local postings back
+to news.demon.co.uk the following entries are needed:
+
+# Only the ME line is mandatory; the others are just samples of how to do
+# things.  Virtually everything will need modifying for your local feeds
+# and newsgroups.
+
+# line indicating what we are willing to receive; note local groups near end
+ME:comp,news,sci,rec,misc,soc,talk,alt,can,uk,us,ont,tor,ut,demon,local,to
+
+news.demon.co.uk:all:Ln:
+pubnews.demon.co.uk:all:Ln:
+
+
+The "batchparms" file tells the News system how to batch things up
+for transmission - i.e. what to do with your local postings, thus
+when sendbatches is called by cron or by the donews script below
+it knows to call usenntpxmit.
+
+# site          class   size    queue   command
+# ----          -----   ----    -----   -------
+# defaults:  cunbatch header, transfer by uux
+/default/       u       500000  20      batcher | compcun | viauux -g low
+news.demon.co.uk        n       40000   -       usenntpxmit news.demon.co.uk 
+pubnews.demon.co.uk        n       40000   -       usenntpxmit pubnews.demon.co.uk 
+
+
+The file "explist" contains the default expiry times file for expiring
+old news. The importance of this depends on how much news you feed
+in - note that unless your machine is on 24 hours a day, the news
+cron's won't get run, so you'll have to expire by hand. To see the
+crons, su - news and then crontab -l.
+
+The file "slurp.sys" is the control file for slurp.
+
+My demon feed is currently as follows:
+
+# Demon feed
+news.demon.co.uk:demon.*.unix.*,demon.announce,demon.news,demon.service,\
+demon.pops,comp.unix.sys5.r4,comp.unix.unixware.*,comp.std.*,sci.med.vision,\
+comp.mail.*,comp.unix.solaris 
+pubnews.demon.co.uk:demon.*.unix.*,demon.announce,demon.news,demon.service,\
+demon.pops,comp.unix.sys5.r4,comp.unix.unixware.*,comp.std.*,sci.med.vision,\
+comp.mail.*,comp.unix.solaris 
+
+The "slurp.news.demon.co.uk" file contains a date and time stamp
+of the last news download, you need one of these files for each newsfeed
+site.
+
+$ cat slurp.news.demon.co.uk
+951119 153112    
+
+
+The "donews" script is a shell script that I run when I want to
+download new news, it also does a sendbatches and a newsrun to
+unload the incoming batches at this time.
+
+
+#!/bin/sh
+# get the news
+
+/usr/sbin/ping news.demon.co.uk
+if [ $? -eq 0 ]
+then
+	# ppp up
+	:
+else
+	/usr/sbin/ping pubnews.demon.co.uk
+	if [ $? -eq 0 ]
+	then
+		:
+	else
+		echo "PPP link not established, no news processing attempted."
+		exit 1
+	fi
+fi
+
+# Transmit any batched articles.
+
+/usr/lib/newsbin/batch/sendbatches &	#Cnews
+
+while : ; do ( ../newsbin/nntp/doslurp  -d news.demon.co.uk ||
+../newsbin/nntp/doslurp  -d pubnews.demon.co.uk ) && break ;
+done
+
+# sometimes news returns 400 busy - so retry 
+/usr/lib/newsbin/batch/sendbatches &	#Cnews
+/usr/lib/newsbin/input/newsrun & 
+
+
+For outgoing news articles you need to create some subdirectories
+in /var/spool/news/out.going, one for each site and create a
+zero length file called togo in each, for example, on
+my machine, the out.going directories are as follows:
+
+
+total 0
+drwxr-xr-x    2 news     news          96 Dec 29 16:57 news.demon.co.uk
+drwxr-xr-x    2 news     news          96 Dec 31 09:17 pubnews.demon.co.uk
+
+/var/spool/news/out.going/news.demon.co.uk:
+total 0
+-rw-r--r--    1 news     news           0 Dec 29 16:57 togo
+
+/var/spool/news/out.going/pubnews.demon.co.uk:
+total 0
+-rw-r--r--    1 news     news           0 Dec 31 09:17 togo
+
+
+Some tips when you first install the news software, firstly
+create a local.test group
+	cnewsdo addgroup local.test y
+
+Then send a posting to their , using tin , and check the
+posting goes into the /var/spool/news/in.coming directory,
+and that a newsrun puts it into the news database.
+
+Then add the recent unixware newsgroups:
+
+	cnewsdo addgroup comp.unix.unixware.misc y
+	cnewsdo addgroup comp.unix.unixware.announce m
+	cnewsdo addgroup comp.unix.sco.announce m
+	cnewsdo addgroup comp.unix.sco.misc y
+	cnewsdo addgroup comp.unix.sco.programmer y
+
+since they are missing from the original newsgroups file in the package.
+You should also edit the /usr/lib/news/active file to reset all
+the sequence numbers:
+	cp active active.sav
+	sed 's/ [0-9]* [0-9]* / 0000000000 00001 /' active.sav > active
+	rm active.sav
+
+A more recent active file can be found in 
+/unixware/freebird/netnews/server/active.Z
+
+
+Subject N3) Howto setup TCP Wrappers?
+
+This short guide explains how to setup a TCP Access Control Facility ,
+the tcpd (*) access control tool - which we'll refer to as "TCP
+Wrappers" due the way that these operate by creating a wrapper
+around the real services in /etc/inetd.conf(**) .
+
+The wrapping mechanism does some initial access control checks when
+a request for a TCP service is received. The daemon
+uses two files (/etc/hosts.allow and /etc/hosts.deny), performs logging
+via syslog, and if access control is granted hands the requestor off 
+to the real TCP service.
+
+(* tcpd is written by Wietse Venema)
+(** in UnixWare /etc/inetd.conf is a symlink to /etc/inet/inetd.conf)
+
+PLEASE NOTE THIS IS NOT INTENDED TO BE AN IN-DEPTH DESCRIPTION
+OF HOW TCP WRAPPERS WORK, BUT IS INTENDED TO GET TCP WRAPPERS WORKING 
+AS SIMPLY AS POSSIBLE.
+
+But first why would you want to use the TCP Wrappers?
+
+The main reason is that the default TCP services invoked by inetd do not
+distinguish between friendly hosts from whom you should accept service
+requests and unfriendly hosts who may be trying to gain
+unauthorised access to the machine. Use of the wrappers give you
+better control over who is accessing services of your machine.
+
+
+The following multi-point plan will get the TCP Wrappers running on 
+your machine.
+
+Before you start please make a note of the following:
+
+(a) Your IP network number, i.e. 192.9.200
+(b) Your Domain address, i.e. mydom.com  (note this can be
+a three level one if you like, for example mydom.biggerdom.com,
+just replace mydom.com with the mydom.biggerdom.com in the examples
+below).
+		
+
+1. Obtain the TCP Wrappers binaries from ftp.abs.net (or one
+of the other freebird sites).
+
+	cd /tmp
+	ftp.abs.net,  /unixware or
+	ftp.osiris.com /pub/unixware
+	ftp.novell.co.uk /pub/unixware
+	netlab1.usu.edu /pub/mirror/freebird
+		 cd  /unixware/freebird/internet/server/tcp-wrappers
+
+  Select the appropriate package for your operating system version
+	wrapper.UW1.pkg.tar.Z is for UW1.x
+	wrapper.UW2.pkg.tar.Z is for UW2.x
+
+
+2. Unwind the tar file
+
+	zcat wrapper.UW2.pkg.tar | tar xvf -
+
+3. Pkgadd the package from the current directory
+
+	pkgadd -d `pwd`
+	
+4. At this point the wrappers are installed but not configured.
+
+For them to take affect you'll need to restart inetd - BUT First you
+should review the /etc/hosts.allow and /etc/hosts.deny files
+and edit them. FAILURE TO DO SO WILL MEAN THAT ALL CONNECTIONS
+TO YOUR MACHINE WILL BE DENIED BY DEFAULT.
+
+So at this point - READ ALL THE ACCOMPANYING DOCUMENTATION BELOW
+before continuing...
+
+
+The files installed/overlaid/edited by this package are:
+
+/usr/lib/newsyslog - a shell script to clean up logfiles nightly
+                     in /var/adm/log, run from the adm crontab
+/usr/sbin/wrapd	- the wrapper daemon run by inetd to do
+                  checking prior to invoking the real service
+	   (note many installations install this as /usr/sbin/tcpd)
+		
+/usr/sbin/spxwrap - the wrapper daemon run by nwnetd to do
+                  checking prior to invoking the real service
+/usr/sbin/in.identd - an identification daemon that tries to contact
+                  an identd on the remote machine
+
+/etc/inet/hosts.allow  - control file for allowed hosts for inet services
+/etc/inet/hosts.deny	- control file for denied hosts for inet services
+		(note hosts.allow and hosts.deny are symlinked into /etc)
+/etc/clients.allow   - an spx access control file
+/etc/syslog.conf    - config file for syslog 
+/var/spool/cron/crontabs/adm - updated to call newsyslog script to clean logs
+/etc/inet/inetd.conf    - updated inetd.conf file
+/etc/nwnetd.conf    - updated inetd.conf file
+
+Things to watch for:
+
+The nwnetd.conf and inetd.conf files are backed up prior to any
+changes in /etc/inetd/inetd.conf.orig and /etc/nwnetd.conf.orig.
+
+Once installed /etc/hosts.allow needs to be configured for the services,
+users and hosts that will access this host (the default is not too
+allow any hosts in).
+
+For example /etc/hosts.allow
+
+# This contains entries for allowed hosts and services
+# which they can access.
+ALL: localhost .your.own.dom
+#in.telnetd: user@host
+in.smtpd: ALL
+nntpd: rocky.horror.novell.com battlestar.novell.de 192.11.12.
+ftpd: .foo.com .bar.com
+in.bootpd: ALL
+
+For example /etc/hosts.deny
+
+# This contains entries for disallowed hosts and services
+# 
+# The default is to disallow everything, so that all that
+# is permitted has to be expressly defined in the /etc/hosts.allow
+# control file
+ALL: ALL
+
+For example /etc/clients.allow
+
+#ident @(#)clients.allow        1.1
+# SPX wrapper config file
+# format is:
+# service       protocol        network         address
+#
+# any field can be a *
+# if a service is not allowed by this file, it will be rejected.
+#
+# example:
+# ninstalld     SPX             123456          *
+# would allow any machines on the network 123456 to use the install server
+#
+# See /etc/nwnetd.conf for possible services
+#
+in.inetinst     spx     0101a5fa        *
+in.inetinst     spx     0101a5fb        *
+in.inetinst     spx     0101a5fc        *
+in.inetinst     spx     0101a5fd        *
+in.inetinst     spx     0101a5fe        *
+nrexecd spx     0101a5fc        *         
+
+An example extract of the /etc/inet/inetd.conf file follows:
+Note that the programme invoked for wrapped services is
+/usr/sbin/wrapd.
+
+#
+# Ftp and telnet are standard Internet services.
+#
+#ftp	stream	tcp	nowait	root	/usr/sbin/wrapd	in.ftpd
+# wuftpd entry
+ftp	stream	tcp	nowait	root	/usr/sbin/wrapd	/opt/bin/ftpd -o -L -l
+telnet	stream	tcp	nowait	root	/usr/sbin/wrapd	in.telnetd
+# NNTP daemon		#nntpserv
+nntp	stream	tcp	nowait	news	/usr/sbin/wrapd /usr/lib/newsbin/nntp/nntpd	#nntpserv
+#
+# Some services do not make sense to wrap or slow it down.
+# httpd should really be run as a standalone daemon for performance
+# reasons and use other access control and logging mechanisms
+#
+ident	stream	tcp	nowait	root	/usr/sbin/in.identd	in.identd
+#http	stream	tcp	nowait	nobody	/usr/sbin/wrapd	/opt/bin/httpd
+http	stream	tcp	nowait	nobody	/opt/bin/httpd	/opt/bin/httpd
+
+
+Test the installation!  try to access services from allowed users/hosts and
+others.  user/host combinations that are not allowed should simply be
+dropped (and a msg logged onto the console).
+
+To make inetd pick up the new configuration
+
+	ps -ef|grep inetd
+	kill -HUP {process id of inetd}
+
+To make nwnetd pick up the new configuration
+
+	ps -ef|grep nwnetd
+	kill -HUP {process id of nwnetd}
+
+To start syslogd by hand
+
+	/usr/sbin/syslogd
+
+(to restart syslogd send it a HUP signal).
+
+Once you're happy reboot the machine.
+
+
+Subject N4) Howto setup a WWW Server on UnixWare?
+
+With UnixWare its very simple to setup a WWW server.
+This article will guide you through the process, which with the
+CERN version of http  is typically just a few minutes.
+
+There are precompiled binaries for UnixWare available, see
+
+	ftp.abs.net:/unixware/freebird/internet
+	ftp.osiris.com:/pub/unixware/freebird/internet
+	netlab1.usu.edu:/pub/mirror/freebird/internet
+	ftp.novell.co.uk:/pub/unixware/freebird/internet
+        ftp.novell.de:/pub/unixware/usle/internet
+
+PLEASE NOTE that the binaries on ftp.novell.com:/pub/WWW are
+out of date , a snapshot from April 12th 1995 and should no longer
+be used.
+
+In the  freebird/internet directory you will find server, client and 
+systools directories.
+
+The server directory contains several www servers, the CERN
+version , the NCSA version and the Apache version. These are ready to 
+run versions.  The example below uses the CERN version , which 
+we  use due to its proxy and caching features - which help
+reduce external net bandwidth use.
+
+The steps to setup a WWW Server on UnixWare are attached below:
+
+(a) Get the CERN server  files from your nearest "Freebird" archive
+
+	cd /tmp
+	ftp ftp.abs.net
+
+	cd /unixware/freebird/internet/server
+	cd cern-httpd
+
+	bin
+	get httpd-3.0.pkg.tar		 (the server pkg)
+	quit
+
+(b) unwind the pkg.tar file into /tmp
+
+	tar xvf httpd-3.0.pkg.tar
+
+(c) Install the package:
+
+(for UW1 and UW2) pkgadd -d `pwd`
+
+or, if you're into using the GUI
+
+(for UW2) Use the GUI App_installer to install the package
+
+	Enter GUI app-installer under admin_tools
+	Select Other for "Install From:", and enter /tmp
+	Select Update view
+	Click on the httpd icon and select install
+	Read the blue screens , hit enter
+
+1 minute later you now have a WWW server installed and
+running, nothing else to do, it even comes with a test page
+
+Note this package installs httpd into /opt/bin,
+the server configuration files into /opt/lib/httpd
+and the WWW pages are located in /home/www.
+	
+(d) Download a www browser client to test with
+
+	ftp ftp.abs.net		
+	bin
+	cd /unixware/freebird/internet/client
+	cd mosaic	
+	get mosaic.pkg.tar.Z
+	quit
+
+	zcat mosaic.pkg.tar.Z|tar xvf -
+
+Either use pkgadd -d `pwd`, or
+Use app-installer as above, select the globe icon for mosaic
+to put it in your applications folder
+
+Double click on the Mosaic icon, and hit the globe to interrupt
+the lookup for www.novell.com. 
+Hit Open and enter
+
+		http://localhost/
+
+	or
+		http://your-node/
+
+	where your-node is your nodename
+
+(Note to customise the Mosaic home page, add a line
+
+Mosaic*HomeDocument: http://your-starting-page
+
+to .Xdefaults-Nodename , where Nodename is the output of uname -n)
+
+(e) To find out more on how to configure the CERN server , download the html
+docs for the server
+
+	cd /tmp
+	ftp ftp.abs.net
+
+	cd cd /unixware/freebird/internet/server
+	cd cern-httpd
+
+	bin
+	get cern_httpd_docs.tar.Z	 (docs for server config in html)
+	quit
+
+
+To install the docs
+
+	cd /home/www     (where this server puts the docs)
+
+	zcat /tmp/cern_http_docs.tar.Z|tar xvf -
+
+	
+To read the docs
+
+	
+	In a browser open URL
+
+		http://localhost/httpd_docs/
+
+
+(f) If you want a very simple demo for Unixware
+
+Download the files
+ftp.abs.net:/unixware/freebird/internet/server/cern-httpd/WWWdemopages.README
+ftp.abs.net:/unixware/freebird/internet/server/cern-httpd/WWWdemopages.tar.Z
+
+(g)  You *ONLY* need to consider the following if you run a heavily loaded
+    site - 
+
+If you're running a heavily loaded http you need to run httpd in
+standalone mode rather than out of inetd. 
+Remove the httpd entry from /etc/inet/inetd.conf
+and send inetd the HUP signal to re-read its config file.
+	ps -ef|grep inetd
+	kill -HUP {pid}
+Check its no longer there
+	telnet localhost 80
+(should get connection refused)
+
+Add an /etc/rc3.d/S30http file with something like:
+
+#!/bin/sh
+
+case "$1" in
+'start')
+        if [ -x /opt/bin/httpd -a -f /opt/lib/httpd/conf/httpd.conf ]
+        then
+                /opt/bin/httpd -r /opt/lib/httpd/conf/httpd.conf &
+        else      
+		echo "failed to start httpd"
+	fi
+	exit 0
+        ;;
+'stop')
+        kill -9 `/usr/bin/ps -e \
+      |/usr/bin/egrep ' httpd$' | /usr/bin/awk '{print $1}'` 2>/dev/null
+        ;;
+*)
+        echo "Usage: $0 { start | stop }"
+        ;;
+esac  
+
+
+To start there and then
+	sh /etc/rc3.d/S30http start
+
+
+Attached is a sample httpd.conf file for proxy and caching.
+
+
+#
+#	Sample configuration file for cern_httpd for running it
+#	as a normal HTTP server.
+#
+# See:
+#	<http://info.cern.ch/hypertext/WWW/Daemon/User/Config/Overview.html>
+#
+# for more information.
+#
+# Written by:
+#	Ari Luotonen  April 1994  <luotonen@dxcern.cern.ch>
+#
+#	Modified for use with UnixWare - AJ.
+
+HostName	www.foo.co.uk
+#
+#	Set this to point to the directory where you unpacked this
+#	distribution, or wherever you want httpd to have its "home"
+#
+ServerRoot	/opt/lib/httpd
+
+#
+#	The default port for HTTP is 80; if you are not root you have
+#	to use a port above 1024; good defaults are 8000, 8001, 8080
+#
+Port	80
+
+#
+#	General setup; on some systems, like HP, nobody is defined so
+#	that setuid() fails; in those cases use a different user id.
+#
+UserId	nobody
+GroupId	other
+
+# The latest CERN servers specify logs ending with the date.
+# Use this directive to have the logs end in .log
+LogFileDateExt  log 
+
+#
+#	Logging; if you want logging uncomment these lines and specify
+#	locations for your access and error logs
+#
+AccessLog	/opt/lib/httpd/logs/access
+ErrorLog	/opt/lib/httpd/logs/error
+ProxyAccessLog			/opt/lib/httpd/logs/proxy
+CacheAccessLog			/opt/lib/httpd/logs/http_cache
+LogFormat	Common
+LogTime		LocalTime
+
+#
+#	User-supported directories under ~/public_html
+#
+#UserDir	public_html
+
+#
+#	Scripts; URLs starting with /cgi-bin/ will be understood as
+#	script calls in the directory /your/script/directory
+#
+Exec	/cgi-bin/*	/opt/lib/httpd/cgi-bin/*
+
+#
+#	URL translation rules; If your documents are under /local/Web
+#	then this single rule does the job:
+#
+Pass	/*	/home/www/*
+
+#       Proxy protections; if you want only certain domains to use
+#       your proxy, uncomment these lines and specify the Mask
+#       with hostname templates or IP number templates:
+#
+Protection PROXY-PROT {
+       ServerId        www.foo.co.uk
+       Mask            @(*.foo.co.uk, 169.77.11.*, 161.77.105.*)
+}
+Protect  *  PROXY-PROT
+
+#
+#       Pass the URLs that this proxy is willing to forward.
+#
+Pass    http:*
+Pass    ftp:*
+Pass    gopher:*
+Pass    wais:*  
+
+#
+#       Enable caching, specify cache root directory, and cache size
+#       in megabytes
+#
+Caching         On
+CacheRoot       /home/wwwcache
+CacheSize       300
+NoCaching               http://localhost/*
+NoCaching               http://web.foo.co.uk/*
+NoCaching               http://www.foo.co.uk/*
+
+#
+#       Specify absolute maximum for caching time
+#
+CacheClean      *       2 months   
+
+#
+#       Specify the maximum time to be unused
+#
+CacheUnused     http:*          2 weeks
+CacheUnused     ftp:*           1 week
+CacheUnused     gopher:*        1 week
+         
+#
+#       Specify default expiry times for ftp and gopher;
+#       NEVER specify it for HTTP, otherwise documents generated by
+#       scripts get cached which is usually a bad thing.
+#
+CacheDefaultExpiry      ftp:*           10 days
+CacheDefaultExpiry      gopher:*        2 days
+
+#
+#       Garbage collection controls; daily garbage collection at 3am;
+#
+Gc              On
+GcDailyGc       3:00   
+
+
+Subject N5) Howto setup syslog?
+
+It is possible to collect system messages by severity into a log
+file. In fact, all the messages from all the machines on the network may
+be collected together into one file. This system is syslog.
+
+The syslog daemon (syslogd(1)) is started from /etc/inet/config. Make
+sure you have a line thus in this file :-
+
+/etc/inet/config:8:/usr/sbin/syslogd::y:/etc/syslog.conf::
+
+And the configuration file /etc/syslog.conf should look something like this :-
+
+*.err;kern.debug;daemon.notice;mail.crit;user.none      /var/adm/log/messages
+*.alert;user.none                                       root
+*.emerg;user.none                                       *
+auth.info                                               /var/adm/log/authlog
+*.debug                                                 @loghost
+                     
+
+If you install the Freebird TCP Wrappers package syslog will
+be setup for you automatically.
+
+Subject: N6) Howto Setup Anonymous FTP ?
+
+The following  is a guide to setting up an anonymous ftp server,
+this is based on an article on the Novell.com WWW server,
+and postings in the comp.unix.unixware newsgroup.
+
+(Note if you upgrade your OS , say from 1.1 to 2.0 and anon ftp
+stops - check out the major/minor numbers of the devices)
+
+          TITLE:How to set up a UnixWare Box as an anonymous ftp server
+
+
+The following are the steps required to set up an anon ftp server. All
+these are to be done on the local system which will be the server
+
+1.Create user 'ftp' with home directory say, '/home/ftp'
+
+(1a. Make some directories bin,dev,etc,opt,usr as follows:
+
+# ls -l
+total 6
+dr-x--x--x   2 root     sys         1024 May  5 17:51 bin
+dr-x--x--x   2 root     sys           96 May  4 11:02 dev
+dr-x--x--x   2 root     sys           96 May  4 11:02 etc
+drwx--x--x   3 root     sys           96 May  4 11:02 opt
+dr-x--x--x   3 root     sys           96 May  5 17:59 usr
+
+)
+
+e.g.
+	 useradd -d /home/ftp -m ftp
+         passwd -d ftp   
+	 mkdir /home/ftp/bin
+	 mkdir /home/ftp/dev
+	 mkdir /home/ftp/etc
+	 mkdir /home/ftp/opt
+	 mkdir /home/ftp/usr
+
+
+2. set up the configuration files in /home/ftp/etc
+
+2a.cp /etc/passwd to /home/ftp/etc/passwd, and chmod it so
+that the permissions are 444.
+
+2b.cp /etc/group to /home/ftp/etc/group
+
+2c.cp /etc/netconfig to /home/ftp/etc/netconfig. Make sure permission is 444.
+
+Edit group & passwd to contain only items you want
+translated from numbers (gid,uid) to names.
+
+$ ls -l etc
+total 6   
+-r--r--r--   1 root     other        126 Apr 24 11:50 group
+-r--r--r--   1 root     other        759 Apr 24 11:49 netconfig
+-r--r--r--   1 root     other        216 Apr 24 21:37 passwd      
+
+e.g.
+         cp /etc/passwd /home/ftp/etc
+         chmod 444 /home/ftp/etc/passwd
+         cp /etc/netconfig /home/ftp/etc 
+
+3. copy the ls utility into the /home/ftp/bin directory
+
+3a.cp /usr/bin/ls '/home/ftp/bin/ls' and give it permissions 111.         
+
+$ ls -l bin
+total 36
+---x--x--x   1 root     sys        18200 Apr 24 11:30 ls  
+
+e.g.
+         
+         cp /usr/bin/ls /home/ftp/bin
+         chmod 111 /home/ftp/bin/ls  
+
+4. set up the special devices /home/ftp/dev
+
+4a.See the major and minor numbers for '/dev/tcp' and create a
+node '/home/ftp/dev/tcp' with the same major and minor numbers and
+give it permission 666.
+
+4b.See the major and minor numbers of '/dev/zero' and make
+node '/home/ftp/dev/zero' with the same major and minor numbers.
+
+$ ls -l dev
+total 0                         <<< must match exactly /dev stuff, use mknod
+crw-rw-rw-   1 root     other      7, 91 Apr 24 11:41 tcp
+crw-rw-rw-   1 root     other     39,  1 Apr 24 11:31 zero      
+
+e.g. 
+         cd /home/ftp/dev
+         ls -l /dev/tcp /dev/zero
+         mknod tcp c Maj Min   _/  Where Maj is the Major or first number
+         mknod zero c Maj Min   \  and Min is the second number
+                                                                   
+
+5.Make directory '/home/ftp' owned by root with no write permission
+for anybody (permissions 555)
+
+e.g
+	 chown root /home/ftp
+         chmod 555 /home/ftp
+
+6.Make directory '/home/ftp/pub' have permissions 777.
+e.g.
+         chmod 777 /home/ftp/pub    
+
+7.cp /usr/lib/libc.so.1 /home/ftp/usr/lib/libc.so.1 
+
+(This has to be a cp and not a link).
+
+Check the permissions should be :
+
+$ ls -lR usr
+total 0
+drwxr-xr-x   2 root     other         96 Apr 24 11:33 lib
+
+usr/lib:
+total 422                       <<< this is a real "cp", not a link
+-r-xr-xr-x   1 root     sys       215720 Apr 29 12:05 libc.so.1    
+
+e.g.     mkdir /home/ftp/usr/lib
+         cp /usr/lib/libc.so.1 /home/ftp/usr/lib 
+
+
+You are set up now as an anonymous ftp server.     
+(Note there is a sample script for all this 
+on asso.etsmtl.ca/pub/unixware/create-ftp)
+
+
+Subject: N7) Howto add a LAN to the internet thru UnixWare PPP Gateway
+
+"Ben Witso"  <benw29@mirage.skypoint.com> writes: 
+
+Here is what I did to set up a UnixWare 2 machine to act as a gateway from
+my local LAN to the Internet.  In my case, my Internet service provider
+(ISP) assigns me a different IP address every time I connect (dynamic
+address assignment).  My local LAN uses 'official non-connected' IP
+addresses, meaning I have to use proxies to connect my local net to the
+Internet.  Those of you who have a static ISP address, and official
+registered IP addresses for your local LAN can stop at step 11, and have
+your ISP set your network up in their route table.  For those who are like
+me, get ptf2112, ptf2117, dppp2x, CERN httpd 3.0 and fwtk.  All are
+available from the usual UnixWare ftp sites (CERN and fwtk may not be
+current or even available on ftp.novell.com).  
+
+
+                         UnixWare 2.02 PPP setup.
+
+  1. Installed UnixWare 2.01
+  2. Installed UnixWare 2.02 Update
+  3. Installed ptf2112 patch
+  4. Installed dppp2x patch
+  5. Set up modem using the Dialup_Setup tool.  I set it up for both
+     incoming and outgoing calls.  Verified that communications works in
+     both directions (using cu to and from another Unix machine).  (Had to
+     modify the modem commands in /etc/uucp/Dialers somewhat to get
+     incoming calls).
+  6. Set up a manual outgoing PPP link using PPPSetup.  Verified that the   
+     systems connect when I initiate the pppattach command.
+  7. Set up routing by setting IPFORWARDING to 1 and rebuilt the kernel.
+  8. Set up my ISP dns server as the default dns server using
+     Internet_Config.
+  9. Manually add the default router, using the 'route add default <host> 1'
+     command, after the connection is established.  I use the IP address
+     of the local end of the PPP connection.
+ 10. Verified that the PPP connection works, once I establish the
+     connection with pppattach and set the default gateway (as in #9).  I
+     can telnet from the local UnixWare machine to a system out on the
+     Internet, using it's name (in addition to the actual address).
+ 11. Installed ptf2117 patch (noticed that I would not receive incoming
+     calls some times which this patch fixes).
+ 12. Installed the CERN httpd v3.0 using the 'http server with access
+     control, proxy and caching' sample config file.
+ 13. Set my local LAN http browsers to use the CERN proxy server (ie.
+     entered the local gateway address for the 'http//:' address and port
+     80 for all of the ports.).  I am using NCSA Mosaic, but assume most
+     other browsers work the same way. 
+ 14. Used the 'fwtk' firewall toolkit to set up proxy services for telnet,
+     ftp, mail and news.  I used the netacl program to set up both telnet
+     and ftp so that they work as both gateways and locally (the fwtk docs
+     explain this pretty well).  Both ftp and telnet work a bit different
+     through the gateways, but the docs explain how to use them.  I used
+     the the plug-gw for mail (pop-3) and news (nntp).  Again the fwtk docs
+     explain how to do this, but in short I set the local clients as they
+     were connecting to the ISP mail/nntp services, substituting the local
+     gateway address for the mail/nntp server address.  I then set the
+     actual ISP mail/nntp server address in the plug config file.
+                               
+This all does the job for the basic WWW/ftp/telnet/mail/news Internet
+services.  Things like RealAudio don't (yet) work through the gateway-
+RealAudio says they are working on a version that will work through
+gateways so maybe soon.  Since my local LAN is small, I opted to not set up
+a local DNS server, or POP Mail server, or News server.  For those of you
+with larger local LANS, these are things you will probably want to do (in
+order of importance).  The biggest problem I had in setting things up is
+finding out what software to use (the ptfs, CERN and fwtk).  Once I got
+ahold of all of that the docs that came with them were pretty easy to
+follow to set up what I needed.  The UnixWare FAQs and other misc. docs in
+the hints directory on the usle archives were also useful. 
+
+------
+Andrew Josey, #include <disclaimer.h>

@@ -1,0 +1,97 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Foreach Function</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_75.html">previous</A>, <A HREF="make_77.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX505"></A>
+<A NAME="IDX506"></A>
+<H2><A NAME="SEC75" HREF="make_toc.html#TOC75">The <CODE>foreach</CODE> Function</A></H2>
+<P>
+The <CODE>foreach</CODE> function is very different from other functions.  It
+causes one piece of text to be used repeatedly, each time with a different
+substitution performed on it.  It resembles the <CODE>for</CODE> command in the
+shell <CODE>sh</CODE> and the <CODE>foreach</CODE> command in the C-shell <CODE>csh</CODE>.
+<P>
+The syntax of the <CODE>foreach</CODE> function is:
+<P>
+<PRE>
+$(foreach <VAR>var</VAR>,<VAR>list</VAR>,<VAR>text</VAR>)
+</PRE>
+<P>
+The first two arguments, <VAR>var</VAR> and <VAR>list</VAR>, are expanded before
+anything else is done; note that the last argument, <VAR>text</VAR>, is
+<STRONG>not</STRONG> expanded at the same time.  Then for each word of the expanded
+value of <VAR>list</VAR>, the variable named by the expanded value of <VAR>var</VAR>
+is set to that word, and <VAR>text</VAR> is expanded.  Presumably <VAR>text</VAR>
+contains references to that variable, so its expansion will be different
+each time.
+<P>
+The result is that <VAR>text</VAR> is expanded as many times as there are
+whitespace-separated words in <VAR>list</VAR>.  The multiple expansions of
+<VAR>text</VAR> are concatenated, with spaces between them, to make the result
+of <CODE>foreach</CODE>.
+<P>
+This simple example sets the variable <SAMP>`files'</SAMP> to the list of all files
+in the directories in the list <SAMP>`dirs'</SAMP>:
+<P>
+<PRE>
+dirs := a b c d
+files := $(foreach dir,$(dirs),$(wildcard $(dir)/*))
+</PRE>
+<P>
+Here <VAR>text</VAR> is <SAMP>`$(wildcard $(dir)/*)'</SAMP>.  The first repetition
+finds the value <SAMP>`a'</SAMP> for <CODE>dir</CODE>, so it produces the same result
+as <SAMP>`$(wildcard a/*)'</SAMP>; the second repetition produces the result
+of <SAMP>`$(wildcard b/*)'</SAMP>; and the third, that of <SAMP>`$(wildcard c/*)'</SAMP>.
+<P>
+This example has the same result (except for setting <SAMP>`dirs'</SAMP>) as
+the following example:
+<P>
+<PRE>
+files := $(wildcard a/* b/* c/* d/*)
+</PRE>
+<P>
+When <VAR>text</VAR> is complicated, you can improve readability by giving it
+a name, with an additional variable:
+<P>
+<PRE>
+find_files = $(wildcard $(dir)/*)
+dirs := a b c d
+files := $(foreach dir,$(dirs),$(find_files))
+</PRE>
+<P>
+Here we use the variable <CODE>find_files</CODE> this way.  We use plain <SAMP>`='</SAMP>
+to define a recursively-expanding variable, so that its value contains an
+actual function call to be reexpanded under the control of <CODE>foreach</CODE>;
+a simply-expanded variable would not do, since <CODE>wildcard</CODE> would be
+called only once at the time of defining <CODE>find_files</CODE>.
+<P>
+The <CODE>foreach</CODE> function has no permanent effect on the variable
+<VAR>var</VAR>; its value and flavor after the <CODE>foreach</CODE> function call are
+the same as they were beforehand.  The other values which are taken from
+<VAR>list</VAR> are in effect only temporarily, during the execution of
+<CODE>foreach</CODE>.  The variable <VAR>var</VAR> is a simply-expanded variable
+during the execution of <CODE>foreach</CODE>.  If <VAR>var</VAR> was undefined
+before the <CODE>foreach</CODE> function call, it is undefined after the call.
+See section <A HREF="make_58.html#SEC57">The Two Flavors of Variables</A>.<P>
+You must take care when using complex variable expressions that result in
+variable names because many strange things are valid variable names, but
+are probably not what you intended.  For example,
+<P>
+<PRE>
+files := $(foreach Esta escrito en espanol!,b c ch,$(find_files))
+</PRE>
+<P>
+might be useful if the value of <CODE>find_files</CODE> references the variable
+whose name is <SAMP>`Esta escrito en espanol!'</SAMP> (es un nombre bastante largo,
+no?), but it is more likely to be a mistake.
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_75.html">previous</A>, <A HREF="make_77.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

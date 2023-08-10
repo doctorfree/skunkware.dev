@@ -1,0 +1,258 @@
+
+This is the Voxware soundcard drivers version 3.0 for
+SCO Open Desktop 3.0.
+
+This version is a prerelease test version of the sound drivers for SCO.
+
+Please send problem reports to Shawn McMurdo (shawnm@sco.com).
+The principal author of the Voxware drivers is Hannu Savolainen
+(hannu@voxware.pp.fi).  See the file COPYING for copyright info.
+This driver is based on the Voxware 3.0 source, which is
+available at sunsite.unc.edu and other Linux archive sites.
+
+usr/bin/mixer is a command line app for querying and setting mixer
+line levels.
+usr/bin/vplay is an audio file player and usr/bin/vrec is an audio
+file recorder.
+You may want to get XmMix, a graphical mixer app, available on
+Skunkware and various archives including
+ftp://ftp.x.org/contrib/applications/xmmix/.
+
+Installation
+------------
+
+1)	Login as root on the console.  Make sure other users have
+	logged off the system.
+
+2)	Extract the tar file into the root directory.
+	NOTE: You will need to use ptar instead of tar.
+	This is because the archive contains directory
+	 entries and symbolic links.
+	cd /
+	zcat vox30.odt30.tar.Z |ptar xvf -
+
+3)	cd /usr/lib/audio/voxware
+
+4)	Edit the file 'System' (see below).
+
+5)	./Install -- The kernel files will be merged into
+	/etc/conf/.  If all goes well, a new kernel will be built.
+	It must be rebooted before the driver is usable.
+	The Install script will also add entries to your /etc/magic file
+	so that file can identify audio files properly.
+
+How to edit the 'System' file
+-----------------------------
+
+	The 'System' file contains a line for each sound device supported
+	by the driver. You have to disable the unnecessary lines and to
+	edit some parameters in the lines you have enabled.
+	This file gives the actual I/O address, IRQ and DMA channel 
+	information to the driver.
+
+	The following is an example of the System file:
+
+card type-------+
+enabled-+       |+-- DMA#         IRQ --+       +-------+---- I/O base
+        |       ||                      |       |       |
+snd	Y	10	6	4	0	0	0	0	0
+snd	Y	21	6	4	7	220	220	0	0
+snd	N	33	6	4	10	388	388	0	0
+snd	N	46	6	4	15	210	210	0	0
+snd	N	50	6	4	2	330	330	0	0
+snd	Y	65	6	4	7	0	0	0	0
+snd	Y	70	6	4	7	300	300	0	0
+snd	N	80	6	4	2	330	330	0	0
+snd	N	90	6	4	7	220	220	0	0
+snd	N	101	6	4	7	220	220	0	0
+snd	N	111	6	4	7	220	220	0	0
+snd	N	121	6	4	7	220	220	0	0
+snd	N	151	6	4	7	220	220	0	0
+snd	N	161	6	4	7	220	220	0	0
+snd	N	171	6	4	7	220	220	0	0
+snd	N	180	6	4	2	330	330	0	0
+snd	N	191	6	4	7	220	220	0	0
+snd	N	200	6	4	2	330	330	0	0
+
+First step is to disable the cards you don't need. Enter a N to the second
+column (enable) of lines you want to disable.
+
+The first digit of the third column (unit) contains the card type. The
+available card and device types are:
+
+Type 1: OPL-2/OPL-3 FM
+Type 2: SoundBlaster
+Type 3: ProAudioSpectrum
+Type 4: Gravis Ultrasound
+Type 5: Roland MPU-401
+Type 6: SoundBlaster16
+Type 7: SB16 MIDI
+Type 8: 6860 UART Midi
+Type 9: Ultrasound 16-bit opt.
+Type 10: MS Sound System
+Type 11: Echo Personal Sound System PSS (ESC614)
+Type 12: Ensoniq Soundscape
+Type 15: MS Sound System (SoundScape)
+Type 16: MediaTriX AudioTriX Pro
+Type 17: AudioTriX (SB mode)
+Type 18: AudioTriX MIDI
+Type 19: MAD16/Mozart (MSS)
+Type 20: MAD16/Mozart (MPU)
+
+
+Many of these have not been tested at all on SCO.
+
+	If you have ProAudioSpectrum 16, enable units 1, 2 and 3
+	If you have SoundBlaster 1.0 to 2.0 or SB Pro, enable 1 and 2.
+	If you have SoundBlaster 16, enable 1, 2, 6 and 7.
+	(use the same IRQ for cards 2, 6 and 7. The DMA of card 2 is
+	the 8 bit one and the DMA of card 6 is the 16 bit one.
+	The port address of card 7 is the Midi I/O address of the SB16.
+	If you have GravisUltrasound, enable 4
+	If you have MPU-401, enable 5
+	For others enable the appropriate lines and let me know if you
+	get them working.
+
+Then edit the DMA, IRQ and I/O base columns of the enabled lines. The DMA
+channel is given in the last digit of the third column (unit). The I/O base
+address must be given in the two columns (the first is the base I/O and the
+second is the end of the I/O address range used by this device. Use the same
+value for both of them). 
+
+DON'T CHANGE THE OTHER FIELDS. DON'T CHANGE THE I/O BASE, DMA AND IRQ FIELDS 
+CONTAINING ZERO. 
+
+
+Testing the Installation
+------------------------
+(This section is paraphrased from the Linux Sound-HOWTO by Jeff Tranter
+(Jeff_Tranter@Mitel.COM) which is available from ftp://sunsite.unc.edu
+and other sites.
+
+1. Reboot with the new kernel.
+
+2. Verify that the sound card is recognized during kernel initialization.
+
+  Check for a message such as the following on powerup (if they scroll
+  by too quickly to read, you can use "hwconfig" or check the file
+  /usr/adm/messages.
+
+Sound initialization started
+snd4 <Gravis UltraSound 2.4 (256k)> at 0x00000220 irq 7 drq 6
+Sound initialization complete
+
+  This should match your sound card type and jumper settings.
+
+  The driver may also display some error messages and warnings during
+  boot. Watch for these when booting the first time after configuring
+  the sound driver.
+
+  If no sound card is detected when booting, here are some possible
+  reasons:
+
+  o  the configuration of the driver is incorrect and the driver was not
+     able to detect your card in the given I/O address
+
+  o  the sound driver was configured to be inactive or you booted with
+     an old kernel
+
+3. Check the device file /dev/sndstat.
+
+  Reading the sound driver status device file should provide additional
+  information on whether the sound card driver initialized properly.
+  Sample output should look something like this:
+
+       % cat /dev/sndstat
+
+VoxWare Sound Driver:3.0-950710 (Fri Aug 4 15:02:21 PDT 1995 shawnm ttyp0 Aug 4
+11:08@unknown.unknown)
+Config options: 3fffff
+
+Installed drivers:
+Type 11: Echo Personal Sound System PSS (ESC614)
+Type 19: MAD16/Mozart (MSS)
+Type 20: MAD16/Mozart (MPU)
+Type 1: OPL-2/OPL-3 FM
+Type 3: ProAudioSpectrum
+Type 5: Roland MPU-401
+Type 8: 6860 UART Midi
+Type 2: SoundBlaster
+Type 6: SoundBlaster16
+Type 7: SB16 MIDI
+Type 9: Ultrasound 16-bit opt.
+Type 10: MS Sound System
+Type 4: Gravis Ultrasound
+Type 12: Ensoniq Soundscape
+Type 15: MS Sound System (SoundScape)
+Type 16: MediaTriX AudioTriX Pro
+Type 17: AudioTriX (SB mode)
+Type 18: AudioTriX MIDI
+
+
+Card config:
+(Echo Personal Sound System PSS (ESC614) at 0x0 irq 0 drq 0)
+(MediaTriX AudioTriX Pro at 0x0 irq 0 drq 0)
+(Ensoniq Soundscape at 0x0 irq 0 drq 0)
+(MS Sound System (SoundScape) at 0x0 irq 0 drq 0)
+(MAD16/Mozart (MSS) at 0x0 irq 0 drq 0)
+(MS Sound System at 0x0 irq 0 drq 0)
+(ProAudioSpectrum at 0x0 irq 0 drq 0)
+(SoundBlaster at 0x0 irq 0 drq 0)
+(Roland MPU-401 at 0x0 irq 0 drq 0)
+(6860 UART Midi at 0x0 irq 0 drq 0)
+(SoundBlaster16 at 0x0 irq 0 drq 0)
+(SB16 MIDI at 0x0 irq 0 drq 0)
+(Ultrasound 16-bit opt. at 0x0 irq 0 drq 0)
+Gravis Ultrasound at 0x220 irq 7 drq 6
+(OPL-2/OPL-3 FM at 0x0 irq 0 drq 0)
+
+Audio devices:
+0: Gravis UltraSound
+
+Synth devices:
+0: Gravis UltraSound 2.4 (256k)
+
+Midi devices:
+0: Gravis UltraSound Midi
+
+Timers:
+0: System Timer
+1: OPL-3/GUS Timer
+
+Mixers:
+0: Gravis Ultrasound
+
+
+  If the cat command displays "No such device", the sound driver is not
+  active in the kernel. Make sure that you booted with the newly
+  compiled kernel.
+
+  If the output contains no devices (PCM, Synth or MIDI), your soundcard
+  was not detected. Verify that the "HW config" section contains correct
+  information.
+
+4. Play a simple sound file.
+
+  Get hold of a sample sound file, and send it to the sound device as a
+  basic check of sound output, e.g.
+
+  % cat /usr/lib/audio/sounds/frogs.voc >/dev/dsp
+  % cat /usr/lib/audio/sounds/puleeze.au >/dev/audio
+
+  (Make sure you don't omit the ">" in the commands above).
+
+  % vplay /usr/lib/audio/sounds/cchk8_st.wav
+
+5. Verify sound recording.
+
+  If you have sound input capability, you can do a quick test of this
+  using commands such as the following:
+
+       # record 4 seconds of audio from microphone
+       % dd bs=8k count=4 </dev/audio >sample.au
+       # play back sound
+       % cat sample.au >/dev/audio
+
+       % vrec -t 4 -s 11025 -b 8 sample.voc
+       % vplay sample.voc
+

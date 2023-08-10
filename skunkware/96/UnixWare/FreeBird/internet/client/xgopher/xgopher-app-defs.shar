@@ -1,0 +1,1626 @@
+#--------------------------------CUT HERE-------------------------------------
+#! /bin/sh
+#
+# This is a shell archive.  Save this into a file, edit it
+# and delete all lines above this comment.  Then give this
+# file to sh by executing the command "sh file".  The files
+# will be extracted into the current directory owned by
+# you with default permissions.
+#
+# The files contained herein are:
+#
+# -rw-r-----   1 andrew   other      17059 Jul 15  1993 Xgopher-allExtend.ad
+# -rw-r-----   1 andrew   other       3174 May 25  1993 Xgopher-color.ad
+# -rw-r-----   1 andrew   other      17539 Jul 15  1993 Xgopher-complete.ad
+# -rw-r-----   1 andrew   other       9717 May 25  1993 Xgopher-secure.ad
+# -rw-r-----   1 andrew   other      14611 Jul 15  1993 Xgopher.ad
+#
+echo 'x - Xgopher-allExtend.ad'
+if test -f Xgopher-allExtend.ad; then echo 'shar: not overwriting Xgopher-allExtend.ad'; else
+sed 's/^X//' << '________This_Is_The_END________' > Xgopher-allExtend.ad
+X!=============================================================================
+X! Xgopher version 1.3 resources for using ALL extended types
+X!
+X! This unique set of Xgopher resources is used to illustrate the
+X! use of extendedTypes by redefining EVERY Xgopher type except
+X! for directories and index search result (also directories) as
+X! an external type.  All extended type definitions override the
+X! intrinsic processing of a type.  
+X!
+X! These definitions are almost good enough to use in a production
+X! Xgopher.  The one thing that is missing is a shell script that will
+X! prompt for a file name to save binary data or other file copies.
+X! For succinctness, I use a kludge below that just makes a temp file
+X! name in the home directory of the person running Xgopher.
+X!=============================================================================
+XXgopher.title:			Xgopher 1.3
+X! Xgopher.helpFile:		/usr/lib/X11/xgopher/xgopher.help
+X
+X!=============================================================================
+X! ----- Define all gopher types as extended types 
+X!=============================================================================
+X
+X!  --- define list of extended types.  Note that '9' must come
+X!      early in the list, since many others are defined in terms
+X!      of this file type.
+XXgopher.extendedTypes:	9024568sTIg
+X
+X!  --- use the vi editor in an xterm to view text files
+XXgopher.type0.prefix:	/txt/
+XXgopher.type0.description:	text file
+XXgopher.type0.dataType:		Ascii
+XXgopher.type0.execCommand:	xterm -n "%n" -T "%n" -e vi %f
+X
+X!  --- Binary data is just copied to a file.  It is hard to
+X!      ensure a valid file name, so just use the temp file
+X!      name, but in our home directory.
+X!      To really do this right, we would create a shell script
+X!      which prompted for the new file name, and invoke the
+X!      script via execCommand.  But the following will suffice
+X!      for illustration.
+XXgopher.type9.prefix:	/bin/
+XXgopher.type9.description:	binary file
+XXgopher.type9.dataType:	Binary
+XXgopher.type9.execCommand:	cat %f > /home/tuchman/`basename %f`
+X
+X!  --- use the CSO ph client program to do CSO name server requests
+XXgopher.type2.prefix:	/cso/
+XXgopher.type2.description:	CSO name server
+XXgopher.type2.dataType:		None
+XXgopher.type2.execCommand:	xterm -e ph -s %h -p %p
+X
+X!  --- Mac binhex is like a type 9 (binary), except ascii
+XXgopher.type4.sameAs:	9
+XXgopher.type4.prefix:	/mac/
+XXgopher.type4.description:	MacIntosh BinHex file
+XXgopher.type4.dataType:	Ascii
+X
+X!  --- DOS binary is like a type 9 (binary)
+XXgopher.type5.sameAs:	9
+XXgopher.type5.prefix:	/dos/
+XXgopher.type5.description:	DOS binary file
+X
+X!  --- Unix uuencoded is like a type 9 (binary)
+XXgopher.type6.sameAs:	9
+XXgopher.type6.prefix:	/uu /
+XXgopher.type6.description:	Unix uuencoded file
+X
+X!  --- invoke telnet
+XXgopher.type8.prefix:	/tel/
+XXgopher.type8.description:	telnet session
+XXgopher.type8.dataType:		None
+XXgopher.type8.execCommand:	xterm -n "telnet" -title "%h" -e telnet %h %P &
+X
+X!  --- invoke tn3270 in an Xterm
+XXgopher.typeT.prefix:	/tn3/
+XXgopher.typeT.description:	tn3270 session
+XXgopher.typeT.dataType:		None
+XXgopher.typeT.execCommand:	xterm -n "tn3270" -title "%h" -e tn3270 %h %P &
+X
+X!  --- use xloadimage to view an image file
+XXgopher.typeI.prefix:	/img/
+XXgopher.typeI.description:	image file
+XXgopher.typeI.execCommand:	xloadimage -quiet %f
+X
+X!  --- define type 'g' (gif file) the same as type 'I' since xloadimag
+X!      works fine for gif files.
+XXgopher.typeg.sameAs:	I
+XXgopher.typeg.prefix:	/gif/
+XXgopher.typeg.description:	gif image file
+X
+X!  --- Sound files go to /dev/audio on a Sun Sparc.  They're big, so
+X!      use a pipe directly from the network instead of a temp file.
+XXgopher.types.prefix:	/snd/
+XXgopher.types.description:	sound file
+XXgopher.types.execCommand:	|cat > /dev/audio
+X
+X!=============================================================================
+X! ----- END OF EXTENDED TYPES DEFINITIONS
+X!=============================================================================
+X!
+X!=============================================================================
+X! Application resources that a user may want to change.
+X! Several are commented out because the installer's choice in
+X! the file conf.h is most likely correct
+X!=============================================================================
+X
+X! Xgopher.rootServer:			gopher.uiuc.edu
+X! Xgopher.rootPort:			70
+X! Xgopher.mainTitle:			UIUC Gopher Information Service
+X! Xgopher.rootPath:
+X! Xgopher.helpFile:			/usr/lib/X11/xgopher/xgopher.help
+X! Xgopher.bookmarkFile:			~/.gopherrc
+X
+XXgopher.printCommand:	    enscript -G -b"%n" -p - %f | lpr -Pgfx
+XXgopher.telnetCommand:	    xterm -n "telnet" -title "%h" -e telnet %h %P &
+XXgopher.tn3270Command:	    xterm -n "tn3270" -title "%h" -e tn3270 %h %P &
+X! Xgopher.tn3270Command:    aixterm -n "tn3270" -title "%h" -e tn3270 %h %P &
+X! Xgopher.tn3270Command:    x3270
+XXgopher.imageCommand:	    xloadimage -quiet
+XXgopher.soundCommand:	    cat > /dev/audio
+X! Xgopher.hasSound:			True
+X
+X
+X! Xgopher.logFile:			
+X! Xgopher.tempDirectory:			/tmp
+X
+X!=============================================================================
+X! ----- The resource "defaultsInstalled" MUST be set to TRUE -----------------
+X! ----- The following two lines must not be changed          -----------------
+X!=============================================================================
+X
+XXgopher.defaultsInstalled:		True
+XXgopher.resourcesVersion:		1.3
+X
+X!=============================================================================
+X! ----- X resources for color ------------------------------------------------
+X! ----- See the color resource file, named Xgopher-color.ad in the
+X! ----- Xgopher distribution
+X!=============================================================================
+X
+X
+X!=============================================================================
+X! ----- X resources for general appearance and cursors -----------------------
+X!=============================================================================
+X
+XXgopher*borderWidth:			2
+XXgopher*quit.cursorName:		pirate
+XXgopher*help.cursorName:		question_arrow
+XXgopher*directory.cursorName:		hand2
+XXgopher*bookmark.cursorName:		hand2
+XXgopher*errorDialog*borderWidth:	5
+XXgopher*infoDialog*borderWidth:		3
+X
+X!=============================================================================
+X! ----- X resources for text fonts -------------------------------------------
+X!=============================================================================
+X
+X!      ..... these fonts are good for demos and public access guest accts .....
+X
+X! Xgopher*font:		-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+X! Xgopher*Command.font:	-*-helvetica-*-r-*-*-*-180-75-*-*-*-*-*
+X! Xgopher*MenuButton.font:	-*-helvetica-*-r-*-*-*-180-75-*-*-*-*-*
+X! Xgopher*status.font:		-*-helvetica-bold-r-*-*-*-180-75-*-*-*-*
+X! Xgopher*textDisplay*font: 	-*-times-medium-r-*-*-*-140-75-*-*-*-*-*
+X! Xgopher*csoText*font:	fixed
+X
+X!      ..... these fonts are good for normal work and defaults .....
+X
+XXgopher*font:			-*-courier-medium-r-*-*-*-120-75-*-*-*-*-*
+XXgopher*textDisplay*font:	-*-courier-medium-r-*-*-*-120-75-*-*-*-*-*
+XXgopher*csoText*font:		-*-courier-medium-r-*-*-*-120-75-*-*-*-*-*
+XXgopher*nameServer*font:	-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+XXgopher*Command.font:		-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+XXgopher*MenuButton.font:	-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+XXgopher*status.font:		-*-helvetica-bold-r-*-*-*-140-75-*-*-*-*
+X
+X!=============================================================================
+X! ----- X resources for text labels ------------------------------------------
+X!=============================================================================
+X
+XXgopher*statusForm*quit.label:			Quit
+XXgopher*help.label:				Help
+XXgopher*statusForm*other.label:			Other Commands
+XXgopher*mark.label:				Add selection\nas bookmark
+XXgopher*markDirectoryLabel:			Add directory\nas bookmark
+XXgopher*unmark.label:				Remove\nbookmark
+XXgopher*unmarkAll.label:			Remove all\nbookmarks
+XXgopher*up.label:				Previous\nDirectory
+XXgopher*fetch.label:				Fetch\nselection
+XXgopher*info.label:				Info about\nselection
+XXgopher*infoDirectoryLabel:			Info about\ndirectory
+XXgopher*directoryTitle.label:			Unknown Directory
+XXgopher*bookmarkTitle.label:			Bookmarks
+XXgopher*status.label:				status
+XXgopher*statusShell*statusCancel.label:		Cancel
+X
+XXgopher*otherActionsMenu*copy.label:		Copy selected item to file
+XXgopher*otherActionsMenu*unmarkAll.label:	Remove all bookmarks
+XXgopher*otherActionsMenu*loadMarks.label:	Load bookmarks now
+XXgopher*otherActionsMenu*saveMarks.label:	Save bookmarks now
+XXgopher*otherActionsMenu*options.label:		Options panel
+XXgopher*otherActionsMenu*oneItem.label:		Enter gopher item
+XXgopher*otherActionsMenu*version.label:		Version information
+XXgopher*otherActionsMenu*restart.label:		Restart
+X
+XXgopher*textDone.label:				Done
+XXgopher*textPageDown.label:			Page down
+XXgopher*textPageUp.label:			Page up
+XXgopher*textPrint.label:			Print
+XXgopher*textSave.label:				Save To File
+XXgopher*textHold.label:				Hold
+XXgopher*errorDialog.ok.label:			Acknowledge
+XXgopher*infoDialog.ok.label:			Ok, thanks!
+X
+X! Xgopher*saveDialog.label:			Save text to file ...
+X! Xgopher*saveDialog.ok.label:			OK
+X! Xgopher*saveDialog.cancel.label:		Forget it
+X
+XXgopher*csoForm*csoDone.label:			Done
+XXgopher*csoForm*csoHelp.label:			Help
+XXgopher*csoForm*csoDoQuery.label:		Do query
+XXgopher*csoForm*csoClearQuery.label:		Clear query
+XXgopher*csoForm*csoClearText.label:		Clear text
+XXgopher*csoForm*csoQueryLabel.label:		Query name:
+XXgopher*csoForm*csoFields.label:		Show Fields 
+X
+XXgopher*indexForm*indexDoIndex.label:		Do index
+XXgopher*indexForm*indexCancel.label:		Cancel
+XXgopher*indexForm*indexHelp.label:		Help
+X!
+X! option panel labels
+X!
+XXgopher*optionsPanel*done.label:		Apply changes
+XXgopher*optionsPanel*cancel.label:		Cancel
+XXgopher*optionsPanel*showWhatLabel.label:	Show all gopher items\n\
+Xeven types not supported by Xgopher
+XXgopher*optionsPanel*appendBkLabel.label:	Load appends bookmarks to current list\n\
+Xif no, load replaces current list
+XXgopher*optionsPanel*loadBkLabel.label:		Load bookmarks at restart
+XXgopher*optionsPanel*resetLabel.label:		Reset these options at restart
+X!
+XXgopher*optionsPanel*bkSaveLabel.label:		Bookmark save file:
+XXgopher*optionsPanel*printCmdLabel.label:	Print command:
+XXgopher*optionsPanel*imageCmdLabel.label:	Image display command:
+XXgopher*optionsPanel*telCmdLabel.label:		Telnet command:
+XXgopher*optionsPanel*t3270CmdLabel.label:	tn3270 command:
+X!
+X! enter single gopher item panel labels
+X!
+XXgopher*singlePanel*done.label:			Process
+XXgopher*singlePanel*clear.label:		Clear Fields
+XXgopher*singlePanel*cancel.label:		Cancel
+XXgopher*singlePanel*mark.label:			Set Bookmark
+XXgopher*singlePanel*giTypeLabel.label:		Type:
+XXgopher*singlePanel*giNameLabel.label:		Name:
+XXgopher*singlePanel*giPathLabel.label:		Path:
+XXgopher*singlePanel*giHostLabel.label:		Host:
+XXgopher*singlePanel*giPortLabel.label:		Port:
+X!
+X! version shell labels
+X
+XXgopher*versionShell*versionDone.label:		Dismiss
+X!
+X! save labels
+X!
+XXgopher*saveForm*dirLabel.label:	The current working directory is:
+XXgopher*saveForm*saveLabel1.label:
+XXgopher*saveForm*saveLabel2.label:		Enter file name:
+XXgopher*saveForm*ok.label:			OK
+XXgopher*saveForm*cancel.label:			Cancel
+XXgopher*saveForm*chdir.label:			Change directory
+XXgopher*saveForm*help.label:			Help
+X!
+XXgopher*cdForm*cdLabel.label:			New Directory Name:
+XXgopher*cdForm*ok.label:			OK
+XXgopher*cdForm*cancel.label:			Cancel
+XXgopher*cdForm*help.label:			Help
+X!
+XXgopher*dupFileForm*label1.label:		The file
+XXgopher*dupFileForm*label2.label:  already exists, please select an action:
+XXgopher*dupFileForm*ok.label:			Overwrite\ncontents
+X! Xgopher*dupFileForm*ok.label:			Overwrite
+XXgopher*dupFileForm*change.label:		Enter another\nfile name
+X! Xgopher*dupFileForm*change.label:		Change file name
+XXgopher*dupFileForm*cancel.label:		Cancel file\nsave or copy
+X! Xgopher*dupFileForm*cancel.label:		Cancel
+XXgopher*dupFileForm*append.label:		Append to\nexisting file
+X! Xgopher*dupFileForm*append.label:		Append
+XXgopher*dupFileForm*help.label:			Help
+X!=============================================================================
+X! ----- Translations, including those that keep CR in text entry fields
+X! ----- causing proper action.
+X!
+X! ----- If you remove the "ok" actions for "<Key>Return" on any of
+X! ----- single line text widgets below, it MUST be replaced with a
+X! ----- no-op() action.
+X!=============================================================================
+XXgopher*gopherPanel*Label*translations:	#override \n\
+X			<Btn1Down>: unselectAll()
+XXgopher*gopherPanel*translations:	#override \n\
+X			<Key>u: up()\n\
+X			Ctrl<Key>d: quitApp()
+XXgopher*saveShell*fileName*translations:	#override \n\
+X			<Key>Return: saveok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*cdShell*cdPathName*translations:	#override \n\
+X			<Key>Return: cdok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*csoQueryText*translations:	#override \n\
+X			<Key>Return: queryok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*indexQueryText*translations:	#override \n\
+X			<Key>Return: indexok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*Text*translations:		#override \n\
+X			<Key>Return: no-op()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+X
+X
+X!=============================================================================
+X! ----- X layout resources that should not be changed ------------------------
+X! ----- Changing these can cause the Xgopher displays to appear corrupted ----
+X!=============================================================================
+X!
+X! main Xgopher panel
+X!
+XXgopher.minHeight:			400
+XXgopher.minWidth:			400
+X!. Xgopher*gopherPanel.height:		600
+X!. Xgopher*gopherPanel.width:		600
+XXgopher*gopherPanel.orientation:	vertical
+XXgopher*statusForm.resizeToPreferred:	True
+XXgopher*statusForm.SkipAdjust:		True
+XXgopher*statusForm.showGrip:		False
+XXgopher*goBox.resizeToPreferred:	True
+XXgopher*goBox.SkipAdjust:		True
+XXgopher*goBox.showGrip:		False
+XXgopher*goBox.spacer.borderWidth:	0
+XXgopher*goBox.spacer.width:		20
+XXgopher*goBox.spacer.height:		10
+XXgopher*goBox.min:			50
+XXgopher*goBox.max:			100
+XXgopher*directoryForm.min:		60
+XXgopher*directoryForm.preferredPaneSize:300
+XXgopher*bookmarkForm.preferredPaneSize:125
+XXgopher*directoryView.forceBars:	True
+XXgopher*bookmarkView.forceBars:		True
+XXgopher*directoryView.borderWidth:	1
+XXgopher*bookmarkView.borderWidth:	1
+XXgopher*directoryTitle.borderWidth:	0
+XXgopher*bookmarkTitle.borderWidth:	0
+XXgopher*status.borderWidth:		5
+XXgopher*status.width:			500
+XXgopher*directoryTitle.width:		500
+XXgopher*bookmarkTitle.width:		500
+XXgopher*directory.width:		500
+XXgopher*bookmark.width:			500
+X!
+X!  Text display popup window (top level window)
+X!
+XXgopher*textShell.iconName:		Gopher Text
+XXgopher*textButtonBox.borderWidth:	0
+XXgopher*textDisplay.wrap:		word
+XXgopher*textDisplay.width:		400
+XXgopher*textShell*Text.displayCaret:	False
+X!
+X!  cso nameserver popup window (top level window)
+X!
+XXgopher*csoShell.iconName:		CSO Name Server
+XXgopher*nameServer.borderWidth:	0
+XXgopher*csoQueryLabel.borderWidth:	0
+XXgopher*csoText.displayCaret:		False
+XXgopher*csoText.wrap:			word
+XXgopher*csoText.scrollVertical:	always
+XXgopher*csoText.scrollHorizontal:	never
+XXgopher*csoQueryText.editType:		edit
+XXgopher*nameServer.width:		400
+XXgopher*nameServer.resizable:		True
+X!
+X!  keyword search (index) popup
+X!
+XXgopher*indexForm.indexLabel.borderWidth:	0
+XXgopher*indexForm.indexLabel.resizable:	True
+X!
+X! ***** options panel resources
+X!
+XXgopher*optionsPanel*itemsForm.vertDistance:		10
+XXgopher*optionsPanel*buttonBox.borderWidth:		0
+XXgopher*optionsPanel*itemsForm*Box.borderWidth:	0
+XXgopher*optionsPanel*itemsForm*Form.borderWidth:	0
+XXgopher*optionsPanel*itemsForm*Label.borderWidth:	0
+XXgopher*optionsPanel*itemsForm*Toggle.borderWidth:	1
+XXgopher*optionsPanel*itemsForm*Text.borderWidth:	1
+XXgopher*optionsPanel*bkSaveForm.vertDistance:		15
+XXgopher*optionsPanel*itemsForm*Toggle.internalWidth:	2
+X!
+XXgopher*optionsPanel*bkSaveLabel.justify:	right
+XXgopher*optionsPanel*printCmdLabel.justify:	right
+XXgopher*optionsPanel*imageCmdLabel.justify:	right
+XXgopher*optionsPanel*telCmdLabel.justify:	right
+XXgopher*optionsPanel*t3270CmdLabel.justify:	right
+X!
+X! ***** single gopher item panel resources
+X!
+XXgopher*singlePanel*itemsForm.vertDistance:	10
+XXgopher*singlePanel*buttonBox.borderWidth:	0
+XXgopher*singlePanel*itemsForm.borderWidth:	2
+XXgopher*singlePanel*itemsForm*borderWidth:	0
+XXgopher*singlePanel*itemsForm*Text.borderWidth:	1
+XXgopher*singlePanel*Label.justify:		right
+X!
+X! ***** status popup panel resources
+X! 
+XXgopher*statusShell*statusLabel1.borderWidth:	0
+XXgopher*statusShell*statusLabel2.borderWidth:	0
+X!
+X! ***** file save/copy panels
+X!
+XXgopher*saveShell*saveForm*dirPath.borderwidth:	2
+XXgopher*saveForm*Label.borderWidth:		0
+XXgopher*saveForm*saveLabel1.vertDistance:	20
+XXgopher*saveForm*saveLabel2.vertDistance:	0
+XXgopher*saveForm*dirPath.displayCaret:	False
+X!
+XXgopher*cdForm*Label.borderWidth:		0
+X!
+XXgopher*dupFileForm*Label.borderWidth:	0
+________This_Is_The_END________
+if test `wc -l < Xgopher-allExtend.ad` -ne 427 ; then
+	echo 'shar: Xgopher-allExtend.ad was damaged during transit (should have been 427  bytes)'
+fi
+fi		; : end of overwriting check
+echo 'x - Xgopher-color.ad'
+if test -f Xgopher-color.ad; then echo 'shar: not overwriting Xgopher-color.ad'; else
+sed 's/^X//' << '________This_Is_The_END________' > Xgopher-color.ad
+X!=============================================================================
+X! Xgopher version 1.3   COLOR  resources
+X! (Customization "-color" for Xgopher.)
+X!=============================================================================
+X
+X!=============================================================================
+X! Include the application resources.  The following include may
+X! work with X11R5 only.   If you have another version of X11 (or OW3),
+X! you may need to manually merge the two resource files or use xrdb
+X! to load them both.
+X!=============================================================================
+X
+X#include "Xgopher"
+X
+X! COLOR of default fore/background
+X
+XXgopher*foreground:			Black
+XXgopher*borderColor:			MediumBlue
+XXgopher*background:			LightSteelBlue1
+X
+X! COLOR of each widget class (its default color)
+X
+XXgopher*List*background:		SteelBlue4
+XXgopher*List*foreground:		White
+X!
+XXgopher*Text*background:		Black
+XXgopher*Text*foreground:		White
+XXgopher*Command*background:		LemonChiffon
+XXgopher*MenuButton*background:		LemonChiffon
+XXgopher*SimpleMenu*background:		LemonChiffon2
+XXgopher*Toggle*background:		LemonChiffon
+XXgopher*statusForm*background:		SteelBlue3
+XXgopher*statusForm*Command*background:	LemonChiffon
+XXgopher*statusForm*MenuButton*background:		LemonChiffon
+XXgopher*statusForm*SimpleMenu*background:		LemonChiffon2
+XXgopher*goBox*background:		SteelBlue3
+XXgopher*goBox*Command*background:	LemonChiffon
+XXgopher*goBox*MenuButton*background:	LemonChiffon
+XXgopher*goBox*SimpleMenu*background:	LemonChiffon2
+X
+X!    These cover for any leftover defaults from previous versions of Xgopher
+XXgopher*directory*background:		SteelBlue4
+XXgopher*bookmark*background:		SteelBlue4
+X
+X! COLOR of any displayed text should be consistant, but different
+X!       than editable text
+X
+XXgopher*textForm*textDisplay*foreground: white
+XXgopher*textForm*textDisplay*background: Navy
+XXgopher*textForm*Scrollbar.borderColor: LightSteelBlue1
+XXgopher*csoForm*csoText*foreground:	white
+XXgopher*csoForm*csoText*background:	Navy
+X
+X! COLOR of special messages and popups
+X
+XXgopher*statusForm*status.foreground:		White
+XXgopher*statusForm*status.background:		MediumBlue
+XXgopher*errorDialog*foreground:			White
+XXgopher*errorDialog*background:			Maroon
+XXgopher*errorDialog*Command*background:		SlateGray
+XXgopher*infoDialog*foreground:			White
+XXgopher*infoDialog*background:			CadetBlue
+XXgopher*infoDialog*Command*background:		SlateGray
+XXgopher*versionShell*foreground:		White
+XXgopher*versionShell*background:		SteelBlue
+XXgopher*versionShell*Command*background:	SlateGray
+XXgopher*statusShell*statusText.background:	IndianRed
+XXgopher*statusShell*statusText.foreground:	black
+XXgopher*statusShell*background:			DarkSlateBlue
+XXgopher*statusShell*foreground:			white
+XXgopher*statusShell*Command*background:		LemonChiffon
+XXgopher*statusShell*Command*foreground:		black
+XXgopher*nameServer*background:			Navy
+XXgopher*nameServer*foreground:			white
+X
+X! COLORs for save popups
+X
+XXgopher*saveShell*saveForm*dirPath*background:  LightSteelBlue2
+XXgopher*saveShell*saveForm*dirPath*foreground:  Black
+XXgopher*saveShell*fileErrMessage.foreground:    Red
+XXgopher*cdShell*cdErrMessage.foreground:        Red
+X
+________This_Is_The_END________
+if test `wc -l < Xgopher-color.ad` -ne 82 ; then
+	echo 'shar: Xgopher-color.ad was damaged during transit (should have been 82  bytes)'
+fi
+fi		; : end of overwriting check
+echo 'x - Xgopher-complete.ad'
+if test -f Xgopher-complete.ad; then echo 'shar: not overwriting Xgopher-complete.ad'; else
+sed 's/^X//' << '________This_Is_The_END________' > Xgopher-complete.ad
+X!=============================================================================
+X! Xgopher version 1.3 resources
+X!=============================================================================
+X!       This is the distribution file Xgopher-complete.ad, which merges
+X!       the contents of Xgopher.ad and Xgopher-color.ad.  It is provided
+X!       as a convenience for users who will ALWAYS use color
+X!=============================================================================
+X
+XXgopher.title:			Xgopher 1.3
+X! Xgopher.helpFile:		/usr/lib/X11/xgopher/xgopher.help
+X
+X!=============================================================================
+X! "Standard" extended types 
+X!=============================================================================
+XXgopher.extendedTypes:		4g
+X
+XXgopher.type4.sameAs:    	9
+XXgopher.type4.dataType:    	ascii
+XXgopher.type4.prefix:      	<Mac>
+XXgopher.type4.description: 	MacIntosh BinHex file
+X
+XXgopher.typeg.sameAs:		I
+XXgopher.typeg.prefix:		<gif>
+XXgopher.typeg.description:	gif file
+X
+X!=============================================================================
+X! "Experimental" UIUC extended types 
+X! These resources are ignored unless the type letter appears in 
+X! the list of extendedTypes.
+X!=============================================================================
+X! Xgopher.extendedTypes:	4gjM
+X
+XXgopher.type0.prefix:		/txt/
+XXgopher.type0.description:	text file
+XXgopher.type0.dataType:    	ascii
+XXgopher.type0.execCommand:	xterm -n "%n" -T "%n" -e vi %f
+X
+XXgopher.typej.prefix:		<kan>
+XXgopher.typej.description:	Kanji text file
+XXgopher.typej.dataType:    	ascii
+XXgopher.typej.execCommand:	kterm -sb -e more %f /dev/tty
+X
+XXgopher.typeM.prefix:		<MTD>
+XXgopher.typeM.description:	MTD bus schedule program
+XXgopher.typeM.dataType:		None
+XXgopher.typeM.execCommand:	/home/tuchman/src/xp/portal %s
+X
+X!=============================================================================
+X! Application resources that a user may want to change.
+X! Several are commented out because the installer's choice in
+X! the file conf.h is most likely correct
+X!=============================================================================
+X
+X! Xgopher.rootServer:			gopher.uiuc.edu
+X! Xgopher.rootPort:			70
+X! Xgopher.mainTitle:			UIUC Gopher Information Service
+X! Xgopher.rootPath:
+X! Xgopher.helpFile:			/usr/lib/X11/xgopher/xgopher.help
+X! Xgopher.bookmarkFile:			~/.gopherrc
+X
+XXgopher.printCommand:	    enscript -G -b"%n" -p - %f | lpr -Pgfx
+XXgopher.telnetCommand:	    xterm -n "telnet" -title "%h" -e telnet %h %P &
+XXgopher.tn3270Command:	    xterm -n "tn3270" -title "%h" -e tn3270 %h %P &
+X! Xgopher.tn3270Command:    aixterm -n "tn3270" -title "%h" -e tn3270 %h %P &
+X! Xgopher.tn3270Command:    x3270
+XXgopher.imageCommand:	    xloadimage -quiet
+XXgopher.soundCommand:	    cat > /dev/audio
+X! Xgopher.hasSound:			True
+X
+X
+X! Xgopher.logFile:			
+X! Xgopher.tempDirectory:			/tmp
+X
+X!=============================================================================
+X! ----- The resource "defaultsInstalled" MUST be set to TRUE -----------------
+X! ----- The following two lines must not be changed          -----------------
+X!=============================================================================
+X
+XXgopher.defaultsInstalled:		True
+XXgopher.resourcesVersion:		1.3
+X
+X!=============================================================================
+X! ----- X resources for color ------------------------------------------------
+X!       This is the distribution file Xgopher-complete.ad, which merges
+X!       the contents of Xgopher.ad and Xgopher-color.ad.  It is provided
+X!       as a convenience for users who will ALWAYS use color
+X!=============================================================================
+X
+X! COLOR of default fore/background
+X
+XXgopher*foreground:			Black
+XXgopher*borderColor:			MediumBlue
+XXgopher*background:			LightSteelBlue1
+X
+X! COLOR of each widget class (its default color)
+X
+XXgopher*List*background:		SteelBlue4
+XXgopher*List*foreground:		White
+X!
+XXgopher*Text*background:		Black
+XXgopher*Text*foreground:		White
+XXgopher*Command*background:		LemonChiffon
+XXgopher*MenuButton*background:		LemonChiffon
+XXgopher*SimpleMenu*background:		LemonChiffon2
+XXgopher*Toggle*background:		LemonChiffon
+XXgopher*statusForm*background:		SteelBlue3
+XXgopher*statusForm*Command*background:	LemonChiffon
+XXgopher*statusForm*MenuButton*background:		LemonChiffon
+XXgopher*statusForm*SimpleMenu*background:		LemonChiffon2
+XXgopher*goBox*background:		SteelBlue3
+XXgopher*goBox*Command*background:	LemonChiffon
+XXgopher*goBox*MenuButton*background:	LemonChiffon
+XXgopher*goBox*SimpleMenu*background:	LemonChiffon2
+X
+X!    These cover for any leftover defaults from previous versions of Xgopher
+XXgopher*directory*background:		SteelBlue4
+XXgopher*bookmark*background:		SteelBlue4
+X
+X! COLOR of any displayed text should be consistant, but different
+X!       than editable text
+X
+XXgopher*textForm*textDisplay*foreground: white
+XXgopher*textForm*textDisplay*background: Navy
+XXgopher*textForm*Scrollbar.borderColor: LightSteelBlue1
+XXgopher*csoForm*csoText*foreground:	white
+XXgopher*csoForm*csoText*background:	Navy
+X
+X! COLOR of special messages and popups
+X
+XXgopher*statusForm*status.foreground:		White
+XXgopher*statusForm*status.background:		MediumBlue
+XXgopher*errorDialog*foreground:			White
+XXgopher*errorDialog*background:			Maroon
+XXgopher*errorDialog*Command*background:		SlateGray
+XXgopher*infoDialog*foreground:			White
+XXgopher*infoDialog*background:			CadetBlue
+XXgopher*infoDialog*Command*background:		SlateGray
+XXgopher*versionShell*foreground:		White
+XXgopher*versionShell*background:		SteelBlue
+XXgopher*versionShell*Command*background:	SlateGray
+XXgopher*statusShell*statusText.background:	IndianRed
+XXgopher*statusShell*statusText.foreground:	black
+XXgopher*statusShell*background:			DarkSlateBlue
+XXgopher*statusShell*foreground:			white
+XXgopher*statusShell*Command*background:		LemonChiffon
+XXgopher*statusShell*Command*foreground:		black
+XXgopher*nameServer*background:			Navy
+XXgopher*nameServer*foreground:			white
+X
+X! COLORs for save popups
+X
+XXgopher*saveShell*saveForm*dirPath*background:  LightSteelBlue2
+XXgopher*saveShell*saveForm*dirPath*foreground:  Black
+XXgopher*saveShell*fileErrMessage.foreground:    Red
+XXgopher*cdShell*cdErrMessage.foreground:        Red
+X
+X
+X
+X!=============================================================================
+X! ----- X resources for general appearance and cursors -----------------------
+X!=============================================================================
+X
+XXgopher*borderWidth:			2
+XXgopher*quit.cursorName:		pirate
+XXgopher*help.cursorName:		question_arrow
+XXgopher*directory.cursorName:		hand2
+XXgopher*bookmark.cursorName:		hand2
+XXgopher*errorDialog*borderWidth:	5
+XXgopher*infoDialog*borderWidth:		3
+X
+X!=============================================================================
+X! ----- X resources for text fonts -------------------------------------------
+X!=============================================================================
+X
+X!      ..... these fonts are good for demos and public access guest accts .....
+X
+X! Xgopher*font:		-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+X! Xgopher*Command.font:	-*-helvetica-*-r-*-*-*-180-75-*-*-*-*-*
+X! Xgopher*MenuButton.font:	-*-helvetica-*-r-*-*-*-180-75-*-*-*-*-*
+X! Xgopher*status.font:		-*-helvetica-bold-r-*-*-*-180-75-*-*-*-*
+X! Xgopher*textDisplay*font: 	-*-times-medium-r-*-*-*-140-75-*-*-*-*-*
+X! Xgopher*csoText*font:	fixed
+X
+X!      ..... these fonts are good for normal work and defaults .....
+X
+XXgopher*font:			-*-courier-medium-r-*-*-*-120-75-*-*-*-*-*
+XXgopher*textDisplay*font:	-*-courier-medium-r-*-*-*-120-75-*-*-*-*-*
+XXgopher*csoText*font:		-*-courier-medium-r-*-*-*-120-75-*-*-*-*-*
+XXgopher*nameServer*font:	-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+XXgopher*Command.font:		-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+XXgopher*MenuButton.font:	-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+XXgopher*status.font:		-*-helvetica-bold-r-*-*-*-140-75-*-*-*-*
+X
+X!=============================================================================
+X! ----- X resources for text labels ------------------------------------------
+X!=============================================================================
+X
+XXgopher*statusForm*quit.label:			Quit
+XXgopher*help.label:				Help
+XXgopher*statusForm*other.label:			Other Commands
+XXgopher*mark.label:				Add selection\nas bookmark
+XXgopher*markDirectoryLabel:			Add directory\nas bookmark
+XXgopher*unmark.label:				Remove\nbookmark
+XXgopher*unmarkAll.label:			Remove all\nbookmarks
+XXgopher*up.label:				Previous\nDirectory
+XXgopher*fetch.label:				Fetch\nselection
+XXgopher*info.label:				Info about\nselection
+XXgopher*infoDirectoryLabel:			Info about\ndirectory
+XXgopher*directoryTitle.label:			Unknown Directory
+XXgopher*bookmarkTitle.label:			Bookmarks
+XXgopher*status.label:				status
+XXgopher*statusShell*statusCancel.label:		Cancel
+X
+XXgopher*otherActionsMenu*copy.label:		Copy selected item to file
+XXgopher*otherActionsMenu*unmarkAll.label:	Remove all bookmarks
+XXgopher*otherActionsMenu*loadMarks.label:	Load bookmarks now
+XXgopher*otherActionsMenu*saveMarks.label:	Save bookmarks now
+XXgopher*otherActionsMenu*options.label:		Options panel
+XXgopher*otherActionsMenu*oneItem.label:		Enter gopher item
+XXgopher*otherActionsMenu*version.label:		Version information
+XXgopher*otherActionsMenu*restart.label:		Restart
+X
+XXgopher*textDone.label:				Done
+XXgopher*textPageDown.label:			Page down
+XXgopher*textPageUp.label:			Page up
+XXgopher*textPrint.label:			Print
+XXgopher*textSave.label:				Save To File
+XXgopher*textHold.label:				Hold
+XXgopher*errorDialog.ok.label:			Acknowledge
+XXgopher*infoDialog.ok.label:			Ok, thanks!
+X
+X! Xgopher*saveDialog.label:			Save text to file ...
+X! Xgopher*saveDialog.ok.label:			OK
+X! Xgopher*saveDialog.cancel.label:		Forget it
+X
+XXgopher*csoForm*csoDone.label:			Done
+XXgopher*csoForm*csoHelp.label:			Help
+XXgopher*csoForm*csoDoQuery.label:		Do query
+XXgopher*csoForm*csoClearQuery.label:		Clear query
+XXgopher*csoForm*csoClearText.label:		Clear text
+XXgopher*csoForm*csoQueryLabel.label:		Query name:
+XXgopher*csoForm*csoFields.label:		Show Fields 
+X
+XXgopher*indexForm*indexDoIndex.label:		Do index
+XXgopher*indexForm*indexCancel.label:		Cancel
+XXgopher*indexForm*indexHelp.label:		Help
+X!
+X! option panel labels
+X!
+XXgopher*optionsPanel*done.label:		Apply changes
+XXgopher*optionsPanel*cancel.label:		Cancel
+XXgopher*optionsPanel*showWhatLabel.label:	Show all gopher items\n\
+Xeven types not supported by Xgopher
+XXgopher*optionsPanel*appendBkLabel.label:	Load appends bookmarks to current list\n\
+Xif no, load replaces current list
+XXgopher*optionsPanel*loadBkLabel.label:		Load bookmarks at restart
+XXgopher*optionsPanel*resetLabel.label:		Reset these options at restart
+X!
+XXgopher*optionsPanel*bkSaveLabel.label:		Bookmark save file:
+XXgopher*optionsPanel*printCmdLabel.label:	Print command:
+XXgopher*optionsPanel*imageCmdLabel.label:	Image display command:
+XXgopher*optionsPanel*telCmdLabel.label:		Telnet command:
+XXgopher*optionsPanel*t3270CmdLabel.label:	tn3270 command:
+X!
+X! enter single gopher item panel labels
+X!
+XXgopher*singlePanel*done.label:			Process
+XXgopher*singlePanel*clear.label:		Clear Fields
+XXgopher*singlePanel*cancel.label:		Cancel
+XXgopher*singlePanel*mark.label:			Set Bookmark
+XXgopher*singlePanel*giTypeLabel.label:		Type:
+XXgopher*singlePanel*giNameLabel.label:		Name:
+XXgopher*singlePanel*giPathLabel.label:		Path:
+XXgopher*singlePanel*giHostLabel.label:		Host:
+XXgopher*singlePanel*giPortLabel.label:		Port:
+X!
+X! version shell labels
+X
+XXgopher*versionShell*versionDone.label:		Dismiss
+X!
+X! save labels
+X!
+XXgopher*saveForm*dirLabel.label:	The current working directory is:
+XXgopher*saveForm*saveLabel1.label:
+XXgopher*saveForm*saveLabel2.label:		Enter file name:
+XXgopher*saveForm*ok.label:			OK
+XXgopher*saveForm*cancel.label:			Cancel
+XXgopher*saveForm*chdir.label:			Change directory
+XXgopher*saveForm*help.label:			Help
+X!
+XXgopher*cdForm*cdLabel.label:			New Directory Name:
+XXgopher*cdForm*ok.label:			OK
+XXgopher*cdForm*cancel.label:			Cancel
+XXgopher*cdForm*help.label:			Help
+X!
+XXgopher*dupFileForm*label1.label:		The file
+XXgopher*dupFileForm*label2.label:  already exists, please select an action:
+XXgopher*dupFileForm*ok.label:			Overwrite\ncontents
+X! Xgopher*dupFileForm*ok.label:			Overwrite
+XXgopher*dupFileForm*change.label:		Enter another\nfile name
+X! Xgopher*dupFileForm*change.label:		Change file name
+XXgopher*dupFileForm*cancel.label:		Cancel file\nsave or copy
+X! Xgopher*dupFileForm*cancel.label:		Cancel
+XXgopher*dupFileForm*append.label:		Append to\nexisting file
+X! Xgopher*dupFileForm*append.label:		Append
+XXgopher*dupFileForm*help.label:			Help
+X!=============================================================================
+X! ----- Translations, including those that keep CR in text entry fields
+X! ----- causing proper action.
+X!
+X! ----- If you remove the "ok" actions for "<Key>Return" on any of
+X! ----- single line text widgets below, it MUST be replaced with a
+X! ----- no-op() action.
+X!=============================================================================
+XXgopher*gopherPanel*Label*translations:	#override \n\
+X			<Btn1Down>: unselectAll()
+XXgopher*gopherPanel*translations:	#override \n\
+X			<Key>u: up()\n\
+X			Ctrl<Key>d: quitApp()
+XXgopher*saveShell*fileName*translations:	#override \n\
+X			<Key>Return: saveok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*cdShell*cdPathName*translations:	#override \n\
+X			<Key>Return: cdok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*csoQueryText*translations:	#override \n\
+X			<Key>Return: queryok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*indexQueryText*translations:	#override \n\
+X			<Key>Return: indexok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*Text*translations:		#override \n\
+X			<Key>Return: no-op()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+X
+X
+X!=============================================================================
+X! ----- X layout resources that should not be changed ------------------------
+X! ----- Changing these can cause the Xgopher displays to appear corrupted ----
+X!=============================================================================
+X!
+X! main Xgopher panel
+X!
+XXgopher.minHeight:			400
+XXgopher.minWidth:			400
+X!. Xgopher*gopherPanel.height:		600
+X!. Xgopher*gopherPanel.width:		600
+XXgopher*gopherPanel.orientation:	vertical
+XXgopher*statusForm.resizeToPreferred:	True
+XXgopher*statusForm.SkipAdjust:		True
+XXgopher*statusForm.showGrip:		False
+XXgopher*goBox.resizeToPreferred:	True
+XXgopher*goBox.SkipAdjust:		True
+XXgopher*goBox.showGrip:		False
+XXgopher*goBox.spacer.borderWidth:	0
+XXgopher*goBox.spacer.width:		20
+XXgopher*goBox.spacer.height:		10
+XXgopher*goBox.min:			50
+XXgopher*goBox.max:			100
+XXgopher*directoryForm.min:		60
+XXgopher*directoryForm.preferredPaneSize:300
+XXgopher*bookmarkForm.preferredPaneSize:125
+XXgopher*directoryView.forceBars:	True
+XXgopher*bookmarkView.forceBars:		True
+XXgopher*directoryView.borderWidth:	1
+XXgopher*bookmarkView.borderWidth:	1
+XXgopher*directoryTitle.borderWidth:	0
+XXgopher*bookmarkTitle.borderWidth:	0
+XXgopher*status.borderWidth:		5
+XXgopher*status.width:			500
+XXgopher*directoryTitle.width:		500
+XXgopher*bookmarkTitle.width:		500
+XXgopher*directory.width:		500
+XXgopher*bookmark.width:			500
+X!
+X!  Text display popup window (top level window)
+X!
+XXgopher*textShell.iconName:		Gopher Text
+XXgopher*textButtonBox.borderWidth:	0
+XXgopher*textDisplay.wrap:		word
+XXgopher*textDisplay.width:		400
+XXgopher*textShell*Text.displayCaret:	False
+X!
+X!  cso nameserver popup window (top level window)
+X!
+XXgopher*csoShell.iconName:		CSO Name Server
+XXgopher*nameServer.borderWidth:	0
+XXgopher*csoQueryLabel.borderWidth:	0
+XXgopher*csoText.displayCaret:		False
+XXgopher*csoText.wrap:			word
+XXgopher*csoText.scrollVertical:	always
+XXgopher*csoText.scrollHorizontal:	never
+XXgopher*csoQueryText.editType:		edit
+XXgopher*nameServer.width:		400
+XXgopher*nameServer.resizable:		True
+X!
+X!  keyword search (index) popup
+X!
+XXgopher*indexForm.indexLabel.borderWidth:	0
+XXgopher*indexForm.indexLabel.resizable:	True
+X!
+X! ***** options panel resources
+X!
+XXgopher*optionsPanel*itemsForm.vertDistance:		10
+XXgopher*optionsPanel*buttonBox.borderWidth:		0
+XXgopher*optionsPanel*itemsForm*Box.borderWidth:	0
+XXgopher*optionsPanel*itemsForm*Form.borderWidth:	0
+XXgopher*optionsPanel*itemsForm*Label.borderWidth:	0
+XXgopher*optionsPanel*itemsForm*Toggle.borderWidth:	1
+XXgopher*optionsPanel*itemsForm*Text.borderWidth:	1
+XXgopher*optionsPanel*bkSaveForm.vertDistance:		15
+XXgopher*optionsPanel*itemsForm*Toggle.internalWidth:	2
+X!
+XXgopher*optionsPanel*bkSaveLabel.justify:	right
+XXgopher*optionsPanel*printCmdLabel.justify:	right
+XXgopher*optionsPanel*imageCmdLabel.justify:	right
+XXgopher*optionsPanel*telCmdLabel.justify:	right
+XXgopher*optionsPanel*t3270CmdLabel.justify:	right
+X!
+X! ***** single gopher item panel resources
+X!
+XXgopher*singlePanel*itemsForm.vertDistance:	10
+XXgopher*singlePanel*buttonBox.borderWidth:	0
+XXgopher*singlePanel*itemsForm.borderWidth:	2
+XXgopher*singlePanel*itemsForm*borderWidth:	0
+XXgopher*singlePanel*itemsForm*Text.borderWidth:	1
+XXgopher*singlePanel*Label.justify:		right
+X!
+X! ***** status popup panel resources
+X! 
+XXgopher*statusShell*statusLabel1.borderWidth:	0
+XXgopher*statusShell*statusLabel2.borderWidth:	0
+X!
+X! ***** file save/copy panels
+X!
+XXgopher*saveShell*saveForm*dirPath.borderwidth:	2
+XXgopher*saveForm*Label.borderWidth:		0
+XXgopher*saveForm*saveLabel1.vertDistance:	20
+XXgopher*saveForm*saveLabel2.vertDistance:	0
+XXgopher*saveForm*dirPath.displayCaret:	False
+X!
+XXgopher*cdForm*Label.borderWidth:		0
+X!
+XXgopher*dupFileForm*Label.borderWidth:	0
+________This_Is_The_END________
+if test `wc -l < Xgopher-complete.ad` -ne 444 ; then
+	echo 'shar: Xgopher-complete.ad was damaged during transit (should have been 444  bytes)'
+fi
+fi		; : end of overwriting check
+echo 'x - Xgopher-secure.ad'
+if test -f Xgopher-secure.ad; then echo 'shar: not overwriting Xgopher-secure.ad'; else
+sed 's/^X//' << '________This_Is_The_END________' > Xgopher-secure.ad
+X! ============================================================================
+X! ----- Xgopher version 1.3 resources
+X! ----- Customized for the Public Touch Screen terminal
+X! ----- used at the University of Illinois at Urbana-Champaign
+X!
+X! ----- The major differences between the default resources and those in
+X! ----- this file are 1) security setting to disallow unsafe access,
+X! ----- shell escapes, and file saving; 2) larger fonts and panel sizes
+X! ----- to accomidate "fat fingers" on the touch screen.  An extended
+X! ----- type provides a gateway to NovaNet for additional data.
+X! ============================================================================
+X
+X! ============================================================================
+X! ----- The resource "defaultsInstalled" MUST be set to TRUE -----------------
+X! ----- The following two lines must not be changed          -----------------
+X! ============================================================================
+X
+XXgopher.defaultsInstalled:		True
+XXgopher.resourcesVersion:		1.3
+X
+X! ============================================================================
+X! ----- Non-standard location for help and bookmarks         -----------------
+X! ============================================================================
+X
+XXgopher.helpFile:                       /usr/public-user/xgopher.help
+XXgopher.bookmarkFile:                   /usr/public-user/gopher-bookmarks
+X
+X! ============================================================================
+X! ----- security
+X! ----- publicMode sets lots of security related resources for us.
+X! ============================================================================
+X
+XXgopher.publicMode:			True
+XXgopher.allowFtp:			False
+XXgopher.restartButton:			False
+XXgopher.swapRestartAndQuit:		True
+X!
+XXgopher.allowImage:			True
+XXgopher.imageServers:			gopher.uiuc.edu \
+X					gopher.cso.uiuc.edu \
+X					128.174.33.160 \
+X					gopher2.cso.uiuc.edu \
+X					harpoon.cso.uiuc.edu \
+X					128.174.33.182 \
+X					wx.atmos.uiuc.edu \
+X					128.174.80.10
+X!
+XXgopher.hasSound:			True
+XXgopher.soundServers:			gopher.uiuc.edu \
+X					gopher.cso.uiuc.edu \
+X					gopher2.cso.uiuc.edu \
+X					harpoon.cso.uiuc.edu \
+X					128.174.33.160 \
+X					128.174.33.182
+X
+X
+X! ============================================================================
+X! ----- behavior
+X! ============================================================================
+X
+XXgopher.warpCursor:			True
+XXgopher.doubleClick:			False
+XXgopher.logFile:			
+X
+XXgopher.concurrentText:			1
+XXgopher.commonText:			True
+XXgopher.allowHold:			False
+X
+X! ============================================================================
+X! ----- extended type definitions
+X! ============================================================================
+X
+XXgopher.extendedTypes:			NM
+XXgopher.typeN.dataType:			none
+XXgopher.typeN.execCommand:		portal %s -g +10+10
+XXgopher.typeN.description:		NovaNet gateway
+XXgopher.typeN.prefix:			<Nov>
+X
+XXgopher.typeM.sameAs:			N
+XXgopher.typeM.description:		MTD bus schedule program
+XXgopher.typeM.execCommand:		portal %s -g +250+190
+XXgopher.typeM.prefix:			<MTD>
+X
+X! ============================================================================
+X! ----- external commands
+X! ============================================================================
+X
+XXgopher.printCommand:			/bin/false
+XXgopher.telnetCommand:			/bin/false
+XXgopher.tn3270Command:			/bin/false
+XXgopher.imageCommand:			xloadimage -quiet
+XXgopher.soundCommand:			cat > /dev/audio
+X
+X
+X! ============================================================================
+X! ----- X resources for text fonts -------------------------------------------
+X! ============================================================================
+X
+X!      ..... these fonts are good for touch screen terminal .....
+X
+XXgopher*font:			-b&h-lucidatypewriter-bold-r-normal-*-24-*-75-75-m-*-iso8859-*
+XXgopher*Command.font:		-*-helvetica-*-r-*-*-*-240-75-*-*-*-*-*
+XXgopher*MenuButton.font:	-*-helvetica-*-r-*-*-*-240-75-*-*-*-*-*
+XXgopher*status.font:		-*-helvetica-bold-r-*-*-*-180-75-*-*-*-*
+XXgopher*textDisplay*font:	-*-courier-*-r-*-*-18-*-75-75-m-*-iso8859-*
+XXgopher*csoText*font:		-*-courier-*-r-*-*-18-*-75-75-m-*-iso8859-*
+XXgopher*errorDialog*font:	-*-helvetica-*-r-*-*-*-180-75-*-*-*-*-*
+XXgopher*infoDialog*font:	-*-helvetica-*-r-*-*-*-180-75-*-*-*-*-*
+XXgopher*saveDialog*font:	-*-helvetica-*-r-*-*-*-180-75-*-*-*-*-*
+XXgopher*indexForm*font:		-*-helvetica-*-r-*-*-*-240-75-*-*-*-*-*
+XXgopher*versionBox*font:	-*-helvetica-*-r-*-*-*-180-75-*-*-*-*-*
+X
+X!     ..... another set
+X
+X! Xgopher*font:			-*-times-medium-r-*-*-26-*-75-*-*-*-iso8859-*
+X! Xgopher*Command.font:		-*-helvetica-*-r-*-*-*-240-75-*-*-*-*-*
+X! Xgopher*MenuButton.font:	-*-helvetica-*-r-*-*-*-180-75-*-*-*-*-*
+X! Xgopher*status.font:		-*-helvetica-bold-r-*-*-*-180-75-*-*-*-*
+X! Xgopher*textDisplay*font:	-*-times-medium-r-*-*-*-180-75-*-*-*-*-*
+X! Xgopher*csoText*font:		-*-times-medium-r-*-*-*-180-75-*-*-*-*-*
+X
+X
+X! ============================================================================
+X! ----- X resources for text labels ------------------------------------------
+X! ============================================================================
+X
+XXgopher*statusForm*quit.label:		Restart
+XXgopher*otherActionsMenu*restart.label:	Quit
+XXgopher*bookmarkTitle.label:		Special Items of Interest
+X
+X! ============================================================================
+X! ----- special resources for scrollbars and translations.  Also disable
+X! ----- <ctrl>d for quitApp action
+X! ============================================================================
+X
+X*Scrollbar.Thickness:                   25
+X*Scrollbar.Translations: \
+X	<Btn1Down>:StartScroll(Continuous)MoveThumb()NotifyThumb()\n\
+X	<Btn1Motion>: MoveThumb()NotifyThumb()\n\
+X	<BtnUp>:   NotifyScroll(Proportional)EndScroll()\n\
+X	<Key>F35:  StartScroll(Forward)NotifyScroll(Proportional)EndScroll()\n\
+X	<Key>F29:  StartScroll(Backward)NotifyScroll(Proportional)EndScroll()\n
+X!
+XXgopher*gopherPanel*Label*translations:	#override \n\
+X			<Btn1Down>: unselectAll()
+XXgopher*gopherPanel*translations:	#override \n\
+X			<Key>u: up()
+X
+X! ============================================================================
+X! ----- popup shell positioning
+X! ============================================================================
+X
+X
+XXgopher.csoPopup.xPosition:			0
+XXgopher.csoPopup.xPercent:			False
+XXgopher.csoPopup.yPosition:			50
+XXgopher.csoPopup.yPercent:			False
+XXgopher.csoPopup.horizontalJustification:	Left
+XXgopher.csoPopup.verticalJustification:		Top
+XXgopher.csoPopup.positionFrom:			Application
+X
+XXgopher.textPopup.xPosition:			0
+XXgopher.textPopup.xPercent:			False
+XXgopher.textPopup.yPosition:			50
+XXgopher.textPopup.yPercent:			False
+XXgopher.textPopup.horizontalJustification:	left
+XXgopher.textPopup.verticalJustification:	top
+XXgopher.textPopup.positionFrom:			Application
+X
+XXgopher.versionPopup.xPosition:			50
+XXgopher.versionPopup.xPercent:			True
+XXgopher.versionPopup.yPosition:			50
+XXgopher.versionPopup.yPercent:			False
+XXgopher.versionPopup.horizontalJustification:	center
+XXgopher.versionPopup.verticalJustification:	top
+XXgopher.versionPopup.positionFrom:		Application
+X
+XXgopher.indexPopup.xPosition:			50
+XXgopher.indexPopup.xPercent:			True
+XXgopher.indexPopup.yPosition:			50
+XXgopher.indexPopup.yPercent:			True
+XXgopher.indexPopup.horizontalJustification:	Center
+XXgopher.indexPopup.verticalJustification:	Center
+XXgopher.indexPopup.positionFrom:		Application
+X
+XXgopher.errorPopup.xPosition:			50
+XXgopher.errorPopup.xPercent:			True
+XXgopher.errorPopup.yPosition:			50
+XXgopher.errorPopup.yPercent:			True
+XXgopher.errorPopup.horizontalJustification:	Center
+XXgopher.errorPopup.verticalJustification:	Center
+XXgopher.errorPopup.positionFrom:		Screen
+X
+XXgopher.fatalErrorPopup.xPosition:		50
+XXgopher.fatalErrorPopup.xPercent:		True
+XXgopher.fatalErrorPopup.yPosition:		50
+XXgopher.fatalErrorPopup.yPercent:		True
+XXgopher.fatalErrorPopup.horizontalJustification: Center
+XXgopher.fatalErrorPopup.verticalJustification:	Center
+XXgopher.fatalErrorPopup.positionFrom:		Screen
+X
+XXgopher.infoPopup.xPosition:			50
+XXgopher.infoPopup.xPercent:			True
+XXgopher.infoPopup.yPosition:			50
+XXgopher.infoPopup.yPercent:			True
+XXgopher.infoPopup.horizontalJustification:	Center
+XXgopher.infoPopup.verticalJustification:	Center
+XXgopher.infoPopup.positionFrom:			Screen
+X
+X! ============================================================================
+X! ----- X layout resources that should not be changed ------------------------
+X! ----- Changing these can cause the gopher displays to appear corrupted -----
+X! ============================================================================
+X
+XXgopher*directoryForm.showGrip:		False
+X
+XXgopher.minHeight:			400
+XXgopher.minWidth:			400
+XXgopher*geometry:                       +50+25
+XXgopher*gopherPanel.orientation:	vertical
+XXgopher*statusForm.resizeToPreferred:	True
+XXgopher*statusForm.SkipAdjust:		True
+XXgopher*statusForm.showGrip:		False
+XXgopher*goBox.resizeToPreferred:	True
+XXgopher*goBox.SkipAdjust:		True
+XXgopher*goBox.showGrip:			False
+XXgopher*goBox.spacer.borderWidth:	0
+XXgopher*goBox.spacer.width:		20
+XXgopher*goBox.spacer.height:		10
+XXgopher*goBox.min:			50
+XXgopher*goBox.max:			100
+XXgopher*directoryForm.min:		60
+XXgopher*directoryForm.preferredPaneSize:500
+XXgopher*bookmarkForm.preferredPaneSize:	185
+XXgopher*directoryView.forceBars:	True
+XXgopher*bookmarkView.forceBars:		True
+XXgopher*directoryView.borderWidth:	1
+XXgopher*bookmarkView.borderWidth:	1
+XXgopher*directoryTitle.borderWidth:	0
+XXgopher*bookmarkTitle.borderWidth:	0
+XXgopher*status.borderWidth:		5
+XXgopher*status.width:			900
+XXgopher*directoryTitle.width:		900
+XXgopher*bookmarkTitle.width:		900
+XXgopher*directory.width:		900
+XXgopher*bookmark.width:			900
+________This_Is_The_END________
+if test `wc -l < Xgopher-secure.ad` -ne 246 ; then
+	echo 'shar: Xgopher-secure.ad was damaged during transit (should have been 246  bytes)'
+fi
+fi		; : end of overwriting check
+echo 'x - Xgopher.ad'
+if test -f Xgopher.ad; then echo 'shar: not overwriting Xgopher.ad'; else
+sed 's/^X//' << '________This_Is_The_END________' > Xgopher.ad
+X!=============================================================================
+X! Xgopher version 1.3 resources
+X!=============================================================================
+XXgopher.title:			Xgopher 1.3
+X! Xgopher.helpFile:		/usr/lib/X11/xgopher/xgopher.help
+X
+X!=============================================================================
+X! "Standard" extended types 
+X!=============================================================================
+XXgopher.extendedTypes:		4g
+X
+XXgopher.type4.sameAs:    	9
+XXgopher.type4.dataType:    	ascii
+XXgopher.type4.prefix:      	<Mac>
+XXgopher.type4.description: 	MacIntosh BinHex file
+X
+XXgopher.typeg.sameAs:		I
+XXgopher.typeg.prefix:		<gif>
+XXgopher.typeg.description:	gif file
+X
+X!=============================================================================
+X! "Experimental" UIUC extended types 
+X! These resources are ignored unless the type letter appears in 
+X! the list of extendedTypes.
+X!=============================================================================
+X! Xgopher.extendedTypes:	4gjM
+X
+XXgopher.type0.prefix:		/txt/
+XXgopher.type0.description:	text file
+XXgopher.type0.dataType:    	ascii
+XXgopher.type0.execCommand:	xterm -n "%n" -T "%n" -e vi %f
+X
+XXgopher.typej.prefix:		<kan>
+XXgopher.typej.description:	Kanji text file
+XXgopher.typej.dataType:    	ascii
+XXgopher.typej.execCommand:	kterm -sb -e more %f /dev/tty
+X
+XXgopher.typeM.prefix:		<MTD>
+XXgopher.typeM.description:	MTD bus schedule program
+XXgopher.typeM.dataType:		None
+XXgopher.typeM.execCommand:	/home/tuchman/src/xp/portal %s
+X
+X!=============================================================================
+X! Application resources that a user may want to change.
+X! Several are commented out because the installer's choice in
+X! the file conf.h is most likely correct
+X!=============================================================================
+X
+X! Xgopher.rootServer:			gopher.uiuc.edu
+X! Xgopher.rootPort:			70
+X! Xgopher.mainTitle:			UIUC Gopher Information Service
+X! Xgopher.rootPath:
+X! Xgopher.helpFile:			/usr/lib/X11/xgopher/xgopher.help
+X! Xgopher.bookmarkFile:			~/.gopherrc
+X
+XXgopher.printCommand:	    enscript -G -b"%n" -p - %f | lpr -Pgfx
+XXgopher.telnetCommand:	    xterm -n "telnet" -title "%h" -e telnet %h %P &
+XXgopher.tn3270Command:	    xterm -n "tn3270" -title "%h" -e tn3270 %h %P &
+X! Xgopher.tn3270Command:    aixterm -n "tn3270" -title "%h" -e tn3270 %h %P &
+X! Xgopher.tn3270Command:    x3270
+XXgopher.imageCommand:	    xloadimage -quiet
+XXgopher.soundCommand:	    cat > /dev/audio
+X! Xgopher.hasSound:			True
+X
+X
+X! Xgopher.logFile:			
+X! Xgopher.tempDirectory:			/tmp
+X
+X!=============================================================================
+X! ----- The resource "defaultsInstalled" MUST be set to TRUE -----------------
+X! ----- The following two lines must not be changed          -----------------
+X!=============================================================================
+X
+XXgopher.defaultsInstalled:		True
+XXgopher.resourcesVersion:		1.3
+X
+X!=============================================================================
+X! ----- X resources for color ------------------------------------------------
+X! ----- See the color resource file, named Xgopher-color.ad in the
+X! ----- Xgopher distribution
+X!=============================================================================
+X
+X
+X!=============================================================================
+X! ----- X resources for general appearance and cursors -----------------------
+X!=============================================================================
+X
+XXgopher*borderWidth:			2
+XXgopher*quit.cursorName:		pirate
+XXgopher*help.cursorName:		question_arrow
+XXgopher*directory.cursorName:		hand2
+XXgopher*bookmark.cursorName:		hand2
+XXgopher*errorDialog*borderWidth:	5
+XXgopher*infoDialog*borderWidth:		3
+X
+X!=============================================================================
+X! ----- X resources for text fonts -------------------------------------------
+X!=============================================================================
+X
+X!      ..... these fonts are good for demos and public access guest accts .....
+X
+X! Xgopher*font:		-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+X! Xgopher*Command.font:	-*-helvetica-*-r-*-*-*-180-75-*-*-*-*-*
+X! Xgopher*MenuButton.font:	-*-helvetica-*-r-*-*-*-180-75-*-*-*-*-*
+X! Xgopher*status.font:		-*-helvetica-bold-r-*-*-*-180-75-*-*-*-*
+X! Xgopher*textDisplay*font: 	-*-times-medium-r-*-*-*-140-75-*-*-*-*-*
+X! Xgopher*csoText*font:	fixed
+X
+X!      ..... these fonts are good for normal work and defaults .....
+X
+XXgopher*font:			-*-courier-medium-r-*-*-*-120-75-*-*-*-*-*
+XXgopher*textDisplay*font:	-*-courier-medium-r-*-*-*-120-75-*-*-*-*-*
+XXgopher*csoText*font:		-*-courier-medium-r-*-*-*-120-75-*-*-*-*-*
+XXgopher*nameServer*font:	-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+XXgopher*Command.font:		-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+XXgopher*MenuButton.font:	-*-helvetica-*-r-*-*-*-140-75-*-*-*-*-*
+XXgopher*status.font:		-*-helvetica-bold-r-*-*-*-140-75-*-*-*-*
+X
+X!=============================================================================
+X! ----- X resources for text labels ------------------------------------------
+X!=============================================================================
+X
+XXgopher*statusForm*quit.label:			Quit
+XXgopher*help.label:				Help
+XXgopher*statusForm*other.label:			Other Commands
+XXgopher*mark.label:				Add selection\nas bookmark
+XXgopher*markDirectoryLabel:			Add directory\nas bookmark
+XXgopher*unmark.label:				Remove\nbookmark
+XXgopher*unmarkAll.label:			Remove all\nbookmarks
+XXgopher*up.label:				Previous\nDirectory
+XXgopher*fetch.label:				Fetch\nselection
+XXgopher*info.label:				Info about\nselection
+XXgopher*infoDirectoryLabel:			Info about\ndirectory
+XXgopher*directoryTitle.label:			Unknown Directory
+XXgopher*bookmarkTitle.label:			Bookmarks
+XXgopher*status.label:				status
+XXgopher*statusShell*statusCancel.label:		Cancel
+X
+XXgopher*otherActionsMenu*copy.label:		Copy selected item to file
+XXgopher*otherActionsMenu*unmarkAll.label:	Remove all bookmarks
+XXgopher*otherActionsMenu*loadMarks.label:	Load bookmarks now
+XXgopher*otherActionsMenu*saveMarks.label:	Save bookmarks now
+XXgopher*otherActionsMenu*options.label:		Options panel
+XXgopher*otherActionsMenu*oneItem.label:		Enter gopher item
+XXgopher*otherActionsMenu*version.label:		Version information
+XXgopher*otherActionsMenu*restart.label:		Restart
+X
+XXgopher*textDone.label:				Done
+XXgopher*textPageDown.label:			Page down
+XXgopher*textPageUp.label:			Page up
+XXgopher*textPrint.label:			Print
+XXgopher*textSave.label:				Save To File
+XXgopher*textHold.label:				Hold
+XXgopher*errorDialog.ok.label:			Acknowledge
+XXgopher*infoDialog.ok.label:			Ok, thanks!
+X
+X! Xgopher*saveDialog.label:			Save text to file ...
+X! Xgopher*saveDialog.ok.label:			OK
+X! Xgopher*saveDialog.cancel.label:		Forget it
+X
+XXgopher*csoForm*csoDone.label:			Done
+XXgopher*csoForm*csoHelp.label:			Help
+XXgopher*csoForm*csoDoQuery.label:		Do query
+XXgopher*csoForm*csoClearQuery.label:		Clear query
+XXgopher*csoForm*csoClearText.label:		Clear text
+XXgopher*csoForm*csoQueryLabel.label:		Query name:
+XXgopher*csoForm*csoFields.label:		Show Fields 
+X
+XXgopher*indexForm*indexDoIndex.label:		Do index
+XXgopher*indexForm*indexCancel.label:		Cancel
+XXgopher*indexForm*indexHelp.label:		Help
+X!
+X! option panel labels
+X!
+XXgopher*optionsPanel*done.label:		Apply changes
+XXgopher*optionsPanel*cancel.label:		Cancel
+XXgopher*optionsPanel*showWhatLabel.label:	Show all gopher items\n\
+Xeven types not supported by Xgopher
+XXgopher*optionsPanel*appendBkLabel.label:	Load appends bookmarks to current list\n\
+Xif no, load replaces current list
+XXgopher*optionsPanel*loadBkLabel.label:		Load bookmarks at restart
+XXgopher*optionsPanel*resetLabel.label:		Reset these options at restart
+X!
+XXgopher*optionsPanel*bkSaveLabel.label:		Bookmark save file:
+XXgopher*optionsPanel*printCmdLabel.label:	Print command:
+XXgopher*optionsPanel*imageCmdLabel.label:	Image display command:
+XXgopher*optionsPanel*telCmdLabel.label:		Telnet command:
+XXgopher*optionsPanel*t3270CmdLabel.label:	tn3270 command:
+X!
+X! enter single gopher item panel labels
+X!
+XXgopher*singlePanel*done.label:			Process
+XXgopher*singlePanel*clear.label:		Clear Fields
+XXgopher*singlePanel*cancel.label:		Cancel
+XXgopher*singlePanel*mark.label:			Set Bookmark
+XXgopher*singlePanel*giTypeLabel.label:		Type:
+XXgopher*singlePanel*giNameLabel.label:		Name:
+XXgopher*singlePanel*giPathLabel.label:		Path:
+XXgopher*singlePanel*giHostLabel.label:		Host:
+XXgopher*singlePanel*giPortLabel.label:		Port:
+X!
+X! version shell labels
+X
+XXgopher*versionShell*versionDone.label:		Dismiss
+X!
+X! save labels
+X!
+XXgopher*saveForm*dirLabel.label:	The current working directory is:
+XXgopher*saveForm*saveLabel1.label:
+XXgopher*saveForm*saveLabel2.label:		Enter file name:
+XXgopher*saveForm*ok.label:			OK
+XXgopher*saveForm*cancel.label:			Cancel
+XXgopher*saveForm*chdir.label:			Change directory
+XXgopher*saveForm*help.label:			Help
+X!
+XXgopher*cdForm*cdLabel.label:			New Directory Name:
+XXgopher*cdForm*ok.label:			OK
+XXgopher*cdForm*cancel.label:			Cancel
+XXgopher*cdForm*help.label:			Help
+X!
+XXgopher*dupFileForm*label1.label:		The file
+XXgopher*dupFileForm*label2.label:  already exists, please select an action:
+XXgopher*dupFileForm*ok.label:			Overwrite\ncontents
+X! Xgopher*dupFileForm*ok.label:			Overwrite
+XXgopher*dupFileForm*change.label:		Enter another\nfile name
+X! Xgopher*dupFileForm*change.label:		Change file name
+XXgopher*dupFileForm*cancel.label:		Cancel file\nsave or copy
+X! Xgopher*dupFileForm*cancel.label:		Cancel
+XXgopher*dupFileForm*append.label:		Append to\nexisting file
+X! Xgopher*dupFileForm*append.label:		Append
+XXgopher*dupFileForm*help.label:			Help
+X!=============================================================================
+X! ----- Translations, including those that keep CR in text entry fields
+X! ----- causing proper action.
+X!
+X! ----- If you remove the "ok" actions for "<Key>Return" on any of
+X! ----- single line text widgets below, it MUST be replaced with a
+X! ----- no-op() action.
+X!=============================================================================
+XXgopher*gopherPanel*Label*translations:	#override \n\
+X			<Btn1Down>: unselectAll()
+XXgopher*gopherPanel*translations:	#override \n\
+X			<Key>u: up()\n\
+X			Ctrl<Key>d: quitApp()
+XXgopher*saveShell*fileName*translations:	#override \n\
+X			<Key>Return: saveok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*cdShell*cdPathName*translations:	#override \n\
+X			<Key>Return: cdok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*csoQueryText*translations:	#override \n\
+X			<Key>Return: queryok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*indexQueryText*translations:	#override \n\
+X			<Key>Return: indexok()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+XXgopher*Text*translations:		#override \n\
+X			<Key>Return: no-op()\n\
+X			Ctrl<Key>u: beginning-of-line() kill-to-end-of-line()
+X
+X
+X!=============================================================================
+X! ----- X layout resources that should not be changed ------------------------
+X! ----- Changing these can cause the Xgopher displays to appear corrupted ----
+X!=============================================================================
+X!
+X! main Xgopher panel
+X!
+XXgopher.minHeight:			400
+XXgopher.minWidth:			400
+X!. Xgopher*gopherPanel.height:		600
+X!. Xgopher*gopherPanel.width:		600
+XXgopher*gopherPanel.orientation:	vertical
+XXgopher*statusForm.resizeToPreferred:	True
+XXgopher*statusForm.SkipAdjust:		True
+XXgopher*statusForm.showGrip:		False
+XXgopher*goBox.resizeToPreferred:	True
+XXgopher*goBox.SkipAdjust:		True
+XXgopher*goBox.showGrip:		False
+XXgopher*goBox.spacer.borderWidth:	0
+XXgopher*goBox.spacer.width:		20
+XXgopher*goBox.spacer.height:		10
+XXgopher*goBox.min:			50
+XXgopher*goBox.max:			100
+XXgopher*directoryForm.min:		60
+XXgopher*directoryForm.preferredPaneSize:300
+XXgopher*bookmarkForm.preferredPaneSize:125
+XXgopher*directoryView.forceBars:	True
+XXgopher*bookmarkView.forceBars:		True
+XXgopher*directoryView.borderWidth:	1
+XXgopher*bookmarkView.borderWidth:	1
+XXgopher*directoryTitle.borderWidth:	0
+XXgopher*bookmarkTitle.borderWidth:	0
+XXgopher*status.borderWidth:		5
+XXgopher*status.width:			500
+XXgopher*directoryTitle.width:		500
+XXgopher*bookmarkTitle.width:		500
+XXgopher*directory.width:		500
+XXgopher*bookmark.width:			500
+X!
+X!  Text display popup window (top level window)
+X!
+XXgopher*textShell.iconName:		Gopher Text
+XXgopher*textButtonBox.borderWidth:	0
+XXgopher*textDisplay.wrap:		word
+XXgopher*textDisplay.width:		400
+XXgopher*textShell*Text.displayCaret:	False
+X!
+X!  cso nameserver popup window (top level window)
+X!
+XXgopher*csoShell.iconName:		CSO Name Server
+XXgopher*nameServer.borderWidth:	0
+XXgopher*csoQueryLabel.borderWidth:	0
+XXgopher*csoText.displayCaret:		False
+XXgopher*csoText.wrap:			word
+XXgopher*csoText.scrollVertical:	always
+XXgopher*csoText.scrollHorizontal:	never
+XXgopher*csoQueryText.editType:		edit
+XXgopher*nameServer.width:		400
+XXgopher*nameServer.resizable:		True
+X!
+X!  keyword search (index) popup
+X!
+XXgopher*indexForm.indexLabel.borderWidth:	0
+XXgopher*indexForm.indexLabel.resizable:	True
+X!
+X! ***** options panel resources
+X!
+XXgopher*optionsPanel*itemsForm.vertDistance:		10
+XXgopher*optionsPanel*buttonBox.borderWidth:		0
+XXgopher*optionsPanel*itemsForm*Box.borderWidth:	0
+XXgopher*optionsPanel*itemsForm*Form.borderWidth:	0
+XXgopher*optionsPanel*itemsForm*Label.borderWidth:	0
+XXgopher*optionsPanel*itemsForm*Toggle.borderWidth:	1
+XXgopher*optionsPanel*itemsForm*Text.borderWidth:	1
+XXgopher*optionsPanel*bkSaveForm.vertDistance:		15
+XXgopher*optionsPanel*itemsForm*Toggle.internalWidth:	2
+X!
+XXgopher*optionsPanel*bkSaveLabel.justify:	right
+XXgopher*optionsPanel*printCmdLabel.justify:	right
+XXgopher*optionsPanel*imageCmdLabel.justify:	right
+XXgopher*optionsPanel*telCmdLabel.justify:	right
+XXgopher*optionsPanel*t3270CmdLabel.justify:	right
+X!
+X! ***** single gopher item panel resources
+X!
+XXgopher*singlePanel*itemsForm.vertDistance:	10
+XXgopher*singlePanel*buttonBox.borderWidth:	0
+XXgopher*singlePanel*itemsForm.borderWidth:	2
+XXgopher*singlePanel*itemsForm*borderWidth:	0
+XXgopher*singlePanel*itemsForm*Text.borderWidth:	1
+XXgopher*singlePanel*Label.justify:		right
+X!
+X! ***** status popup panel resources
+X! 
+XXgopher*statusShell*statusLabel1.borderWidth:	0
+XXgopher*statusShell*statusLabel2.borderWidth:	0
+X!
+X! ***** file save/copy panels
+X!
+XXgopher*saveShell*saveForm*dirPath.borderwidth:	2
+XXgopher*saveForm*Label.borderWidth:		0
+XXgopher*saveForm*saveLabel1.vertDistance:	20
+XXgopher*saveForm*saveLabel2.vertDistance:	0
+XXgopher*saveForm*dirPath.displayCaret:	False
+X!
+XXgopher*cdForm*Label.borderWidth:		0
+X!
+XXgopher*dupFileForm*Label.borderWidth:	0
+________This_Is_The_END________
+if test `wc -l < Xgopher.ad` -ne 369 ; then
+	echo 'shar: Xgopher.ad was damaged during transit (should have been 369  bytes)'
+fi
+fi		; : end of overwriting check
+exit 0

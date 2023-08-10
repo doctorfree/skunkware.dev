@@ -1,0 +1,73 @@
+This is version 5.02 of tcllex. It's a scanner generator, producing
+an output file in tcl which can be used to scan lexically.
+
+It is certainly not quick, but it works for what I wanted it to do
+1. support tcl programs that require parsing of input.
+2. support rapid prototyping by means of tclsh functionality alone.
+i.e. it doesn't have any C code, and there's no need for a separate
+wish etc.
+3.  the scanners that are produced are not covered by any copyright
+
+It supports:
+1.  flex's start states.  The only difference between tcllex and flex
+is that, in flex, you have to declare the start states before you use
+them.  In tcllex, you can use whatever start state you want. The
+starting start state is called "normal".
+2.  multiple file input streams. This is activated by the yy_push_file
+and yy_pop_file procedures. I haven't tested this thoroughly, and I'm
+not sure you'd always like to stack input files, so if anyone is using
+this, could they let me know, please?
+3.  \t and \n in regular expressions in the input language lexical
+description
+4.  multiple line actions in the input language lexical description
+5.  alternate actions in the input language lexical description
+6.  flex's behaviour vis a vis ".*" i.e. a tcl "." regexp will match a
+newline character, whereas flex's one doesn't. So you specify the
+input description just as you would for a normal flex description.
+[Actually, if you invoke tcllex with the -C switch, tcllex will
+do the usual tcl trick of matching a dot with a newline. This is quite
+handy in various situations, and gives a more structured regular
+expression feel to things - agc].
+7.  if a regular expression begins with '^' and/or ends with '$', then
+a line-orientated approach will be taken to matching.
+
+It doesn't support:
+1. flex's character class definitions - no big deal, though, just
+replicate them throughout your regular expressions to match.
+
+Installation
+This release was put together with tclsh resident in /usr/local/bin -
+if this isn't the case, then you'll have to create a link from there,
+or modify all the occurences in these sources to point to your location.
+1. Extract the gzipped tar archive.
+2. Run the testit program in the current directory, which will execute
+all the tests. If there are *NO* differences, congratulations - everything
+has gone well. If not, please mail me the output from `testit' so that
+I can try to fix it.
+
+There are various ways to specify things. The lexer will run slowly if
+single characters are always recognised. For example, there are two
+example language descriptions included, using start states to identify
+C comments (c.l and d.l). The speed-up is noticeable between
+the two descriptions. All that has changed is that
+
+<incomment>.	{}
+
+in c.l has been changed to
+
+<incomment>[^*]+	{}
+<incomment>\*	{}
+
+in d.l.
+
+All feedback to:
+
+Alistair G. Crooks
+(agc@uts.amdahl.com)
+13th December 1994.
+
+Work: Amdahl, Dogmersfield Park, Hartley Wintney, Hants, RG27 8TE, UK.
+Tel: +44 125 234 6377				Fax: +44 125 234 6400
+
+Home: 38 Swallow Way, Wokingham, Berks, RG11 2TQ, UK.
+Tel: +44 1734 773688				Fax: +44 1734 773688

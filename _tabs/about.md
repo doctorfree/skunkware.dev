@@ -4,7 +4,9 @@ icon: fas fa-info-circle
 order: 6
 ---
 
-SCO Skunkware, often referred to as simply "Skunkware", is a collection of
+## What is Skunkware
+
+**SCO Skunkware**, often referred to as simply "**Skunkware**", is a collection of
 open-source software projects ported, compiled, and packaged for free
 redistribution on SCO operating environments. SCO Skunkware packaged components
 exist for SCO Xenix, SCO UNIX, SCO OpenServer 5, SCO OpenServer 6, UnixWare 2,
@@ -15,6 +17,24 @@ and adoption of open source software in the small and medium business market.
 An extensive SCO Skunkware download area has been maintained since 1993 and
 SCO Skunkware components were shipped with operating system distributions as far
 back as 1983 when Xenix for the IBM XT was released by The Santa Cruz Operation.
+
+## How was Skunkware distributed
+
+The mid-90s releases of SCO Skunkware were on a mountable CD-ROM which contained
+an HTTP server and HTML documents with links to SCO Custom+ installable packages.
+[NCSA Mosaic](https://en.wikipedia.org/wiki/Mosaic_(web_browser)) had been
+licensed by SCO shortly after its first release in 1993 and was used by
+Skunkware as the primary interface to browse the mounted CD-ROM. The CD also
+contained a Custom+ installable Skunkware SSO which installed the Skunkware
+website in `/usr/local` on the system along with the HTTPD server which could
+then be used to run a Skunkware website from your system.
+
+## What is in this website
+
+The documents you are browsing here in the [Releases section](https://skunkware.dev/releases)
+are those same documents from the respective CD-ROM. However, this historical
+archive does not contain any of the installable packages, only the framework
+in which they were distributed.
 
 <div align="center">
   <h2 id="connect">Connect</h2>

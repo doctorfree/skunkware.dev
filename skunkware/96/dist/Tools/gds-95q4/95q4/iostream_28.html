@@ -1,0 +1,70 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from iostream.texi on 9 October 1995 -->
+
+<TITLE>The GNU C++ Iostream Library - Overflow</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="iostream_1.html">first</A>, <A HREF="iostream_27.html">previous</A>, <A HREF="iostream_29.html">next</A>, <A HREF="iostream_35.html">last</A> section, <A HREF="iostream_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC28" HREF="iostream_toc.html#TOC28">Simple output re-direction by redefining <CODE>overflow</CODE></A></H2>
+<P>
+Suppose you have a function <CODE>write_to_window</CODE> that
+writes characters to a <CODE>window</CODE> object.  If you want to use the
+ostream function to write to it, here is one (portable) way to do it.
+This depends on the default buffering (if any).
+<P>
+<PRE>
+#include &#60;iostream.h&#62;
+/* Returns number of characters successfully written to <VAR>win</VAR>. */
+extern int write_to_window (window* win, char* text, int length);
+
+class windowbuf : public streambuf {
+    window* win;
+  public:
+    windowbuf (window* w) { win = w; }
+    int sync ();
+    int overflow (int ch);
+    // Defining xsputn is an optional optimization.
+    // (streamsize was recently added to ANSI C++, not portable yet.)
+    streamsize xsputn (char* text, streamsize n);
+};
+
+int windowbuf::sync ()
+{ streamsize n = pptr () - pbase ();
+  return (n &#38;&#38; write_to_window (win, pbase (), n) != n) ? EOF : 0;
+}
+
+int windowbuf::overflow (int ch)
+{ streamsize n = pptr () - pbase ();
+  if (n &#38;&#38; sync ())
+    return EOF;
+  if (ch != EOF)
+    {
+      char cbuf[1];
+      cbuf[0] = ch;
+      if (write_to_window (win, cbuf, 1) != 1)
+        return EOF;
+    }
+  pbump (-n);  // Reset pptr().
+  return 0;
+}
+
+streamsize windowbuf::xsputn (char* text, streamsize n)
+{ return sync () == EOF ? 0 : write_to_window (win, text, n); }
+
+int
+main (int argc, char**argv)
+{
+  window *win = ...;
+  windowbuf wbuf(win);
+  ostream wstr(&#38;wbuf);
+  wstr &#60;&#60; "Hello world!\n";
+}
+</PRE>
+<P>
+<HR>
+Go to the <A HREF="iostream_1.html">first</A>, <A HREF="iostream_27.html">previous</A>, <A HREF="iostream_29.html">next</A>, <A HREF="iostream_35.html">last</A> section, <A HREF="iostream_toc.html">table of contents</A>.
+</BODY>
+</HTML>

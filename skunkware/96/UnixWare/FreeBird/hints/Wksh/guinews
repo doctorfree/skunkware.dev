@@ -1,0 +1,111 @@
+#!/usr/X/bin/wksh
+
+# a simple wksh script to replace the "news" command.  This is based on
+# Steve Pendergasts' (sp?) guimail script which is used on his training course.
+
+set -f 
+
+NEWSPATH=/var/news
+
+read_headers() {
+
+	typeset LINE
+
+	here=`pwd`
+	cd $NEWSPATH
+	ls -l | cut -c 35- > /tmp/newsls$$
+	cd ${here}
+
+	slnoupdate $LIST
+	sldel $LIST all
+	for LINE in `news -n | cut -d' ' -f3-`
+	do
+		this_date=`grep $LINE\$ /tmp/newsls$$`
+		sladd $LIST "${this_date}"
+	done
+	slupdate $LIST
+
+	rm -f /tmp/newsls$$
+}
+
+get_message_number() {
+	if [ ! "$LIST_CURITEM" ]
+	then 
+		warn "No message is selected"
+		return 1
+	fi
+
+	MSGNUM=${LIST_CURITEM##* }
+	return 0
+}
+
+do_View() {
+	typeset TMP MSG LINE
+
+	get_message_number || return
+	#
+	# If the view popup is not created, make it now
+	#
+	if [ ! "$VIEWPOP" ]
+	then
+		cps VIEWPOP viewpop popupWindowShell $TOPLEVEL \
+			title:"News Viewer" resizeCorners:true
+		cmw TMP TMP scrolledWindow $VIEWPOP_UCA
+		cmw VIEW_TEXT te textEdit $TMP charsVisible:90
+		addflatbuttons $VIEWPOP_LCA TMP \
+			Dismiss D "pd $VIEWPOP"
+	fi
+
+	OLDIFS=$IFS
+	IFS=""
+	MSG=""
+	for LINE in `cat ${NEWSPATH}/${MSGNUM}`
+	do
+		MSG="$MSG
+$LINE"
+	done
+	IFS=$OLDIFS
+	sv $VIEW_TEXT source:"$MSG"
+	pu $VIEWPOP GrabNone
+}
+
+do_Untouch ()
+{
+	rm -f $HOME/.news_time
+	read_headers
+	
+}
+
+do_Quit ()
+{
+	touch $HOME/.news_time
+	exit 0
+}
+
+oi TOPLEVEL guinews "GUInews" "$@"
+
+cmw RT rt controlArea $TOPLEVEL layoutType:fixedcols
+
+FLATBUTTONOPS="menubarBehavior:true" \
+	addflatbuttons $RT TMP \
+		View V "do_View" \
+		"View All" A do_Untouch \
+		Quit Q "do_Quit"
+
+cmw BB bb form $RT
+
+# get a usl icon from p12 ?
+
+cmw ICONA s staticText $BB width:48 height:48 recomputeSize:false \
+	x:0 y:0 string:"" backgroundPixmap:/opt/lib/pixmaps/usl.xpm
+
+cmw ICONB s staticText $BB width:34 height:34 recomputeSize:false \
+	$(floatright) string:"" backgroundPixmap:/opt/lib/pixmaps/netware.xpm 
+
+cmw LIST list scrollingList $RT viewHeight:10
+
+
+rw $TOPLEVEL
+
+read_headers
+ml

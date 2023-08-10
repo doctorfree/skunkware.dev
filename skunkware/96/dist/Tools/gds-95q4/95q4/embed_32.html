@@ -1,0 +1,224 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from embed.texi on 19 October 1995 -->
+
+<TITLE>Embed With GNU - MIPScopts</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="embed_1.html">first</A>, <A HREF="embed_31.html">previous</A>, <A HREF="embed_33.html">next</A>, <A HREF="embed_44.html">last</A> section, <A HREF="embed_toc.html">table of contents</A>.
+<HR>
+<H4><A NAME="SEC32" HREF="embed_toc.html#TOC32">Compiler options</A></H4>
+<P>
+When you run <CODE>GCC</CODE>, you can use command-line options to choose
+machine-specific details.  For information on all the <CODE>GCC</CODE> 
+command-line options, see 
+section `GNU CC Command Options' in <CITE>Using GNU CC</CITE>.
+<P>
+<H3>GCC options for architecture and code generation</H3>
+<P>
+<DL COMPACT>
+<DT><CODE>-mcpu=r3000</CODE>
+<DD><DT><CODE>-mcpu=<VAR>cputype</VAR></CODE>
+<DD>Since most IDT boards are based on the MIPS R3000, the
+default for this particular configuration is <SAMP>`-mcpu=r3000'</SAMP>.
+
+In the general case, use this option on any MIPS platform to assume
+the defaults for the machine type <VAR>cputype</VAR> when scheduling
+instructions.  The default <VAR>cputype</VAR> on other MIPS
+configurations is <SAMP>`default'</SAMP>, which picks the longest cycle times
+for any of the machines, in order that the code run at reasonable rates
+on any MIPS CPU.  Other choices for <VAR>cputype</VAR> are
+<SAMP>`r2000'</SAMP>, <SAMP>`r3000'</SAMP>, <SAMP>`r4000'</SAMP>, and <SAMP>`r6000'</SAMP>.  While
+picking a specific <VAR>cputype</VAR> will schedule things appropriately for
+that particular chip, the compiler will not generate any code that does
+not meet level 1 of the MIPS ISA (Instruction Set Architecture)
+unless you use the <SAMP>`-mips2'</SAMP> or <SAMP>`-mips3'</SAMP> switch.
+
+<DT><CODE>-mgpopt</CODE>
+<DD><DT><CODE>-mno-gpopt</CODE>
+<DD>With <SAMP>`-mgpopt'</SAMP>, write all of the data declarations
+before the instructions in the text section.  This allows the MIPS
+assembler to generate one word memory references instead of using two
+words for short global or static data items.  This is on by default when
+you compile with optimization.
+
+<DT><CODE>-mstats</CODE>
+<DD><DT><CODE>-mno-stats</CODE>
+<DD>With <SAMP>`-mstats'</SAMP>, for each non-inline function processed, emit one
+line to the standard error file to print statistics about the program
+(number of registers saved, stack size, etc.).
+
+<DT><CODE>-mmemcpy</CODE>
+<DD><DT><CODE>-mno-memcpy</CODE>
+<DD>With <SAMP>`-mmemcpy'</SAMP>, make all block moves call <CODE>memcpy</CODE> (a C
+library string function) instead of possibly generating inline code.
+
+<DT><CODE>-mlong-calls</CODE>
+<DD><DT><CODE>-mno-long-calls</CODE>
+<DD>Do all calls with the <CODE>JALR</CODE> instruction, which requires loading up
+a function's address into a register before the call.  You need this
+switch if you call functions outside of the current 512 megabyte segment
+(unless you use function pointers for the call).
+
+<DT><CODE>-mhalf-pic</CODE>
+<DD><DT><CODE>-mno-half-pic</CODE>
+<DD>Put pointers to extern references into the data section and load them
+up, rather than putting the references in the text section.
+
+<DT><CODE>-G <VAR>num</VAR></CODE>
+<DD>Put global and static items less than or equal to <VAR>num</VAR> bytes into
+the small data or bss sections instead of the normal data or bss
+section.  This allows the assembler to emit one word memory reference
+instructions based on the global pointer (<VAR>gp</VAR> or <VAR>$28</VAR>),
+instead of the normal two words used.  By default, <VAR>num</VAR> is 8.  When
+you specify another value, <CODE>gcc</CODE> also passes the <SAMP>`-G
+<VAR>num</VAR>'</SAMP> switch to the assembler and linker.
+</DL>
+<P>
+<H3>GCC options for floating point</H3>
+<P>
+These options select software or hardware floating point.
+<P>
+<DL COMPACT>
+<DT><CODE>-msoft-float</CODE>
+<DD>Generate output containing library calls for floating point.  The
+<SAMP>`mips-idt-ecoff'</SAMP> configuration of <TT>`libgcc'</TT> (an auxiliary
+library distributed with the compiler) include a
+collection of subroutines to implement these library calls.
+
+In particular, this <CODE>GCC</CODE> configuration generates subroutine calls
+compatible with the US Software "GOFAST R3000" floating point library,
+giving you the opportunity to use either the <TT>`libgcc'</TT>
+implementation or the US Software version.  IDT includes the GOFAST
+library in their IDT C 5.0 package; you can also order libraries
+separately from IDT as the "IDT KIT".  
+of how to use <CODE>GCC</CODE> to link with the GOFAST library.
+
+To use the <TT>`libgcc'</TT> version, you need nothing special; <CODE>GCC</CODE> 
+links with <TT>`libgcc'</TT> automatically after all other object files and
+libraries.
+
+Because the calling convention on MIPS architectures depends on
+whether or not hardware floating-point is installed, <SAMP>`-msoft-float'</SAMP>
+has one further effect: <CODE>GCC</CODE> looks for subroutine libraries in a
+subdirectory <SAMP>`soft-float'</SAMP>, for any library directory in your search
+path.  (<EM>Note</EM>: This does not apply to directories specified using
+the <SAMP>`-l'</SAMP> option.)  With the Cygnus Developer's Kit, you can select
+the standard libraries as usual with <SAMP>`-lc'</SAMP> or <SAMP>`-lm'</SAMP>, because
+the <SAMP>`soft-float'</SAMP> versions are installed in the default library
+search paths.
+
+<BLOCKQUOTE>
+<EM>Warning:</EM> Treat <SAMP>`-msoft-float'</SAMP> as an "all or nothing"
+proposition.  If you compile any module of a program with
+<SAMP>`-msoft-float'</SAMP>, it's safest to compile all modules of the program
+that way--and it's essential to use this option when you link.
+</BLOCKQUOTE>
+
+<DT><CODE>-mhard-float</CODE>
+<DD>Generate output containing floating point instructions, and use the
+corresponding MIPS calling convention.  This is the default.
+</DL>
+<P>
+<H3>Floating point subroutines</H3>
+<P>
+Two kinds of floating point subroutines are useful with <CODE>GCC</CODE>:
+<P>
+<OL>
+<LI>
+Software implementations of the basic functions (floating-point
+multiply, divide, add, subtract), for use when there is no hardware
+floating-point support.
+
+When you indicate that no hardware floating point is available (with the
+<CODE>GCC</CODE> option <SAMP>`-msoft-float'</SAMP>, <CODE>GCC</CODE> generates 
+calls compatible with the US Software GOFAST library.  
+If you do not have this library, you can still use software
+floating point; <TT>`libgcc'</TT>, the auxiliary library distributed with
+<CODE>GCC</CODE>, includes compatible--though slower--subroutines.
+
+<LI>
+General-purpose mathematical subroutines.
+
+The Developer's Kit from Cygnus Support includes an implementation of
+the standard C mathematical subroutine library.  See section `Mathematical Functions' in <CITE>The Cygnus C Math Library</CITE>.
+</OL>
+<P>
+<H3>GCC options to avoid for  IDT R3000 boards</H3>
+<P>
+These options are meant for other forms of the MIPS architecture:
+<P>
+<DL COMPACT>
+<DT><CODE>-mabicalls</CODE>
+<DD><DT><CODE>-mno-abicalls</CODE>
+<DD>Emit (or do not emit) the assembler directives <SAMP>`.abicalls'</SAMP>,
+<SAMP>`.cpload'</SAMP>, and <SAMP>`.cprestore'</SAMP> that some System V.4 ports use for
+position independent code.
+
+<DT><CODE>-mips2</CODE>
+<DD>Issue instructions from level 2 of the MIPS ISA (branch likely, square
+root instructions).
+
+<DT><CODE>-mmips-as</CODE>
+<DD>Generate code for the MIPS assembler.  This is the default for many
+other MIPS platforms, but it requires an auxiliary program
+<CODE>mips-tfile</CODE> to encapsulate debugging information.
+
+<CODE>mips-tfile</CODE> <EM>is not included</EM> in your Cygnus Developer's Kit,
+since it is not required for the GNU assembler.
+
+<DT><CODE>-mrnames</CODE>
+<DD><DT><CODE>-mno-rnames</CODE>
+<DD>Generate code using the MIPS software names for the registers,
+instead of the hardware names (for example, <VAR>a0</VAR> instead of
+<VAR>$4</VAR>).  The converse <SAMP>`-mno-rnames'</SAMP> switch is the default.
+
+<BLOCKQUOTE>
+<EM>Warning:</EM> The GNU assembler will not build code generated with the
+<SAMP>`-mrnames'</SAMP> switch.
+</BLOCKQUOTE>
+</DL>
+<P>
+These options are harmless--but unnecessary--on the R3000:
+<P>
+<DL COMPACT>
+<DT><CODE>-mfp32</CODE>
+<DD>Assume that there are 32 32-bit floating point registers.  This is the
+default.
+
+<DT><CODE>-mgas</CODE>
+<DD>Generate code for the GNU assembler.  This is the default when <CODE>GCC</CODE> is
+correctly configured for this platform, using the <SAMP>`-with-gnu-as'</SAMP>
+configuration parameter.
+
+<DT><CODE>-mno-mips-tfile</CODE>
+<DD>The <SAMP>`-mno-mips-tfile'</SAMP> option prevents postprocessing the object
+file with the <CODE>mips-tfile</CODE> program, after the MIPS assembler has
+generated it to add debug support.  The GNU assembler does not require
+<CODE>mips-tfile</CODE> in any case.
+
+<CODE>mips-tfile</CODE> <EM>is not included</EM> in your Cygnus Developer's Kit.
+
+<DT><CODE>-nocpp</CODE>
+<DD>Tell the MIPS assembler to avoid running the C preprocessor over user
+assembler files (with a <SAMP>`.s'</SAMP> suffix) when assembling them.
+The GNU assembler never runs the C preprocessor in any case.
+
+</DL>
+<P>
+Avoid these options--although they appear in the configuration
+files, their implementation is not yet complete.
+<P>
+<PRE>
+-mfp64
+-mint64
+-mips3
+-mlong64
+-mlonglong128
+</PRE>
+<P>
+<HR>
+Go to the <A HREF="embed_1.html">first</A>, <A HREF="embed_31.html">previous</A>, <A HREF="embed_33.html">next</A>, <A HREF="embed_44.html">last</A> section, <A HREF="embed_toc.html">table of contents</A>.
+</BODY>
+</HTML>

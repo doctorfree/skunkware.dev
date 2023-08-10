@@ -1,0 +1,258 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Optimize Options</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_13.html">previous</A>, <A HREF="usegcc_15.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX80"></A>
+<A NAME="IDX81"></A>
+<H2><A NAME="SEC17" HREF="usegcc_toc.html#TOC17">Options That Control Optimization</A></H2>
+<P>
+These options control various sorts of optimizations:
+<P>
+<DL COMPACT>
+<DT><CODE>-O</CODE>
+<DD><DT><CODE>-O1</CODE>
+<DD>Optimize.  Optimizing compilation takes somewhat more time, and a lot
+more memory for a large function.
+
+Without <SAMP>`-O'</SAMP>, the compiler's goal is to reduce the cost of
+compilation and to make debugging produce the expected results.
+Statements are independent: if you stop the program with a breakpoint
+between statements, you can then assign a new value to any variable or
+change the program counter to any other statement in the function and
+get exactly the results you would expect from the source code.
+
+Without <SAMP>`-O'</SAMP>, the compiler only allocates variables declared
+<CODE>register</CODE> in registers.  The resulting compiled code is a little
+worse than produced by PCC without <SAMP>`-O'</SAMP>.
+
+With <SAMP>`-O'</SAMP>, the compiler tries to reduce code size and execution
+time.
+
+When you specify <SAMP>`-O'</SAMP>, the compiler turns on <SAMP>`-fthread-jumps'</SAMP>
+and <SAMP>`-fdefer-pop'</SAMP> on all machines.  The compiler turns on
+<SAMP>`-fdelayed-branch'</SAMP> on machines that have delay slots, and
+<SAMP>`-fomit-frame-pointer'</SAMP> on machines that can support debugging even
+without a frame pointer.  On some machines the compiler also turns
+on other flags.
+<DT><CODE>-O2</CODE>
+<DD>Optimize even more.  GNU CC performs nearly all supported optimizations
+that do not involve a space-speed tradeoff.  The compiler does not
+perform loop unrolling or function inlining when you specify <SAMP>`-O2'</SAMP>.
+As compared to <SAMP>`-O'</SAMP>, this option increases both compilation time
+and the performance of the generated code.
+
+<SAMP>`-O2'</SAMP> turns on all optional optimizations except for loop unrolling
+and function inlining.  It also turns on frame pointer elimination on
+machines where doing so does not interfere with debugging.
+
+<DT><CODE>-O3</CODE>
+<DD>Optimize yet more.  <SAMP>`-O3'</SAMP> turns on all optimizations specified by
+<SAMP>`-O2'</SAMP> and also turns on the <SAMP>`inline-functions'</SAMP> option.
+
+<DT><CODE>-O0</CODE>
+<DD>Do not optimize.
+
+If you use multiple <SAMP>`-O'</SAMP> options, with or without level numbers,
+the last such option is the one that is effective.
+</DL>
+<P>
+Options of the form <SAMP>`-f<VAR>flag</VAR>'</SAMP> specify machine-independent
+flags.  Most flags have both positive and negative forms; the negative
+form of <SAMP>`-ffoo'</SAMP> would be <SAMP>`-fno-foo'</SAMP>.  In the table below,
+only one of the forms is listed--the one which is not the default.
+You can figure out the other form by either removing <SAMP>`no-'</SAMP> or
+adding it.
+<P>
+<DL COMPACT>
+<DT><CODE>-ffloat-store</CODE>
+<DD>Do not store floating point variables in registers, and inhibit other
+options that might change whether a floating point value is taken from a
+register or memory.
+
+This option prevents undesirable excess precision on machines such as
+the 68000 where the floating registers (of the 68881) keep more
+precision than a <CODE>double</CODE> is supposed to have.  For most programs,
+the excess precision does only good, but a few programs rely on the
+precise definition of IEEE floating point.  Use <SAMP>`-ffloat-store'</SAMP> for
+such programs.
+
+<DT><CODE>-fno-default-inline</CODE>
+<DD>Do not make member functions inline by default merely because they are
+defined inside the class scope (C++ only).  Otherwise, when you specify
+<SAMP>`-O'</SAMP>, member functions defined inside class scope are compiled
+inline by default; i.e., you don't need to add <SAMP>`inline'</SAMP> in front of
+the member function name.
+
+<DT><CODE>-fno-defer-pop</CODE>
+<DD>Always pop the arguments to each function call as soon as that function
+returns.  For machines which must pop arguments after a function call,
+the compiler normally lets arguments accumulate on the stack for several
+function calls and pops them all at once.
+
+<DT><CODE>-fforce-mem</CODE>
+<DD>Force memory operands to be copied into registers before doing
+arithmetic on them.  This may produce better code by making all
+memory references potential common subexpressions.  When they are
+not common subexpressions, instruction combination should
+eliminate the separate register-load.  I am interested in hearing
+about the difference this makes.
+
+<DT><CODE>-fforce-addr</CODE>
+<DD>Force memory address constants to be copied into registers before
+doing arithmetic on them.  This may produce better code just as
+<SAMP>`-fforce-mem'</SAMP> may.  I am interested in hearing about the
+difference this makes.
+
+<DT><CODE>-fomit-frame-pointer</CODE>
+<DD>Don't keep the frame pointer in a register for functions that
+don't need one.  This avoids the instructions to save, set up and
+restore frame pointers; it also makes an extra register available
+in many functions.  <STRONG>It also makes debugging impossible on
+some machines.</STRONG>
+
+On some machines, such as the Vax, this flag has no effect, because
+the standard calling sequence automatically handles the frame pointer
+and nothing is saved by pretending it doesn't exist.  The
+machine-description macro <CODE>FRAME_POINTER_REQUIRED</CODE> controls
+whether a target machine supports this flag.  See section `Register Usage' in <CITE>Using and Porting GCC</CITE>.
+<DT><CODE>-fno-inline</CODE>
+<DD>Don't pay attention to the <CODE>inline</CODE> keyword.  Normally this option
+is used to keep the compiler from expanding any functions inline.
+Note that if you are not optimizing, no functions can be expanded inline.
+
+<DT><CODE>-finline-functions</CODE>
+<DD>Integrate all simple functions into their callers.  The compiler
+heuristically decides which functions are simple enough to be worth
+integrating in this way.
+
+If all calls to a given function are integrated, and the function is
+declared <CODE>static</CODE>, then the function is normally not output as
+assembler code in its own right.
+
+<DT><CODE>-fkeep-inline-functions</CODE>
+<DD>Even if all calls to a given function are integrated, and the function
+is declared <CODE>static</CODE>, nevertheless output a separate run-time
+callable version of the function.
+
+<DT><CODE>-fno-function-cse</CODE>
+<DD>Do not put function addresses in registers; make each instruction that
+calls a constant function contain the function's address explicitly.
+
+This option results in less efficient code, but some strange hacks
+that alter the assembler output may be confused by the optimizations
+performed when this option is not used.
+
+<DT><CODE>-ffast-math</CODE>
+<DD>This option allows <CODE>gcc</CODE> to violate some ANSI or IEEE rules and/or
+specifications in the interest of optimizing code for speed.  For
+example, it allows the compiler to assume arguments to the <CODE>sqrt</CODE>
+function are non-negative numbers and that no floating-point values
+are NaNs.
+
+This option should never be turned on by any <SAMP>`-O'</SAMP> option since 
+it can result in incorrect output for programs which depend on 
+an exact implementation of IEEE or ANSI rules/specifications for
+math functions.
+</DL>
+<P>
+The following options control specific optimizations.  The <SAMP>`-O2'</SAMP>
+option turns on all of these optimizations except <SAMP>`-funroll-loops'</SAMP>
+and <SAMP>`-funroll-all-loops'</SAMP>.  On most machines, the <SAMP>`-O'</SAMP> option
+turns on the <SAMP>`-fthread-jumps'</SAMP> and <SAMP>`-fdelayed-branch'</SAMP> options,
+but specific machines may handle it differently.
+<P>
+You can use the following flags in the rare cases when "fine-tuning"
+of optimizations to be performed is desired.
+<P>
+<DL COMPACT>
+<DT><CODE>-fstrength-reduce</CODE>
+<DD>Perform the optimizations of loop strength reduction and
+elimination of iteration variables.
+
+<DT><CODE>-fthread-jumps</CODE>
+<DD>Perform optimizations where we check to see if a jump branches to a
+location where another comparison subsumed by the first is found.  If
+so, the first branch is redirected to either the destination of the
+second branch or a point immediately following it, depending on whether
+the condition is known to be true or false.
+
+<DT><CODE>-fcse-follow-jumps</CODE>
+<DD>In common subexpression elimination, scan through jump instructions
+when the target of the jump is not reached by any other path.  For
+example, when CSE encounters an <CODE>if</CODE> statement with an
+<CODE>else</CODE> clause, CSE will follow the jump when the condition
+tested is false.
+
+<DT><CODE>-fcse-skip-blocks</CODE>
+<DD>This is similar to <SAMP>`-fcse-follow-jumps'</SAMP>, but causes CSE to
+follow jumps which conditionally skip over blocks.  When CSE
+encounters a simple <CODE>if</CODE> statement with no else clause,
+<SAMP>`-fcse-skip-blocks'</SAMP> causes CSE to follow the jump around the
+body of the <CODE>if</CODE>.
+
+<DT><CODE>-frerun-cse-after-loop</CODE>
+<DD>Re-run common subexpression elimination after loop optimizations has been
+performed.  
+
+<DT><CODE>-fexpensive-optimizations</CODE>
+<DD>Perform a number of minor optimizations that are relatively expensive.
+
+<DT><CODE>-fdelayed-branch</CODE>
+<DD>If supported for the target machine, attempt to reorder instructions
+to exploit instruction slots available after delayed branch
+instructions.
+
+<DT><CODE>-fschedule-insns</CODE>
+<DD>If supported for the target machine, attempt to reorder instructions to
+eliminate execution stalls due to required data being unavailable.  This
+helps machines that have slow floating point or memory load instructions
+by allowing other instructions to be issued until the result of the load
+or floating point instruction is required.
+
+<DT><CODE>-fschedule-insns2</CODE>
+<DD>Similar to <SAMP>`-fschedule-insns'</SAMP>, but requests an additional pass of
+instruction scheduling after register allocation has been done.  This is
+especially useful on machines with a relatively small number of
+registers and where memory load instructions take more than one cycle.
+
+<DT><CODE>-fcaller-saves</CODE>
+<DD>Enable values to be allocated in registers that will be clobbered by
+function calls, by emitting extra instructions to save and restore the
+registers around such calls.  Such allocation is done only when it
+seems to result in better code than would otherwise be produced.
+
+This option is enabled by default on certain machines, usually those
+which have no call-preserved registers to use instead.
+
+<DT><CODE>-funroll-loops</CODE>
+<DD>Perform the optimization of loop unrolling.  This is only done for loops
+whose number of iterations can be determined at compile time or run time.
+<SAMP>`-funroll-loop'</SAMP> implies both <SAMP>`-fstrength-reduce'</SAMP> and
+<SAMP>`-frerun-cse-after-loop'</SAMP>.
+
+<DT><CODE>-funroll-all-loops</CODE>
+<DD>Perform the optimization of loop unrolling.  This is done for all loops
+and usually makes programs run more slowly.  <SAMP>`-funroll-all-loops'</SAMP>
+implies <SAMP>`-fstrength-reduce'</SAMP> as well as <SAMP>`-frerun-cse-after-loop'</SAMP>.
+
+<DT><CODE>-fno-peephole</CODE>
+<DD>Disable any machine-specific peephole optimizations.
+
+<DT><CODE>-fbranch-probabilities</CODE>
+<DD>After running a program compiled with <SAMP>`-fprofile-arcs'</SAMP>
+(see section <A HREF="usegcc_13.html#SEC16">Options for Debugging Your Program or GNU CC</A>), you can compile it a second time using
+<SAMP>`-fbranch-probabilities'</SAMP>, to improve optimizations based on
+guessing the path a branch might take.
+
+</DL>
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_13.html">previous</A>, <A HREF="usegcc_15.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

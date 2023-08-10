@@ -1,0 +1,60 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - make Deduces</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_9.html">previous</A>, <A HREF="make_11.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX41"></A>
+<A NAME="IDX42"></A>
+<A NAME="IDX43"></A>
+<H2><A NAME="SEC9" HREF="make_toc.html#TOC9">Letting <CODE>make</CODE> Deduce the Commands</A></H2>
+<P>
+It is not necessary to spell out the commands for compiling the individual
+C source files, because <CODE>make</CODE> can figure them out: it has an
+<DFN>implicit rule</DFN> for updating a <SAMP>`.o'</SAMP> file from a correspondingly
+named <SAMP>`.c'</SAMP> file using a <SAMP>`cc -c'</SAMP> command.  For example, it will
+use the command <SAMP>`cc -c main.c -o main.o'</SAMP> to compile <TT>`main.c'</TT> into
+<TT>`main.o'</TT>.  We can therefore omit the commands from the rules for the
+object files.  See section <A HREF="make_87.html#SEC86">Using Implicit Rules</A>.<P>
+When a <SAMP>`.c'</SAMP> file is used automatically in this way, it is also
+automatically added to the list of dependencies.  We can therefore omit
+the <SAMP>`.c'</SAMP> files from the dependencies, provided we omit the commands.
+<P>
+Here is the entire example, with both of these changes, and a variable
+<CODE>objects</CODE> as suggested above:
+<P>
+<PRE>
+objects = main.o kbd.o command.o display.o \
+          insert.o search.o files.o utils.o
+
+edit : $(objects)
+        cc -o edit $(objects)
+
+main.o : defs.h
+kbd.o : defs.h command.h
+command.o : defs.h command.h
+display.o : defs.h buffer.h
+insert.o : defs.h buffer.h
+search.o : defs.h buffer.h
+files.o : defs.h buffer.h command.h
+utils.o : defs.h
+
+.PHONY : clean
+clean :
+        -rm edit $(objects)
+</PRE>
+<P>
+This is how we would write the makefile in actual practice.  (The
+complications associated with <SAMP>`clean'</SAMP> are described elsewhere.
+See section <A HREF="make_32.html#SEC31">Phony Targets</A>, and section <A HREF="make_47.html#SEC46">Errors in Commands</A>.)
+<P>
+Because implicit rules are so convenient, they are important.  You
+will see them used frequently.<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_9.html">previous</A>, <A HREF="make_11.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

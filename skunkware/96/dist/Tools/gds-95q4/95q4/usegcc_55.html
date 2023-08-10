@@ -1,0 +1,99 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Collect2</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_54.html">previous</A>, <A HREF="usegcc_56.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC58" HREF="usegcc_toc.html#TOC58"><CODE>collect2</CODE></A></H2>
+<P>
+Many target systems do not have support in the assembler and linker for
+"constructors"---initialization functions to be called before the
+official "start" of <CODE>main</CODE>.  On such systems, GNU CC uses a
+utility called <CODE>collect2</CODE> to arrange to call these functions at
+start time.
+<P>
+The program <CODE>collect2</CODE> works by linking the program once and
+looking through the linker output file for symbols with particular names
+indicating they are constructor functions.  If it finds any, it
+creates a new temporary <SAMP>`.c'</SAMP> file containing a table of them,
+compiles it, and links the program a second time including that file.
+<A NAME="IDX240"></A>
+<A NAME="IDX241"></A>
+<P>
+The actual calls to the constructors are carried out by a subroutine
+called <CODE>__main</CODE>, which is called (automatically) at the beginning
+of the body of <CODE>main</CODE> (provided <CODE>main</CODE> was compiled with GNU
+CC).  Calling <CODE>__main</CODE> is necessary, even when compiling C code, to
+allow linking C and C++ object code together.  (If you use
+<SAMP>`-nostdlib'</SAMP>, you get an unresolved reference to <CODE>__main</CODE>,
+since it's defined in the standard <CODE>gcc</CODE> library.  Include 
+<SAMP>`-lgcc'</SAMP> at the end of your compiler command line to resolve this 
+reference.)
+<P>
+The program <CODE>collect2</CODE> is installed as <CODE>ld</CODE> in the directory
+where the passes of the compiler are installed.  When <CODE>collect2</CODE>
+needs to find the <EM>real</EM> <CODE>ld</CODE>, it tries the following file
+names:
+<P>
+<UL>
+<LI>
+<TT>`real-ld'</TT> in the directories listed in the compiler's search
+directories.
+
+<LI>
+<TT>`real-ld'</TT> in the directories listed in the environment variable
+<CODE>PATH</CODE>.
+
+<LI>
+The file specified in the <CODE>REAL_LD_FILE_NAME</CODE> configuration macro,
+if specified.
+
+<LI>
+<TT>`ld'</TT> in the compiler's search directories, except that
+<CODE>collect2</CODE> will not execute itself recursively.
+
+<LI>
+<TT>`ld'</TT> in <CODE>PATH</CODE>.
+</UL>
+<P>
+"The compiler's search directories" means all the directories where
+<CODE>gcc</CODE> searches for passes of the compiler.  This includes
+directories that you specify with <SAMP>`-B'</SAMP>.
+<P>
+Cross-compilers search a little differently:
+<P>
+<UL>
+<LI>
+<TT>`real-ld'</TT> in the compiler's search directories.
+
+<LI>
+<TT>`<VAR>target</VAR>-real-ld'</TT> in <CODE>PATH</CODE>.
+
+<LI>
+The file specified in the <CODE>REAL_LD_FILE_NAME</CODE> configuration macro,
+if specified.
+
+<LI>
+<TT>`ld'</TT> in the compiler's search directories.
+
+<LI>
+<TT>`<VAR>target</VAR>-ld'</TT> in <CODE>PATH</CODE>.
+</UL>
+<P>
+<CODE>collect2</CODE> explicitly avoids running <CODE>ld</CODE> using the file name
+under which <CODE>collect2</CODE> itself was invoked.  In fact, it remembers
+up a list of such names--in case one copy of <CODE>collect2</CODE> finds
+another copy (or version) of <CODE>collect2</CODE> installed as <CODE>ld</CODE> in a
+second place in the search path.
+<P>
+<CODE>collect2</CODE> searches for the utilities <CODE>nm</CODE> and <CODE>strip</CODE>
+using the same algorithm as above for <CODE>ld</CODE>.
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_54.html">previous</A>, <A HREF="usegcc_56.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

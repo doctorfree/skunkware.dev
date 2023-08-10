@@ -1,0 +1,266 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:  REPL UW TF's: Bi-directional ports.. & Setting up Bi-Directional.. & Faxback DOC
+TITLE:  Serial Communications in UnixWare
+DOCUMENT ID:  TID1200018
+DOCUMENT REVISION:  1
+DATE:  03NOV94
+AUTHOR:  BAMUND
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.1
+
+CATEGORY:
+
+Networking
+
+ABSTRACT:
+
+NA
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+ISSUE:
+
+If you have attempted to setup serial communcations but it
+doesn't seem to work, you probably should just start fresh. The
+following section explains how to do this.
+
+BRINGING THE SYSTEM BACK TO A SANE STATE
+a - If you have set up any ports in Quick Terminal Setup that you want to use, bo back into sysadm (run sysadm as root  from the command line) and remove those ports.  To make sure you've removed all ports from this terminal status, use the:
+	ports -> port-services -> list -> all
+command in sysadm and look for the port in question. If it's there, use the:
+	quick-terminal -> remove
+command to remove it.
+
+Info:  The command line equivalent to the above sysadm  commands are as follows:
+To obtain a list of all port services:
+	pmadm -l
+  
+To remove a port service:
+	pmadm -r -p pmtag -s svctag
+	Example: pmadm -r -p ttymon3 -s 00
+
+b - Now assure that the permissions on the devices are correct: 
+cd /dev 
+	ls -l tty*
+Make sure all tty* have 666 permissions (crw-rw-rw) and the  owner and group are root.  So do: 
+	chmod 666 tty* ; chown root tty* ; chgrp root tty*
+Then change to /dev/term and make sure all desired devices  have the same permissions etc, as the above tty* devices.
+
+c - Bring your /etc/uucp/Systems and Devices files back to their  default by going to the graphical desktop: 
+	System_Setup -> Dialup_Setup -> Actions -> Setup   Devices
+and delete all devices.  Then close this window and delete  all your Systems in the main dialup setup window.
+
+Now that everything has been cleaned up, you can now begin to set
+up the system for your specific needs.
+  
+
+SETTING UP SERIAL COMMUNICATIONS
+There are basically three things that can be done with a serial
+port.  These are discussed below in detail.
+	1 -	Use the port for dial-out only.
+	2 -	Setup a login on the port for dial-in only or for a   dumb terminal.  
+	3 -	Setup the port for dial-in and dial-out.  This is   called a bi-directional port.
+Note: If you have a multi-port serial adapter, skip to the section below to setup the port monitors for these special devices. 
+
+1 - Use the port for dial-out only.
+To set up for dial-out only, you use the graphical desktop  utility:
+	System Setup -> Dialup Setup
+With this utility you can setup your device (what port you  want to use) and what kind of modem, or direct cable is  attached to the device.
+You can then setup System's that use that port. 
+You can use the Dialup Setup program to install icons  associated with these System's onto your desktop, so you can access them by simply clicking on the icon.
+
+Info: This program modifies the files: /etc/uucp/Devices and  /etc/uucp/Systems.
+
+2 - Setup a login on the port for dial-in only or for a dumb terminal.
+Use the utility:
+	System Setup -> Terminal Setup
+This will setup a port monitor service (login prompt) on the  port you specify.
+
+If you want to use 81N on this port, see section 3, step c below for information about port monitor configuration.
+
+To program your modem for auto answer mode see the section  below titled:  Programming your modem for auto answer mode.
+
+3 - Setup the port for dial-in and dial-out : a bi-directional  port.
+This is the most common type of setup for a serial port  because of it's versatility.
+
+   a - Run Dialup Setup as described in step 1 above.
+  
+   b - Open a terminal window and become superuser and run:
+	/usr/X/adm/addttymon
+
+Info:  This will use your /etc/uucp/Devices file to   determine which device should be setup as bi-directional and place an entry in the /etc/saf/pmtag/_pmtab file indicating the portmonitor service.  (pmtag) can vary depending on your system configuration.  The command: pmadm -l will tell you   what the pmtag is for your serial port.
+
+  c - The addttymon utility configures the incoming line for   autobaud which is 71e.  To correct this and set it to   81n, you will need to tell ttymon to use the proper discipline.  To do this you need to:
+	vi /etc/saf/<pmtag>/_pmtab
+Use the command pmadm -l to determine <pmtag>.
+
+In this file, move to the entry defining your serial   port and replace the word "auto" or the current baud rate, with the proper label  found in /etc/ttydefs.
+If you want 81n, use the NP (No Parity) tags.
+
+For example:
+If you want 19200 at 81n, you should use 19200NP.  View the file /etc/ttydefs to be sure you put a label in this field that is supported.  The labels are the items in column 1 of this file.
+
+  d - Restarting port monitors.
+The next two commands restart the ttymon process.  See the Troubleshooting section below to determine the   pmtag for your serial port.
+	sacadm -k -p pmtag 
+	sacadm -s -p pmtag 
+
+e - Program your modem for auto answer mode as described   below.  
+
+Programming your modem for auto answer mode:
+Your modem must be setup for answer mode.  On most Hayes
+compatible modems this command is ATS0=1, then save this setting
+by doing AT&W.  However, your modem may be a bit different so consult your manual.
+To directly connect with your modem to program it do the following:
+	vi /etc/uucp/Devices
+Go to the bottom of the file and put in the following entry:
+	Direct device,M - Any direct_modem
+(Where device is the device name.  ie. tty00.  If you are using a
+multiport serial board, then you must specify the full path, ie.
+/dev/term/i1a) 
+At the command line do:  
+	cu -l device 
+You should then get a connect message and be able to program your modem. 
+Note: If your tty port has been setup using method 2 above (dial-in only), you must disable this setup before programming the modem, otherwise you will not be able to communicate with the serial port.
+
+
+MULTI-PORT SERIAL ADAPTERS
+-------------------------
+If you have a multi-port adapter, such as a Digiboard, Arnet, Specialix etc., the devices that are created for it's ports all have varied names like:
+     /dev/term/i01a
+The Dialup Setup and addttymon utilites do not work for these device names.  Dialup setup will create odd and varied results as it attempts to setup the /etc/uucp/Devices file. 
+/usr/X/adm/addttymon will simply return the error:
+     No Devices are currently set up, please use Dialup Setup: Devices
+
+There is a way to work around the problems in these two utilities.
+
+1 -  When you run Dialup Setup -> Actions -> Setup Devices, specify you want to set up a device for Com1 or Com2, whichever one is not currenly being used, then exit that window.
+
+2 -  If desired, setup any Systems before you exit the Dialup Setup utility.
+
+3 -  If you wish to issue a login prompt on your ports, do the following steps, otherwise skip to step 4.
+
+  a -  Open an terminal window, become superuser and run:
+               /usr/X/adm/addttymon
+This creates a bi-directional port definition.
+
+  b - Edit the bi-directional port definition file:
+               vi /etc/saf/ttymon1/_pmtab
+Simply replace the device name /dev/tty0n to the proper  device name for the port you want to setup,
+	ie. /dev/term/i1a
+
+  c - If you don't want the port to be bi-directional  (dial-in only), remove the 'bhr' string from the         definition.
+
+  d - If you want to change the baud rate, replace the 'auto'  string with the appropriate tag (field 1 from the        /etc/ttydefs file), ie. 9600NP or 9600
+
+  e - If you want to setup other ports at this time,  duplicate this definition line as many times as you  like and change the device name to the appropriate name  for each device.
+
+HINT:  If you are new to vi, you can 'yank' this line    into a buffer by positioning the cursor anywhere on the  line and do:
+               <Esc>
+               yy
+Then press 'p' as many times as you want to paste this        new line into the file.
+
+  f - Save the file and restart the port monitor.
+               sacadm -k -p ttymon1
+               sacadm -s -p ttymon1
+
+4 - Edit the Devices file and modify the device name:
+          vi /etc/uucp/Devices
+Replace the /dev/tty0n device with the appropriate device     name for your port.  (See step b above for assistance.)
+
+Replace the baud rate 'Any' (field 4) with the appropriate    ttydef tag discussed in step d above.
+
+You can duplicate this line as many times as you wish, if     you need to dial-out using multiple devices.
+
+5 -  Now that you have setup the port monitors and Devices file,  the Dialup Setup utility can now be used to modify or add any Systems you want to setup.
+
+
+
+
+-----------------------------------------------------------------
+TroubleShooting
+---------------
+RESTARTING TTYMON
+If your ports still don't send a login after you dial in and  have pressed return several times, try restarting the ttymon  process.
+
+First of all you need to know which ttymon process is the one you need to restart. Do:
+	pmadm -l 
+Look for the port under the <PMSPECIFIC> heading.  Then note  the PMTAG.
+
+To restart the ttymon process:
+	sacadm -k -p pmtag   
+	sacadm -s -p pmtag
+
+CHECK FOR DUPLICATE TTYMON ENTRIES
+Only one ttymon service should be running per port.
+You can check to see how many ttymon services are running  for a particular serial port by doing:
+	pmadm -l | grep ttynn
+where ttynn is the tty device name, ie. tty00 or tty01 etc.
+
+If you find that multiple entries exist for one serial port,  use the following syntax to remove one of the entries:
+	pmadm -r -p pmtag -s svctag
+where pmtag and svctag are derived from the output of the  pmadm -l command;pmtag is column 1, svctag is column 3.
+
+CANNOT COMMUNICATE WITH THE MODEM
+If you cannot communicate with your modem when you follow  the instructions in the "Programming your modem..." section,  you can suspect some of the following:
+
+* Try booting your machine to dos and attempt to communicate  with your modem using a dos terminal emulation package.   This will check the cable and modem.
+
+* Be sure you are not attempting to use a serial port you  may have a mouse or other device connected to.
+
+* Check the file:
+	/etc/conf/sdevice.d/asyc
+and be sure that the line that corresponds to the port you  are trying to use, has a "Y" in column 2. There should be  four non-commented lines in the file; the first indicating 	 /dev/tty00 etc.  If there is an "N" in column two of the port you are attaching to, then the kernel did not recognize
+the port at install time.  To fix it, simply change the "N"  to an "Y".  Then rebuild the kernel:
+	/etc/conf/bin/idbuild -B
+When you reboot the machine you should attempt to determine  why UnixWare could not see the serial device at boot time.  The most common problem is that the port has been disabled  in the CMOS setup or EISA config.
+
+* Check the permissions on the port.  See the section above "BRINGING THE SYSTEM BACK TO A SANE STATE".
+
+GARBAGE LOGIN PROMPTS & HIGH SPEED MODEMS
+When a modem is powered up, the DTE (serial) port on the back of the modem is usually initialized at 9600 baud.  If you have setup the ttymonitor above (the _pmtab file) to a speed higher than 9600 baud, the ttymonitor will not be able to talk to the modem properly.  This results in a garbage login when someone dials in.  This problem can be circumvented by issuing an AT command to the modem at the desired baud rate.  This is done as follows:
+
+1 - Edit the file:
+	/etc/uucp/Devices
+and create a line for the port involved that looks something like:
+	Direct /dev/term/b01m,M - 19200NP direct_modem
+The device name and speed can vary depending on your needs. If 38400NP is the speed desired, you must create a 38400NP entry in the /etc/ttydefs file.  To do this simple duplicate the 19200NP entry and modify all occurances of 19200 to 38400.
+Note: NP stands for No Parity (81N).  The regular 38400 entry is (71E).
+
+2 - Disable the ttymonitor for the port involved.
+Issue the following command:
+	pmadm -d -p PMTAG -s SVCTAG
+where PMTAG and SVCTAG are derived from the command "pmadm -l".
+
+3 - Directly connect to your modem and issue an AT command:
+	cu -s BAUDRATE -l /dev/term/b01m
+where BAUDRATE is the baud rate you specified in the Devices entry above.
+After the Connected message, type:
+	AT <Enter>
+This will set the modem DTE port to that specified baud rate.
+Then exit the cu session:
+	~.<Enter>
+
+4 - Enable the port monitor:
+	pmadm -e -p PMTAG -s SVCTAG
+
+Those who dial into the system will now see a clear login prompt.
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+
+

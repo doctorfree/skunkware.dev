@@ -1,0 +1,156 @@
+
+Make-a-wish	(aka: Tcl-my-fancy)
+
+Tom Poindexter
+tpoindex@nyx.cs.du.edu
+
+Version 1.3, December, 1995
+Make-a-wish is public domain.  You can do anything with it, to it, or for it.
+
+
+Make-a-wish is available at:
+ftp.aud.alcatel.com as /tcl/code/make-a-wish-1.3.tar.gz
+
+
+WHAT IS MAKE-A-WISH?
+
+Make-a-wish is a simple sh script and makefile that tries to aid
+in creating Tcl/Tk interpreters with various extensions.
+
+Interpreters made by Make-a-wish are statically linked.  If you
+want to make interpreters that use dynamically loadable libraries,
+you should look into other packages that do that. 
+
+
+CHANGES
+ 
+1.1 - Add option of specifing an alternate main(), or explicitly link the
+      correct main() from source directories.  Changed link order so that
+      all extensions are searched first, followed by TclX/Tk/Tcl libraries.
+      Two sed scripts are now created, one for tclMain.c, another for tkMain.c.
+
+1.2 - Add "-follow" options to maw-configure "find" to chase sym links.
+      Ensure that neither executable target is null.  Add special case
+      files to support Tcl-DP and TclX - Makefile.xdp, tkXDPmain.c,
+      tkXDPAppInit.c.
+
+
+1.3 - Don't "-follow" for 'find' if not supported.  Check for Sys V.4
+      'nm' output.  Support for Tcl7.4, TclX7.4a, and Tk4.0.
+      Remove handling of tclMain.o, et.al., as main() is now part of
+      the AppInit.c file.  Remove special case handling of TclX w/ Tcl-DP.
+
+      With Tcl7.5 around the corner with dynamic loading in the core,
+      Make-a-wish will for most users become obsolete.  I'll probably
+      still release a version that will support Tcl7.5's directory 
+      structure.
+
+
+USING MAKE-A-WISH
+
+Make-a-wish assumes that Tcl/Tk, and possibly Extended Tcl (TclX)
+has already been configured, built, and installed.  Make-a-wish looks for
+Tcl/Tk/TclX include files, libraries, and object files in the source 
+directories.  Don't "make clean" in those directories until after you've 
+used Make-a-wish.
+
+Make-a-wish does not build each individual extension.  You will have
+to build each extension following the instructions in each package.
+Make-a-wish assumes that extensions build a libxxx.a file that
+contains the extension's code.  Also, if a particular extension needs
+Tcl library code installed, you'll have to do that also.
+
+Another important assumption is that all Tcl, Tk, TclX, and extensions
+are located in sibling directories to Make-a-wish.  For example:
+
+         src/tcl/
+		 tcl7.4/
+		 tk4.0/
+		 tclX7.4a/
+		 make-a-wish-1.3/
+		 oratcl-2.3/
+		 sybtcl-2.3/
+		 itcl-2.0/
+		 blt-1.8/
+		 tcl-dp3.2/
+		 (etc)
+
+
+Run the sh script "maw-configure".  Make-a-wish asks whether you want
+to build standard or Extended Tcl, and whether you want to build a 
+tclsh/tcl (no Tk), wish/wishx (with Tk), or both.  You will also be asked to
+supply names for the resulting interpreters.
+
+Make-a-wish will then find every libxxx.a file in its parent directory and
+siblings.  You will then be asked to identify the Tcl/Tk directories,
+and possibly the Extended Tcl directories and libs libtclx.a and libtkx.a
+
+For all other libraries found, Make-a-wish will ask if the library 
+contains a Tcl/Tk extension you want to add.  When you select
+a library, Make-a-wish tries to find the name of the extension's Init
+function.  If an Init function can't be found, or is wrong, enter the
+name of the Init function.  Most current extensions use "xxx_Init", where
+"xxx" is the name of the extension package. 
+
+Make-a-wish will ask for any additional libraries that might be needed
+by any extension.  Again, check each extension you are adding for details.
+The main() function is supplied by the AppInit.c file.
+
+Finally, Make-a-wish will build sed scripts to be used by the makefile,
+and two other make include files.  You should review the files before
+trying make.
+
+If all looks reasonable, try "make".  The Makefile will copy the
+appropriate tcl*AppInit.c file, apply the sed script to add the
+calls to Init functions, compiles, and then links tclMain.o and tcl*AppInit.o 
+with all the Tcl, Tk, (TclX), and extensions.  
+
+All extension libraries are searched before standard Tcl, Tk, and TclX
+libraries.  
+
+If all goes well, you'll get the interpreters for which you asked.  The 
+Make-a-wish Makefile doesn't have an "install" target (well it does, but it 
+doesn't do anything useful.)  You will have to copy or install into whatever 
+directory you want, say /usr/local/bin.
+
+
+CAVEATS
+
+Make-a-wish is not "rocket science" and is relatively stupid.  If you try 
+to add Tk extensions to a non-Tk interpreter, the make will likely fail.
+You might have to run maw-configure twice to get both tclsh and wish 
+interpreters, first time building a wish with the Tk extensions, then again to
+build tclsh without Tk extensions.
+
+Extensions that want to use their own main() are likely to be problematic when
+trying to build an Extended Tcl interpreter, unless the extension
+developer includes a TclX compatible main().  
+
+Other things can go wrong; Murphy's Law applies.  At worst you're no
+worse off than without Make-a-wish ;-)
+
+Due to differences in 'find' and 'nm' programs between different platforms,
+Make-a-wish might have difficulty finding extensions' Init function, or
+may just fail.  You might have to tweak the 'nm  | awk' pipeline at line
+311 to get it to work right.
+
+
+Prior versions of Make-a-wish tried to provide special handling when combing
+Extended Tcl and Tcl-DP.  This version has dropped special support.
+
+
+
+
+
+
+"Now Tom, if Make-a-wish is for Tcl, why did you write maw-configure 
+in /bin/sh?"
+
+Tom sez: "Well, it started as something very simple and didn't assume
+that tclsh or tcl was installed correctly.  One can generally count 
+on /bin/sh.  Make-a-wish began as the Makefiles for my Sybtcl and Oratcl
+extensions and borrow on how I did things there.
+And of course, conversion to a good shell language like Tcl is left
+as an exercise for the user :-)"
+
+

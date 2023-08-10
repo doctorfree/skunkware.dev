@@ -1,0 +1,80 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from gasp.texi on 9 October 1995 -->
+
+<TITLE>GASP, an assembly preprocessor - Overview</TITLE>
+</HEAD>
+<BODY>
+Go to the first, previous, <A HREF="gasp_2.html">next</A>, <A HREF="gasp_20.html">last</A> section, <A HREF="gasp_toc.html">table of contents</A>.
+<HR>
+<P>
+Copyright (C) 1994, 1995 Free Software Foundation, Inc.
+<P>
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+<P>
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided also that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+<P>
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions.
+<P>
+<H1><A NAME="SEC1" HREF="gasp_toc.html#TOC1">What is GASP?</A></H1>
+<P>
+The primary purpose of the GNU assembler is to assemble the output of
+other programs--notably compilers.  When you have to hand-code
+specialized routines in assembly, that means the GNU assembler is
+an unfriendly processor: it has no directives for macros, conditionals,
+or many other conveniences that you might expect.
+<P>
+In some cases you can simply use the C preprocessor, or a generalized
+preprocessor like M4; but this can be awkward, since none of these
+things are designed with assembly in mind.
+<P>
+GASP fills this need.  It is expressly designed to provide the
+facilities you need with hand-coded assembly code.  Implementing it as a
+preprocessor, rather than part of the assembler, allows the maximum
+flexibility: you can use it with hand-coded assembly, without paying a
+penalty of added complexity in the assembler you use for compiler
+output.
+<P>
+Here is a small example to give the flavor of GASP.  This input to
+GASP
+<P>
+<PRE>
+        .MACRO  saveregs from=8 to=14
+count   .ASSIGNA \from
+        ! save r\from..r\to
+        .AWHILE  \&#38;count LE \to
+        mov     r\&#38;count,@-sp
+count   .ASSIGNA  \&#38;count + 1
+        .AENDW
+        .ENDM
+
+        saveregs from=12
+
+bar:    mov     #H'dead+10,r0
+foo     .SDATAC "hello"&#60;10&#62;
+        .END
+</PRE>
+<P>
+generates this assembly program:
+<P>
+<PRE>
+        ! save r12..r14
+        mov     r12,@-sp
+        mov     r13,@-sp
+        mov     r14,@-sp
+
+bar:    mov     #57005+10,r0
+foo:    .byte   6,104,101,108,108,111,10
+</PRE>
+<P>
+<HR>
+Go to the first, previous, <A HREF="gasp_2.html">next</A>, <A HREF="gasp_20.html">last</A> section, <A HREF="gasp_toc.html">table of contents</A>.
+</BODY>
+</HTML>

@@ -1,0 +1,114 @@
+Welcome to...
+-------------
+		The Tk "send" command for Xt
+Who by
+------
+Jan Newmarch (jan@pandonia.canberra.edu.au).
+
+Availability
+------------
+The primary site for this is ft.canberra.edu.au. It may also be placed on
+ftp.x.org and harbor.ecn.purdue.edu. From these sites it will be available
+on mirrors in lots of places.
+
+What
+----
+Tcl is a type-free interpreted language that is great fun to use. It is
+designed to be embedded in applications that require a "command language".
+Tk is a set of widgets built above this, that provide a quick and easy
+route into X Window programming.
+
+One of the features of Tk is a communications protocol (based on X Window
+"properties") that allows one Tk application to send Tcl commands to
+another, to execute them. This allows for example: a debugger can send
+commands to an editor to display the region being debugged; a supervisor
+can send shutdown messages to all Tk applications to gracefully terminate;
+a file manager can send a selected file to a program that knows how to
+handle it. This mechanism can potentially restore the "small communicating
+processes" model of Unix to the X environment.
+
+The Tk system is not Xt based. This means that - until now - Xt applications
+could not communicate with Tk ones easily.  This package makes the "send"
+mechanism available to an Xt application using Tcl. This makes the following
+scenarios possible:
+	- Tk app talking to itself
+	- Tk app talking to another Tk app
+	- Tk app talking to an Xt app
+	- Xt app talking to itself
+	- Xt app talking to Xt app
+	- Xt app talking to Tk app
+
+This package is intended for Xt applications that are primarily written in C,
+but wish to use the ``send'' mechanism. If you want to do the bulk of the
+application in tcl, look instead at Tk (for an entirely tcl based system),
+Wafe (for Xt+various widget sets bound to tcl) or tclMotif (for Motif 1.2
+bound to tcl).
+
+Tk level
+--------
+This package implements the protocol of Tk4.0. This is different from the
+protocol of Tk3.6. Version 1.0 of this package implemented that protocol.
+So applications built using this can talk to themselves and also Tk4.0
+applications.
+
+Tcl requirement
+---------------
+This package requires use of Tcl7.4. An Xt application wishing to use this
+service must create a Tcl interpreter and register it. From then on, any
+other application can send Tcl commands to the Tcl interpreter. The interpreter
+will execute these commands. Conversely, the application can now send Tcl
+commands to another application through the Tcl interpreter.
+
+How an application invokes the send mechanism is by preparing a string
+that is a suitable Tcl command, and then calling the C function Tcl_Eval.
+
+How the Tcl interpreter affects the application is by creating new Tcl commands
+that invoke application C code. When the interpreter executes these commands
+it calls the application code.
+
+Removing the Tcl requirement
+----------------------------
+The Tcl interpreter supplies data structures and error reporting mechanism.
+These could be easily hard-coded in, so that this package would not require
+any use of Tcl. Maybe I will do it one day, but not right now. It would also
+require supply of suitable Xt handlers. This is not hard. The real loss is
+that you would be passing uninterpreted strings around, so that each application
+would have to provide its own parsing and semantic functions. That is what
+Tcl is designed to overcome - why remove its principal advantage?
+
+Removing Xt requirement
+-----------------------
+Most of the code for this was written by John Ousterhout for the Tk toolkit.
+What I did was to replace the Tk calls with appropriate Xt calls, and adjust
+around this. It should be possible to do the same with any other toolkit
+or even with Xlib. I won't be doing this because I don't have experience
+with other toolkits. It might be nice to see Interviews (and others) use
+this protocol too, though.
+
+Requirements
+------------
+This has been built using tcl7.4. I have tested the Xt side with Motif 2.0,
+running X11R6 but it should also work with any X11R5 Xt-based system.
+I have so far tested this stuff on a Sun O/S 4.1, a 486 running Linux
+and an SGI running Iris 5.1.
+
+Building
+--------
+This package uses the imake system to manage files - for Tk users, don't panic.
+This is what you have to type:
+	xmkmf
+	make
+	make install
+	make install.man
+this will install the library and man pages in the usual location for your
+other X Window system libraries and man pages.
+
+The test programs use Motif, which not everyone has. If you do, change to
+the programs directory and run
+	xmkmf
+	make
+This is not done automatically, because not everyone has Motif. Any Xt user
+should be able to understand the Motif side of the examples anyway.
+
+Most of the Motif programs require that Tk has been installed, to communicate
+with them.

@@ -1,0 +1,146 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from cpp.texi on 6 October 1995 -->
+
+<TITLE>The C Preprocessor - Global Actions</TITLE>
+</HEAD>
+<BODY>
+Go to the first, previous, <A HREF="cpp_2.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+<HR>
+<H1><A NAME="SEC1" HREF="cpp_toc.html#TOC1">The C Preprocessor</A></H1>
+<P>
+The C preprocessor is a <DFN>macro processor</DFN> that is used automatically by
+the C compiler to transform your program before actual compilation.  It is
+called a macro processor because it allows you to define <DFN>macros</DFN>,
+which are brief abbreviations for longer constructs.
+<P>
+The C preprocessor provides four separate facilities that you can use as
+you see fit:
+<P>
+<UL>
+<LI>
+Inclusion of header files.  These are files of declarations that can be
+substituted into your program.
+
+<LI>
+Macro expansion.  You can define <DFN>macros</DFN>, which are abbreviations
+for arbitrary fragments of C code, and then the C preprocessor will
+replace the macros with their definitions throughout the program.
+
+<LI>
+Conditional compilation.  Using special preprocessing directives, you
+can include or exclude parts of the program according to various
+conditions.
+
+<LI>
+Line control.  If you use a program to combine or rearrange source files into
+an intermediate file which is then compiled, you can use line control
+to inform the compiler of where each source line originally came from.
+</UL>
+<P>
+C preprocessors vary in some details.  This manual discusses the GNU C
+preprocessor, the C Compatible Compiler Preprocessor.  The GNU C
+preprocessor provides a superset of the features of ANSI Standard C.
+<P>
+ANSI Standard C requires the rejection of many harmless constructs commonly
+used by today's C programs.  Such incompatibility would be inconvenient for
+users, so the GNU C preprocessor is configured to accept these constructs
+by default.  Strictly speaking, to get ANSI Standard C, you must use the
+options <SAMP>`-trigraphs'</SAMP>, <SAMP>`-undef'</SAMP> and <SAMP>`-pedantic'</SAMP>, but in
+practice the consequences of having strict ANSI Standard C make it
+undesirable to do this.  See section <A HREF="cpp_41.html#SEC42">Invoking the C Preprocessor</A>.
+<P>
+<UL>
+<LI><A HREF="cpp_1.html#SEC2">Global Actions</A>: Actions made uniformly on all input files.
+<LI><A HREF="cpp_2.html#SEC3">Directives</A>: General syntax of preprocessing directives.
+<LI><A HREF="cpp_3.html#SEC4">Header Files</A>: How and why to use header files.
+<LI><A HREF="cpp_9.html#SEC10">Macros</A>: How and why to use macros.
+<LI><A HREF="cpp_28.html#SEC29">Conditionals</A>: How and why to use conditionals.
+<LI><A HREF="cpp_38.html#SEC39">Combining Sources</A>: Use of line control when you combine source files.
+<LI><A HREF="cpp_39.html#SEC40">Other Directives</A>: Miscellaneous preprocessing directives.
+<LI><A HREF="cpp_40.html#SEC41">Output</A>: Format of output from the C preprocessor.
+<LI><A HREF="cpp_41.html#SEC42">Invocation</A>: How to invoke the preprocessor; command options.
+<LI><A HREF="cpp_42.html#SEC43">Concept Index</A>: Index of concepts and terms.
+<LI><A HREF="cpp_43.html#SEC44">Index</A>: Index of directives, predefined macros and options.
+</UL>
+<P>
+<H2><A NAME="SEC2" HREF="cpp_toc.html#TOC2">Transformations Made Globally</A></H2>
+<P>
+Most C preprocessor features are inactive unless you give specific directives
+to request their use.  (Preprocessing directives are lines starting with
+<SAMP>`#'</SAMP>; see section <A HREF="cpp_2.html#SEC3">Preprocessing Directives</A>).  But there are three transformations that the
+preprocessor always makes on all the input it receives, even in the absence
+of directives.
+<P>
+<UL>
+<LI>
+All C comments are replaced with single spaces.
+
+<LI>
+Backslash-Newline sequences are deleted, no matter where.  This
+feature allows you to break long lines for cosmetic purposes without
+changing their meaning.
+
+<LI>
+Predefined macro names are replaced with their expansions
+(see section <A HREF="cpp_12.html#SEC13">Predefined Macros</A>).
+</UL>
+<P>
+The first two transformations are done <EM>before</EM> nearly all other parsing
+and before preprocessing directives are recognized.  Thus, for example, you
+can split a line cosmetically with Backslash-Newline anywhere (except
+when trigraphs are in use; see below).
+<P>
+<PRE>
+/*
+*/ # /*
+*/ defi\
+ne FO\
+O 10\
+20
+</PRE>
+<P>
+is equivalent into <SAMP>`#define FOO 1020'</SAMP>.  You can split even an escape
+sequence with Backslash-Newline.  For example, you can split <CODE>"foo\bar"</CODE>
+between the <SAMP>`\'</SAMP> and the <SAMP>`b'</SAMP> to get
+<P>
+<PRE>
+"foo\\
+bar"
+</PRE>
+<P>
+This behavior is unclean: in all other contexts, a Backslash can be
+inserted in a string constant as an ordinary character by writing a double
+Backslash, and this creates an exception.  But the ANSI C standard requires
+it.  (Strict ANSI C does not allow Newlines in string constants, so they
+do not consider this a problem.)
+<P>
+But there are a few exceptions to all three transformations.
+<P>
+<UL>
+<LI>
+C comments and predefined macro names are not recognized inside a
+<SAMP>`#include'</SAMP> directive in which the file name is delimited with
+<SAMP>`&#60;'</SAMP> and <SAMP>`&#62;'</SAMP>.
+
+<LI>
+C comments and predefined macro names are never recognized within a
+character or string constant.  (Strictly speaking, this is the rule,
+not an exception, but it is worth noting here anyway.)
+
+<LI>
+Backslash-Newline may not safely be used within an ANSI "trigraph".
+Trigraphs are converted before Backslash-Newline is deleted.  If you
+write what looks like a trigraph with a Backslash-Newline inside, the
+Backslash-Newline is deleted as usual, but it is then too late to
+recognize the trigraph.
+
+This exception is relevant only if you use the <SAMP>`-trigraphs'</SAMP>
+option to enable trigraph processing.  See section <A HREF="cpp_41.html#SEC42">Invoking the C Preprocessor</A>.
+</UL>
+<P>
+<HR>
+Go to the first, previous, <A HREF="cpp_2.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+</BODY>
+</HTML>

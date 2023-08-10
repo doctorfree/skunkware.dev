@@ -1,0 +1,150 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Options/Recursion</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_51.html">previous</A>, <A HREF="make_53.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX319"></A>
+<A NAME="IDX320"></A>
+<H3><A NAME="SEC51" HREF="make_toc.html#TOC51">Communicating Options to a Sub-<CODE>make</CODE></A></H3>
+<A NAME="IDX321"></A>
+<P>
+Flags such as <SAMP>`-s'</SAMP> and <SAMP>`-k'</SAMP> are passed automatically to the
+sub-<CODE>make</CODE> through the variable <CODE>MAKEFLAGS</CODE>.  This variable is
+set up automatically by <CODE>make</CODE> to contain the flag letters that
+<CODE>make</CODE> received.  Thus, if you do <SAMP>`make -ks'</SAMP> then
+<CODE>MAKEFLAGS</CODE> gets the value <SAMP>`ks'</SAMP>.<P>
+As a consequence, every sub-<CODE>make</CODE> gets a value for <CODE>MAKEFLAGS</CODE>
+in its environment.  In response, it takes the flags from that value and
+processes them as if they had been given as arguments.
+See section <A HREF="make_86.html#SEC85">Summary of Options</A>.
+<A NAME="IDX322"></A>
+<A NAME="IDX323"></A>
+<A NAME="IDX324"></A>
+<P>
+Likewise variables defined on the command line are passed to the
+sub-<CODE>make</CODE> through <CODE>MAKEFLAGS</CODE>.  Words in the value of
+<CODE>MAKEFLAGS</CODE> that contain <SAMP>`='</SAMP>, <CODE>make</CODE> treats as variable
+definitions just as if they appeared on the command line.
+See section <A HREF="make_84.html#SEC83">Overriding Variables</A>.
+<A NAME="IDX325"></A>
+<A NAME="IDX326"></A>
+<A NAME="IDX327"></A>
+<A NAME="IDX328"></A>
+<A NAME="IDX329"></A>
+<A NAME="IDX330"></A>
+<A NAME="IDX331"></A>
+<A NAME="IDX332"></A>
+<A NAME="IDX333"></A>
+<A NAME="IDX334"></A>
+<A NAME="IDX335"></A>
+<A NAME="IDX336"></A>
+<A NAME="IDX337"></A>
+<A NAME="IDX338"></A>
+<P>
+The options <SAMP>`-C'</SAMP>, <SAMP>`-f'</SAMP>, <SAMP>`-o'</SAMP>, and <SAMP>`-W'</SAMP> are not put
+into <CODE>MAKEFLAGS</CODE>; these options are not passed down.<A NAME="IDX339"></A>
+<A NAME="IDX340"></A>
+<A NAME="IDX341"></A>
+<A NAME="IDX342"></A>
+<P>
+The <SAMP>`-j'</SAMP> option is a special case (see section <A HREF="make_46.html#SEC45">Parallel Execution</A>).
+If you set it to some numeric value, <SAMP>`-j 1'</SAMP> is always put into
+<CODE>MAKEFLAGS</CODE> instead of the value you specified.  This is because if
+the <SAMP>`-j'</SAMP> option were passed down to sub-<CODE>make</CODE>s, you would
+get many more jobs running in parallel than you asked for.  If you give
+<SAMP>`-j'</SAMP> with no numeric argument, meaning to run as many jobs as
+possible in parallel, this is passed down, since multiple infinities are
+no more than one.<P>
+If you do not want to pass the other flags down, you must change the
+value of <CODE>MAKEFLAGS</CODE>, like this:
+<P>
+<PRE>
+MAKEFLAGS=
+subsystem:
+        cd subdir; $(MAKE)
+</PRE>
+<P>
+or like this:
+<P>
+<PRE>
+subsystem:
+        cd subdir; $(MAKE) MAKEFLAGS=
+</PRE>
+<A NAME="IDX343"></A>
+<P>
+The command line variable definitions really appear in the variable
+<CODE>MAKEOVERRIDES</CODE>, and <CODE>MAKEFLAGS</CODE> contains a reference to this
+variable.  If you do want to pass flags down normally, but don't want to
+pass down the command line variable definitions, you can reset
+<CODE>MAKEOVERRIDES</CODE> to empty, like this:
+<P>
+<PRE>
+MAKEOVERRIDES =
+</PRE>
+<P>
+<A NAME="IDX345"></A>
+<A NAME="IDX344"></A>
+This is not usually useful to do.  However, some systems have a small
+fixed limit on the size of the environment, and putting so much
+information in into the value of <CODE>MAKEFLAGS</CODE> can exceed it.
+If you see the error message <SAMP>`Arg list too long'</SAMP>, this may be the problem.
+<A NAME="IDX347"></A>
+<A NAME="IDX346"></A>
+(For strict compliance with POSIX.2, changing <CODE>MAKEOVERRIDES</CODE> does
+not affect <CODE>MAKEFLAGS</CODE> if the special target <SAMP>`.POSIX'</SAMP> appears
+in the makefile.  You probably do not care about this.)
+<A NAME="IDX348"></A>
+<P>
+A similar variable <CODE>MFLAGS</CODE> exists also, for historical
+compatibility.  It has the same value as <CODE>MAKEFLAGS</CODE> except that it
+does not contain the command line variable definitions, and it always
+begins with a hyphen unless it is empty (<CODE>MAKEFLAGS</CODE> begins with a
+hyphen only when it begins with an option that has no single-letter
+version, such as <SAMP>`--warn-undefined-variables'</SAMP>).  <CODE>MFLAGS</CODE> was
+traditionally used explicitly in the recursive <CODE>make</CODE> command, like
+this:
+<P>
+<PRE>
+subsystem:
+        cd subdir; $(MAKE) $(MFLAGS)
+</PRE>
+<P>
+but now <CODE>MAKEFLAGS</CODE> makes this usage redundant.  If you want your
+makefiles to be compatible with old <CODE>make</CODE> programs, use this
+technique; it will work fine with more modern <CODE>make</CODE> versions too.
+<A NAME="IDX349"></A>
+<A NAME="IDX350"></A>
+<A NAME="IDX351"></A>
+<A NAME="IDX352"></A>
+<P>
+The <CODE>MAKEFLAGS</CODE> variable can also be useful if you want to have
+certain options, such as <SAMP>`-k'</SAMP> (see section <A HREF="make_86.html#SEC85">Summary of Options</A>), set each time you run <CODE>make</CODE>.  You simply put a value for
+<CODE>MAKEFLAGS</CODE> in your environment.  You can also set <CODE>MAKEFLAGS</CODE> in
+a makefile, to specify additional flags that should also be in effect for
+that makefile.  (Note that you cannot use <CODE>MFLAGS</CODE> this way.  That
+variable is set only for compatibility; <CODE>make</CODE> does not interpret a
+value you set for it in any way.)
+<P>
+When <CODE>make</CODE> interprets the value of <CODE>MAKEFLAGS</CODE> (either from the
+environment or from a makefile), it first prepends a hyphen if the value
+does not already begin with one.  Then it chops the value into words
+separated by blanks, and parses these words as if they were options given
+on the command line (except that <SAMP>`-C'</SAMP>, <SAMP>`-f'</SAMP>, <SAMP>`-h'</SAMP>,
+<SAMP>`-o'</SAMP>, <SAMP>`-W'</SAMP>, and their long-named versions are ignored; and there
+is no error for an invalid option).
+<P>
+If you do put <CODE>MAKEFLAGS</CODE> in your environment, you should be sure not
+to include any options that will drastically affect the actions of
+<CODE>make</CODE> and undermine the purpose of makefiles and of <CODE>make</CODE>
+itself.  For instance, the <SAMP>`-t'</SAMP>, <SAMP>`-n'</SAMP>, and <SAMP>`-q'</SAMP> options, if
+put in one of these variables, could have disastrous consequences and would
+certainly have at least surprising and probably annoying effects.<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_51.html">previous</A>, <A HREF="make_53.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

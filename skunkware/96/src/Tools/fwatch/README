@@ -1,0 +1,35 @@
+Usage: fwatch [-acme] -f<timeformat> -M<milliseconds> -<seconds> filename ...
+fwatch watches files for time changes.
+At intervals, it does a stat(S) on each file, and prints on the standard
+output the names of those that have had an inode time change (up or
+down).  One name is printed per line.  By default, only the modification
+time is checked.  The default stat interval is one second.  fwatch
+continues executing until killed by a signal.  By default, fwatch will
+abort with an error message and nonzero exit value if a file cannot be
+stat()ed.
+Options:
+Note: if an option takes a value, the value must be given immediately
+after the option, in the same argument.
+-e: Do not print an error message or exit if a file cannot be stat()ed.
+    The name of a file is printed if it disappears or can no longer be
+    accessed for any other reason, and it is printed again if it comes back.
+-f<timeformat>: Before each filename, print the current time.  If
+    <timeformat> is non-null, it is used as a time format string (see
+    strftime(S)).  If it is null, the UNIX epoch time, in seconds, is
+    printed as a fixed-point value with two fractional digits.
+If any of the following three options is given, each of the indicated
+times will be checked and the filename will be printed if any of them
+have changed.  The default is equivalent to given only -m.
+-m: Check the modify time.
+-a: Check the access time.
+-c: Check the creation (inode change) time.
+One or both of the following options may be given; if both, the time
+between checks is the sum of both times:
+-<seconds>: Check file times every <seconds> seconds.
+-M<milliseconds>: Check file times every <milliseconds> milliseconds.
+    The value given is silently rounded up to the next multiple of the
+    system clock interval, typically 10 milliseconds.  Note that if file
+    times are being updated by normal means, file times cannot change more
+    than once per second (since that is the resolution of the file times),
+    so if only normal time updates are being checked for, there is little
+    point in checking more than once per second.

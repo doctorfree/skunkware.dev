@@ -1,0 +1,79 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Command Variables</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_113.html">previous</A>, <A HREF="make_115.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC113" HREF="make_toc.html#TOC113">Variables for Specifying Commands</A></H2>
+<P>
+Makefiles should provide variables for overriding certain commands, options,
+and so on.
+<P>
+In particular, you should run most utility programs via variables.
+Thus, if you use Bison, have a variable named <CODE>BISON</CODE> whose default
+value is set with <SAMP>`BISON = bison'</SAMP>, and refer to it with
+<CODE>\$(BISON)</CODE> whenever you need to use Bison.
+<P>
+File management utilities such as <CODE>ln</CODE>, <CODE>rm</CODE>, <CODE>mv</CODE>, and
+so on, need not be referred to through variables in this way, since users
+don't need to replace them with other programs.
+<P>
+Each program-name variable should come with an options variable that is
+used to supply options to the program.  Append <SAMP>`FLAGS'</SAMP> to the
+program-name variable name to get the options variable name--for
+example, <CODE>BISONFLAGS</CODE>.  (The name <CODE>CFLAGS</CODE> is an exception to
+this rule, but we keep it because it is standard.)  Use <CODE>CPPFLAGS</CODE>
+in any compilation command that runs the preprocessor, and use
+<CODE>LDFLAGS</CODE> in any compilation command that does linking as well as
+in any direct use of <CODE>ld</CODE>.
+<P>
+If there are C compiler options that <EM>must</EM> be used for proper
+compilation of certain files, do not include them in <CODE>CFLAGS</CODE>.
+Users expect to be able to specify <CODE>CFLAGS</CODE> freely themselves.
+Instead, arrange to pass the necessary options to the C compiler
+independently of <CODE>CFLAGS</CODE>, by writing them explicitly in the
+compilation commands or by defining an implicit rule, like this:
+<P>
+<PRE>
+CFLAGS = -g
+ALL_CFLAGS = -I. $(CFLAGS)
+.c.o:
+        $(CC) -c $(CPPFLAGS) $(ALL_CFLAGS) $&#60;
+</PRE>
+<P>
+Do include the <SAMP>`-g'</SAMP> option in <CODE>CFLAGS</CODE>, because that is not
+<EM>required</EM> for proper compilation.  You can consider it a default
+that is only recommended.  If the package is set up so that it is
+compiled with GCC by default, then you might as well include <SAMP>`-O'</SAMP>
+in the default value of <CODE>CFLAGS</CODE> as well.
+<P>
+Put <CODE>CFLAGS</CODE> last in the compilation command, after other variables
+containing compiler options, so the user can use <CODE>CFLAGS</CODE> to
+override the others.
+<P>
+Every Makefile should define the variable <CODE>INSTALL</CODE>, which is the
+basic command for installing a file into the system.
+<P>
+Every Makefile should also define the variables <CODE>INSTALL_PROGRAM</CODE>
+and <CODE>INSTALL_DATA</CODE>.  (The default for each of these should be
+<CODE>\$(INSTALL)</CODE>.)  Then it should use those variables as the commands
+for actual installation, for executables and nonexecutables
+respectively.  Use these variables as follows:
+<P>
+<PRE>
+$(INSTALL_PROGRAM) foo $(bindir)/foo
+$(INSTALL_DATA) libfoo.a $(libdir)/libfoo.a
+</PRE>
+<P>
+Always use a file name, not a directory name, as the second argument of
+the installation commands.  Use a separate command for each file to be
+installed.
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_113.html">previous</A>, <A HREF="make_115.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

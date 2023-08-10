@@ -1,0 +1,390 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Installation Problems</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_114.html">previous</A>, <A HREF="usegcc_116.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC118" HREF="usegcc_toc.html#TOC118">Installation Problems</A></H2>
+<P>
+This is a list of problems (and some apparent problems which don't
+really mean anything is wrong) that show up during installation of GNU
+CC.
+<P>
+<UL>
+<LI>
+On certain systems, defining certain environment variables such as
+<CODE>CC</CODE> can interfere with the functioning of <CODE>make</CODE>.
+
+<LI>
+If you encounter seemingly strange errors when trying to build the
+compiler in a directory other than the source directory, it could be
+because you have previously configured the compiler in the source
+directory.  Make sure you have done all the necessary preparations.
+See section <A HREF="usegcc_45.html#SEC48">Compilation in a Separate Directory</A>.
+
+<LI>
+If you build GNU CC on a BSD system using a directory stored in a System
+V file system, problems may occur in running <CODE>fixincludes</CODE> if the
+System V file system doesn't support symbolic links.  These problems
+result in a failure to fix the declaration of <CODE>size_t</CODE> in
+<TT>`sys/types.h'</TT>.  If you find that <CODE>size_t</CODE> is a signed type and
+that type mismatches occur, this could be the cause.
+
+The solution is not to use such a directory for building GNU CC.
+
+<LI>
+In previous versions of GNU CC, the <CODE>gcc</CODE> driver program looked for
+<CODE>as</CODE> and <CODE>ld</CODE> in various places; for example, in files
+beginning with <TT>`/usr/local/lib/gcc-'</TT>.  GNU CC version 2 looks for
+them in the directory
+<TT>`/usr/local/lib/gcc-lib/<VAR>target</VAR>/<VAR>version</VAR>'</TT>.
+
+Thus, to use a version of <CODE>as</CODE> or <CODE>ld</CODE> that is not the system
+default, for example <CODE>gas</CODE> or GNU <CODE>ld</CODE>, you must put them in
+that directory (or make links to them from that directory).
+
+<LI>
+Some commands executed when making the compiler may fail (return a
+non-zero status) and be ignored by <CODE>make</CODE>.  These failures, which
+are often due to files that were not found, are expected, and can safely
+be ignored.
+
+<LI>
+It is normal to have warnings in compiling certain files about
+unreachable code and about enumeration type clashes.  These files' names
+begin with <SAMP>`insn-'</SAMP>.  Also, <TT>`real.c'</TT> may get some warnings that
+you can ignore.
+
+<LI>
+Sometimes <CODE>make</CODE> recompiles parts of the compiler when installing
+the compiler.  In one case, this was traced down to a bug in
+<CODE>make</CODE>.  Either ignore the problem or switch to GNU Make.
+
+<LI>
+If you have installed a program known as purify, you may find that it
+causes errors while linking <CODE>enquire</CODE>, which is part of building
+GNU CC.  The fix is to get rid of the file <CODE>real-ld</CODE> which purify
+installs--so that GNU CC won't try to use it.
+
+<LI>
+On Linux SLS 1.01, there is a problem with <TT>`libc.a'</TT>: it does not
+contain the obstack functions.  However, GNU CC assumes that the obstack
+functions are in <TT>`libc.a'</TT> when it is the GNU C library.  To work
+around this problem, change the <CODE>__GNU_LIBRARY__</CODE> conditional
+around line 31 to <SAMP>`#if 1'</SAMP>.
+
+<LI>
+On some 386 systems, building the compiler never finishes because
+<CODE>enquire</CODE> hangs due to a hardware problem in the motherboard--it
+reports floating point exceptions to the kernel incorrectly.  You can
+install GNU CC except for <TT>`float.h'</TT> by patching out the command to
+run <CODE>enquire</CODE>.  You may also be able to fix the problem for real by
+getting a replacement motherboard.  This problem was observed in
+Revision E of the Micronics motherboard, and is fixed in Revision F.
+It has also been observed in the MYLEX MXA-33 motherboard.
+
+If you encounter this problem, you may also want to consider removing
+the FPU from the socket during the compilation.  Alternatively, if you
+are running SCO Unix, you can reboot and force the FPU to be ignored.
+To do this, type <SAMP>`hd(40)unix auto ignorefpu'</SAMP>.
+
+<LI>
+On some 386 systems, GNU CC crashes trying to compile <TT>`enquire.c'</TT>.
+This happens on machines that don't have a 387 FPU chip.  On 386
+machines, the system kernel is supposed to emulate the 387 when you
+don't have one.  The crash is due to a bug in the emulator.
+
+One of these systems is the Unix from Interactive Systems: 386/ix.
+On this system, an alternate emulator is provided, and it does work.
+To use it, execute this command as super-user:
+
+<PRE>
+ln /etc/emulator.rel1 /etc/emulator
+</PRE>
+
+and then reboot the system.  (The default emulator file remains present
+under the name <TT>`emulator.dflt'</TT>.)
+
+Try using <TT>`/etc/emulator.att'</TT>, if you have such a problem on the
+SCO system.
+
+Another system which has this problem is Esix.  We don't know whether it
+has an alternate emulator that works.
+
+On NetBSD 0.8, a similar problem manifests itself as these error messages:
+
+<PRE>
+enquire.c: In function `fprop':
+enquire.c:2328: floating overflow
+</PRE>
+
+<LI>
+On SCO systems, when compiling GNU CC with the system's compiler,
+do not use <SAMP>`-O'</SAMP>.  Some versions of the system's compiler miscompile
+GNU CC with <SAMP>`-O'</SAMP>.
+
+<A NAME="IDX500"></A>
+<LI>
+Sometimes on a Sun 4 you may observe a crash in the program
+<CODE>genflags</CODE> or <CODE>genoutput</CODE> while building GNU CC.  This is said to
+be due to a bug in <CODE>sh</CODE>.  You can probably get around it by running
+<CODE>genflags</CODE> or <CODE>genoutput</CODE> manually and then retrying the
+<CODE>make</CODE>.
+
+<LI>
+On Solaris 2, executables of GNU CC version 2.0.2 are commonly
+available, but they have a bug that shows up when compiling current
+versions of GNU CC: undefined symbol errors occur during assembly if you
+use <SAMP>`-g'</SAMP>.
+
+The solution is to compile the current version of GNU CC without
+<SAMP>`-g'</SAMP>.  That makes a working compiler which you can use to recompile
+with <SAMP>`-g'</SAMP>.
+
+<LI>
+Solaris 2 comes with a number of optional OS packages.  Some of these
+packages are needed to use GNU CC fully.  If you did not install all
+optional packages when installing Solaris, you will need to verify that
+the packages that GNU CC needs are installed.
+
+To check whether an optional package is installed, use
+the <CODE>pkginfo</CODE> command.  To add an optional package, use the
+<CODE>pkgadd</CODE> command.  For further details, see the Solaris
+documentation.
+
+For Solaris 2.0 and 2.1, GNU CC needs six packages: <SAMP>`SUNWarc'</SAMP>,
+<SAMP>`SUNWbtool'</SAMP>, <SAMP>`SUNWesu'</SAMP>, <SAMP>`SUNWhea'</SAMP>, <SAMP>`SUNWlibm'</SAMP>, and
+<SAMP>`SUNWtoo'</SAMP>.  
+
+For Solaris 2.2, GNU CC needs an additional seventh package: <SAMP>`SUNWsprot'</SAMP>.
+
+<LI>
+On Solaris 2, trying to use the linker and other tools in
+<TT>`/usr/ucb'</TT> to install GNU CC has been observed to cause trouble.
+For example, the linker may hang indefinitely.  The fix is to remove
+<TT>`/usr/ucb'</TT> from your <CODE>PATH</CODE>.
+
+<LI>
+If you use the 1.31 version of the MIPS assembler (such as was shipped
+with Ultrix 3.1), you will need to use the -fno-delayed-branch switch
+when optimizing floating point code.  Otherwise, the assembler will
+complain when the <CODE>gcc</CODE> compiler fills a branch delay slot with a
+floating point instruction, such as <CODE>add.d</CODE>.
+
+<LI>
+If on a MIPS system you get an error message saying "does not have gp
+sections for all it's [sic] sectons [sic]", don't worry about it.  This
+happens whenever you use GAS with the MIPS linker, but there is not
+really anything wrong, and it is okay to use the output file.  You can
+stop such warnings by installing the GNU linker.
+
+It would be nice to extend GAS to produce the gp tables, but they are
+optional, and there should not be a warning about their absence.
+
+<LI>
+In Ultrix 4.0 on the MIPS machine, <TT>`stdio.h'</TT> does not work with GNU
+CC at all unless it has been fixed with <CODE>fixincludes</CODE>.  This causes
+problems in building GNU CC.  Once GNU CC is installed, the problems go
+away.
+
+To work around this problem, when making the stage 1 compiler, specify
+this option to Make:
+
+<PRE>
+GCC_FOR_TARGET="./xgcc -B./ -I./include"
+</PRE>
+
+When making stage 2 and stage 3, specify this option:
+
+<PRE>
+CFLAGS="-g -I./include"
+</PRE>
+
+<LI>
+Users have reported some problems with version 2.0 of the MIPS
+compiler tools that were shipped with Ultrix 4.1.  Version 2.10
+which came with Ultrix 4.2 seems to work fine.
+
+Users have also reported some problems with version 2.20 of the
+MIPS compiler tools that were shipped with RISC/os 4.x.  The earlier
+version 2.11 seems to work fine.
+
+<LI>
+Some versions of the MIPS linker will issue an assertion failure
+when linking code that uses <CODE>alloca</CODE> against shared
+libraries on RISC-OS 5.0, and DEC's OSF/1 systems.  This is a bug
+in the linker, that is supposed to be fixed in future revisions.
+To protect against this, GNU CC passes <SAMP>`-non_shared'</SAMP> to the
+linker unless you pass an explicit <SAMP>`-shared'</SAMP> or
+<SAMP>`-call_shared'</SAMP> switch.
+
+<LI>
+On System V release 3, you may get this error message
+while linking:
+
+<PRE>
+ld fatal: failed to write symbol name <VAR>something</VAR> 
+ in strings table for file <VAR>whatever</VAR>
+</PRE>
+
+This probably indicates that the disk is full or your ULIMIT won't allow
+the file to be as large as it needs to be.
+
+This problem can also result because the kernel parameter <CODE>MAXUMEM</CODE>
+is too small.  If so, you must regenerate the kernel and make the value
+much larger.  The default value is reported to be 1024; a value of 32768
+is said to work.  Smaller values may also work.
+
+<LI>
+On System V, if you get an error like this,
+
+<PRE>
+/usr/local/lib/bison.simple: In function `yyparse':
+/usr/local/lib/bison.simple:625: virtual memory exhausted
+</PRE>
+
+that too indicates a problem with disk space, ULIMIT, or <CODE>MAXUMEM</CODE>.
+
+<LI>
+Current GNU CC versions probably do not work on version 2 of the NeXT
+operating system.
+
+<LI>
+On NeXTStep 3.0, the Objective C compiler does not work, due,
+apparently, to a kernel bug that it happens to trigger.  This problem
+does not happen on 3.1.
+
+<LI>
+On the Tower models 4<VAR>n</VAR>0 and 6<VAR>n</VAR>0, by default a process is not
+allowed to have more than one megabyte of memory.  GNU CC cannot compile
+itself (or many other programs) with <SAMP>`-O'</SAMP> in that much memory.
+
+To solve this problem, reconfigure the kernel adding the following line
+to the configuration file:
+
+<PRE>
+MAXUMEM = 4096
+</PRE>
+
+<LI>
+On HP 9000 series 300 or 400 running HP-UX release 8.0, there is a bug
+in the assembler that must be fixed before GNU CC can be built.  This
+bug manifests itself during the first stage of compilation, while
+building <TT>`libgcc2.a'</TT>:
+
+<PRE>
+_floatdisf
+cc1: warning: `-g' option 
+            not supported on this version of GCC
+cc1: warning: `-g1' option 
+            not supported on this version of GCC
+./xgcc: Internal compiler error: 
+            program as got fatal signal 11
+</PRE>
+
+<TT>`archive/cph/hpux-8.0-assembler'</TT>, a patched version of the assembler,  
+is available by anonymous ftp from <CODE>altdorf.ai.mit.edu</CODE>. 
+If you have HP software support,
+the patch can also be obtained directly from HP, as described in the
+following note:
+
+<BLOCKQUOTE>
+This is the patched assembler, to patch SR#1653-010439, where the
+assembler aborts on floating point constants.
+
+The bug is not really in the assembler, but in the shared library
+version of the function "cvtnum(3c)".  The bug on "cvtnum(3c)" is
+SR#4701-078451.  Anyway, the attached assembler uses the archive
+library version of "cvtnum(3c)" and thus does not exhibit the bug.
+</BLOCKQUOTE>
+
+This patch is also known as PHCO_4484.
+
+<LI>
+On HP-UX version 8.05, but not on 8.07 or more recent versions,
+the <CODE>fixproto</CODE> shell script triggers a bug in the system shell.
+If you encounter this problem, upgrade your operating system or
+use BASH (the GNU shell) to run <CODE>fixproto</CODE>.
+
+<LI>
+Some versions of the Pyramid C compiler are reported to be unable to
+compile GNU CC.  You must use an older version of GNU CC for
+bootstrapping.  One indication of this problem is if you get a crash
+when GNU CC compiles the function <CODE>muldi3</CODE> in file <TT>`libgcc2.c'</TT>.
+
+You may be able to succeed by getting GNU CC version 1, installing it,
+and using it to compile GNU CC version 2.  The bug in the Pyramid C
+compiler does not seem to affect GNU CC version 1.
+
+<LI>
+There may be similar problems on System V Release 3.1 on 386 systems.
+
+<LI>
+On the Intel Paragon (an i860 machine), if you are using operating
+system version 1.0, you will get warnings or errors about redefinition
+of <CODE>va_arg</CODE> when you build GNU CC.
+
+If this happens, then you need to link most programs with the library
+<TT>`iclib.a'</TT>.  You must also modify <TT>`stdio.h'</TT> as follows: before
+the lines
+
+<PRE>
+#if     defined(__i860__) &#38;&#38; !defined(_VA_LIST)
+#include &#60;va_list.h&#62;
+</PRE>
+
+insert the line
+
+<PRE>
+#if __PGC__
+</PRE>
+
+and after the lines
+
+<PRE>
+extern int  vprintf(const char *, va_list );
+extern int  vsprintf(char *, const char *, va_list );
+#endif
+</PRE>
+
+insert the line
+
+<PRE>
+#endif /* __PGC__ */
+</PRE>
+
+These problems don't exist in operating system version 1.1.
+
+<LI>
+On the Altos 3068, programs compiled with GNU CC won't work unless you
+fix a kernel bug.  This happens using system versions V.2.2 1.0gT1 and
+V.2.2 1.0e and perhaps later versions as well.  See the file
+<TT>`README.ALTOS'</TT>.
+
+<LI>
+You will get several sorts of compilation and linking errors on the
+we32k if you don't follow the special instructions.  See section <A HREF="usegcc_44.html#SEC47">Configurations Supported by GNU CC</A>.
+
+<LI>
+A bug in the HP-UX 8.05 (and earlier) shell will cause the fixproto
+program to report an error of the form:
+
+<PRE>
+./fixproto: sh internal 1K buffer overflow
+</PRE>
+
+To fix this, change the first line of the fixproto script to look like:
+
+<PRE>
+#!/bin/ksh
+</PRE>
+</UL>
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_114.html">previous</A>, <A HREF="usegcc_116.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

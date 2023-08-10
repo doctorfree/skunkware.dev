@@ -1,0 +1,109 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:
+TITLE:  Files Not Transferred Setting up uucp
+DOCUMENT ID:  TID020786
+DOCUMENT REVISION:  A
+DATE:  25APR94
+AUTHOR:  MDHALL
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Symptom Solution
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Networking
+
+ABSTRACT:
+
+NA
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+SYMPTOM
+
+When trying to set up uucp to transfer files or setting up mail over uucp, the system will not make a connection to the remote host and files will not be transferred.
+
+CAUSE
+
+There are several files and commands that can be used to troubleshoot this problem.  Before attacking the problem from the uucp side, make sure that cu is working properly to the system in question.  This will ensure that the port is defined properly for communication over the modem.  Once it is possible to cu to the system, the user can now troubleshoot uucp.
+
+1- Find the process of the Connection Server (cs) and put it in debug mode as follows:
+     # ps -ef | grep cs
+     # kill <pid>
+     # /usr/sbin/cs -d
+
+With the connection server in debug mode it is possible to view the output of the connection server as it negotiates a connection with the desired host. View the cs.debug file as follows:
+
+     # tail -f /usr/adm/log/cs.debug
+
+This will leave the cs.debug file active and all debug output can be viewed as it occurs.
+
+2 - cd to /usr/lib/uucp.  This directory will contain all of the configuration files that will be necessary to edit to make uucp work.  There is a file called "uutry" that is valuable in debugging uucp.  uutry is a debug tool that will call the remote machine, start the uucico process and determine whether or not a connection could be made.  If the connection can be made, it will report that the connection was successful and then drop the connection.  The command that will give debug output for uutry is:
+
+     # uutry -r -x9 <system_name>
+
+The debug given here will identify how far the dialing system will go before it fails or if the connection was successful.  It may be useful to have the cs.debug running in one window and uutry running in another and looking at the output of both to determine the problem if any.
+
+It may not be obvious at this point, but the system_name of the remote host should be defined in the Systems file in /usr/lib/uucp.
+
+3 - More debug tools that are useful when using uucp are the "uulog" and "uuname" commands.  Details on these commands are found in the man page on uucp.
+
+SOLUTION
+
+If cu will work on the system, but uucp will not, the problem will boil down to configuration error.  There are a few files that will have a definite impact on the success of uucp and they are all found in /usr/lib/uucp.  The first file that needs to be configured properly is the Systems file.  The following is an example of what an entry in the Systems file should look like:
+
+gilligan Any ACU Any 912024567890 "" \r\d "" \r\d in:--in: nuucp
+word: abc
+
+This entry will dial "gilligan" and login as "nuucp" with a password of "abc".  The remote host of gilligan must have a user called "nuucp" with a password of "abc" to be successful.  It is easy to know of all the systems that uucp will be able to access by typing "uuname".  uuname will report all remote hosts that are known to uucp.
+
+Another file that may need modifications is the Permissions file.  This file is contains one entry by default and looks like:
+
+     LOGNAME=nuucp
+
+This defualt sets the Permission parameters as follows:
+
+     LOGNAME=nuucp \
+          MACHINE=OTHER \
+          REQUEST=no \
+          SENDFILES=call \
+          READ=/var/spool/uucppublic \
+          WRITE=/var/spool/uucppublic \
+          AUTH=no \
+          COMMANDS=rmail
+
+The values of these parameters can be changed to provide security for certain lognames, machines, directories that uucp can read from and write to. This permissions file should be on each system and it's purpose is to maintain system security for that machine on which it resides.
+
+Since the default specifies that the only directory that can be read from or written to is /var/spool/uucppublic, that will be the only file that can accessed or written to.  By changing the appropriate parameter in this file, the user can determine what users can access the system and which services, directories and commands can be used.  The "\" on the end of each line is necessary and indicates a continuation of the definition of that particular host.  Notice the last line does not have a "\" because the definition has ended.  If a "\" was put on this line an error would be reported when trying to make the connection.
+
+When a system tries to uucp into a remote system, the uucico process of the answering system will take control of the connection.  It will first look out into the Systems file to see if the name of the dialing system is in this file.  If the dialing system is not in the Systems file on the answering machine, the following message may appear in the uucp log file: "REMOTE DOES NOT KNOW ME".  This log can be read by using the uulog command on the dialing machine.  It reads the /var/uucp/.Log/uucico/<system> that gets written out when uucp is run.  It can also be seen in the cs.debug file.
+
+This problem can be solved in one of two ways.
+
+1 - Simply define the dialing system in the answering systems /usr/lib/uucp/Systems file.  This is ok if there are only a few systems coming into the machine, but what if this machine is answering many unknown hosts?
+
+2 - A file in /usr/lib/uucp called remote.unknown can solve this problem. If the system dialing in is not found in the Systems file, remote.unknown will get executed.  It will log the conversion attempt and drop the connection.  The log is explained above and can be read with uulog.  You can accept connections from any system by just simple changing the permissions on this file so that it will not get executed:
+
+     # chmod -x remote.unknown
+
+Any system should now be able to connect via uucp.  The Permissions file could be used to limit access that the uucp connection has rights to.
+
+The bottom line to this problem is almost always configuration.  Once the uucp is configured properly then mail can be sent over the uucp connection with no problem.
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+

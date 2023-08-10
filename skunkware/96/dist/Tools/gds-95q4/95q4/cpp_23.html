@@ -1,0 +1,74 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from cpp.texi on 6 October 1995 -->
+
+<TITLE>The C Preprocessor - Side Effects</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="cpp_1.html">first</A>, <A HREF="cpp_22.html">previous</A>, <A HREF="cpp_24.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+<HR>
+<H4><A NAME="SEC24" HREF="cpp_toc.html#TOC24">Duplication of Side Effects</A></H4>
+<A NAME="IDX63"></A>
+<A NAME="IDX64"></A>
+<P>
+Many C programs define a macro <SAMP>`min'</SAMP>, for "minimum", like this:
+<P>
+<PRE>
+#define min(X, Y)  ((X) &#60; (Y) ? (X) : (Y))
+</PRE>
+<P>
+When you use this macro with an argument containing a side effect,
+as shown here,
+<P>
+<PRE>
+next = min (x + y, foo (z));
+</PRE>
+<P>
+it expands as follows:
+<P>
+<PRE>
+next = ((x + y) &#60; (foo (z)) ? (x + y) : (foo (z)));
+</PRE>
+<P>
+where <SAMP>`x + y'</SAMP> has been substituted for <SAMP>`X'</SAMP> and <SAMP>`foo (z)'</SAMP>
+for <SAMP>`Y'</SAMP>.
+<P>
+The function <SAMP>`foo'</SAMP> is used only once in the statement as it appears
+in the program, but the expression <SAMP>`foo (z)'</SAMP> has been substituted
+twice into the macro expansion.  As a result, <SAMP>`foo'</SAMP> might be called
+two times when the statement is executed.  If it has side effects or
+if it takes a long time to compute, the results might not be what you
+intended.  We say that <SAMP>`min'</SAMP> is an <DFN>unsafe</DFN> macro.
+<P>
+The best solution to this problem is to define <SAMP>`min'</SAMP> in a way that
+computes the value of <SAMP>`foo (z)'</SAMP> only once.  The C language offers no
+standard way to do this, but it can be done with GNU C extensions as
+follows:
+<P>
+<PRE>
+#define min(X, Y)                     \
+({ typeof (X) __x = (X), __y = (Y);   \
+   (__x &#60; __y) ? __x : __y; })
+</PRE>
+<P>
+If you do not wish to use GNU C extensions, the only solution is to be
+careful when <EM>using</EM> the macro <SAMP>`min'</SAMP>.  For example, you can
+calculate the value of <SAMP>`foo (z)'</SAMP>, save it in a variable, and use that
+variable in <SAMP>`min'</SAMP>:
+<P>
+<PRE>
+#define min(X, Y)  ((X) &#60; (Y) ? (X) : (Y))
+...
+{
+  int tem = foo (z);
+  next = min (x + y, tem);
+}
+</PRE>
+<P>
+(where we assume that <SAMP>`foo'</SAMP> returns type <SAMP>`int'</SAMP>).
+<P>
+<HR>
+Go to the <A HREF="cpp_1.html">first</A>, <A HREF="cpp_22.html">previous</A>, <A HREF="cpp_24.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+</BODY>
+</HTML>

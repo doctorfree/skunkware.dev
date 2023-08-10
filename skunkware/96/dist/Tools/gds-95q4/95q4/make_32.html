@@ -1,0 +1,115 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Phony Targets</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_31.html">previous</A>, <A HREF="make_33.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX159"></A>
+<A NAME="IDX160"></A>
+<A NAME="IDX161"></A>
+<H2><A NAME="SEC31" HREF="make_toc.html#TOC31">Phony Targets</A></H2>
+<P>
+A phony target is one that is not really the name of a file.  It is just a
+name for some commands to be executed when you make an explicit request.
+There are two reasons to use a phony target: to avoid a conflict with
+a file of the same name, and to improve performance.
+<P>
+If you write a rule whose commands will not create the target file, the
+commands will be executed every time the target comes up for remaking.
+Here is an example:
+<P>
+<PRE>
+clean:
+        rm *.o temp
+</PRE>
+<P>
+Because the <CODE>rm</CODE> command does not create a file named <TT>`clean'</TT>,
+probably no such file will ever exist.  Therefore, the <CODE>rm</CODE> command
+will be executed every time you say <SAMP>`make clean'</SAMP>.
+<A NAME="IDX162"></A>
+<A NAME="IDX163"></A>
+<P>
+The phony target will cease to work if anything ever does create a file
+named <TT>`clean'</TT> in this directory.  Since it has no dependencies, the
+file <TT>`clean'</TT> would inevitably be considered up to date, and its
+commands would not be executed.  To avoid this problem, you can explicitly
+declare the target to be phony, using the special target <CODE>.PHONY</CODE>
+(see section <A HREF="make_35.html#SEC34">Special Built-in Target Names</A>) as follows:
+<P>
+<PRE>
+.PHONY : clean
+</PRE>
+<P>
+Once this is done, <SAMP>`make clean'</SAMP> will run the commands regardless of
+whether there is a file named <TT>`clean'</TT>.
+<P>
+Since it knows that phony targets do not name actual files that could be
+remade from other files, <CODE>make</CODE> skips the implicit rule search for
+phony targets (see section <A HREF="make_87.html#SEC86">Using Implicit Rules</A>).  This is why declaring a target
+phony is good for performance, even if you are not worried about the
+actual file existing.
+<P>
+Thus, you first write the line that states that <CODE>clean</CODE> is a
+phony target, then you write the rule, like this:
+<P>
+<PRE>
+.PHONY: clean
+clean:
+        rm *.o temp
+</PRE>
+<P>
+A phony target should not be a dependency of a real target file; if it
+is, its commands are run every time <CODE>make</CODE> goes to update that
+file.  As long as a phony target is never a dependency of a real
+target, the phony target commands will be executed only when the phony
+target is a specified goal (see section <A HREF="make_81.html#SEC80">Arguments to Specify the Goals</A>).
+<P>
+Phony targets can have dependencies.  When one directory contains multiple
+programs, it is most convenient to describe all of the programs in one
+makefile <TT>`./Makefile'</TT>.  Since the target remade by default will be the
+first one in the makefile, it is common to make this a phony target named
+<SAMP>`all'</SAMP> and give it, as dependencies, all the individual programs.  For
+example:
+<P>
+<PRE>
+all : prog1 prog2 prog3
+.PHONY : all
+
+prog1 : prog1.o utils.o
+        cc -o prog1 prog1.o utils.o
+
+prog2 : prog2.o
+        cc -o prog2 prog2.o
+
+prog3 : prog3.o sort.o utils.o
+        cc -o prog3 prog3.o sort.o utils.o
+</PRE>
+<P>
+Now you can say just <SAMP>`make'</SAMP> to remake all three programs, or specify
+as arguments the ones to remake (as in <SAMP>`make prog1 prog3'</SAMP>).
+<P>
+When one phony target is a dependency of another, it serves as a subroutine
+of the other.  For example, here <SAMP>`make cleanall'</SAMP> will delete the
+object files, the difference files, and the file <TT>`program'</TT>:
+<P>
+<PRE>
+.PHONY: cleanall cleanobj cleandiff
+
+cleanall : cleanobj cleandiff
+        rm program
+
+cleanobj :
+        rm *.o
+
+cleandiff :
+        rm *.diff
+</PRE>
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_31.html">previous</A>, <A HREF="make_33.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

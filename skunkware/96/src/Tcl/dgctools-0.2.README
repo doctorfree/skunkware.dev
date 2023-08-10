@@ -1,0 +1,369 @@
+"tke" -  yet another multi-window X11 editor
+"tkt" -  an X11 command line ("shell") window
+"tkb" -  a very early start at a C++/C source code browser
+
+Version 0.2 changes
+Dave Clemans, July 1993
+
+A few bugs were fixed. In particular, searches that span a line with no
+newline shouldn't go into an infinite loop anymore.
+
+Code has been cleanup in a number of areas. The code should also be a little
+easier to port to other systems; As much as possible "[info script]" is used
+to get library pathnames.
+
+tke and tkt should now respect any geometry ("-g ...") options.
+
+On Suns, tkt now understands how to hook into the system console. To request
+this, give the "-C" argument to tkt.
+
+tke now has a highlighter mode modeled loosely after the C highlighter mode
+in one of the Andrew system text editors. In particular, it tries to italicize
+comments (both C and C++), and make function definitions/declarations bold.
+This highlighting is based on a simple flex program and some heuristics.
+Highlights are updated when specifically requested, or when a file is loaded
+or saved.
+
+There's an optional TclX extension I call "findctype"; it's similar to the
+TclX "ctype" function, except that it finds the first character of that type
+rather than checking a string to see if all characters are of that type.
+Using it makes output in tkt a little smoother/faster, but it doesn't make
+a great impact. Thus tkt checks and only uses that function if present.
+
+The package now includes an early, experimental version of a C++/C source
+code browser I call "tkb", (for consistency...).  Based on a C++ like lexer
+done in flex, and a LOT! of heuristics, it tries to generate a database
+of all function/variable/class definitions and declarations. Note that it
+doesn't use the preprocessor (both for ease of use and for speed). Basically
+I didn't want to have yet another program that needed to have an include
+search path provided....
+
+It invokes by either reading all C++/C files in its current directory, or
+in specified directories, to generate in in-memory database. It's tied into
+the tke file "save" function, and thus can catch file modifications done by
+editor sessions it starts.
+
+The browser presentation is based on two listboxes. The top one defaults to
+showing all defined classes. It can also switch to showing the other scopes
+that defines functions/variables via a radio button.
+
+The second listbox is initially empty. When a scope (either a class, a function
+with local variables, a file, etc.) is selected from the top listbox, its
+contents are displayed in the bottom list box. If you select an item in the
+bottom list box, a tke editor session is started on the file containing the
+item. The initial insert cursor in the editor window will point to the line
+that defines/declares the selected item.
+
+Also, when classes are displayed in the top listbox, if you double-click
+on a class name, a tke editor window will be started up pointing to the
+definition of that class.
+
+Version 0.1
+Dave Clemans, June 1993
+dclemans@wv.mentorg.com
+dave_clemans@mentorg.com
+
+This is an early release of "tke", a multi-window X-based editor written using
+Tcl & TK, and of "tkt", an X-based command line ("shell") window, written
+using TclX and TK.
+
+This code is still young. I have been using the editor for a few weeks, and
+the shell window for a few days. They should not be presumed as bug-free.
+In addition to (probably) extra/changed functionality, later releases will
+tune menus, performance, and what I call "usability." (For example, how often
+and at what times is "update idletasks" called.)
+
+The editor can run against the "as distributed" Tcl6.7 and TK3.2. For
+performance reasons, the shell window requires both extended TCL (TclX6.5c),
+and two extensions:
+   addinput-3.2   (from harbor.ecn.purdue.edu, unchanged)
+      this is used to tie the pseudo-tty from the shell into the TK event loop
+   a command I call "readpending" (for lack of a better name)
+      this is similar to the Tcl "read" command, except that instead of
+      trying to fill a buffer to a set size, and instead of paying any special
+      attention to newline characters, it just grabs whatever characters
+      are available from the file descriptor and returns.
+
+      A side performance note: the code would work with the normal Tcl "read"
+      command, if you read one character at a time. But that would slow down
+      things so much it feels like a less than 1200 baud display.
+
+I use both the editor and the shell window in a multi-platform environment.
+Specifically..
+   SunOS 4.1.3
+   HPUX 9.0.1
+   Apollo Domain/OS 10.4
+I have not tried any other environment.  This does introduce some platform
+dependencies into the code (for example, which version of "wishx" should
+be executed?). Minor editing will be needed to use the packages out of my
+environment.
+
+Distribution contents:
+   README            this file
+   a/ansi            part of the compiled terminfo description of the
+                     shell window
+   addinput-3.2      a copy of the addinput extension from harbor.ecn.purdue.edu
+   ansiterm.tk       the Ansi-subset terminal emulator for "tkt"
+   browser.l         the flex program that generates the database for tkb
+   findctype-1.0     the optional TclX extension that provides a "findctype" cmd
+   highlighter.l     the flex program that generates the information used by
+                     tke to do C++/C highlighting
+   hpu/browser       a compiled version of browser.l for HP's
+   hpu/highlighter   a compiled version of highlighter.l for HP's
+   hpu/startoff      the binary program that configures pseudo-ttys for HP
+   m/browser         a compiled version of browser.l for Apollos
+   m/highlighter     a compiled version of highlighter.l for Apollos
+   m/startoff        the program that configures pseudo-ttys for Apollos
+   readpending-1.0   my "readpending" command
+   sss/browser       a compiled version of browser.l for Suns
+   sss/highlighter   a compiled version of highlighter.l for Suns
+   sss/startoff      the program that configures pseudo-ttys for Suns
+   sss/sunConsole    the program that attaches to the system console for Suns
+   startoff.c        the source to the pseudo-tty configuration program
+   t/tkt-ansi        the rest of the compiled terminfo description of the
+                     shell window
+   tkb               the startup shell script for tkb
+   tkbrowser.tk      the TCL source to the browser
+   tke               the startup shell script for tke
+   tke.tk            for starting up the editor when its a separate process
+   tkedit.tk         the TCL source to the main body of the editor
+   tkfs.tk           the file selector from Mario Silva @ UCB
+   tkt               the startup shell script for tkt
+   tkt-ansi.tcap     a simple termcap description for the shell window
+   tkt-ansi.tinfo    a terminfo version of tkt-ansi.tcap
+   tkterm.tk         the main source to tkt
+   tktlocal.tk       some special things I do locally; not generally useful
+                     but it might be interesting
+   utils.tk          utility functions used by both tke and tkt
+
+All the documentation that currently exists for the editor and shell
+window is in this README file; (it's whats coming up next....)
+
+"tke", the editor
+
+"tke" is a relatively straight-forward multi-window X11 editor. All windows
+are supported by a single Tcl interpreter context. There is no set limit on
+the number of windows that can be open; each window can look at a different
+file, or multiple windows can look at the same file. Each window is independent
+of each other. "tke" exits when all of its main editor windows are closed.
+
+"tke" key bindings are "emacs"-like. For example...
+   ^a    beginning of line
+   ^e    end of line
+   ^n    down
+   ^p    up
+   ^b    backward
+   ^f    forward
+   ^d    delete char
+   ^w    delete selection
+   ^y    paste
+   ^X^V  open a new editor window on a "different" file
+etc.
+The "tab" key is treated as a soft-tab; it just puts an appropriate number
+of spaces into the file. To get a physical tab character, type "shift tab".
+
+"tke" mouse bindings are a variation of the normal bindings for a Tcl
+text widget. Specifically, button-2 does a combined "copy selection" &
+paste operation. Button-3 got the old bindings for button-2 (for dragging
+the file up & down in the window).
+
+"tke" has auto-indent and bracket-matching modes; they are on by default.
+
+"tke" used a slightly modified version of the file selector that came
+from Mario Sliva, at UC Berkeley.
+
+"tke" menus
+   File
+      "About TKE"       dialog box giving version and author information
+      "Open File..."    Open a new file in the existing window
+      "Insert File..."  insert a file at the current insert cursor
+      "Reset File"      forget all edits and go back to the file as last
+                        stored on disk
+      "New Window"      Open a new editor window; its initial contents
+                        are a duplicate of the original window
+      "Show Killring"   the editor keeps a history of cut/copied sections
+                        of text. To get to other than the top entry, display
+                        this window and copy/paste from it
+      "Save"            Save the current file to disk
+      "Save As..."      Save the current file to disk under another name
+      "Save Selection As..." Save the selected portion of the file to disk
+                        under another name
+      "Quit"            Exit this editor window
+   Edit
+      "Cut"             Delete the current selection from the text and put
+                        it on the killring
+      "Copy"            Put a copy of the current selection on the killring
+                        Note: any window can own the selection
+      "Paste"           Paste the text at the top of the killring at the
+                        current insert cursor
+      "Goto Line"       Request a line number and goto it
+      "Goto File Top"   Goto the top of the file
+      "Goto File Bottom" Goto the bottom of the file
+      "Select All"      Select the entire file
+      "Select Top"      Select from the start of the file to the insert cursor
+      "Select Bottom"   Select from the insert cursor to the end of the file
+      "Indent Line"     Indent the current line
+      "Indent Selection" Indent all the lines in the current selection.
+      "Indent File"     Indent all the lines in the file
+      "Outdent Line"    Outdent the current line
+      "Outdent Selection" Outdent all the lines in the current selection.
+      "Outdent File"    Outdent all the lines in the file.
+   Search
+      "Regexp Search For..." Request a string to search as a regular expression
+      "Regexp Search Again" Repeat the previous search as a regular expression
+      "String Search For..." Request a string to search using exact matching
+      "String Search Again" Repeat the previous search using exact matching
+      "Regexp Find All" Request a string and find all occurrences in the file
+                        using regular expression matching
+      "String Find All" Request a string and find all occurrences in the file
+                        using exact matching
+      "Clear Search Highlights" Remove any search highlighting from the file.
+   Replace
+      "Regexp Search&Replace File For..." Request search & replace strings
+                        and scan the entire file replacing each search
+                        match with the replace string. 
+                        Regular expressions are used.
+      "Regexp Search&Replace Selection For..." Request search & replace strings
+                        and scan the current selection replacing each search
+                        match with the replace string. 
+                        Regular expressions are used.
+      "String Search&Replace File For..." Request search & replace strings
+                        and scan the entire file replacing each search
+                        match with the replace string.
+      "String Search&Replace Selection For..." Request search & replace strings
+                        and scan the current selection replacing each search
+                        match with the replace string.
+      "Regexp Replace Next..." Request search & replace strings and replace
+                        the next match of the search string with the
+                        replace string. Regular expressions are used.
+      "Regexp Replace Next Again" Repeat the previous search&replace using
+                        regular expression matching.
+      "String Replace Next..." Request search & replace strings and replace
+                        the next match of the search string with the
+                        replace string.
+     "String Replace Next Again" Repeat the previous search & replace using
+                        exact string matching.
+   Options
+      "Auto-Indent Mode" If true, after each newline, insert enough spaces
+                        to make the upcoming line "line up" with the current
+                        one.
+      "Bracket-Match Mode" If true, each time a "}", ")", "]" or a ">" is
+                        typed, search a short distance back in the file for
+                        its matching bracket and momentarily highlight both.
+      "Create .bak Files" If true, when files are saved, any previous copy
+                        of the file is saved as file.bak.
+      "Soft Tab Width"  How wide is a soft-tab?
+      "Auto Indent Width" How far do the indent/outdent menu commands
+                        shift lines?
+      "Bracket Match Delay" How long should bracket-matching highlights
+                        be visible?
+      "Kill Ring Size"  How many entries are kept in the kill ring?
+      "Default Height"  The default number of rows shown in new editor windows
+      "Default Width"   The default number of columns in new editor windows
+
+"tkt", the shell window
+
+"tkt" is also built on top of the TK text widget. This means that it has
+an effectively unlimited command history. (This is one of the big things
+I have against the current crop of X11 terminal windows, typified by xterm.
+I find that if there is any hard limit, you usually can't find what you want,
+and thus don't use the history. There either should be no history, or there
+should be "infinite" history.) The "control" characters supported in this
+window are basically just backspace and carriage return (essentially what
+is needed for the command-line editing of programs like the Korn Shell
+to work).
+
+Normal program execution just keeps appending to the transcript kept by
+the text widget. But when a termcap-program is called, a new window is
+created on top of the current one. That window has "no" history (what does
+history "mean" when you're just using cursor movement commands to move
+around on a single "page"?). The window supports a very simple subset
+of Ansi terminal commands. When the termcap-using program finishes, the
+ansi window automatically disappears.
+
+At least as of yet, tkt doesn't try to do anything with utmp files; thus
+tkt windows will not show up in a "who".
+
+tkt exits when all of its shell windows are exited.
+
+"tkt" menus
+   File
+      "About TKT"       A dialog box giving version and author information
+      "New Shell Window" Create another shell window. It runs in the same
+                        Tcl interpreter context as the current window.
+      "Save Transcript..." Save the entire history of this session to a file.
+      "Save Selection..." Save the current selection to a file
+      "Quit"            Exit from this shell window.
+   Edit
+      "Copy Selection"  Copy the text of the current selection into the
+                        killring.
+      "Paste"           Send the text from the top of the killring to the shell
+      "Show Kill Ring"  Display a window showing the contents of the killring.
+                        This lets you copy entries from other than at the top.
+      "Goto Transcript Top" Goto and display the top of the history transcript.
+      "Goto Transcript Bottom" Goto the bottom, where the last shell
+                        prompt should be
+   Search
+      "Regexp Search For..." Request a string to search as a regular expression
+      "Regexp Search Again" Repeat the previous search as a regular expression
+      "String Search For..." Request a string to search using exact matching
+      "String Search Again" Repeat the previous search using exact matching
+      "Regexp Find All" Request a string and find all occurrences in the file
+                        using regular expression matching
+      "String Find All" Request a string and find all occurrences in the file
+                        using exact matching
+      "Clear Search Highlights" Remove any search highlighting from the file.
+   Options
+      "Create .bak Files" If true, when files are saved, any previous copy
+                        of the file is saved as file.bak.
+      "Kill Ring Size"  How many entries are kept in the kill ring?
+      "Default Height"  The default number of rows shown in new editor windows
+      "Default Width"   The default number of columns in new editor windows
+
+Porting tke and tkt to different environments.
+
+Make sure Tcl, Tk and TclX (for tkt) are present and working. The addinput
+and readpending must also be present as part of the Tcl and Tk builds for
+tkt to work.
+
+I run in a multi-platform environment. Unfortunately, as far as I know,
+there is no standard way while running to determine exactly what platform/os is
+being used. What we have locally is a command called "/usr/mgc/bin/mgcvco",
+where "vco" stands for "Vendor Cpu Operating system".
+   sss      Sun, Sparc, SunOS
+   hpu      HP, PA, Unix
+   m        Apollo
+You will have to change all uses of "mgcvco" to match whatever is used
+at your site. Or, if you only use a single platform, remove calls to
+"mgcvco" and hard-code platform dependent stuff.
+
+Adjust the hard pathname references at the beginning of
+   tke
+   tke.tk
+   tkt
+   tkt.tk
+   utils.tk
+to reflect where the software is installed.
+
+Note: as it stands, what's in tktlocal.tk probably isn't very useful. It
+adds two extra menu entries to the tkt menu bar, giving quick ways to create
+shell windows on machines that are used in my group. But if you want to
+do something similar, it should be a good point to start from.  If you don't
+want to, just rename or delete the file.
+
+If your site uses different pseudo-tty naming conventions, adjust the
+code near the end of the file tkt.tk.
+
+Porting tke and tkt to new machines/operating systems
+
+tke should work anywhere where Tcl and Tk are present; no special work
+should be needed.
+
+tkt is a bit harder; pseudo-tty naming/access conventions are different
+from system to system.  The code that finds out what pseudo-tty to use
+is in a case statement (based on the "vco" result described previously)
+near the end of the file tkt.tk.
+
+There are even more variations in pseudo-tty configurations, setting up
+process sessions, setting controlling terminals, setting up process groups,
+etc. All of this is concentrated in the file "startoff.c".

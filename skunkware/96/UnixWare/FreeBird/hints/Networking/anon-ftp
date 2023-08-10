@@ -1,0 +1,129 @@
+The following  is a guide to setting up an anonymous ftp server,
+this is based on an article on the Novell.com WWW server,
+and postings in the comp.unix.unixware newsgroup.
+
+(Note if you upgrade your OS , say from 1.1 to 2.0 and anon ftp
+stops - check out the major/minor numbers of the devices)
+
+          TITLE:How to set up a UnixWare Box as an anonymous ftp server
+
+
+The following are the steps required to set up an anon ftp server. All
+these are to be done on the local system which will be the server
+
+1.Create user 'ftp' with home directory say, '/home/ftp'
+
+(1a. Make some directories bin,dev,etc,opt,usr as follows:
+
+# ls -l
+total 6
+dr-x--x--x   2 root     sys         1024 May  5 17:51 bin
+dr-x--x--x   2 root     sys           96 May  4 11:02 dev
+dr-x--x--x   2 root     sys           96 May  4 11:02 etc
+drwx--x--x   3 root     sys           96 May  4 11:02 opt
+dr-x--x--x   3 root     sys           96 May  5 17:59 usr
+
+)
+
+e.g.
+	 useradd -d /home/ftp -m ftp
+         passwd -d ftp   
+	 mkdir /home/ftp/bin
+	 mkdir /home/ftp/dev
+	 mkdir /home/ftp/etc
+	 mkdir /home/ftp/opt
+	 mkdir /home/ftp/usr
+
+
+2. set up the configuration files in /home/ftp/etc
+
+2a.cp /etc/passwd to /home/ftp/etc/passwd, and chmod it so
+that the permissions are 444.
+
+2b.cp /etc/group to /home/ftp/etc/group
+
+2c.cp /etc/netconfig to /home/ftp/etc/netconfig. Make sure permission is 444.
+
+Edit group & passwd to contain only items you want
+translated from numbers (gid,uid) to names.
+
+$ ls -l etc
+total 6   
+-r--r--r--   1 root     other        126 Apr 24 11:50 group
+-r--r--r--   1 root     other        759 Apr 24 11:49 netconfig
+-r--r--r--   1 root     other        216 Apr 24 21:37 passwd      
+
+e.g.
+         cp /etc/passwd /home/ftp/etc
+         chmod 444 /home/ftp/etc/passwd
+         cp /etc/netconfig /home/ftp/etc 
+
+3. copy the ls utility into the /home/ftp/bin directory
+
+3a.cp /usr/bin/ls '/home/ftp/bin/ls' and give it permissions 111.         
+
+$ ls -l bin
+total 36
+---x--x--x   1 root     sys        18200 Apr 24 11:30 ls  
+
+e.g.
+         
+         cp /usr/bin/ls /home/ftp/bin
+         chmod 111 /home/ftp/bin/ls  
+
+4. set up the special devices /home/ftp/dev
+
+4a.See the major and minor numbers for '/dev/tcp' and create a
+node '/home/ftp/dev/tcp' with the same major and minor numbers and
+give it permission 666.
+
+4b.See the major and minor numbers of '/dev/zero' and make
+node '/home/ftp/dev/zero' with the same major and minor numbers.
+
+$ ls -l dev
+total 0                         <<< must match exactly /dev stuff, use mknod
+crw-rw-rw-   1 root     other      7, 91 Apr 24 11:41 tcp
+crw-rw-rw-   1 root     other     39,  1 Apr 24 11:31 zero      
+
+e.g. 
+         cd /home/ftp/dev
+         ls -l /dev/tcp /dev/zero
+         mknod tcp c Maj Min   _/  Where Maj is the Major or first number
+         mknod zero c Maj Min   \  and Min is the second number
+                                                                   
+
+5.Make directory '/home/ftp' owned by root with no write permission
+for anybody (permissions 555)
+
+e.g
+	 chown root /home/ftp
+         chmod 555 /home/ftp
+
+6.Make directory '/home/ftp/pub' have permissions 777.
+e.g.
+         chmod 777 /home/ftp/pub    
+
+7.cp /usr/lib/libc.so.1 /home/ftp/usr/lib/libc.so.1 
+
+(This has to be a cp and not a link).
+
+Check the permissions should be :
+
+$ ls -lR usr
+total 0
+drwxr-xr-x   2 root     other         96 Apr 24 11:33 lib
+
+usr/lib:
+total 422                       <<< this is a real "cp", not a link
+-r-xr-xr-x   1 root     sys       215720 Apr 29 12:05 libc.so.1    
+
+e.g.     mkdir /home/ftp/usr/lib
+         cp /usr/lib/libc.so.1 /home/ftp/usr/lib 
+
+
+You are set up now as an anonymous ftp server.     
+(Note there is a sample script for all this 
+on asso.etsmtl.ca/pub/unixware/create-ftp)
+
+------
+Andrew Josey, #include <disclaimer.h>

@@ -1,0 +1,29 @@
+# Copyright (c) vulcan 1995
+
+trap 'exit 3' 15
+
+# Display the name of the package
+
+echo "Package Name: gcc"
+
+TARGETDIR=/opt
+
+REQUIRED=20000
+AVAILABLE=`df -t $TARGETDIR | awk 'BEGIN{FS=":"}{printf("%s\n",$2);exit}' | awk '{printf("%s\n",$1);exit}'`
+
+PROCEED=`echo "$AVAILABLE $REQUIRED" | awk '{ans="YES"; if ($1 < $2) {ans="NO"}; printf("%s\n", ans); exit}'`
+
+if [ $PROCEED = "NO" ]
+then
+    echo "\nThere is not enough space to install the package"
+    echo "Space required is: "$REQUIRED" blocks, space available is: "$AVAILABLE" blocks\n"
+    exit 1
+fi
+
+# Output a message about TARGETDIR
+
+echo "\nTo use gcc please ensure you add:"
+echo "    "$TARGETDIR"/bin to your PATH"
+echo "    "$TARGETDIR"/man to your MANPATH\n"
+
+exit 0

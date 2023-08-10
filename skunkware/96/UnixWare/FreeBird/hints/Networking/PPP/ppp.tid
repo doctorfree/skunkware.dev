@@ -1,0 +1,1163 @@
+A Collection of Technical Information Documents on PPP
+
+DISCLAIMER 
+
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL. 
+NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION. HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY. 
+NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+UnixWare PPP usage and configuration 
+
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT ID:              TID1199992
+DOCUMENT REVISION:        2
+DATE:                     06OCT94
+ALERT STATUS:             Yellow
+INFORMATION TYPE:         Issue
+NOVELL PRODUCT CLASS
+        UNIX
+NOVELL PRODUCT and VERSION:
+        UnixWare 1.1
+CATEGORY:
+        Networking
+ABSTRACT:
+        NA
+
+
+
+ISSUE
+
+PPP (Point to Point Protocol) was developed to allow TCP/IP 
+to be transported over serial lines. 
+
+To fully understand all needed components of PPP, we must 
+first understand the Basic UNIX System NetWorking (BNU) 
+functionality.  PPP uses the BNU facilities to make the 
+initial connection to the host.  Once a connection has been 
+established, PPP takes over the serial interface. 
+
+The TCP/IP Administration guide that comes with the UnixWare 
+1.1 Application Server may also be a helpful resource in 
+configuring and troubleshooting PPP. You'll find PPP 
+information on Pages 23-33 and 125-126 of the TCP/IP 
+Administration guide. 
+
+This document is not meant to be a comprehensive guide to 
+all feasible configuration possibilities regarding PPP.  It 
+does point out the basics of how PPP configuration takes 
+place and what files are needed to make it work.  All 
+details below will be based on a basic example outlined 
+below. 
+
+
+CONFIGURATION 
+-----------------------------------------
+
+Configuration Example:
+
+fred
+-----
+The name of the REMOTE (answering, incoming, or host) machine.
+
+wilma
+-----
+The name of the LOCAL (calling, outgoing, or client) machine.
+
+Name    IPAddress       Phone Number    PPPLogin/password
+------- ---------       ------------    -----------------
+fred    199.60.6.6      555-1212        ppplogin / abc
+wilma   199.70.7.7      n/a             n/a / n/a
+
+Both fred and wilma are using tty01 (COM2) as their serial ports.
+
+
+Configuring "fred", the REMOTE (answering or incoming system)
+
+1 -     Setup the serial Device.
+
+        vi /etc/uucp/Devices
+
+At the bottom of the file, include the following:
+
+        Direct tty01h,M - 9600NP direct_modem
+
+Be sure you have no other entries in this file relating to tty01.
+
+2 -     Program the modem by doing the following.
+
+        stty -parenb cs8 9600
+        cu -l tty01h    
+
+You should get a "Connect" message.
+
+The following are modem commands that set certain attributes 
+on the modem.  After you type ATQ1, you will no longer see 
+'OK', this behavior is normal. 
+
+        ATS0=1
+        ATS15=130
+        ATS20=7
+        ATQ1
+        AT&W
+        ~.
+
+3 -     Create a ttymon process which sends a login to incoming 
+callers. 
+
+        /usr/X/adm/addttymon
+
+After running this utility, we need to make a modification.
+
+        vi /etc/saf/ttymon1/_pmtab
+
+        Find the line that defines /dev/tty01.
+        Replace the word "auto" with "9600NP"
+
+
+Be sure there is only one line defining /dev/tty01 in this 
+file; if there are more, remove them. 
+
+Restart the port monitor.
+        sacadm -k -p ttymon1
+        sacadm -s -p ttymon1
+
+4 -     Configure PPP
+        pppconf
+
+Choose option 1 (Configure PPP hosts)
+
+Choose option 1 (Add/modify PPP hosts)
+
+You now enter the IP address for this machine.  "fred"
+        199.60.6.6
+
+You now enter the IP address for the other machine.  "wilma"                    
+        199.70.7.7
+
+Note: For either machine, you may use the IP address that is 
+currently being used by normal TCP/IP on that machine.  A 
+unique IP address for PPP is not necessary. 
+
+Enter the netmask for this network.
+        255.255.255.0
+
+It now asks for the UUCP name used to dial this system.  
+Enter a '-' since you will not be calling anyone. 
+        -
+(Note:  if you select "-", you will not be asked the next 
+two questions) 
+
+You are now asked if you want to specify PPP negotiation 
+parmeters. Type 'n'.  This only applies to outgoing PPP 
+sessions. 
+        n
+
+You are asked if you want to add the other machine into your 
+/etc/hosts file. 
+        y
+
+Enter the other machine's name.
+        wilma
+
+Type 'q' to return to the main menu.
+        q
+
+Choose option 2 (Configure incoming PPP parameters)
+
+Choose option 1 (Add/modify incoming PPP setup)
+                
+Enter the ppplogin name that will be used by wilma to 
+startup PPP. 
+        ppplogin
+
+Note: Use all lowercase characters for the ppplogin name
+
+You are asked if you want the ppplogin account created.
+        y
+
+Enter the password for the ppplogin account.
+        abc
+
+You are now asked if you want to specify PPP negotiation 
+parmeters. You are free to delve into this area.  We will 
+not in this example.  The TCP/IP Administration manual 
+briefly explains these options.  You will also see an 
+explanation of these options in the comments of the file 
+/etc/inet/ppphosts. 
+        n
+
+Type 'q' to return to the main menu.
+        q
+        
+Type 'q' to quit pppconf.
+        q
+
+        
+5 -     If you went into the area to specify PPP negotiation 
+parameters, you need to check a file before rebooting. 
+
+        vi /etc/inet/ppphosts
+
+At the bottom of the file is your configuration information. 
+ If an option appears in this line that says: paptmout=n, 
+you must remove this option.  Be sure only 1 space is 
+between all fields in this line after removing the option. 
+
+        ie.*ppplogin - -
+
+6 -     You can either reboot your system, or restart TCP/IP.  
+To restart TCP/IP do the following: 
+
+        sh /etc/rc2.d/S69inet stop
+
+Wait at least 5 seconds, then do:
+
+        sh /etc/rc2.d/S69inet start
+
+If you get socket errors, try the two commands again.
+
+
+Configuring "wilma" the LOCAL system  (outgoing, or calling 
+system) 
+
+1 -     Setup the serial Device.
+
+        vi /etc/uucp/Devices
+
+At the bottom of the file, include the following:
+
+        ACU tty01h,M - 9600NP hayes
+        Direct tty01h,M - 9600NP direct_modem
+
+Be sure you have no other entries in this file relating to tty01.
+
+2 -     Program the modem by doing the following.
+
+        stty -parenb cs8 9600
+        cu -l tty01h    
+
+You should get a "Connect" message.
+The following are modem commands that set certain attributes 
+on the modem. 
+
+        ATS0=1
+        ATS15=130
+        ATS20=7
+        ATQ0
+        AT&W
+        ~.
+
+3 -     Setup your 'Systems' file with calling information to 
+get to fred. 
+
+        vi /etc/uucp/Systems
+
+At the bottom of the file, include the following.  NOTE: The 
+entry should all be on ONE line: 
+
+        fred Any ACU 9600NP 5551212 "" \r\d "" \r\d
+                in:--in: ppplogin word: abc opyrigh
+
+It should be pointed out that the login sequence above is 
+used to login to another UnixWare machine to initiate ppp.  
+The "opyrigh" expect string is simply to look for the 
+"Copyright" message to allow the remote machine more time to 
+start the ppp 'shell' before the local machine begins to 
+start the ppp negotiation process.  Searching for a string 
+such as this on other types of systems may not be needed.  
+Also note that this login sequence may differ on the remote 
+machine you are calling into.  Consult your host ppp 
+provider for login information. 
+
+4 -     Configure PPP
+
+        pppconf
+
+Choose option 1 (Configure PPP hosts)
+Choose option 1 (Add/modify PPP hosts)
+
+You now enter the IP address for this machine.  "wilma"
+        199.70.7.7
+
+You now enter the IP address for the other machine.  "fred"                     
+        199.60.6.6
+
+Note: For either machine, you may use the IP address that is 
+currently being used by normal TCP/IP on that machine.  A 
+unique IP address for PPP is not necessary. 
+
+Enter the netmask for this network.
+        255.255.255.0
+
+It now asks for the UUCP name used to dial this system.  
+This is the name you included into the /etc/uucp/Systems 
+file. 
+        fred
+
+You are now asked if you want to specify PPP negotiation 
+parmeters. You are free to delve into this area.  We will 
+not in this example.  The TCP/IP Administration manual 
+briefly explains these options.  You will also see an 
+explanation of these options in the comments of the file 
+/etc/inet/ppphosts. 
+        n
+
+You are asked if you want to add the other machine into your 
+/etc/hosts file. 
+        y
+
+Enter the other machine's name.
+        fred
+
+Type 'q' to return to the main menu.
+        q
+
+5 -     If you went into the area to specify PPP negotiation 
+parameters, you need to check a file before rebooting. 
+
+        vi /etc/inet/ppphosts
+
+At the bottom of the file is your configuration information. 
+If an option appears in this line that says: paptmout=n, you 
+must remove this option.  Be sure only 1 space is between 
+all fields in this line after removing the option. 
+
+        ie.     199.60.6.6 - fred
+
+6 -     You can either reboot your system, or restart TCP/IP.  
+To restart TCP/IP do the following: 
+
+        sh /etc/rc2.d/S69inet stop
+
+Wait at least 5 seconds.  Then do:
+
+        sh /etc/rc2.d/S69inet start
+
+If you get socket errors, try the two commands again. 
+
+Following the configuration of the two machines, you are 
+ready to test the PPP interface. 
+
+
+USAGE
+------------------------------------------
+
+* Establishing a PPP connection from 'fred' to 'wilma':
+
+To establish a PPP connection to a remote host, simply ping 
+the host. 
+                
+        ping -s fred
+
+The modem should dial fred, and after a few seconds, you 
+should see that fred has answered the ping.  Press  to 
+abort the ping. 
+                
+You will now be able to use any other TCP/IP utility to 
+communicate with 
+        fred, ie. telnet, ftp, etc.
+
+If problems occur, consult the TESTING AND TROUBLESHOOTING 
+portion of the document. 
+
+* Bringing down the PPP connection:
+
+Once the ppp connection has been established, the default is 
+for the connection to stay up forever, regardless of the 
+idle time.  To manually bring down the ppp connection do: 
+
+        ifconfig ppp0 down
+
+Once this is done, the command:
+
+        ifconfig -a
+
+will show that the interface has been marked 'down'.  Before 
+ppp can be used again, you must mark the interface 'up' 
+again by doing: 
+
+        ifconfig ppp0 up
+
+The file /etc/inet/ppphosts can contain an idle timeout 
+parameter.  If an idle timeout is desired, look in the 
+comments of that file for details.       
+
+        
+ROUTING
+------------------------------------------
+To configure UnixWare PPP to route IP packets from an 
+ethernet or token ring interface, to the PPP interface and 
+vice versa, do the following: 
+
+1 - If UnixWare Setup IP forwarding:
+        a - vi /etc/conf/pack.d/ip/space.c
+        b - Change the line:
+                #define IPFORWARDING 0
+                to
+                #define IPFORWARDING 1
+        c - Rebuild the kernel:
+                /etc/conf/bin/idbuild -B
+        d - Reboot the machine:
+                init 6
+
+2 - The system will now be able to route packets.  However, 
+depending on your configuration, the UnixWare machine may 
+need to have an entry added to it's routing table by using 
+the 'route' command.  This is explained below. 
+
+In the example used above, wilma is connecting with fred via ppp.
+
+Configuration examples
+
+Example 1 - If both wilma and fred have ethernet or token 
+ring cards in their machines as well, and need traffic 
+routed from those interfaces to the ppp interface, you would 
+have to do the following: 
+        
+        on fred: route add default wilma 1
+        on wilma: route add default fred 1
+
+        Also, all clients on fred's side, would have to 
+        have fred designated as their router - the same
+        applies to clients on wilma's side.  This is
+        usually done by default, but if the routing
+        does not work, it gives you a place to start.
+
+Example 2 - If only one system, fred, has an ethernet or 
+token ring card that requires routing to be done, do the 
+following: 
+
+        on wilma: route add default fred 1
+
+        For clients on fred's network, the same 
+        rule applies as described in Example 1
+        for client routing tables.
+
+Example 3 - If only wilma has clients on her network, simply 
+use the opposite as example 2 above. 
+
+3 - IP Addresses and Netmasking
+In order for routing to work, we must consider the ip 
+addresses of both interfaces,  and the netmask that is being 
+used on the ethernet/token ring interface.  From this point 
+on, we will refer to the ethernet/token ring interface as 
+simply ethernet. 
+Also note, that we assume UnixWare is the router between the 
+ethernet and ppp interfaces. 
+
+Case 1:  You have two separate class C addresses for the 
+ethernet and ppp interfaces,  ie. Ethernet-199.23.24.25, 
+PPP-199.23.99.26.  Routing will work with no further 
+configuration in this case. 
+
+Case 2: You have been issued one class C address, and have a 
+class C netmask, ie. 255.255.255.0.  You are using this same 
+IP address for both the ethernet interface and the ppp 
+interface, OR you are using two separate ip addresses that 
+share the same network address portion.  In a class C 
+netmask above this would be defined as addresses that differ 
+at the fourth octet, ie. 199.2.2.3 and 199.2.2.4 - thus they 
+share the same network address portion of 199.2.2. 
+In order for routing to work in either of these cases, we 
+must massage the arp table on the UnixWare ppp host.  For 
+each machine on the ethernet side that needs to use UnixWare 
+as the router to the ppp interface, you need to enter the 
+following on UnixWare as superuser: 
+     arp -s  
+ pub 
+
+For example:  On the ethernet segment, there are two client 
+machines, 199.2.2.2 and 199.2.2.3.  The mac address of the 
+ethernet card on UnixWare is 00:00:1b:e1:e1:e1.  (You can 
+verify your mac address by examing the file 
+/etc/ipxLocalAddr, the mac address is the second field.)  
+Thus for the first machine the arp command would look like: 
+     arp -s 199.2.2.2 00:00:1b:e1:e1:e1 pub
+You would then repeat this for the second machine.
+
+You can place these arp commands in /etc/inet/rc.inet BEFORE 
+the final 'exit' line, so they will be executed each time 
+the machine is booted.  Use 'arp -a' to examine the arp 
+table. 
+
+Case 3: You have been issued one class C address, and you 
+want to break this class C address into separate networks 
+using a netmask.  You will be using two different ip 
+addresses, one for the ethernet interface and the other for 
+the ppp interface.  If these two ip addresses have different 
+network numbers (described below), then no further 
+configuation is needed to get routing to work. 
+
+One example of a netmask that would allow a class C address 
+to be split into two separate networks would be: 
+     netmask 255.255.255.192
+     The address range for each segment would be:
+          64 thru 127
+          128 thru 191
+Any other number in the last octet of the ip address would 
+be invalid.  So in the example above, a valid ip address for 
+the ethernet interface would be 199.2.2.64, and a valid ip 
+address for the ppp interface would be 199.2.2.128. 
+
+MULTIPLE PPP INTERFACES
+------------------------------------------
+Setting up multiple ppp interfaces may require additional 
+setup on both the Local and Remote ends.  See the sections: 
+"PING WILL DIAL THE REMOTE MACHINE AND ESTABLISH A LINK, YET 
+NO ANSWER IS RECEIVED FROM THE PING" and "USING OVER 4 PPP 
+CONNECTIONS WILL FAIL" in the Testing and Troubleshooting 
+section below. 
+
+* One other item to keep in mind when setting up multiple 
+interfaces.  It is important to assure that the routing 
+table is setup properly.  First, look at the table of 
+interfaces: 
+
+        ifconfig -a
+
+This displays the ip addresses of both the local and remote 
+sides of the interface, as well as the interface number, 
+ppp0, ppp1 etc. 
+
+The routing table must agree with this information.
+To view the routing table do:
+
+        netstat -r
+
+If the routing table does not display the same interface 
+number for the pair of local and remote addresses, then one 
+of two things must be done: 
+
+        1 - Reboot the system to reset the routing table.
+
+        or
+
+        2 - Remove all ppp interfaces from the table
+        and restart TCP/IP.
+                a - route delete  
+                        for each ppp interface.
+                b - follow the RESTARTING TCP/IP section below.
+
+
+TESTING AND TROUBLESHOOTING
+------------------------------------------
+Troubleshooting and Known Problems
+
+BASIC SERIAL COMMUNCATION
+* A document is available on the UnixWare Faxback system, or 
+from the NSE to help troubleshoot serial problems.  It is 
+entitled "Serial Communications on UnixWare".  Obtain this 
+document if you are not able to get basic serial 
+communications working, ie. communication with the modem, 
+etc. 
+        
+* One problem we have seen is if you have a port monitor 
+running on a port, as 'fred' does to issue a login prompt.  
+Sometimes you cannot communicate directly with the modem; 
+ie. cu -l tty01h.  The message: DEVICE FAILED or DEVICE NOT 
+AVAILABLE is displayed. 
+To get around this, you must disable the ttymon service 
+before the cu -l command will work: 
+
+        pmadm -d -p ttymon1 -s 01h
+
+(The service '01h' may differ depending on the port your are 
+using.  Do a pmadm -l to see the service tag for your 
+particular port.) 
+After the '-d' (disable) has been done, 'cu -l tty01h' will 
+work.  When you are done, you must enable the service again 
+for the login prompt to be issued again to imcoming callers. 
+
+        pmadm -e -p ttymon1 -s 01h
+
+* You were once able to 'cu' into the host and get a login, 
+but now no login prompt is given.  This is caused by the 
+host machine still having the ppp link semi-active on the 
+port.  Do the following: 
+
+        ps -ef |grep ppp
+
+Look for the ppp 'shell', shown as "-ppp" running on the 
+port you are attempting to dial into.  If the shell is still 
+active on the port, simply kill the process.  This will free 
+the port so the tty monitor can issue a login prompt once 
+again. 
+
+PING WILL NOT DIAL THE REMOTE MACHINE
+* If you are able to communicate with your modem directly as 
+outlined in the Serial Communcations document mentioned 
+above, the next step is to attempt access to the remote 
+System via cu (call unix).  cu uses the same files to dial 
+the remote system as PPP does.  The syntax is simply: 
+
+        cu systemname
+
+where 'systemname' is the name of the remote system in the 
+/etc/uucp/Systems file. 
+When you run cu, UnixWare will dial the remote system and 
+you will see a login prompt.  To exit type: ~. 
+If cu does not work, see the section entitled CONNECTION 
+SERVER later in this document. 
+
+* If cu works, yet ping will still not dial the remote 
+machine the ppp demon could be hung.  Try restarting TCP/IP 
+discussed in the RESTARTING TCP/IP section. 
+
+* Check to make sure the 'in.pppd' deamon(s) are running. Do 
+this by running: 
+        ps -ef |grep pppd
+If in.pppd is not running, your /etc/hosts file may be setup 
+incorrectly.  In the /etc/hosts file, the first uncommented 
+line must be: 
+        127.0.0.1       localhost
+If this line does not exist in /etc/hosts, the in.pppd 
+deamon will not start.  You need to correct the /etc/hosts 
+file, then restart TCP/IP or reboot. 
+
+* Down the interface and bring it back up again.  For example:
+        ifconfig ppp0 down
+        ifconfig ppp0 up
+
+* Improper configuration could also inhibit 'ping' from 
+dialing. To assure the configuration is setup properly, 
+consult the section called CONFIGURATION FILES later in this 
+document 
+
+PING DIALS THE REMOTE HOST, THEN HANGS UP
+* This problem will occur if one of you, but not both has 
+been setup for PAP (Peer Authentication Protocol).  The 
+pppconf program does this automatically for you if you chose 
+to modify the negotiation parameters during configuration.  
+To check this do: 
+
+        vi /etc/inet/ppphosts
+
+Be sure the option:
+
+        paptmout=n
+
+is not in your configuration line.  Remove it if it is.
+Be careful to leave only one space between all fields in 
+this line. 
+
+* You may want to see if ping can properly login to the 
+remote system as the ppplogin user.  Do this by following 
+the steps in the CONNECTION SERVER section. 
+
+* If the remote host is a UnixWare machine, the login name 
+MUST be in all lowercase characters.  In the example above, 
+the login name is: ppplogin. 
+
+
+THE PPP CONNECTION IS SLOW, OR HANGS    
+* In the configuration example above, we used the port 
+/dev/tty01h.  The 'h' is for hardware flow control and 
+should be used to avoid flow problems. 
+
+* Speeds above 9600 baud cause problems on normal serial 
+ports.  Try 9600 baud if you are having problems. 
+
+* If speed or flow control is an issue, try using a third 
+party multi-port serial device.  The problem with using 
+these devices, is the utility mentioned above in setting up 
+the HOST system, '/usr/X/adm/addttymon' does not work with 
+these device names.  Obtain the faxback or NSE document 
+regarding multi-port serial adapters for a workaround to 
+this problem. 
+
+PING WILL NOT DIAL IMMEDIATELY, BUT WILL EVENTUALLY
+* One cause of this problem has been the /etc/netconfig file.
+Check the following:
+        vi /etc/netconfig
+There are four lines that contain the libraries:
+        tcpip.so and resolv.so
+In these lines, the library "tcpip.so" must come before the 
+"resolv.so" library.  Switch the order of these libraries if 
+this is not the case.  Restart TCP/IP after doing so. 
+
+* Another cause of this problem that has been encountered 
+are extra spaces in the /etc/resolv.conf file following the 
+domain name and the nameserver ip address. To eliminate this 
+problem, simply be sure that there are no trailing spaces on 
+any of the lines in the /etc/resolv.conf file. 
+
+PING WILL DIAL THE REMOTE MACHINE AND ESTABLISH A LINK, YET 
+NO ANSWER IS RECEIVED FROM THE PING 
+If you have setup UnixWare as a PPP hosts for more than one 
+PPP interface, see the section called "USING OVER 4 PPP 
+CONNECTIONS WILL FAIL" later in this document.  That section 
+explains how it is possible to connect to the wrong ppp 
+interface on the host and how to correct the problem. 
+
+
+ROUTING OVER THE PPP INTERFACE DOES NOT WORK
+Follow the steps outlined in the Routing section above.
+
+USING OVER 4 PPP CONNECTIONS WILL FAIL
+UnixWare is setup to allow 4 incoming ppp interfaces by 
+default.  If more ppp interfaces are needed, do the 
+following: 
+1 -     vi /etc/conf/pack.d/ip/space.c
+
+Locate the line:
+        #define MAX_VJ_COMP   4
+Change the 4, to the number of serial lines you have on your 
+system.  DO NOT make this number too large (over 50) or your 
+system may not be able to boot. 
+
+Locate the line:
+        #define IPPROVCNT
+Change the value to the number of ip interfaces you need.  
+This will be the number of lan cards installed, plus the 
+number of ppp interfaces you have defined, plus 1.  DO NOT 
+make this number larger than necessary or your system may 
+not boot. 
+
+2- You must use the "VJ" option (Van Jacobsen header 
+compression), and "ipaddr" (IP address negotiation) in your 
+/etc/inet/ppphosts file for all systems.  To do this, simply 
+append "VJ ipaddr" to all lines in the file. 
+        ie. *ppplogin - - VJ ipaddr
+This also requires the calling ppp systems to use Van 
+Jacobsen and ipaddr. 
+
+Note: The ipaddr option is necessary to force UnixWare to 
+assign the proper interface (ppp0, ppp1 etc.) to the 
+incoming connection.  If this is not done, the ppp 
+connection appears to be made but it is assigned to the 
+wrong interface which will not route the packets back to the 
+calling machine.  You can see the interface traffic by 
+doing: netstat -i on the host. 
+
+3  -    vi /etc/conf/pack.d/ppp/space.c
+
+Locate the line:
+        #define NO_DLPI_SERVICE_PROVIDERS
+Change the value to the number in IPPROVCNT above.
+
+Locate the line:
+        #define NO_POINT_TO_POINT_CONNECTIONS
+Change the value to the number of ppp interfaces you have 
+defined.   DO NOT make this number larger than necessary or 
+your system may not boot. 
+
+4 - Rebuild the kernel:
+        /etc/conf/bin/idbuild -B
+
+5 - Reboot:
+        init 6
+
+Once the system is back up, if you do: ifconfig -a to view 
+the interfaces, you will only see 15.  This is a limitation 
+with ifconfig, even though the interfaces are really up.  To 
+see all interface activity to verify they are up, type: 
+netstat -i. 
+
+
+CONNECTION SERVER
+------------------------------------------
+The process that initiates the connection and executes the 
+chat script to login to a remote system.  You can view the 
+steps the connection server is taking by viewing it's log 
+file during the dialing and logging in process. 
+
+        1 - Kill the current connection server (/usr/sbin/cs)
+
+        2 - Start it up in debug mode:
+
+                /usr/sbin/cs -d
+
+        3 - View it log file.
+
+                tail -f /var/adm/log/cs.debug
+
+Note: tail -f will show you a 'real time' representation of 
+what the connection server is doing.  If you are in the 
+desktop, you will need to open another window to initiate 
+the ping.  If you are not in the desktop, you may do the 
+ping, then view this log after the ping has failed. 
+
+As the connection server is dialing and logging in, you can 
+see all the steps it takes, from opening the serial device, 
+to executing the chat script.  This can be useful in 
+determining if there is a problem logging into the remote 
+host. 
+
+
+RESTARTING TCP/IP
+------------------------------------------
+To restart TCP/IP do the following:
+
+        sh /etc/rc2.d/S69inet stop
+
+
+Wait at least 10 seconds
+
+        sh /etc/rc2.d/S69inet start
+
+If you receive an error about a socket, attempt the process 
+again. 
+
+
+CONFIGURATION FILES
+------------------------------------------
+The configuration files used by the PPP process are 
+explained below.  The contents are based on the example 
+presented above where "fred" is the Host or incoming system, 
+and "wilma" is the Local or calling system. 
+
+
+/etc/passwd                     (fred)
+-----------
+This file contains the ppplogin username and information.  
+This is created by pppconf while setting up the "incoming" 
+parameters. 
+You should NOT modify this file manually with an editor.
+To create this login manually for the user 'ppplogin' do:
+
+        useradd -d /usr/lib/ppp -s /usr/lib/ppp/ppp ppplogin
+        passwd ppplogin
+        (Enter the password)
+
+/etc/saf/ttymon1/_pmtab         (fred)
+This file contains service information that the remote 
+system uses to issue a login prompt to those dialing in.  
+This entry is created by the utility /usr/X/adm/addttymon.  
+This utility uses /etc/uucp/Devices to derive which ports it 
+needs to setup a login for. You may modify this entry, but 
+after doing so, you must kill and restart the port monitor 
+as follows: 
+
+        sacadm -k -p ttymon1
+        sacadm -s -p ttymon1
+
+Example of a line in this file:
+        01:u::reserved:reserved:login:/dev/tty01h:bhr:0:/usr/bin/shserv:
+                60:9600NP:ldterm:SVR4.2 login\: :::::#
+
+Usually the only thing you would want to change is the baud 
+rate.   addttymon creates this entry with 'any' as the baud 
+rate.  To assure that the speed is always a constant, we 
+recommend that the speed be changed to 9600NP.  The NP 
+stands for No Parity so the login is sent at 9600, 8, 1, 
+None.  This baud rate field can be any key field in the 
+/etc/ttydefs file. 
+
+/etc/uucp/Systems                       (wilma)
+-----------------
+This file contains dialing and login information about the 
+host or remote system. 
+
+Example of a line in this file:
+        fred Any ACU 9600NP 5551212 "" \r\d "" \r\d in:--in: ppplogin
+                word: abc opyrigh
+
+After the phone number, is simply the 'chat' script used by 
+the connection server to automatically login to the remote 
+system so the ppp protocol can be established between the 
+two systems.  The field meanings are simply; (Expected 
+String from Host)  (String to send).  In the example 
+above, we begin by expecting "" (nothing), then we send a 
+Carriage Return (\r) and a delay (\d), etc.  The backslash 
+codes are defined in the /etc/uucp/Dialers file. 
+The "opyrigh" string at the end is in an 'expect' field, 
+meaning that we must see that string before we turn the 
+connection over to ppp.  This has been put in as a delay to 
+allow the remote system time to start up the ppp shell. 
+
+/etc/confnet.d/inet/interface   (fred & wilma)
+-----------------------------
+This file is used by TCP/IP to know what interfaces are 
+available, ie. Network cards, ppp ports etc.  The 
+appropriate lines in this file are built by the pppconf 
+program.  However, you can manually edit this file, just be 
+sure to restart TCP/IP after doing so. 
+
+Example on fred:
+        ppp:0:199.60.6.6:/dev/ppp:199.70.7.7 netmask 255.255.255.0:
+                add_ppp:
+
+Example on wilma:
+        ppp:0:199.70.7.7:/dev/ppp:199.60.6.6 netmask 255.255.255.0:
+                add_ppp:
+
+The syntax is simple.  Column 2 indicates which ppp 
+interface is being defined - we start with 0.  Column 3 is 
+always the local IP address for the interface, then column 5 
+begins with the remote IP address we are going to connect 
+with. 
+
+The command to display what interfaces are available to 
+TCP/IP is: 
+
+        ifconfig -a
+
+When TCP/IP is started it reads the interface file to setup 
+it's interfaces, this is what 'ifconfig -a' is reporting.  
+It doesn't look at this file again after it is started, so 
+any modifications require TCP/IP to be restarted. 
+                
+/etc/uucp/Devices                       (fred & wilma)
+-----------------
+This file contains device information needed for the 
+connection server and ppp to communicate with the serial 
+device. 
+
+Example on fred:
+        Direct tty01h,M - 9600NP direct_modem
+
+Example on wilma:
+        ACU tty01h,M - 9600NP hayes
+        Direct tty01h,M - 9600NP direct_modem
+
+
+Fred only has one line because he never has to dail out.  
+His line is there so he can connect to his modem and program 
+it. 
+
+Wilma has two entries.  One just like fred's so she can 
+program her modem, the other is the ACU (Automatic Calling 
+Unit) entry that is used by the connection server to dial 
+out. 
+                
+/etc/inet/ppphosts                      (fred & wilma)
+------------------
+This file is used by ppp for connect and negotiation 
+information.  There are two possible types of entries, one 
+for 'incoming' like on fred, and the other for 'outgoing' 
+like on wilma. 
+
+Example on fred:
+        *ppplogin - -
+
+Example on wilma:
+        199.60.6.6 - fred
+
+The file itself contains comments that help build these 
+lines with any options like, Van Jacobson compression, 
+connection timeouts etc.  As mentioned above, the "paptmout" 
+should not be in these files unless PAP is enabled. 
+
+/etc/hosts                              (fred & wilma)
+----------
+Each system must contain an entry in the hosts file for the 
+other system. 
+
+Example on fred:
+        199.70.7.7  wilma
+                
+Example on wilma:
+        199.60.6.6  fred
+
+
+
+Any trademarks referenced in this document are the property of their respective owners. Consult your product manuals for complete trademark information.
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+120 PPP connections to UnixWare 
+
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT ID:              TID1000683
+DOCUMENT REVISION:        0
+DATE:                     30DEC94
+ALERT STATUS:             Yellow
+INFORMATION TYPE:         Symptom Solution
+NOVELL PRODUCT CLASS
+        UNIX
+NOVELL PRODUCT and VERSION:
+        UnixWare 1.1
+CATEGORY:
+        Networking
+        Core OS
+ABSTRACT:
+        NA
+
+
+SYMPTOM
+
+Many customer's wish to connect many PPP clients to a 
+UnixWare PPP host at the same time. 
+
+SOLUTION
+
+Customer was able to successfully connect approx 120 PPP 
+users to a single UnixWare system. 40 could connect 
+simultaneously.  To make this work he did the following: 
+
+1.  For users who needed to use the same NetWork address of 
+the IP address the following command was issued on the 
+UnixWare system: "/usr/sbin/arp -s (remote IP address) 
+(ethernet or MAC address of UnixWare NIC ie 
+00:60:8c:c9:49:ds) permanent public"  This command is 
+entered for every PPP client which will be on the same 
+network address of the IP network.  This command is issued 
+for each client at boot up time in a script created in 
+/etc/rc2.d/ file name can be something like "S99local". 
+
+2. Each client has a ppphost entry on the UnixWare host in 
+/etc/inet/ppphosts similar to the following: 
+*(userid) -- mru=1500 ipaddr VJ remote=(IP address of  
+remote PPP client)" The "mru=1500" is needed for some PCs, 
+and is always needs for Macintosh machines.  The "VJ" entry 
+is needed for more than 4 simultaneous connections.  The 
+"ipaddr" is needed for multiple connections, without it 
+sometimes the routing will get confused. 
+
+3. pppconf will need to be run for every client added.  and 
+ppphosts will needed to be configured for every client under 
+pppconf, choose "-" for the system name.  This will set up 
+internal routing tables for PPP. 
+
+This customer found that approx 120 connections was all 
+UnixWare could handle based on his resources.  Each 
+potential connection takes up another interface under 
+ifconfig and therefore takes up resouces.  This customer had 
+to go to a third party vendor for a more complete PPP 
+solution. 
+
+This configuration has not been tested by Novell at this time.
+
+
+
+Any trademarks referenced in this document are the property of their respective owners. Consult your product manuals for complete trademark information.
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+ppp config issues 
+
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT ID:              TID1000515
+DOCUMENT REVISION:        0
+DATE:                     07NOV94
+ALERT STATUS:             Yellow
+INFORMATION TYPE:         Symptom Solution
+NOVELL PRODUCT CLASS
+        UNIX
+NOVELL PRODUCT and VERSION:
+        UnixWare 1.1
+CATEGORY:
+        Networking
+        Core OS
+ABSTRACT:
+        NA
+
+SYMPTOM
+
+Symptom1:
+
+Multiple PPP users cannot connect to Internet provider 
+successfully, 
+
+Symptom2:
+
+PPP users can't send over 1k files without waiting more than 
+10 minutes.  They can receive any size files, successfully. 
+
+Symptom3:
+
+Customer can't connect to a Computone Intel Server
+
+SOLUTION
+
+Solution1:
+
+Run the following command on the Internet provider (PPP HOST)
+arp -s   permanent published
+
+Solution2:
+
+To fix the file transfer problem (over 1k) set mrsize=1500 
+on both systems.  This is a negotiation parameter. 
+
+Solution3:
+
+Run ifconfig ppp0 down and ifconfig ppp0up. Edit 
+/etc/inet/ppphosts, put " -  
+mru=1500 accm=0x000a0000 protcomp accomp idle=5" at the 
+bottom of the file. 
+
+
+
+Any trademarks referenced in this document are the property of their respective owners. Consult your product manuals for complete trademark information.
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Debugging PPP problems in UnixWare 2.0 
+
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT ID:              TID021586
+DOCUMENT REVISION:        1
+DATE:                     07FEB95
+ALERT STATUS:             Yellow
+INFORMATION TYPE:         Issue
+NOVELL PRODUCT CLASS
+        UNIX
+NOVELL PRODUCT and VERSION:
+        UnixWare 2.0
+CATEGORY:
+        Networking
+ABSTRACT:
+        NA
+
+ISSUE
+
+UnixWare 2.0 ppp has the ability to output debug information 
+and packet traces to debug ppp problems. 
+This document explains how to use this feature.
+
+1 - Setup the syslogd configuration file:
+        vi /etc/syslog.conf
+This may be a new file depending on your configuration.  You 
+should add the line: 
+        *.info  /var/adm/log/info
+Note: The whitespace between the two fields, MUST be a TAB, 
+space(s) will not work. 
+
+2 - Startup syslogd:
+        syslogd
+
+3 - In the ppphosts file, set the debug flag:
+        vi /etc/inet/ppphosts
+In the line for the system you are dialing, or the incoming 
+line, add the following option: 
+        debug=1
+A sample line would look like:
+        137.37.37.37 - testsystem debug=1
+
+Note:  The debug levels go from 1 to 15.  1 being the 
+lowest, but still very useful.  15 being a full packet dump 
+which can be useful at times, but very verbose and disk 
+space consuming. 
+
+4 - In a separate window, do a tail on the debug file to 
+view the log in real time: 
+        tail -f /var/adm/log/info
+Note: If you receive an error indicating that the "info" 
+file doesn't exist, simply create it before the tail command 
+is issued: 
+        touch /var/adm/log/info 
+
+5 - Make a ppp connection.  The debug information will be 
+displayed in the 'tail' window. 
+
+The level 1 debug information is display only until the 
+negotiation phase is complete.  This is where the most 
+problems occur, so level 1 is best in most cases.  Level 9 
+provides a full packet dump even after the negotiation phase 
+has been complete.  The packet traces are in hex with no 
+further information provided, so it is very difficult to 
+interpret. 
+
+
+
+Any trademarks referenced in this document are the property of their respective owners. Consult your product manuals for complete trademark information.
+
+

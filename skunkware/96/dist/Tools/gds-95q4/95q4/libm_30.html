@@ -1,0 +1,108 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from libm.texinfo on 9 October 1995 -->
+
+<TITLE>The Cygnus C Math Library - matherr</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="libm_1.html">first</A>, <A HREF="libm_29.html">previous</A>, <A HREF="libm_31.html">next</A>, <A HREF="libm_43.html">last</A> section, <A HREF="libm_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX81"></A>
+<H2><A NAME="SEC30" HREF="libm_toc.html#TOC30"><CODE>matherr</CODE>---modifiable math error handler</A></H2>
+<STRONG>Synopsis</STRONG>
+<PRE>
+#include &#60;math.h&#62;
+int matherr(struct exception *<VAR>e</VAR>);
+
+</PRE>
+<STRONG>Description</STRONG><BR>
+<CODE>matherr</CODE> is called whenever a math library function generates an error.
+You can replace <CODE>matherr</CODE> by your own subroutine to customize
+error treatment.  The customized <CODE>matherr</CODE> must return 0 if
+it fails to resolve the error, and non-zero if the error is resolved.
+<P>
+When <CODE>matherr</CODE> returns a nonzero value, no error message is printed
+and the value of <CODE>errno</CODE> is not modified.  You can accomplish either
+or both of these things in your own <CODE>matherr</CODE> using the information
+passed in the structure <CODE>*<VAR>e</VAR></CODE>.
+<P>
+This is the <CODE>exception</CODE> structure (defined in `<CODE>math.h</CODE>'):
+<PRE>
+	struct exception {
+	        int type;
+	        char *name;
+	        double arg1, arg2, retval;
+		int err;
+	};
+</PRE>
+<P>
+The members of the exception structure have the following meanings:
+<DL COMPACT>
+
+<DT><CODE>type</CODE>
+<DD>The type of mathematical error that occured; macros encoding error
+types are also defined in `<CODE>math.h</CODE>'.
+
+<DT><CODE>name</CODE>
+<DD>a pointer to a null-terminated string holding the
+name of the math library function where the error occurred.
+
+<DT><CODE>arg1, arg2</CODE>
+<DD>The arguments which caused the error.
+
+<DT><CODE>retval</CODE>
+<DD>The error return value (what the calling function will return).
+
+<DT><CODE>err</CODE>
+<DD>If set to be non-zero, this is the new value assigned to <CODE>errno</CODE>.
+</DL>
+<P>
+The error types defined in `<CODE>math.h</CODE>' represent possible mathematical
+errors as follows:
+<P>
+<DL COMPACT>
+
+<DT><CODE>DOMAIN</CODE>
+<DD>An argument was not in the domain of the function; e.g. <CODE>log(-1.0)</CODE>.
+
+<DT><CODE>SING</CODE>
+<DD>The requested calculation would result in a singularity; e.g. <CODE>pow(0.0,-2.0)</CODE>
+
+<DT><CODE>OVERFLOW</CODE>
+<DD>A calculation would produce a result too large to represent; e.g.
+<CODE>exp(1000.0)</CODE>. 
+
+<DT><CODE>UNDERFLOW</CODE>
+<DD>A calculation would produce a result too small to represent; e.g.
+<CODE>exp(-1000.0)</CODE>. 
+
+<DT><CODE>TLOSS</CODE>
+<DD>Total loss of precision.  The result would have no significant digits;
+e.g. <CODE>sin(10e70)</CODE>. 
+
+<DT><CODE>PLOSS</CODE>
+<DD>Partial loss of precision.
+</DL>
+<P>
+<BR>
+<STRONG>Returns</STRONG><BR>
+The library definition for <CODE>matherr</CODE> returns <CODE>0</CODE> in all cases.
+<P>
+You can change the calling function's result from a customized <CODE>matherr</CODE>
+by modifying <CODE>e-&#62;retval</CODE>, which propagates backs to the caller.
+<P>
+If <CODE>matherr</CODE> returns <CODE>0</CODE> (indicating that it was not able to resolve
+the error) the caller sets <CODE>errno</CODE> to an appropriate value, and prints
+an error message.
+<P>
+<BR>
+<STRONG>Portability</STRONG><BR>
+<CODE>matherr</CODE> is not ANSI C.  
+<P>
+<BR>
+<P>
+<HR>
+Go to the <A HREF="libm_1.html">first</A>, <A HREF="libm_29.html">previous</A>, <A HREF="libm_31.html">next</A>, <A HREF="libm_43.html">last</A> section, <A HREF="libm_toc.html">table of contents</A>.
+</BODY>
+</HTML>

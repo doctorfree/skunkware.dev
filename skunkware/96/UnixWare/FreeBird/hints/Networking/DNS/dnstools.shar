@@ -1,0 +1,1246 @@
+#--------------------------------CUT HERE-------------------------------------
+#! /bin/sh
+#
+# This is a shell archive.  Save this into a file, edit it
+# and delete all lines above this comment.  Then give this
+# file to sh by executing the command "sh file".  The files
+# will be extracted into the current directory owned by
+# you with default permissions.
+#
+# The files contained herein are:
+#
+# -rw-r--r--    1 andrew   other       7025 Jul 25 08:35 HOWTO.DNS
+# -rw-r--r--    1 andrew   other        692 Jul 25 08:33 db.cache
+# -rw-r--r--    1 andrew   other      17160 Jul 25 08:33 h2n
+# -rw-r--r--    1 andrew   other       5180 Jul 25 08:33 h2n.man
+# -rw-r--r--    1 andrew   other        663 Jul 25 08:33 h2n.script
+# -rw-r--r--    1 andrew   other        150 Jul 25 08:33 named.boot
+#
+echo 'x - HOWTO.DNS'
+if test -f HOWTO.DNS; then echo 'shar: not overwriting HOWTO.DNS'; else
+sed 's/^X//' << '________This_Is_The_END________' > HOWTO.DNS
+XHOWTO SET UP DNS "hopefully the easy way"
+X===========================================
+X(related files in this directory: dnstools.shar)
+X
+XThis short guide explains how to setup a DNS server using a tool
+Xcalled h2n which greatly simplifies the process - h2n is part 
+Xof the set of tools from ftp.ora.com:/pub/examples/nutshell/dnsbind
+Xthat accompany the O'Reilly book DNS and Bind - this is ESSENTIAL
+Xreading if you want to really understand what's going on or do
+Xmore advanced DNS setup.
+X
+XPLEASE NOTE THIS IS NOT INTENDED TO BE AN IN-DEPTH DESCRIPTION
+XOF HOW DNS WORKS, BUT IS INTENDED TO GET DNS WORKING AS SIMPLY
+XAS POSSIBLE.
+X
+XThe following multi-point plan will get DNS running on your machine.
+X
+XBefore you start please make a note of the following:
+X
+X(a) Your IP network number, i.e. 192.9.200
+X(b) Your Domain address, i.e. mydom.com  (note this can be
+Xa three level one if you like, for example mydom.biggerdom.com,
+Xjust replace mydom.com with the mydom.biggerdom.com in the examples
+Xbelow).
+X(c) Your internet providers domain and address
+X		
+X
+X
+X1a. Edit /etc/inet/rc.inet  (for UnixWare 1.x)
+X
+XTo enable starting of the named daemon on your machine uncomment the 
+Xfollowing section of the file /etc/inet/rc.inet
+X
+X#
+X#  Run the DNS server if a configuration file is present
+X#
+X#if [ -f /etc/inet/named.boot -a -x /usr/sbin/in.named ]
+X#then
+X#     /usr/sbin/in.named
+X#fi    
+X
+X1b. For UnixWare 2.0 /etc/inet/rc.inet is no longer used, but the
+Xfile /etc/inet/config, which has by default an entry:
+X
+X5:/usr/sbin/in.named::y:/etc/inet/named.boot::
+X
+XThis state line means that when the file /etc/inet/named.boot exists
+Xthen the system should auto start the in.named process if it exists
+Xand is executable 
+X
+X
+X2. Obtain the dnstools file from the mail-server@novell.co.uk
+X
+X	send the following message 
+X
+X	begin
+X	send dnstools.shar.Z
+X	end
+X
+X3. Make a directory to contain the DNS setup files, and chown that
+X   directory to yourself
+X
+X	su 
+X	mkdir /var/named
+X	chown andrew /var/named 
+X
+X	
+X4. Unwind dnstools.shar.Z file in /var/named directory
+X
+X	cd /var/named
+X	compress -d dns_tools.shar
+X	sh dns_tools.shar
+X
+X5. Make sure that the h2n file is executable
+X
+X	chmod +rx  h2n
+X
+X(note that h2n is written in perl and assumes that perl is in
+X/usr/gnu/bin/perl. If its not, then obtain perl from the mail-server
+Xand edit the first line of h2n to the correct location for perl).
+X
+X6. Edit the file file named.boot and edit in your Domain & IP address
+X
+X; The following example is for domain mydom.com
+X; (1) Change mydom.com to your domain address, and change the db file
+X; so that its the first word before a .  for example, 
+X; novtest.demon.co.uk , has a db file of db.novtest.
+X; (2) Change the IP address of 192.9.200   (replace this with your real addr)
+X; note the first number in the IN-ADDR.ARPA line has the addr in reverse 
+X
+Xdirectory /var/named
+X
+Xprimary 0.0.127.IN-ADDR.ARPA db.127.0.0
+Xprimary mydom.com db.mydom
+Xprimary 200.9.192.IN-ADDR.ARPA db.192.9.200
+Xcache   . db.cache    
+X
+X
+XOptionally, you may also want to add a Forwarders line. Typically
+Xyou'd do this if you were behind a firewall, and would forward to
+Xa machine that is a firewall gateway, for example
+X
+Xforwarders      137.65.1.1 147.2.200.5 128.110.124.120
+X
+XThis would go before the cache entry.
+X
+X
+XYou may also want to consider moving the cache line to be the first
+Xentry in the file after the directory entry, some sites can get
+Ximproved performance from this - for our site behind a firewall we
+Xdon't.
+X
+X
+X7. ln  /var/named/named.boot to /etc/inet/named.boot
+X
+X	su
+X	cd /etc/inet
+X	ln -s /var/named/named.boot named.boot
+X
+X
+X8. Edit h2n.script - this file is a shell script that calls the h2n
+Xperl script to generate DNS data files from the hosts file entry.
+X
+XChange the following parameters:
+X
+XDOMAIN=mydom.com
+XIPADDR=192.9.200
+XNETMASK=255.255.255.0
+XPRIMARY=`uname -n`
+XSECONDARY=myprovider.com
+XCONTACT=andrew.${PRIMARY}.${DOMAIN}      
+X
+X
+XThe values for DOMAIN and IPADDR should be the same as those
+Xused in /var/named.
+XThe CONTACT is for the SOA field and should be a valid
+Xemail address except that the "@" sign has been replaced by
+Xa ".".
+X
+XIf you decide you want to have your contact address as a two
+Xlevel domain address (i.e. user@mccc.edu rather than user@tecoma.mccc.edu)
+Xthen change the CONTACT line to  CONTACT=user.mccc.edu
+X
+X
+X9. Edit /etc/hosts and setup hosts for the network.
+X
+X192.9.200.1	prime prime.mydom.com ns
+X192.9.200.2 another # [no smtp]
+X
+X
+XNote that the comment # [no smtp] indicates to h2n not to generate
+Xan MX record for that host.
+X
+X10. Run the shell script  h2n.script in /var/named to generate the
+XDNS data files based on the host file.
+X
+X	sh h2n.script
+X
+XAt this time answer N to restart the named process
+X
+Xsh h2n.script
+X    root 12686     1  0 07:30:44 ?        0:00 /usr/sbin/in.named
+X    root 12749 12743  2 07:46:25 pts/4    0:00 grep named
+Xdo a kill -HUP to the named process, then an nslookup to check:
+Xkill -HUP 12686? [y]    n
+X
+X
+X(after you've got DNS running the first time, further updates
+Xcan be made to the host file, and then the h2n.script rerun,
+Xeach time saying Y will then restart in.named and automatically
+Xrun nslookup so you can check the configuration).
+X
+X11. Start the in.named daemon by hand
+X
+X
+X	su
+X	/usr/sbin/in.named
+X
+X
+X12. Edit the file /etc/resolv.conf
+X
+XResolv.conf 
+X
+Xdomain	mydom.com
+Xnameserver 127.0.0.1		# this is the localhost 
+X
+X
+X13.  Test the named using nslookup
+X
+Xnslookup
+X
+XDefault Server:  localhost
+XAddress:  127.0.0.1
+X
+X>   ns.novell.com
+XServer:  localhost
+XAddress:  127.0.0.1
+X
+XName:    ns.novell.com
+XAddresses:  137.65.4.1, 137.65.1.1
+X             
+X
+X
+X14. Do you just want a cacheonly DNS server?
+X
+XJust copy boot.cacheonly to named.boot and restart the in.named
+Xwith a kill -HUP.
+X
+X
+X15. What do you need for other clients in your cluster
+Xjust edit /etc/resolv.conf
+X
+X; sample /etc/resolv.conf for client
+Xdomain mydom.com
+Xnameserver 192.9.200.1
+X
+X
+XTroubleshooting
+X---------------
+XFirstly: PLEASE CONSIDER getting the O'Reilly book 
+XDNS and Bind ISBN 1-56592-010-4.
+XIt's essential reading and explains fully how best to use the h2n tool
+Xand much much more. 
+X
+X
+XSymptom: in.named refuses to start. 
+X
+XResolution: check that the symlink to /etc/inet/named.boot is in place
+X
+X
+X
+X=================================================================
+XStarting and Stopping the in.named
+X
+XYour DNS is now setup.  To start your DNS, you will need to stop
+Xand start the in.named process.  Once restarted, in.named will
+Xautomatically detect the named.boot file in the /etc/inet directory
+Xand start your DNS.  To stop the in.named process execute the
+Xfollowing commands as root:
+X
+Xps -ef | grep in.named
+X
+XThe PID# will be found in column two.  Kill the process with the
+Xfollowing command.  Replace PID# with the number you saw 
+Xin column
+X two.
+X
+Xkill -1 PID#
+X
+XTo start the in.named process type "/usr/sbin/in.named".  This
+Xprocess will start automatically when you reboot. Once 
+Xin.named is running with the new configuration you will need to test 
+Xyour DNS. Use the ping and nslookup commands to test your DNS. 
+XBoth of these programs are found in /usr/sbin.
+X
+X
+________This_Is_The_END________
+if test `wc -l < HOWTO.DNS` -ne 256; then
+	echo 'shar: HOWTO.DNS was damaged during transit (should have been 256 bytes)'
+fi
+fi		; : end of overwriting check
+echo 'x - db.cache'
+if test -f db.cache; then echo 'shar: not overwriting db.cache'; else
+sed 's/^X//' << '________This_Is_The_END________' > db.cache
+X.	99999999	IN	NS	AOS.ARL.ARMY.MIL.
+X.	99999999	IN	NS	C.PSI.NET.
+X.	99999999	IN	NS	NIC.NORDU.NET.
+X.	99999999	IN	NS	NS.INTERNIC.NET.
+X.	99999999	IN	NS	NS.ISC.ORG.
+X.	99999999	IN	NS	NS.NASA.GOV.
+X.	99999999	IN	NS	NS.NIC.DDN.MIL.
+X.	99999999	IN	NS	NS1.ISI.EDU.
+X.	99999999	IN	NS	TERP.UMD.EDU.
+XAOS.ARL.ARMY.MIL.	99999999	IN	A	128.63.4.82
+XAOS.ARL.ARMY.MIL.	99999999	IN	A	192.5.25.82
+XC.PSI.NET.	99999999	IN	A	192.33.4.12
+XNIC.NORDU.NET.	99999999	IN	A	192.36.148.17
+XNS.INTERNIC.NET.	99999999	IN	A	198.41.0.4
+XNS.ISC.ORG.	99999999	IN	A	192.5.5.241
+XNS.NASA.GOV.	99999999	IN	A	128.102.16.10
+XNS.NASA.GOV.	99999999	IN	A	192.52.195.10
+XNS1.ISI.EDU.	99999999	IN	A	128.9.0.107
+XTERP.UMD.EDU.	99999999	IN	A	128.8.10.90
+X
+________This_Is_The_END________
+if test `wc -l < db.cache` -ne 20; then
+	echo 'shar: db.cache was damaged during transit (should have been 20 bytes)'
+fi
+fi		; : end of overwriting check
+echo 'x - h2n'
+if test -f h2n; then echo 'shar: not overwriting h2n'; else
+sed 's/^X//' << '________This_Is_The_END________' > h2n
+X#!/usr/gnu/bin/perl
+X
+X#NAME
+X#
+X#    h2n - Translate host table to name server file format
+X#    $Date: 93/02/04 17:43:05 $  $Revision: 1.16 $
+X#
+X#SYNOPSIS
+X#
+X#    h2n -d DOMAIN -n NET [options]
+X
+X# Various defaults
+X$Host = `hostname`;
+Xchop($Host);
+X$Host =~ s/\..*//;       		
+X$doaliases = 1;
+X$domx = 1;
+X$dowks = 0;
+X$dotxt = 0;
+X$dontdodomains = 0;
+X$Bootfile = "./named.boot";
+X$Hostfile = "/etc/hosts";
+X$Commentfile = "";
+X$Commentfileread = 0;
+X$User = "root";
+X$Pwd = `pwd`;
+X$RespHost = "";
+X$RespUser = "";
+X$DefSerial = 1;
+X$DefRefresh = 10800;
+X$DefRetry = 3600;
+X$DefExpire = 604800;
+X$DefTtl = 86400;
+X$DefMxWeight = 10;
+X$Defsubnetmask = "";
+X$ForceSerial = -1;
+X
+Xpush(@bootmsgs, "primary\t0.0.127.IN-ADDR.ARPA db.127.0.0\n");
+X
+X&PARSEARGS(@ARGV);
+X&FIXUP;
+X
+Xopen(HOSTS, $Hostfile) || die "can not open $Hostfile";
+X
+XLINE: while(<HOSTS>){
+X    next if /^#/;        # skip comment lines
+X    next if /^$/;  	 # skip empty lines
+X    chop;                # remove the trailing newline
+X    tr/A-Z/a-z/;	 # translate to lower case 
+X
+X    ($data,$comment) = split('#', $_, 2);
+X    ($addr, $names) = split(' ', $data, 2);
+X    if ($names =~ /^[ \t]*$/) {
+X	print STDERR "Bad line in hosts file ignored '$_'\n";
+X	next LINE;
+X    }
+X
+X    # Match -e args
+X    foreach $netpat (@elimpats){
+X	next LINE if (/[.\s]$netpat/);
+X    }
+X
+X    # Process -c args
+X    foreach $netpat (@cpats){
+X	if (/\.$netpat/) {
+X	    ($canonical, $aliases) = split(' ', $names, 2);
+X	    $canonical =~ s/\.$netpat//; 
+X	    if($Cnames{$canonical} != 1){
+X	        printf DOMAIN "%-20s IN  CNAME %s.%s.\n", 
+X		       $canonical, $canonical, $cpatrel{$netpat};
+X		$Cnames{$canonical} = 1;
+X	    }
+X	    next LINE;
+X	}
+X    }
+X
+X    # Check that the address is in the address list.
+X    $match = 'none';
+X    foreach $netpat (@Netpatterns){
+X	$match = $netpat, last if ($addr =~ /^$netpat\./);
+X    }
+X    next if ($match eq 'none');
+X
+X    ($canonical, $aliases) = split(' ', $names, 2);  # separate out aliases
+X    next if ($dontdodomains && $canonical =~ /\./);  # skip domain names
+X    $canonical =~ s/$Domainpattern//;     # strip off domain if there is one
+X    $Hosts{$canonical} .= $addr . " ";    # index addresses by canonical name
+X    $Aliases{$addr} .= $aliases . " ";    # index aliases by address
+X    $Comments{"$canonical-$addr"} = $comment;
+X
+X    # Print PTR records
+X    $file = $Netfiles{$match};
+X    printf $file "%-30s\tIN  PTR   %s.%s.\n", 
+X	   &REVERSE($addr), $canonical, $Domain;
+X}
+X
+X#
+X# Go through the list of canonical names.
+X# If there is more than 1 address associated with the
+X# name, it is a multi-homed host.  For each address 
+X# look up the aliases since the aliases are associated 
+X# with the address, not the canonical name.
+X#
+Xforeach $canonical (keys %Hosts){
+X    @addrs = split(' ', $Hosts{$canonical});
+X    $numaddrs = $#addrs + 1;
+X    foreach $addr (@addrs) {
+X	#
+X	# Print address record for canonical name.
+X	#
+X	if($Cnames{$canonical} != 1){
+X	    printf DOMAIN "%-20s IN  A     %s\n", $canonical, $addr;
+X	} else {
+X	    print STDERR "$canonical - can't create A record because CNAME exists for name.\n";
+X	}
+X	#
+X	# Print cname or address records for each alias.
+X	# If this is a multi-homed host, print an address
+X	# record for each alias.  If this is a single address
+X	# host, print a cname record.
+X	#
+X	if ($doaliases) {
+X	    @aliases = split(' ', $Aliases{$addr});
+X	    foreach $alias (@aliases){
+X		#
+X		# Skip over the alias if the alias and canonical
+X		# name only differ in that one of them has the
+X		# domain appended to it.
+X		#
+X    		next if ($dontdodomains && $alias =~ /\./); # skip domain names
+X		$alias =~ s/$Domainpattern//;
+X		if($alias eq $canonical){
+X		    next;
+X		}
+X
+X		if($numaddrs > 1){
+X		    printf DOMAIN "%-20s IN  A     %s\n", $alias, $addr;
+X		} else {
+X		    #
+X		    # Flag aliases that have already been used
+X		    # in CNAME records or have A records.
+X		    #
+X		    if(($Cnames{$alias} != 1) && (!$Hosts{$alias})){
+X			printf DOMAIN "%-20s IN  CNAME %s.%s.\n", 
+X			       $alias, $canonical, $Domain;
+X			$Cnames{$alias} = 1;
+X		    } else {
+X			print STDERR "$alias - CNAME or A exists already; alias ignored\n";
+X		    }
+X		}
+X	    }
+X	}
+X    }
+X    if ($domx) {
+X	&MX($canonical, @addrs);
+X    }
+X    if ($dotxt) {
+X	&TXT($canonical, @addrs);
+X    }
+X    if ($Commentfile ne "") {
+X	&DO_COMMENTS($canonical, @addrs);
+X    }
+X}
+X
+X# Deal with spcl's
+Xif (-r "spcl.$Domainfile") {
+X    print DOMAIN "\$INCLUDE spcl.$Domainfile\n";
+X}
+Xforeach $n (@Networks) {
+X    if (-r "spcl.$n") {
+X	$file = "DB.$n";
+X	print $file "\$INCLUDE spcl.$n\n";
+X    }
+X}
+X
+X# generate boot.* files
+X&GEN_BOOT;
+X
+Xexit;
+X
+X
+X#
+X# Generate resource record data for
+X# strings from the commment field that
+X# are found in the comment file (-C).
+X#
+Xsub DO_COMMENTS {
+X    local($canonical, @addrs) = @_;
+X    local(*F, @c, $c, $a, $comments);
+X    
+X    if (!$Commentfileread) {
+X	open(F, $Commentfile) || die "Unable to open file $Commentfile: $!";
+X	$Commentfileread++;
+X	while (<F>) {
+X	    chop;
+X	    ($key, $c) = split(':', $_, 2);
+X	    $CommentRRs{$key} = $c;
+X	}
+X	close(F);
+X    }
+X    
+X    foreach $a (@addrs) {
+X	$key = "$canonical-$a";
+X	$comments .= " $Comments{$key}";
+X    }
+X
+X    @c = split(' ', $comments);
+X    foreach $c (@c) {
+X	if($CommentRRs{$c}){
+X	    printf DOMAIN "%-20s %s\n", $canonical, $CommentRRs{$c};
+X	}
+X    }
+X}
+X
+X
+X#
+X# Generate MX record data
+X#
+Xsub MX {
+X    local($canonical, @addrs) = @_;
+X    local($first, $a, $key, $comments);
+X
+X    if($Cnames{$canonical}){
+X	print STDERR "$canonical - can't create MX record because CNAME exists for name.\n";
+X	return;
+X    }
+X    $first = 1;
+X
+X    foreach $a (@addrs) {
+X	$key = "$canonical-$a";
+X	$comments .= " $Comments{$key}";
+X    }
+X    
+X    if ($comments !~ /\[no smtp\]/) {
+X        # Add WKS if requested
+X        if ($dowks) {
+X	    foreach $a (@addrs) {
+X	        printf DOMAIN "%-20s IN  WKS   %s TCP SMTP\n", $canonical, $a;
+X	    }
+X        }
+X	printf DOMAIN "%-20s IN  MX    %s %s.%s.\n", $canonical, $DefMxWeight, 
+X	       $canonical, $Domain; 
+X	$first = 0;
+X    }
+X    if ($#Mx >= 0) {
+X	foreach $a (@Mx) {
+X	    if ($first) {
+X		printf DOMAIN "%-20s IN  MX    %s\n", $canonical, $a; 
+X		$first = 0;
+X	    } else {
+X		printf DOMAIN "%-20s IN  MX    %s\n", "", $a; 
+X	    }
+X	}
+X    }
+X
+X}
+X
+X
+X#
+X# Generate TXT record data
+X#
+Xsub TXT {
+X    local($canonical, @addrs) = @_;
+X    local($a, $key, $comments);
+X
+X    foreach $a (@addrs) {
+X	$key = "$canonical-$a";
+X	$comments .= " $Comments{$key}";
+X    }
+X    $comments =~ s/\[no smtp\]//g;
+X    $comments =~ s/^\s*//;
+X    $comments =~ s/\s*$//;
+X    
+X    if ($comments ne "") {
+X	printf DOMAIN "%s IN  TXT   \"%s\"\n", $canonical, $comments;
+X    }
+X}
+X
+X
+X#
+X# Create the SOA record at the beginning of the file
+X#
+Xsub MAKE_SOA {
+X    local($fname, $file) = @_;
+X    local($s);
+X
+X    if ( -s $fname) {
+X	open($file, "$fname") || die "Unable to open $fname: $!";
+X	$_ = <$file>;
+X	chop;
+X	if (/\($/) {
+X	    if (! $soa_warned) {
+X		print STDERR "Converting SOA format to new style.\n";
+X		$soa_warned++;
+X	    }
+X	    if ($ForceSerial > 0) {
+X		$Serial = $ForceSerial;
+X	    } else {
+X		($Serial, $junk) = split(' ', <$file>, 2);
+X		$Serial++;
+X	    }
+X	    if (!defined($Refresh)) {
+X		($Refresh, $junk) = split(' ', <$file>, 2);
+X		($Retry, $junk) = split(' ', <$file>, 2);
+X		($Expire, $junk) = split(' ', <$file>, 2);
+X		($Ttl, $junk) = split(' ', <$file>, 2);
+X	    }
+X	} else {
+X	    split(' ');
+X	    if ($#_ == 11) {
+X		if ($ForceSerial > 0) {
+X		    $Serial = $ForceSerial;
+X		} else {
+X		    $Serial = ++@_[6];
+X		}
+X		if (!defined($Refresh)) {
+X		    $Refresh = @_[7];
+X		    $Retry = @_[8];
+X		    $Expire = @_[9];
+X		    $Ttl = @_[10];
+X		}
+X	    } else {
+X		print STDERR "Improper format SOA in $fname.\n";
+X		print STDERR "I give up ... sorry.\n";
+X		exit(1);
+X	    }
+X	}
+X	close($file);
+X    } else {
+X	if ($ForceSerial > 0) {
+X	    $Serial = $ForceSerial;
+X	} else {
+X	    $Serial = $DefSerial;
+X	}
+X	if (!defined($Refresh)) {
+X	    $Refresh = $DefRefresh;
+X	    $Retry = $DefRetry;
+X	    $Expire = $DefExpire;
+X	    $Ttl = $DefTtl;
+X	}
+X	close($file);
+X    }
+X
+X    open($file, "> $fname") || die "Unable to open $fname: $!";
+X
+X    print $file "\@ IN  SOA $RespHost $RespUser ";
+X    print $file "( $Serial $Refresh $Retry $Expire $Ttl )\n";
+X    foreach $s (@Servers) {
+X	print $file "  IN  NS  $s\n";
+X    }
+X    print $file "\n";
+X}
+X
+X
+X#
+X# Reverse the octets of an IP address and append
+X# in-addr.arpa.
+X#
+Xsub REVERSE {
+X    join('.', reverse(split('\.', $_[0]))) . '.IN-ADDR.ARPA.';
+X}
+X
+X
+X#
+X# Establish what we will be using for SOA records
+X#
+Xsub FIXUP {
+X    local($s);
+X
+X    if ($Host =~ /\./) {
+X	$RespHost = "$Host.";
+X    } else {
+X	$RespHost = "$Host.$Domain.";
+X    }
+X    $RespHost =~ s/\.\././g;
+X
+X    if ($User =~ /@/) {				# -u user@...
+X	if ($User =~ /\./) {
+X	    $RespUser = "$User.";		# -u user@terminator.movie.edu
+X	} else {
+X	    $RespUser = "$User.$Domain."; 	# -u user@terminator
+X	}
+X	$RespUser =~ s/@/./;
+X    } elsif ($User =~ /\./) {
+X	$RespUser = "$User.";			# -u user.terminator.movie.edu
+X    } else {
+X	$RespUser = "$User.$RespHost";		# -u user
+X    }
+X    $RespUser =~ s/\.\././g;			# Strip any ".."'s to "."
+X
+X    # Clean up nameservers
+X    if (!defined(@Servers)) {
+X	push(@Servers, "$Host.$Domain.");
+X    } else {
+X	foreach $s (@Servers) {
+X	    if ($s !~ /\./) {
+X		$s .= ".$Domain";
+X	    }
+X	    if ($s !~ /\.$/) {
+X		$s .= ".";
+X	    }
+X	}
+X    }
+X
+X    # Clean up MX hosts
+X    foreach $s (@Mx) {
+X	$s =~ s/:/ /;
+X	if ($s !~ /\./) {
+X	    $s .= ".$Domain";
+X	}
+X	if ($s !~ /\.$/) {
+X	    $s .= ".";
+X	}
+X    }
+X
+X    # Now open boot file and print saved data
+X    open(BOOT, "> $Bootfile")  || die "can not open $Bootfile";
+X    print BOOT "\ndirectory $Pwd\n";
+X    foreach $line (@bootmsgs) {
+X	print BOOT $line;
+X    }
+X    print BOOT "cache\t. db.cache\n";
+X
+X    # Go ahead and start creating files and making SOA's
+X    foreach $i (@makesoa) {
+X	($x1, $x2) = split(' ', $i);
+X	&MAKE_SOA($x1, $x2);
+X    }
+X    printf DOMAIN "%-20s IN  A     127.0.0.1\n", "localhost";
+X    
+X    $file = "DB.127.0.0.1";
+X    &MAKE_SOA("db.127.0.0", $file);
+X    printf $file "%-30s\tIN  PTR   localhost.\n", &REVERSE("127.0.0.1");
+X    close($file);
+X}
+X
+X
+Xsub PARSEARGS {
+X    local(@args) = @_;
+X    local($i, $net, $subnetmask, $option, $tmp1);
+X    local(*F, $file, @newargs, @targs);
+X
+X    $i = 0;
+X    while ($i <= $#args){
+X	$option = $args[$i];
+X	if($option eq "-d"){
+X	    $Domain = $args[++$i];
+X	    $Domainpattern = "." . $Domain;
+X	    $Domainpattern =~ s/\./\\./g;        # for stripping off domain
+X
+X	    # Add entry to the boot file.
+X	    $Domainfile = $Domain;
+X	    $Domainfile =~ s/\..*//;
+X	    push(@makesoa, "db.$Domainfile DOMAIN");
+X	    push(@bootmsgs, "primary\t$Domain db.$Domainfile\n");
+X
+X	} elsif ($option eq "-f"){
+X	    $file = $args[++$i];
+X	    open(F, $file) || die "Unable to open args file $file: $!";
+X	    while (<F>) {
+X		next if (/^#/);
+X		next if (/^$/);
+X		chop;
+X		@targs = split(' ');
+X		push(@newargs, @targs);
+X	    }
+X	    close(F);
+X	    &PARSEARGS(@newargs);
+X
+X	} elsif ($option eq "-z"){
+X	    $Bootsecsaveaddr = $args[++$i];
+X	    if (!defined($Bootsecaddr)) {
+X		$Bootsecaddr = $Bootsecsaveaddr;
+X	    }
+X
+X	} elsif ($option eq "-Z"){
+X	    $Bootsecaddr = $args[++$i];
+X	    if (!defined($Bootsecsaveaddr)) {
+X		$Bootsecsaveaddr = $Bootsecaddr;
+X	    }
+X
+X	} elsif ($option eq "-b"){
+X	    $Bootfile = $args[++$i];
+X
+X	} elsif ($option eq "-A"){
+X	    $doaliases = 0;
+X
+X	} elsif ($option eq "-M"){
+X	    $domx = 0;
+X
+X	} elsif ($option eq "-w"){
+X	    $dowks = 1;
+X
+X	} elsif ($option eq "-D"){
+X	    $dontdodomains = 1;
+X
+X	} elsif ($option eq "-t"){
+X	    $dotxt = 1;
+X
+X	} elsif ($option eq "-u"){
+X	    $User = $args[++$i];
+X
+X	} elsif ($option eq "-s"){
+X	    while ($args[++$i] !~ /^-/ && $i <= $#args) {
+X		push(@Servers, $args[$i]);
+X	    }
+X	    $i--;
+X
+X	} elsif ($option eq "-m"){
+X	    if ($args[++$i] !~ /:/) {
+X		print STDERR "Improper format for -m option ignored ($args[$i]).\n";
+X	    }
+X	    push(@Mx, $args[$i]);
+X
+X	} elsif ($option eq "-c"){
+X	    $tmp1 = $args[++$i];
+X	    if ($tmp1 !~ /\./) {
+X		$tmp1 .= ".$Domain";
+X	    }
+X	    $tmp2 = $tmp1;
+X	    $tmp2 =~ s/\./\\./g; 
+X	    $cpatrel{$tmp2} = $tmp1;
+X	    push(@cpats, $tmp2);
+X
+X	} elsif ($option eq "-e"){
+X	    $tmp1 = $args[++$i];
+X	    if ($tmp1 !~ /\./) {
+X		$tmp1 .= ".$Domain";
+X	    }
+X	    $tmp1 =~ s/\./\\./g; 
+X	    push(@elimpats, $tmp1);
+X
+X	} elsif ($option eq "-h"){
+X	    $Host = $args[++$i];
+X
+X	} elsif ($option eq "-o"){
+X	    if (   $args[++$i] !~ /^[:\d]*$/ 
+X		|| split(':', $args[$i]) != 4) {
+X		print STDERR "Improper format for -o ($args[$i]).\n";
+X		print STDERR "I give up ... sorry.\n";
+X		exit(1);
+X	    }
+X	    ($DefRefresh, $DefRetry, $DefExpire, $DefTtl) = split(':', $args[$i]);
+X
+X	} elsif ($option eq "-i"){
+X	    $ForceSerial = $args[++$i];
+X
+X	} elsif ($option eq "-H"){
+X	    $Hostfile = $args[++$i];
+X	    if (! -r $Hostfile || -z $Hostfile) {
+X		print STDERR "Invalid file specified for -H ($Hostfile).\n";
+X		print STDERR "I give up ... sorry.\n";
+X		exit(1);
+X	    }
+X
+X	} elsif ($option eq "-C"){
+X	    $Commentfile = $args[++$i];
+X	    if (! -r $Commentfile || -z $Commentfile) {
+X		print STDERR "Invalid file specified for -C ($Commentfile).\n";
+X		print STDERR "I give up ... sorry.\n";
+X		exit(1);
+X	    }
+X
+X	} elsif ($option eq "-N"){
+X	    $Defsubnetmask = $args[++$i];
+X	    if (   $Defsubnetmask !~ /^[.\d]*$/ 
+X		|| split('\.', $Defsubnetmask) != 4) {
+X		print STDERR "Improper subnet mask ($Defsubnetmask).\n";
+X		print STDERR "I give up ... sorry.\n";
+X		exit(1);
+X	    }
+X	    if ($#Networks >= 0) {
+X		print STDERR "Hmm, -N option should probably be specified before any -n options.\n";
+X	    }
+X
+X	} elsif ($option eq "-n"){
+X	    ($net, $subnetmask) = split(':',$args[++$i]);
+X	    if ($subnetmask eq "") {
+X		foreach $tmp1 (&SUBNETS($net, $Defsubnetmask)) {
+X		    &BUILDNET($tmp1);
+X		}
+X	    } else {
+X		if (   $subnetmask !~ /^[.\d]*$/ 
+X		    || split('\.', $subnetmask) != 4) {
+X		    print STDERR "Improper subnet mask ($subnetmask).\n";
+X		    print STDERR "I give up ... sorry.\n";
+X		    exit(1);
+X		}
+X		foreach $tmp1 (&SUBNETS($net, $subnetmask)) {
+X		    &BUILDNET($tmp1);
+X		}
+X	    }
+X
+X	} elsif ($option eq "-1"){
+X	    print STDERR "Option -1 is obsolete ... ignored.\n";
+X
+X	} elsif ($option eq "-F"){
+X	    print STDERR "Option -F is now the default (and only) way ... ignored.\n";
+X
+X	} else {
+X	    if($option =~ /^-.*/){
+X		print STDERR "Unknown option: $option ... ignored.\n";
+X	    }
+X	}
+X	$i++;
+X    }
+X    
+X    if (!defined(@Networks) || $Domain eq "") {
+X	print STDERR "Must specify at least -d and one -n.\n";
+X	print STDERR "I give up ... sorry.\n";
+X	exit(1);
+X    }
+X}
+X
+X
+Xsub BUILDNET {
+X    local($net) = @_;
+X
+X    push(@Networks, $net);
+X    #
+X    # Create pattern to match against.  
+X    # The dots must be changed to \. so they 
+X    # aren't used as wildcards.
+X    #
+X    $netpat = $net;
+X    $netpat =~ s/\./\\./g;
+X    push(@Netpatterns, $netpat);
+X
+X    #
+X    # Create db files for PTR records.
+X    # Save the file names in an array for future use.
+X    #
+X    $netfile = "DB.$net";
+X    $Netfiles{$netpat} = $netfile;
+X    push(@makesoa, "db.$net $netfile");
+X
+X    # Add entry to the boot file.
+X    $revaddr = &REVERSE($net);
+X    chop($revaddr);   # remove trailing dot
+X    push(@bootmsgs, "primary $revaddr db.$net\n");
+X}
+X
+X
+X#
+X# Calculate all the subnets from a network number and mask.
+X# This was originally written for awk, not perl.
+X#
+Xsub SUBNETS {
+X    local($network, $mask) = @_;
+X    local(@ans, @net, @mask, $buf, $number, $i, $j, $howmany);
+X
+X    @net = split(/\./, $network);
+X    @mask = split(/\./, $mask);
+X    $number = '';
+X    #
+X    # Only expand bytes 1, 2, or 3
+X    # for DNS purposes
+X    #
+X    for ($i = 0; $i < 3; $i++) {
+X	if ($mask[$i] == 255) {
+X	    $number = $number . $net[$i] . '.';
+X	} elsif (($mask[$i] == 0) || $mask[$i] eq '') {
+X	    push(@ans, $network);
+X	    last;
+X	} else {
+X	    #
+X	    # This should be done as a bit-wise or
+X	    # but awk does not have an or symbol
+X	    #
+X	    $howmany = 255 - $mask[$i];
+X	    for ($j = 0; $j <= $howmany; $j++) {
+X		if ($net[$i] + $j <= 255) {
+X		    $buf = sprintf("%s%d", $number, $net[$i] + $j);
+X		    push(@ans, $buf);
+X		}
+X	    }
+X	    last;
+X	}
+X    }
+X
+X    if ($#ans == -1) {
+X	push(@ans, $network);
+X    }
+X    
+X    @ans;
+X}
+X
+X
+Xsub GEN_BOOT {
+X    local(*F, $revaddr, $n);
+X
+X    if (! -e "boot.cacheonly") {
+X	open(F, ">boot.cacheonly") || die "Unable to open boot.cacheonly: $!";
+X	print F "directory\t$Pwd\n";
+X	print F "primary\t\t0.0.127.IN-ADDR.ARPA    db.127.0.0\n";
+X	print F "cache\t\t.                       db.cache\n";
+X	close(F);
+X    }
+X    
+X    if (defined($Bootsecaddr)) {
+X	open(F, ">boot.sec") || die "Unable to open boot.sec: $!";
+X	print  F "directory\t$Pwd\n";
+X	print  F "primary\t\t0.0.127.IN-ADDR.ARPA    db.127.0.0\n";
+X	printf F "secondary\t%-23s $Bootsecaddr\n", $Domain;
+X	foreach $n (@Networks) {
+X	    $revaddr = &REVERSE($n);
+X	    chop($revaddr);
+X	    printf F "secondary\t%-23s $Bootsecaddr\n", $revaddr;
+X	}
+X	print  F "cache\t\t.                       db.cache\n";
+X	close(F);
+X
+X	open(F, ">boot.sec.save") || die "Unable to open boot.sec.save: $!";
+X	print  F "directory\t$Pwd\n";
+X	print  F "primary\t\t0.0.127.IN-ADDR.ARPA    db.127.0.0\n";
+X	printf F "secondary\t%-23s $Bootsecsaveaddr db.%s\n", 
+X	       $Domain, $Domainfile;
+X	foreach $n (@Networks) {
+X	    $revaddr = &REVERSE($n);
+X	    chop($revaddr);
+X	    printf F "secondary\t%-23s $Bootsecsaveaddr db.%s\n", 
+X		   $revaddr, $n;
+X	}
+X	print  F "cache\t\t.                       db.cache\n";
+X	close(F);
+X    }
+X}
+________This_Is_The_END________
+if test `wc -l < h2n` -ne 727; then
+	echo 'shar: h2n was damaged during transit (should have been 727 bytes)'
+fi
+fi		; : end of overwriting check
+echo 'x - h2n.man'
+if test -f h2n.man; then echo 'shar: not overwriting h2n.man'; else
+sed 's/^X//' << '________This_Is_The_END________' > h2n.man
+XNAME
+X
+X    h2n - Translate host table to name server file format
+X
+XSYNOPSIS
+X
+X    h2n -d DOMAIN -n NET [options]
+X
+XDESCRIPTION
+X
+X    h2n translates /etc/hosts to DNS files and creates a BIND boot file.
+X    This tool can be run once or many times.  After converting your host
+X    table to DNS format, you can manually maintain the DNS files, or you
+X    can maintain the host table and run h2n each time you modify
+X    /etc/hosts.  h2n automatically increments the serial number in each DNS
+X    file when it makes a new one.
+X
+X    h2n generates files starting with the prefix "db."  These are called
+X    "db files."  The domain data is stored in a file called db.DOMAIN,
+X    where DOMAIN is the first label in your domain name (given with the -d
+X    option).  The address-to-name data is stored in files named db.NET,
+X    where NET is a network number (given with the -n option).
+X
+X    Each time h2n is run, it generates the DNS files from scratch.  Any
+X    changes you manually made to the DNS files are lost.  If you'd like to
+X    add resource records to a db file generated by h2n, put your RRs in a
+X    file prefixed with "spcl" instead of "db".  h2n will include this
+X    file's data by adding a $INCLUDE directive to the end of the db file.
+X
+X    By default, h2n will generate an MX record with a weight of 10 that
+X    points to the host itself as the mail exchanger.  MX records can be
+X    suppressed with -M.  Additional MX records can be added with -m.  To
+X    suppress generating the default MX record for a host, include "[no
+X    smtp]" in that host's host table comment.
+X
+X    By default, h2n will create a boot file, ./boot.cacheonly, for a
+X    caching only name server.  If either of the -z or -Z options are used,
+X    h2n creates a boot file, named ./boot.sec.save or ./boot.sec
+X    respectively, for a secondary name server.
+X
+X    Options are:
+X
+X    	-b BOOTFILE
+X		Use BOOTFILE instead of the default: ./named.boot.
+X
+X	-c DOMAIN
+X		Create CNAME records in the default domain for all the
+X		hosts in DOMAIN.  Including more than one -c option is
+X		allowed.
+X
+X	-d DOMAIN
+X		Your domain name is DOMAIN.
+X
+X	-e DOMAIN
+X		Eliminate all lines from the host table with names in
+X		DOMAIN.  Including more than one -e option is allowed.
+X
+X	-f FILE
+X		Command line options are in a file called FILE.  This
+X		option cannot be used within FILE.
+X
+X	-h HOST
+X		Use HOST in the fields of the SOA record that require a
+X		hostname.  The default is the host on which you run h2n.
+X
+X	-m WEIGHT:MX-HOST
+X		Include an MX record for each host in your domain pointing
+X		to MX-HOST at WEIGHT.  Including more than one -m option is
+X		allowed.  Example:  -m 10:terminator.movie.edu -m
+X		20:wormhole
+X
+X	-n NET[:SUBNETMASK]
+X		NET is your network number without the trailing zeros.
+X		Including more than one -n option is allowed.  If
+X		SUBNETMASK is provided, create data for each subnet of NET.
+X		Example:  -n 192.249.249 -n 15.15.16:255.255.248.0
+X
+X	-o REFRESH:RETRY:EXPIRE:MINIMUM
+X		Change the default SOA values (10800:3600:604800:86400) to
+X		the values provided.
+X
+X	-s SERVER
+X		List SERVER in each domain's NS records.  Including more
+X		than one -s option is allowed.
+X
+X	-t      Generate TXT records from the host table comments.  If "[no
+X		smtp]" appears in a comment, it is ignored.
+X
+X	-u USER
+X		Use USER in the SOA mail address instead of root.  USER can
+X		be a complete mail address as in:  me@a.b.c.
+X
+X	-w      Generate WKS records that list the SMTP service over the
+X		TCP protocol if an MX record is also created.
+X
+X	-z ADDRESS
+X		Create a boot file, ./boot.sec.save, for a secondary name
+X		server that lists ADDRESS as the master to load from.  Save
+X		a copy of the domain data in a backup file.  (This option
+X		is similar to the -Z option.)
+X
+X	-C COMMENT-FILE
+X		Create resource records by using keys in the host table
+X		comment field as indices into COMMENT-FILE.  COMMENT-FILE
+X		contains "key:resource record" pairs like:  "720:IN HINFO
+X		hp9000s720 hp-ux".  When h2n encounters "720" in the
+X		comment section of the host table, it creates a resource
+X		record by replacing the "720:"  with the host's canonical
+X		name.
+X
+X	-H HOSTFILE
+X		Use HOSTFILE instead of /etc/hosts.
+X
+X	-M      Don't generate MX records.
+X
+X	-N SUBNETMASK
+X		Apply SUBNETMASK to all network numbers instead of listing
+X		each subnet with -n.  Specifying a subnet mask with -n
+X		overrides the -N subnet mask for that network only.
+X
+X	-Z ADDRESS
+X		Create a boot file, ./boot.sec, for a secondary name server
+X		that lists ADDRESS as the master to load from.  Do not save
+X		a copy of the data in a backup file.  (This option is
+X		similar to the -z option.)
+X
+XEXAMPLES
+X
+X    Create name server data for networks 192.249.249 and 192.253.253 in
+X    movie.edu.
+X
+X	h2n -d movie.edu -n 192.249.249 -n 192.253.253
+X
+X    Create name server data for networks 192.249.249 and 192.253.253 in
+X    movie.edu.  Eliminate lines in the host table that contain fx.movie.edu
+X    and include MX records for all hosts pointing to the mail hub,
+X    postmanrings2x.movie.edu.  Include all of the options in a file.
+X
+X	h2n -f option_file
+X
+X    option_file contains the following lines:
+X
+X	-d movie.edu
+X	-n 192.249.249
+X	-n 192.253.253
+X	-e fx.movie.edu
+X	-m 50:postmanrings2x.movie.edu
+________This_Is_The_END________
+if test `wc -l < h2n.man` -ne 147; then
+	echo 'shar: h2n.man was damaged during transit (should have been 147 bytes)'
+fi
+fi		; : end of overwriting check
+echo 'x - h2n.script'
+if test -f h2n.script; then echo 'shar: not overwriting h2n.script'; else
+sed 's/^X//' << '________This_Is_The_END________' > h2n.script
+X# Change the first section below
+XDOMAIN=mydom.com
+XIPADDR=192.9.200
+XNETMASK=255.255.255.0
+XPRIMARY=`uname -n`
+XSECONDARY=myprovider.com
+XCONTACT=andrew.${PRIMARY}.${DOMAIN}
+X
+X# --------best to leave alone below the line-----------
+XPATH=$PATH:/var/named:/usr/ucb; export PATH
+Xcd /var/named
+Xchmod +rx h2n
+X
+Xh2n -d ${DOMAIN} -n ${IPADDR}:${NETMASK} -s ${PRIMARY}  -s ${SECONDARY}  -u ${CONTACT} 
+Xps -ef|grep named
+Xpid=`ps -e | grep 'in.named$' | awk '{print $1;}'`
+Xecho "do a kill -HUP to the named process, then an nslookup to check:"
+Xecho "kill -HUP $pid? [y] \c"
+Xread ans
+Xif [ "$ans" = "" -o "$ans" = "y" -o "$ans" = "Y" ] ; then
+X	kill -HUP $pid
+X	/usr/sbin/nslookup
+Xfi
+________This_Is_The_END________
+if test `wc -l < h2n.script` -ne 23; then
+	echo 'shar: h2n.script was damaged during transit (should have been 23 bytes)'
+fi
+fi		; : end of overwriting check
+echo 'x - named.boot'
+if test -f named.boot; then echo 'shar: not overwriting named.boot'; else
+sed 's/^X//' << '________This_Is_The_END________' > named.boot
+Xdirectory /var/named
+X
+Xprimary	0.0.127.IN-ADDR.ARPA db.127.0.0
+Xprimary	mydom.com db.mydom
+Xprimary 200.9.192.IN-ADDR.ARPA db.192.9.200
+Xcache	. db.cache
+________This_Is_The_END________
+if test `wc -l < named.boot` -ne 6; then
+	echo 'shar: named.boot was damaged during transit (should have been 6 bytes)'
+fi
+fi		; : end of overwriting check
+exit 0

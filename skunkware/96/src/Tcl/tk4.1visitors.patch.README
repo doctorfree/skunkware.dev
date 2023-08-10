@@ -1,0 +1,79 @@
+What is the Visitor extension:
+  The visitors extension was made to enable users to add "C" operations on
+  canvas graphics items without having to constantly be changing the
+  Tk core to do so (yes it required a core change :-). There is a sample
+  visitor included in the release which performs coord rotation on each
+  specified canvas item. This may be used as an example for further visitors.
+
+  Of course, this won't help you create items in C. I've included an example
+  of how I did some creation routines (quickly) once.
+
+
+Getting the patch:
+  Presently, the patch is available from:
+        ftp://pgw.on.ca/pub/tcl
+
+  I've also uploaded it to:
+	ftp://ftp.neosoft.com/pub/tcl/incoming
+ 
+
+Applying the patch:
+  The tk4.1visitors.patch is a patch for tk4.1 (final).
+  Run "patch -p <tk4.1visitors.patch" from the top directory
+  of the tk4.1 distribution. This info is also supplied in the patch
+  file itself.
+
+  Once you have this patch compiled there is a little sample of what
+  the rotation visitor does. run rotate_test.tk with the new wish. The
+  usage is:
+      canvas visit rotate tagOrID -angle angle -xcenter x -ycenter y
+
+
+More information:
+  Nobody's reported any problems installing the patch so far, except for
+  some minor incompatibilty with Jeffrey Hobbs' "Tk entry widget
+  validation patch" (in tkEntry.c - see below).
+
+  However, there is a mailing list for sharing information/problems with
+  the visitors extension as well as any other extensions (preferably)
+  related to the tk canvas widget.
+
+  You can subscribe to the list by sending e-mail to:
+        Majordomo@pgw.on.ca
+
+  with the mail body:
+        subscribe canvas-visitors
+
+  You can also send mail directly to Matthew Rice at:
+        Matthew.Rice@pgw.on.ca
+
+
+What is a canvas extension doing with tkEntry.c ????:
+  This visitor patch includes Jan Nijtmans' "dash patch". Part of the
+  dash patch is support for "states". Hope this explains everything :-)
+  If not, do a diff on tkEntry.c and tkEntry.c.orig.
+
+
+What visitor specific changes were required:
+  For interest's sake (and because there is no supporting documentation
+  other than the code) here are the major file changes:
+
+  tkCanvas.c    - Added the canvas visit operation in the command list. There
+                    is also a Tk_CreateVisitorType function so that you
+                    may add your own without needing core changes.
+  tkVisRotate.c - (new file) This is the module that implements the rotation
+  tkVisitor.h   - (new file) This is the export canvas item structures.
+  tk.h          - Added Tk_Visitor and Tk_VisitorType structures. 
+                  Added a VisitorProc & BboxProc to the Tk_Item structure.
+
+
+Where's the C API for creating canvas items:
+  There is also a file called C_Canvas_eg.c which shows a very simple 
+  (read hacked) way to create canvas items in C only. Don't expect it
+  to compile. I used this file to map an existing API of graphic objects
+  to canvas items to speed up rendering. Basically it was just a copy'n'paste
+  of the important parts of the CreateItem and ConfigureItem routines
+  in each item module. (It hasn't even been updated for tk4.1 final)
+
+  A true C API for item creation is in the works but it may take a little while.
+

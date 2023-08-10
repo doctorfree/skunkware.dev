@@ -1,0 +1,227 @@
+Binding Applications to the Desktop
+-----------------------------------
+
+This is a short note, directed at the application developer, on the pieces
+that should be packaged with an application to allow users iconic/desktop
+access to the application.  The information is relevant to users who want
+to "tailor" their favorite scripts or binaries for use on the desktop, but
+will not present exhaustive detail on topics like file classes or help files
+-- this is primarily a guide on how the pieces fit together and what they
+are.
+
+I will use a running example of a hypothetical "integegrated" set of a
+word-processor (WhizBang) and associated spreadsheet (WhizCalc) and calendar-
+scheduling tool (WhizDate).  Suppose that these are three distinct a.out
+binaries (possibly with internal "navigation" so that each can invoke the
+others during user interaction.)  These may be either "classical" UNIX
+applications (using stdin/stdout for interaction, possibly through some
+terminfo and curses interface) or X client applications.
+
+A.  ICONS
+
+To represent the WhizDesk applications on the desktop, you will need pixmaps
+(for color screens) and bitmaps (for monochrome screens) that should conform
+to the 32x32 pixel dimensions of the icons shown in desktop folders.  If you
+do not supply icons, the Desktop Manager will use a default "generic" icon
+to represent your files.  Pixmaps can be created through the olpixmap client,
+and bitmaps through a standard MIT X application named bitmap.  If your icon
+has "holes" (areas where you want the background to show through, especially
+if the icon is being dragged over the desktop), you need also to create
+"masks" which are bitmaps with '1' bits in all squares of the 32x32 grid
+that are to be drawn and '0' bits for where the background should show.
+
+The standard location for these icons is in the directory /usr/X/lib; for
+our type case we could have the following files:
+
+			/usr/X/lib
+			     |
+	   -------------------------------------------------
+	   |		     |		   |		   |
+	bitmaps		bitmasks	pixmaps		pixmasks
+	   |		     |		   |		   |
+	wzdesk.icon	wzdesk.icon	wzdesk.icon	wzdesk.icon
+	wzwrite.icon	wzwrite.icon	wzwrite.icon	wzwrite.icon
+	wzcalc.icon	wzcalc.icon	wzcalc.icon	wzcalc.icon
+	wzsched.icon	wzsched.icon	wzsched.icon	wzsched.icon
+	wzwrite.doc	wzwrite.doc	wzwrite.doc	wzwrite.doc
+	wzcalc.doc	wzcalc.doc	wzcalc.doc	wzcalc.doc
+	wzsched.doc	wzsched.doc	wzsched.doc	wzsched.doc
+
+The names are arbitrary, but must be the same across the four directories
+for each icon/mask named.  In the example, icons have been provided for
+each of the component applications (write/calc/sched) and the documents
+they work on, as well as an overall icon to represent the integrated set.
+
+
+B.  FILE CLASSES
+
+These icons are useless if the Desktop Manager doesn't know what you want
+them to represent, and how you want them used.  That's the business of the
+file class mechanism.  Users can create (or modify) their own file classes
+using the Icon_Setup (found in the System_Setup folder of their desktops.)
+Application writers should provide appropriate file classes along with the
+applications.  In the simplest case, you simply invent a class name and
+say what icon you want to represent it, and what files are in the class.
+A simple class definition for the scheduler "piece" of our example might
+be:
+
+	CLASS wz_sched
+	BEGIN
+		_CLASSNAME	'Whiz! Datebook';
+		_FILETYPE	EXEC;
+		_LPATTERN	whizsched.exe;
+		_ICONFILE	wzsched.icon;
+		MENU _Open	'exec "%F" &';
+	END
+
+The _CLASSNAME will show up as the label of this class in the Icon_Setup
+that users may "browse" through to find the classes defined on their systems.
+The _ICONFILE names the icon to associate to the class (this can be a full
+pathname if your icons are somewhere other than in the default location.)
+The _FILETYPE and _LPATTERN are used by the Desktop Manager to determine
+what files "match" this class -- in our example, any executable which is a
+symbolic link to a file with basename whizsched.exe will be shown by the
+DTM with the wzschded.icon picture.  And DTM will "run" the application
+whenever the user double-clicks on it (or selects the Open item from the
+menu that DTM automatically creates in association with this icon when it
+is displayed.)
+
+There are other ways to match file classes with files, besides the link
+pattern, (for example, you could match all executables in /usr/whiz/bin
+by replacing the _LPATTERN line above with _FILEPATH /usr/whiz/bin;)
+However, this is the best form for things that will show up as short-cuts
+in users' desktop Applications folders.
+
+The simple _Open action above is NOT the correct thing to do unless our
+whizsched.exe happens to be an X client.  Or at least there will be no
+window on the screen for it, and no way for the user to interact with it.
+For traditional TTY style interaction, with a non-X executable, you should
+use:
+
+	MENU _Open	'exec xterm -T "Whiz! Datebook" -E "%F" &';
+
+which will generate a Terminal window (with the -T value as title) and run
+the command from within a TTY-style interactive context.  The Terminal
+window will then quietly disappear when the WhizDate session terminates.
+
+You may add other menu items to the standard DTM menus.  If the scheduler
+has different "views" of time (say, weekly, monthly and yearly), you can
+provide easy access to these, in the same manner as command line option
+flags have been used in traditional UNIX applications:
+
+	MENU Weekly	'exec "%F" -w &';
+	MENU Monthly	'exec "%F" -m &';
+	MENU Yearly	'exec "%F" -y &';
+
+Similarly, the overall WhizDesk icon can be used to "switch" among the three
+actual applications by a similar set of MENU entries in the class definition.
+This is especially useful if they can take a file argument, and if there is
+a script (call it whiz.script) that will recognize the whether a file is a
+word processor or spreadsheet or calendar file.  This might give us a class
+like the following:
+
+	CLASS Whiz
+	BEGIN
+		_CLASSNAME	'Whiz! Deskset';
+		_FILETYPE	EXEC;
+		_LPATTERN	whiz.script;
+		_ICONFILE	wzdesk.icon;
+		MENU _Open	'exec /usr/whiz/bin/whizsched.exe -W &';
+		MENU WhizBang	'exec /usr/whiz/bin/whizwrite.exe &';
+		MENU WhizCalc	'exec /usr/whiz/bin/whizcalc.exe &';
+		MENU WhizDate	'exec /usr/whiz/bin/whizsched.exe &';
+		_DROP		'exec "%F" "%S" &';
+	END
+
+The pattern matched on could even be a purely empty file, generated only
+as a convenient catch-all for this icon.  The _DROP action invokes the
+file %F (which is symbolically linked to whiz.script) with its argument
+being the file, %S, that the user dragged-and-dropped onto the WhizDesk
+icon.  Such files would normally be candidates themselves for definition
+as file classes (see below).
+
+The class definitions for the Whiz package should be collected in a file,
+of arbitrary name, which will normally be placed in /usr/X/lib/classdb.
+In our example, we will assume this file is /usr/X/lib/classdb/whiz.cdb.
+
+
+C.  DOCUMENT CLASSES AND PRINTING
+
+	<watch this spot>
+
+D.  HELP FILES
+
+This is not the place to describe the structure of hypertext help files,
+nor the API for invoking them from within a MoOlit application.  However,
+it should be noted that ANY application can have on-line help if it names
+a help file (or several help files) for access through the Help_Desk.  A
+common way of marking these help files in the Help Desk is to associate
+a file with each icon on which the user may want help.  Help files usually
+reside in /usr/X/lib/locale/C/help.  By convention, each application will
+have its own directory there, with the help files beneath it.  So, assume
+hypertext help files:
+
+	/usr/X/lib/locale/C/help/whiz/write.hlp
+	/usr/X/lib/locale/C/help/whiz/calc.hlp
+	/usr/X/lib/locale/C/help/whiz/sched.hlp
+
+E.  APPLICATION SETUP
+
+Finally, the pieces above all have to be put together, in such a way that
+if the user "loses" an application icon (say by tossing it in the waste-
+basket, or the application has been installed on the system sometime after
+the user's desktop account was set up), all the pieces can be retrieved.
+This is part of the function of Appl-n_Setup, and it uses yet another file
+that defines how the pieces relate to each other.  "This is the icon
+definition file" which resides in /usr/X/desktop/PackageMgr, as a file
+whose name is NOT arbitrary, but MUST be exactly the same as the short
+name of the package containing the applicatiion, say "whiz" in this case.
+
+Given our example above, the icon definition file for WhizDesk is
+
+	/usr/X/desktop/PackageMgr/whiz
+
+and it contains the following:
+
+	# icon definitions for the Whiz Desk package
+	#
+	CLASS=whiz.cdb
+	#
+	ICON=wzdesk.icon	Whiz_Desk	FILE=/usr/whiz/bin/whiz.script
+	ICON=wzwrite.icon	Whiz_Write	FILE=/usr/whiz/bin/whizwrite.exe
+	ICON=wzcalc.icon	Whiz_Calc	FILE=/usr/whiz/bin/whizcalc.exe
+	ICON=wzsched.icon	Whiz_Date	FILE=/usr/whiz/bin/whizsched.exe
+	#
+	HELP=whiz/write.hlp	wzwrite.icon	Whiz_Write	whizwrite.exe
+	HELP=whiz/calc.hlp	wzcalc.icon	Whiz_Calc	whizcalc.exe
+	HELP=whiz/sched.hlp	wzsched.icon	Whiz_Date	whizsched.exe
+
+These names are all "relative to the standard places;"  although absolute
+pathnames can also be used for files that are constrained to be elswhere.
+When the package is installed by Appl-n_Setup, the class definitions in the
+CLASS line (or lines, more than one class file can be give) are "registered"
+with the Desktop Manager, as are the HELP files.  In the latter case, the
+Help_Desk will get an icon associated with each of the named help files; that
+icon will have the label specified in the third tab-separated field, and the
+fourth field should be the basename of the corresponding executable program.
+
+The ICON lines cause Appl-n_Setup to make a symbolic link of the FILE named
+into some folder of the user's desktop.  By default (as in the example above)
+that will be the Applications folder.  This linked file should match the
+_LPATTERN (or whatever other class matching mechanism is defined in the CLASS
+file) for the icon named.  That is, the first ICON line above causes a link
+
+	ln -s /usr/whiz/bin/whiz.script $LOGNAME/Applications/Whiz_Desk
+
+to be created, and after the CLASS is registered with the DTM, that file
+should show up in the Applications folder sporting the wzdesk.icon picture.
+(There is an asynchronous communication with the DTM to do this, so that
+at times the icon -- and the file class associated with it -- may not be
+correct until the next Desktop session.
+
+
+F.  PRIVILEGES
+
+G.  INTERNATIONALIZATION
+
+

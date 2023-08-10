@@ -1,0 +1,110 @@
+.if n .pH 3j/gen/malloc @(#)abort	44.1 of 9/21/93
+.\" Copyright 1993 UNIX System Laboratories, Inc.
+.TH malloc 3J
+.SH "NAME"
+\f4malloc\f1 \- debugging memory allocation routines
+.SH "SYNOPSIS"
+.nf
+\f(CW
+#include <stdlib.h>
+.sp 0.4
+void *malloc(size_t size);
+.sp 0.4
+void *realloc(void *ptr, size_t size);
+.sp 0.4
+void *calloc(size_t size, size_t nel);
+.sp 0.4
+void free(void);
+.sp 0.4
+void *check_malloc(void *ptr);\fP
+.ft 1
+.fi
+.SH "DESCRIPTION"
+These routines are replacements for the standard memory allocation
+routines for use in debugging an application that corrupts its
+memory arena.
+.P
+Applications corrupt the memory arena by writing to or reading from
+memory that has not been allocated, or by scribbling on the
+internal \f(CWmalloc(3C)\fP data structures that precede and/or follow
+each allocated buffer.
+Typically this corruption occurs before the 
+application unexpectedly terminates. Tracking and locating the errant access
+at the time of corruption facilitates fixing the application.
+These routines are designed to return pointers
+to blocks that are aligned to cause the generation of a fault when accessing
+a memory location that is beyond the allocated block.
+They are based on the virtual memory sub-system's
+denying  a process access to unmapped pages.
+.P
+Memory arena corruption can occur at either end of an allocated block.
+The page fault on access behavior can only be enforced towards one end
+within a process at any one time. By default, these routines will fault
+on access of data beyond the end of the allocated block. This is the more
+typical cause of \f(CWmalloc\fP arena corruption. Fault generation
+can be changed to occur upon access of data in front of the allocated
+block by setting the \f(CWDEBUG_MALLOC\fP environment variable,
+as described below.
+.P
+Another example of memory corruption occurs when accessing memory
+that has already been \f(CWfree\fP'd. This version of \f(CWfree\fP makes
+freed memory inaccessible.
+All freed memory is released when the system can not
+allocate any new memory resources.
+Accessing data within such a block after it has been freed but before
+it has been made accessible again will generate a fault.
+The default behavior can be modified to immediately make \f(CWfree\fPd
+pages available. See the \f(CWDEBUG_MALLOC\fP description below.
+.P
+\f(CWcheck_malloc\fP examines the memory block pointed to by \fIptr\fP
+and on detection of corruption, prints to standard error the
+address of the corrupted block and corruption address.
+If \fIptr\fP is \f(CWNULL\fP, the entire allocated memory arena
+is checked. \f(CWcheck_malloc\fP  returns 0 if the block pointed to by
+\fIptr\fP, or in the case of \f(CWNULL\fP the entire arena, is intact.
+Otherwise it returns a corruption address. If \fIptr\fP is \f(CWNULL\fP
+and there are multiple corrupted blocks, \f(CWcheck_malloc\fP returns
+a corrupted address. This function is useful in determining
+if the memory arena has been corrupted at the non-fault generating end.
+The environment variable \f(CWDEBUG_MALLOC\fP can then be reset to fault
+on access of the reverse end, and the fault generated
+by running the application again.
+.P
+f(CWdebug(1)\fP should be used in conjunction with these routines
+to facilitate tracking down the instruction that accessed unavailable memory.
+Setting \f(CWDEBUG_MALLOC\fP
+to show the information from any of the allocation routines includes the return 
+address of the function that is calling the memory routines.
+Using this information with debug makes it easier to isolate
+memory corruption.
+.P
+Control over the amount of debugging information presented is provided by
+setting and exporting the environment variable \f(CWDEBUG_MALLOC\fP.
+The supported options are:
+.BL
+.LI
+\f(CWM\fP - trace return values from \f(CWmalloc\fP
+.LI
+\f(CWR\fP - trace entry and return values from \f(CWrealloc\fP
+.LI
+\f(CWC\fP - trace entry and return values from \f(CWcalloc\fP
+.LI
+\f(CWF\fP - trace entry to \f(CWfree\fP
+.LI
+\f(CWH\fP - return freed blocks to the memory pool immediately
+.LI
+\f(CWX\fP - provide additional debugging/tracing information
+.LI
+\f(CWB\fP - allocation routines will fault on access of data beyond the block (default)
+.LI
+\f(CWT\fP - allocation routines will fault on access of data before the beginning of a block
+.LI
+\f(CWN\fP - fill allocated space with a non-zero bit pattern
+.LE
+.P
+If both \f(CWB\fP and \f(CWT\fP are specified, \f(CWB\fP will be used.
+.SH "DIAGNOSTICS"
+The allocation routines return \f(CWNULL\fP if the allocation can not
+be satisfied. 
+.SH "SEE ALSO"
+\f4mmap\fP(2), \f4munmap\fP(2), \f4mprotect\fP(2), \f4malloc\fP(3C)

@@ -1,0 +1,157 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Conditional Syntax</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_69.html">previous</A>, <A HREF="make_71.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX435"></A>
+<A NAME="IDX436"></A>
+<A NAME="IDX437"></A>
+<A NAME="IDX438"></A>
+<A NAME="IDX439"></A>
+<A NAME="IDX440"></A>
+<H2><A NAME="SEC69" HREF="make_toc.html#TOC69">Syntax of Conditionals</A></H2>
+<P>
+The syntax of a simple conditional with no <CODE>else</CODE> is as follows:
+<P>
+<PRE>
+<VAR>conditional-directive</VAR>
+<VAR>text-if-true</VAR>
+endif
+</PRE>
+<P>
+The <VAR>text-if-true</VAR> may be any lines of text, to be considered as part
+of the makefile if the condition is true.  If the condition is false, no
+text is used instead.
+<P>
+The syntax of a complex conditional is as follows:
+<P>
+<PRE>
+<VAR>conditional-directive</VAR>
+<VAR>text-if-true</VAR>
+else
+<VAR>text-if-false</VAR>
+endif
+</PRE>
+<P>
+If the condition is true, <VAR>text-if-true</VAR> is used; otherwise,
+<VAR>text-if-false</VAR> is used instead.  The <VAR>text-if-false</VAR> can be any
+number of lines of text.
+<P>
+The syntax of the <VAR>conditional-directive</VAR> is the same whether the
+conditional is simple or complex.  There are four different directives that
+test different conditions.  Here is a table of them:
+<P>
+<DL COMPACT>
+<DT><CODE>ifeq (<VAR>arg1</VAR>, <VAR>arg2</VAR>)</CODE>
+<DD><DT><CODE>ifeq '<VAR>arg1</VAR>' '<VAR>arg2</VAR>'</CODE>
+<DD><DT><CODE>ifeq "<VAR>arg1</VAR>" "<VAR>arg2</VAR>"</CODE>
+<DD><DT><CODE>ifeq "<VAR>arg1</VAR>" '<VAR>arg2</VAR>'</CODE>
+<DD><DT><CODE>ifeq '<VAR>arg1</VAR>' "<VAR>arg2</VAR>"</CODE>
+<DD>Expand all variable references in <VAR>arg1</VAR> and <VAR>arg2</VAR> and
+compare them.  If they are identical, the <VAR>text-if-true</VAR> is
+effective; otherwise, the <VAR>text-if-false</VAR>, if any, is effective.
+
+Often you want to test if a variable has a non-empty value.  When the
+value results from complex expansions of variables and functions,
+expansions you would consider empty may actually contain whitespace
+characters and thus are not seen as empty.  However, you can use the
+<CODE>strip</CODE> function (see section <A HREF="make_74.html#SEC73">Functions for String Substitution and Analysis</A>) to avoid interpreting
+whitespace as a non-empty value.  For example:
+
+<PRE>
+ifeq ($(strip $(foo)),)
+<VAR>text-if-empty</VAR>
+endif
+</PRE>
+
+will evaluate <VAR>text-if-empty</VAR> even if the expansion of
+<CODE>$(foo)</CODE> contains whitespace characters.
+
+<DT><CODE>ifneq (<VAR>arg1</VAR>, <VAR>arg2</VAR>)</CODE>
+<DD><DT><CODE>ifneq '<VAR>arg1</VAR>' '<VAR>arg2</VAR>'</CODE>
+<DD><DT><CODE>ifneq "<VAR>arg1</VAR>" "<VAR>arg2</VAR>"</CODE>
+<DD><DT><CODE>ifneq "<VAR>arg1</VAR>" '<VAR>arg2</VAR>'</CODE>
+<DD><DT><CODE>ifneq '<VAR>arg1</VAR>' "<VAR>arg2</VAR>"</CODE>
+<DD>Expand all variable references in <VAR>arg1</VAR> and <VAR>arg2</VAR> and
+compare them.  If they are different, the <VAR>text-if-true</VAR> is
+effective; otherwise, the <VAR>text-if-false</VAR>, if any, is effective.
+
+<DT><CODE>ifdef <VAR>variable-name</VAR></CODE>
+<DD>If the variable <VAR>variable-name</VAR> has a non-empty value, the
+<VAR>text-if-true</VAR> is effective; otherwise, the <VAR>text-if-false</VAR>,
+if any, is effective.  Variables that have never been defined have an
+empty value.
+
+Note that <CODE>ifdef</CODE> only tests whether a variable has a value.  It
+does not expand the variable to see if that value is nonempty.
+Consequently, tests using <CODE>ifdef</CODE> return true for all definitions
+except those like <CODE>foo =</CODE>.  To test for an empty value, use
+<CODE>ifeq ($(foo),)</CODE>.  For example,
+
+<PRE>
+bar =
+foo = $(bar)
+ifdef foo
+frobozz = yes
+else
+frobozz = no
+endif
+</PRE>
+
+sets <SAMP>`frobozz'</SAMP> to <SAMP>`yes'</SAMP>, while:
+
+<PRE>
+foo =
+ifdef foo
+frobozz = yes
+else
+frobozz = no
+endif
+</PRE>
+
+sets <SAMP>`frobozz'</SAMP> to <SAMP>`no'</SAMP>.
+
+<DT><CODE>ifndef <VAR>variable-name</VAR></CODE>
+<DD>If the variable <VAR>variable-name</VAR> has an empty value, the
+<VAR>text-if-true</VAR> is effective; otherwise, the <VAR>text-if-false</VAR>,
+if any, is effective.
+</DL>
+<P>
+Extra spaces are allowed and ignored at the beginning of the conditional
+directive line, but a tab is not allowed.  (If the line begins with a tab,
+it will be considered a command for a rule.)  Aside from this, extra spaces
+or tabs may be inserted with no effect anywhere except within the directive
+name or within an argument.  A comment starting with <SAMP>`#'</SAMP> may appear at
+the end of the line.
+<P>
+The other two directives that play a part in a conditional are <CODE>else</CODE>
+and <CODE>endif</CODE>.  Each of these directives is written as one word, with no
+arguments.  Extra spaces are allowed and ignored at the beginning of the
+line, and spaces or tabs at the end.  A comment starting with <SAMP>`#'</SAMP> may
+appear at the end of the line.
+<P>
+Conditionals affect which lines of the makefile <CODE>make</CODE> uses.  If
+the condition is true, <CODE>make</CODE> reads the lines of the
+<VAR>text-if-true</VAR> as part of the makefile; if the condition is false,
+<CODE>make</CODE> ignores those lines completely.  It follows that syntactic
+units of the makefile, such as rules, may safely be split across the
+beginning or the end of the conditional.<P>
+<CODE>make</CODE> evaluates conditionals when it reads a makefile.
+Consequently, you cannot use automatic variables in the tests of
+conditionals because they are not defined until commands are run
+(see section <A HREF="make_95.html#SEC94">Automatic Variables</A>).
+<P>
+To prevent intolerable confusion, it is not permitted to start a
+conditional in one makefile and end it in another.  However, you may
+write an <CODE>include</CODE> directive within a conditional, provided you do
+not attempt to terminate the conditional inside the included file.
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_69.html">previous</A>, <A HREF="make_71.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

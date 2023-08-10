@@ -1,0 +1,325 @@
+SLIP connectivity with UnixWare 2.x
+
+ISSUE
+
+Note: This document is a modification of the UnixWare 2.0 Online
+Doc for SLIP.
+
+CONFIGURING SERIAL LINE IP CONNECTIONS
+
+The Serial Line Internet Protocol (SLIP) interface lets you
+connect to a remote host from a serial port on your computer.
+
+ENABLING DIRECT SLIP CONNECTIONS
+
+To create a direct connection over a serial line for TCP/IP, do
+the following: 
+
+1. Make sure there are no port monitors (that is, ttymon)
+running on the SLIP port.
+
+To do this, as root, type: 
+
+pmadm -l
+
+and look for the device name to see if there is an active port
+monitor on the device [see pmadm(1M)].
+
+2. Using a null modem, create a physical connection from the
+serial port on your system to one on a remote system.
+
+3. Add the remote host name and IP address to your local
+/etc/hosts file.  Because SLIP is a separate network interface,
+you should also add a new host name and IP address for your local
+computer to /etc/hosts.  Typically, the host name for the SLIP
+interface is formed by adding the suffix _slip to the existing
+host name (for example, SystemA_slip).  The IP address for the
+SLIP interface on your local host should be on the same subnet as
+the remote host.
+
+4. Open a terminal window with root permissions (type su and
+password).
+
+5. Enter the /usr/sbin/slattach command. The following is an
+example of the 
+
+slattach command: 
+
+     /usr/sbin/slattach tty01h 192.9.200.1 192.9.200.5 9600 &
+
+In this example, TCP/IP serial line communication is enabled to
+the remote system connected to your Com2 port (tty01h). The local
+IP address is 192.9.200.1 and the remote IP address is
+192.9.200.5.  The baud rate on the line is set at 9600.
+
+6. To activate the SLIP connection, ask the system administrator
+on the remote system to enter a corresponding slattach command on
+the remote system. Using the example slattach command you entered
+on your local system in Step 5, the system administrator on the
+remote system might type: 
+
+/usr/sbin/slattach tty01h 192.9.200.5 192.9.200.1 9600 &
+
+7. To test the SLIP connection, run TCP/IP utilities (such as
+ftp or rlogin) to make sure you can communicate across the SLIP
+port. For additional information on configuring SLIP parameters,
+see the slattach(1M) manual page.
+
+ENABLING OUTGOING DIALUP SLIP CONNECTIONS
+
+To configure a system for outgoing SLIP calls, you must
+configure an outgoing uucp connection. Any valid uucp connection
+is acceptable.  In the example below, we used a ZyXEL
+Hayes-compatible modem configured to accept outgoing calls and
+transfer data at 9600 bps. Many other types of modems can be
+used. See the chapter Administering the Basic Networking
+Utilities in the part Network Services Administration for further
+information on the Systems, Devices, and Dialers files for
+configuring uucp connections.
+
+To configure a system for outgoing SLIP calls, do the following:
+
+1. Open a terminal window.
+
+2. As root user, add the following entries To /etc/uucp/Devices
+for the Com2 port (use tty00h for Com1): 
+
+Direct tty01h - 9600 direct_modem
+
+ACU tty01h - Any hayes
+
+Note: Adding a device through the graphical interface after
+these lines have been added to the Devices file may cause these
+entries to be lost or modified.
+
+The carrier that links your machine to the remote machine may
+not be available at the time you perform this step. In this case,
+you can force the port to be opened without waiting for a carrier
+by specifying the optional modem control flag M in the Devices
+file entry, as shown here: 
+
+Direct tty01h,M - 9600 direct_modem
+
+ACU tty01h,M - Any hayes
+
+3. Connect the modem to the Com2 port.
+
+4. Change the tty settings in your terminal window [see stty(1)]
+to incorporate the following: 
+
+     stty -parenb cs8 9600
+
+The reason these values are important is that when you cu
+directly to the port later [see cu(1C)], cu uses the current tty
+settings to make the connection. cu might change your modem
+settings, automatically based on tty settings.
+
+5. Type the following from the terminal window as root user for
+the ZyXEL modem: 
+
+cu -l tty01h
+
+AT S15=130
+
+AT S20=7
+
+ATQ0
+
+AT&W
+
+~.
+
+These settings may vary for each modem you use. In our case, AT
+S15=130 sets the modem to no parity. AT S20=7 sets the line speed
+to 9600. ATQ0 sets the modem to return the result code. The
+setting AT&W writes the change to the modem and ~. returns you to
+the shell. These settings may be lost if you turn off the modem
+later. To check that the settings are correct, cu to the modem
+again and type AT&V0.
+
+Make sure you read your modem manual to set your settings in a
+similar fashion.
+
+6. Add an entry to the /etc/uucp/Systems file with the following
+attributes: system name (SystemA, the name of the incoming
+system), Device Type (ACU), Speed (9600), Phone Number (the phone
+number of the remote SLIP host's modem), and Password (password
+for remote SLIP user). An example appears below: 
+
+SystemA Any ACU 9600 555-1212 "" \r ogin:--ogin: sllogin word: secret opyright
+
+Note:  You must match speed in the systems file with the baud
+rate used on the slattach command.
+
+Notice the letters opyright at the end of the chat script. After
+the outgoing side has logged into the remote system with sllogin
+and a password of secret, it waits for the letters opyright to
+appear before SLIP takes over the connection. The incoming system
+prints a Copyright message which matches the opyright the
+outgoing system is waiting for.  This prevents the SLIP
+connection from timing out before a successful underlying
+connection is ready.
+
+7. If the system only makes outgoing connections on this port,
+make sure there is no ttymon running on the local port. To do
+this, as root user, type: 
+
+pmadm -l
+
+to see which port monitors are active [see pmadm(1M)].
+
+8. Add the remote host name and IP address to your local
+/etc/hosts file. Because SLIP is a separate network interface,
+you should also add a new host name and IP address for your local
+computer to /etc/hosts.  Typically, the host name for the SLIP
+interface is formed by adding the suffix _slip to the existing
+host name (for example, SystemA_slip).  The IP address for the
+SLIP interface on your local host should be on the same subnet as
+the remote host.
+
+9. Before you try using this port with TCP/IP utilities (such as
+ftp or rlogin), make sure you can use uucp to communicate across
+the port. Type: 
+
+cu SystemA
+
+where SystemA is the name of the remote SLIP host you added in
+your Systems file.  If you can successfully login to the remote
+system, type ~. to terminate the cu session.
+
+10. Make sure the remote system has been configured to permit
+dialup SLIP access (see the section "Enabling Incoming Dialup
+SLIP Connections" later in this chapter).
+
+11. Open a terminal window with root permissions (type su and
+password).
+
+12. To establish the SLIP connection, enter the
+/usr/sbin/slattach command. The following is an example of the
+slattach command: 
+
+/usr/sbin/slattach +d SystemA 192.9.200.1 192.9.200.5 9600 &
+
+Note: The baud rate used must match the baud rate for SystemA in
+the /etc/uucp/Systems file!
+
+In this example, TCP/IP serial line communication is enabled to
+the remote uucp system name SystemA.  The local IP address is
+192.9.200.1 and the remote IP address is 192.9.200.5.  The baud
+rate on the line is set at 9600.
+
+For additional information about configuring SLIP parameters,
+see the slattach(1M) manual page.
+
+ENABLING INCOMING DIALUP SLIP CONNECTIONS
+
+To configure a system for incoming SLIP calls, do the following:
+
+     NOTE: To add additional incoming dialup SLIP connections,
+repeat the following
+
+     procedure, skipping Step 2 (since the slip group will
+already exist).
+
+1. Open a terminal window with root permissions (type su and
+password).
+
+2. Type: 
+
+     groupadd slip
+
+     to create a group for the SLIP users.
+
+3. Change to the directory /usr/lib/slip.
+
+4. Copy the sample SLIP login shell file sliplogin.samp to sllogin.
+
+5. Type: 
+
+     chgrp slip sllogin
+
+     to assign ownership of the sllogin file to the slip group.
+
+6. Type: 
+
+     chmod g+s sllogin
+
+     chmod u+s sllogin
+
+     to assign permissions to the sllogin file.
+
+NOTE: The owner of the sllogin file must be root!
+
+7. Edit the sllogin file, changing the values for the variables
+OPTIONS, LOCAL_ADDRESS, and REMOTE_ADDRESS, where OPTIONS
+specifies one or more slattach command options for the incoming
+SLIP login shell, and LOCAL_ADDRESS and REMOTE_ADDRESS specify
+the IP address of the SLIP interface for the local host and the
+remote host respectively, as defined in your local /etc/hosts
+file. Note: You must change the TTY='tty' to the serial device
+you use for
+
+the slip connection. ie. TTY=/dev/tty00h.
+
+8. Type: 
+
+     useradd -g slip -d /usr/lib/slip -s /usr/lib/slip/sllogin \
+
+      -c "slip user for hostname" sllogin
+
+to add the slip group to the Identification and Authentication (I&A) database.
+
+9. Type:
+
+     passwd sllogin
+
+     Enter your password for the slip users eg. "secret".
+
+For additional information about configuring SLIP parameters,
+see the slattach(1M) manual page.
+
+DISABLING SLIP CONNECTIONS
+
+To disable a SLIP connection, do the following: 
+
+1. Open a terminal window with root permissions (type su and
+password).
+
+2. Type the following to obtain the process ID of the slattach
+process: 
+
+     ps -ef | grep slattach
+
+3. Using the process ID of the slattach process, type the
+following command: 
+
+     kill -HUP pid
+
+where pid is the process ID of the running slattach process.
+
+4. Display the routing table entry for the SLIP connection to
+the remote host by typing: 
+
+     netstat -r
+
+     If an entry still exists in the routing table, you should
+see an entry similar to the
+
+     following: 
+
+     192.9.200.5  192.9.200.1  UH  0 36 sl0
+
+5. If no routing table entry displayed in Step 4 for the SLIP
+connection, skip this step.
+
+Otherwise, using the IP addresses displayed in Step 4, manually
+remove the routing information associated with the SLIP
+connection using the route(1M) command. For example: 
+
+     /usr/sbin/route delete 192.9.200.5 192.9.200.1
+
+In this example, 192.9.200.5 is the IP address of the remote
+host and 192.9.200.1 is the local IP address for your computer as
+it is known to the SLIP interface.
+
+

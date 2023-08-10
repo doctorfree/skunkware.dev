@@ -1,0 +1,134 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from as.texinfo on 5 October 1995 -->
+
+<TITLE>Using as - Secs Background</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="as_1.html">first</A>, <A HREF="as_37.html">previous</A>, <A HREF="as_39.html">next</A>, <A HREF="as_222.html">last</A> section, <A HREF="as_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC38" HREF="as_toc.html#TOC38">Background</A></H2>
+<P>
+Roughly, a section is a range of addresses, with no gaps; all data
+"in" those addresses is treated the same for some particular purpose.
+For example there may be a "read only" section.
+<A NAME="IDX158"></A>
+<A NAME="IDX159"></A>
+<P>
+The linker <CODE>ld</CODE> reads many object files (partial programs) and
+combines their contents to form a runnable program.  When <CODE>as</CODE>
+emits an object file, the partial program is assumed to start at address 0.
+<CODE>ld</CODE> assigns the final addresses for the partial program, so that
+different partial programs do not overlap.  This is actually an
+oversimplification, but it suffices to explain how <CODE>as</CODE> uses
+sections.
+<P>
+<CODE>ld</CODE> moves blocks of bytes of your program to their run-time
+addresses.  These blocks slide to their run-time addresses as rigid
+units; their length does not change and neither does the order of bytes
+within them.  Such a rigid unit is called a <EM>section</EM>.  Assigning
+run-time addresses to sections is called <DFN>relocation</DFN>.  It includes
+the task of adjusting mentions of object-file addresses so they refer to
+the proper run-time addresses.
+For the H8/300 and H8/500,
+and for the Hitachi SH,
+<CODE>as</CODE> pads sections if needed to
+ensure they end on a word (sixteen bit) boundary.
+<A NAME="IDX160"></A>
+<P>
+An object file written by <CODE>as</CODE> has at least three sections, any
+of which may be empty.  These are named <DFN>text</DFN>, <DFN>data</DFN> and
+<DFN>bss</DFN> sections.
+<P>
+When it generates COFF output,
+<CODE>as</CODE> can also generate whatever other named sections you specify
+using the <SAMP>`.section'</SAMP> directive (see section <A HREF="as_111.html#SEC113"><CODE>.section <VAR>name</CODE>, <VAR>subsection</VAR></VAR></A>).
+If you do not use any directives that place output in the <SAMP>`.text'</SAMP>
+or <SAMP>`.data'</SAMP> sections, these sections still exist, but are empty.
+<P>
+When <CODE>as</CODE> generates SOM or ELF output for the HPPA,
+<CODE>as</CODE> can also generate whatever other named sections you
+specify using the <SAMP>`.space'</SAMP> and <SAMP>`.subspace'</SAMP> directives.  See
+<CITE>HP9000 Series 800 Assembly Language Reference Manual</CITE>
+(HP 92432-90001) for details on the <SAMP>`.space'</SAMP> and <SAMP>`.subspace'</SAMP>
+assembler directives.
+<P>
+Additionally, <CODE>as</CODE> uses different names for the standard
+text, data, and bss sections when generating SOM output.  Program text
+is placed into the <SAMP>`$CODE$'</SAMP> section, data into <SAMP>`$DATA$'</SAMP>, and
+BSS into <SAMP>`$BSS$'</SAMP>.
+<P>
+Within the object file, the text section starts at address <CODE>0</CODE>, the
+data section follows, and the bss section follows the data section.
+<P>
+When generating either SOM or ELF output files on the HPPA, the text
+section starts at address <CODE>0</CODE>, the data section at address
+<CODE>0x4000000</CODE>, and the bss section follows the data section.
+<P>
+To let <CODE>ld</CODE> know which data changes when the sections are
+relocated, and how to change that data, <CODE>as</CODE> also writes to the
+object file details of the relocation needed.  To perform relocation
+<CODE>ld</CODE> must know, each time an address in the object
+file is mentioned:
+<UL>
+<LI>
+Where in the object file is the beginning of this reference to
+an address?
+<LI>
+How long (in bytes) is this reference?
+<LI>
+Which section does the address refer to?  What is the numeric value of
+<PRE>
+(<VAR>address</VAR>) - (<VAR>start-address of section</VAR>)?
+</PRE>
+<LI>
+Is the reference to an address "Program-Counter relative"?
+</UL>
+<A NAME="IDX161"></A>
+<A NAME="IDX162"></A>
+<P>
+In fact, every address <CODE>as</CODE> ever uses is expressed as
+<PRE>
+(<VAR>section</VAR>) + (<VAR>offset into section</VAR>)
+</PRE>
+Further, most expressions <CODE>as</CODE> computes have this section-relative
+nature.
+(For some object formats, such as SOM for the HPPA, some expressions are
+symbol-relative instead.)
+<P>
+In this manual we use the notation {<VAR>secname</VAR> <VAR>N</VAR>} to mean "offset
+<VAR>N</VAR> into section <VAR>secname</VAR>."
+<P>
+Apart from text, data and bss sections you need to know about the
+<DFN>absolute</DFN> section.  When <CODE>ld</CODE> mixes partial programs,
+addresses in the absolute section remain unchanged.  For example, address
+<CODE>{absolute 0}</CODE> is "relocated" to run-time address 0 by
+<CODE>ld</CODE>.  Although the linker never arranges two partial programs'
+data sections with overlapping addresses after linking, <EM>by definition</EM>
+their absolute sections must overlap.  Address <CODE>{absolute 239}</CODE> in one
+part of a program is always the same address when the program is running as
+address <CODE>{absolute 239}</CODE> in any other part of the program.
+<P>
+The idea of sections is extended to the <DFN>undefined</DFN> section.  Any
+address whose section is unknown at assembly time is by definition
+rendered {undefined <VAR>U</VAR>}---where <VAR>U</VAR> is filled in later.
+Since numbers are always defined, the only way to generate an undefined
+address is to mention an undefined symbol.  A reference to a named
+common block would be such a symbol: its value is unknown at assembly
+time so it has section <EM>undefined</EM>.
+<P>
+By analogy the word <EM>section</EM> is used to describe groups of sections in
+the linked program.  <CODE>ld</CODE> puts all partial programs' text
+sections in contiguous addresses in the linked program.  It is
+customary to refer to the <EM>text section</EM> of a program, meaning all
+the addresses of all partial programs' text sections.  Likewise for
+data and bss sections.
+<P>
+Some sections are manipulated by <CODE>ld</CODE>; others are invented for
+use of <CODE>as</CODE> and have no meaning except during assembly.
+<P>
+<HR>
+Go to the <A HREF="as_1.html">first</A>, <A HREF="as_37.html">previous</A>, <A HREF="as_39.html">next</A>, <A HREF="as_222.html">last</A> section, <A HREF="as_toc.html">table of contents</A>.
+</BODY>
+</HTML>

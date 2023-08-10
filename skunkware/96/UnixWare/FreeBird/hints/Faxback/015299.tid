@@ -1,0 +1,276 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:  This is a UNIXWARE FAX document
+TITLE:  Using the UnixWare MHS Gateway
+DOCUMENT ID:  TID015299
+DOCUMENT REVISION:  A
+DATE:  04MAR94
+AUTHOR:  BAMUNDSO
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Mail
+
+ABSTRACT:
+
+The UnixWare MHS gateway allows MHS mail to be routed to UnixWare, which will pass it on through smtp.  Conversely, it will allow smtp mail users have their mail routed to MHS.  This document outlines configuration and troubleshooting procedures.
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+ISSUE
+
+*** IMPORTANT ***
+
+Before proceeding, implement the Problems section at the bottom of this document.
+
+Unix typically uses smtp (simple mail transfer protocol) to transfer mail through uucp or TCP/IP.  With the advent of UnixWare you have the ability to send mail in another way, MHS (Message Handling System.)  MHS was developed by Novell and is one of the many mail standards used in the industry today.
+
+MHS on a NetWare server acts as a traffic cop to mail coming into it.  It determines where mail belongs by two ways; the username and gateway or domain name.  For MHS to forward the mail to the MHS gateway instead of delivering it to a user, a gateway is created on the MHS package on the NetWare server.  The gateway is only a mailbox where mail gets deposited if mail comes into MHS addressed to that gateway.
+
+Example:
+
+	If a message is sent from MHS addressed to howie@unihost, MHS searches for a gateway called unihost.  If it finds one, it puts that message into the gateway directory on the NetWare server.  Conversely, when mail is sent from UnixWare, it gets put into a directory on the NetWare server for MHS to pick up and deliver.
+
+Configuring the UnixWare MHS Gateway
+
+To configure MHS on UnixWare, run System Setup, then MHS Setup.  The field definitions are as follows.  Online help is also available when in the MHS Setup window.
+
+Note:  Use all lowercase letters in all fields.
+
+
+Configuration Window
+
+MHS Gateway:
+	This is the name of the Gateway that was configured on the MHS server.  The Gateway name can be any name up to eight characters.  Special characters should be avoided.
+
+	Example:	unihost
+
+Internet Gateway:
+	This is a subdomain name that you will want to use to route mail through the MHS gateway.  This field should just contain "mhs".
+
+	Example:	mhs
+
+MHS File Server:
+	This is the name of the file server running MHS.
+
+	Example:	big-mail-server
+
+MHS Volume:
+	This is the volume name on the file server where the MHS system resides.  Note:  Do not put a colon (:) after the name.
+
+	Example:	sys
+
+MHS Login:
+	The is the name of a user on the NetWare file server with trustee rights to the MHS directory.  This user must not be a supervisor equivalent.
+
+	Example:	mhsdude
+
+MHS Password:
+	This is the password for the user on the NetWare file server with trustee rights to the MHS directory.
+
+MHS Mail Check Interval:
+	This is frequency that UnixWare checks for incoming mail.
+
+When you click on Apply at the Configuration window, the following three main things occur:
+
+1.	It puts the configuration information into the /etc/mail/smfcnfg directory.
+
+2.	It creates a cron job in /var/spool/cron/crontabs/mhsmail directory.
+
+3.	If rebuilds your /etc/mail/mailsurr file based on /usr/lib/mail/mailsurr.proto.  The mailsurr.proto file is the file where all mailsurr changes should be made.
+
+Important Note:
+The MHS Gateway should only be run on one UnixWare machine for each gateway configured on the MHS system.  Otherwise, strange results can occur.
+
+
+How the MHS Gateway Works
+
+At the specified interval, the following command is run by cron:
+
+	/usr/lib/mail/surrcmd/smf-poll
+
+This polling program attaches to the NetWare server defined in the setup and checks the gateway directory for mail.  This gateway directory on NetWare Global MHS is usually the SYS:MHS\MAIL\GATES\GatewayName\OUT directory.  If mail is there, it will pick it up and deliver it to the users on the UnixWare machine.
+
+
+Sending Mail
+
+With the MHS gateway in place, you can send mail to the UnixWare machine using MHS instead of the internet.
+
+þ	Sending mail from MHS to UnixWare
+
+	To send from a package, such as DaVinci, to a user on the UnixWare gateway, address it to:
+
+		username@gatewayname
+
+		Example:  howie@unihost
+
+		The user must exist on the UnixWare host; the username must be in the /etc/mail/names file, another alias file, or a smarterhost must be defined; otherwise the mail will be returned.
+
+þ	Sending mail from UnixWare to MHS
+
+	*	If you want to send mail through MHS, you address the message as follows:
+
+			username@mhs.InternetDomain
+
+		where InternetDomain is the domain of the UnixWare machine
+
+			Example:  tjones@mhs.acctg.novell.com
+
+	*	If you want to bypass using the internet domain in this context, you would address as follows:
+
+			tjones@mhs
+
+		See the Customization section below.
+
+	*	If you want to send mail through Internet, bypassing MHS, address the message as follows:
+
+			username@InternetDomain
+
+			Example:	bamund@novell.com
+
+					bamund@fred.acctg.novell.com
+
+Configuring MHS on NetWare
+
+1.	Simply configure a gateway with a valid name, eight characters or less.  Make the gateway a version 70.
+
+2.	Create a NetWare user with trustee rights to the MHS directory.  This user must not be supervisor equivalent.
+
+Alias Addressing
+
+A file in the /etc/mail directory called names is just an alias for users so mail forwarding can be done.
+
+The syntax is the following:
+
+	alias  real.mail.address
+
+	Example:	bryan  bamund@fred.acctg.novell.com
+			alex    ajones@mhs.acctg.novell.com
+
+Therefore, if someone sends mail to bryan@unihost and the mail is delivered to the UnixWare machine running the MHS Gateway, the mail will be forwarded to bamund on machine fred.
+
+The second example would receive mail for alex onto the UnixWare machine and forward it to ajones on the mhs side.
+
+
+Customization
+
+To bypass the need to use the internet domain when sending mail from UnixWare to the MHS gateway, that is instead of tjones@mhs.acctg.novell.com, you could just do, tjones@mhs, do the following:
+
+1.	Modify the mailsurr.proto file using the following command:
+
+		vi /usr/lib/mail/mailsurr.proto
+
+	Duplicate the following line near line 82:
+
+	<MHS>    '.+'    '([^@,:]+)@(.+).%g%D '< B=4096;
+	/usr/lib/mail/surrcmd/smfqueue -h 0 -r %R '
+	'\\1@\\2.%g%D'
+
+	Modify the duplicate line by removing the %D in the first part of the line as shown in the following example:
+
+	<MHS>    '.+'    '([^@,:]+)@(.+).%g '< B=4096;
+	/usr/lib/mail/surrcmd/smfqueue -h 0 -r %R '
+	'\\1@\\2.%g%D'
+
+2.	Now issue the following command:
+
+		/usr/lib/mail/surrcmd/createSurr
+
+
+Troubleshooting
+
+þ	Try running the command: /usr/lib/mail/surrcmd/smf-poll manually.  This polling program attaches to the NetWare server defined in the setup and checks the gateway directory for mail.
+
+þ	You may also want to see if the following directory is populated by MHS:
+
+		SYS:MHS\MAIL\GATES\GatewayName\OUT
+
+	Also check the IN directory when you send mail to see if the mail is reaching the NetWare server.
+
+þ	The log file, /var/spool/smf/LOG, may contain helpful information about what is occurring on the UnixWare machine regarding gateway activity.
+
+þ	To recreate your /etc/mail/mailsurr file from the /usr/lib/mail/mailsurr.proto file given your current mail configuration, run the following command:
+
+		/usr/lib/mail/surrcmd/createSurr
+
+þ	See the section below regarding UnixWare 1.1 MHS problems.
+
+
+PROBLEMS:
+
+UnixWare 1.1 MHS
+
+UnixWare 1.1 MHS does not work consistently.  When it fails, the log file in the /var/spool/smf directory indicates the following:
+
+	Cannot open netdir.tab
+
+	or
+
+	no working directory...
+
+Until a UnixWare 1.1 patch can be created, you must do the following for the MHS system to properly interface with the MHS Gateway on a NetWare server.
+
+1.	First run the following command to give the smfsched program the proper privileges:
+
+		filepriv -f setuid /usr/lib/mail/surrcmd/smfsched
+
+2.	Modify the script by typing the following command:
+
+		/usr/lib/mail/surrcmd/smf-poll
+
+	a.	Look for the following line:
+
+			$gatedir = "$MV/mhs/mail/gates/$mhsGW";
+
+	b.	After this line, add the following two lines:
+
+			system("nwlogout $MAILSERV");
+			sleep 5;
+
+	c.	Now look near the bottom of the file for the following line:
+
+			# 0 = OK
+
+	d.	After this line, you should change all three occurrences of the $_.$$ to the following:
+
+			$_.use
+
+3.	Modify the script by typing the following command:
+
+		/usr/lib/mail/surrcmd/suid/smf-out
+
+	a.	Look for the following line:
+
+		$gatedir = "$MV/mhs/mail/gates/$mhsGW";
+
+	b.	After this line, add the following two lines:
+
+		system("nwlogout $MAILSERV");
+		sleep 5;
+
+After making changes to these scripts, MHS will be able to properly communicate with the MHS Gateway.
+
+
+
+
+
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+

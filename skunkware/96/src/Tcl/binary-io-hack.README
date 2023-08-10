@@ -1,0 +1,60 @@
+#
+# $Id: binary-io.tcl,v 1.1 1993/12/10 17:55:12 loverso Exp loverso $
+#
+
+if 0 {
+Message-ID: <09Nov93.135824@LoVerso.Southborough.MA.US>
+From: John Robert LoVerso <John@LoVerso.Southborough.MA.US>
+References:  <2bm6mr$oei@wupost.wustl.edu>
+Subject: Re: Reading binary data containing nulls
+Organization: John & Sue's House, Southborough MA
+
+bergeron%fcrc-next.ecs.wustl.edu (Timothy Bergeron) writes:
+|> Is there a way to get tcl to read in binary data that contains nulls ?
+
+Here is a "portable" (TCL-only) solution.  It is anything but fast and
+convenient.  However, if the bulk of your data is handled by direct reads,
+this may be just fine for you.  I wrote this for a TELNET client and it
+was sufficient for the job.
+
+John
+}
+
+#
+# Copyright 1993, John Robert LoVerso
+#
+# Permission to use, copy, modify, and distribute this software and its
+# documentation for any purpose and without fee is hereby granted, provided
+# that the above copyright notice appear in all copies.  The author makes
+# no representations about the suitability of this software for any purpose.
+# It is provided "as is" without express or implied warranty.
+#
+
+#
+# Cheapo "Binary I/O package"
+#
+
+proc PutByte { fid val } {
+	if {$val > 0} {
+		puts -nonewline $fid [ format "%c" $val ]
+	} else {
+		# maybe use "echo -n x" or "echo x\\c" instead of shell printf
+		exec >@ $fid sh -c "printf x | tr x \\\\000"
+	}
+}
+proc PutBytes { fid args } {
+	foreach b $args {
+		PutByte $fid $b
+	}
+}
+
+proc GetByte { fid } {
+	set byte [read $fid 1]
+	if {[string length $byte] == 1} {
+		scan $byte "%c" val
+		return $val
+	} else {
+		if [eof $fid] {return -1} else {return 0}
+	}
+}
+

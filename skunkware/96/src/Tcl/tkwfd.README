@@ -1,0 +1,82 @@
+tkwfd (word frequency display)
+*****
+is a Tcl 7.3 /tk 3.6 based script to be used as a Unix (post)filter
+to show word frequencies.
+#Author: jlf@essi.fr (Ecole Sup'erieure en Sciences Informatiques)
+#Address: Sophia-Antipolis (France)
+#Date: June 1995
+#Version: 1.0
+#Public domain. No warranty
+
+Tkwfd assumes its standard input is fed with structured ASCII lines made
+of fields separated by spaces.
+As lines are coming, tkwfd recognizes new tokens and start counting
+their occurences.  It then displays bar-graphs showing relative
+percentage of token matches ("word frequency").
+--> tkwfd watches only one field at a time, thus same word appearing in 
+another field is not taken into account.
+
+While it has primarily been made to give snoop (Solaris sniffer)
+graphical capabilities, its code is written in such a way that it
+does not rely on snoop output and it may be used as a general word
+frequency analyzer and display. The only requirement is that standard
+input has a regular structure, i.e. a constant number of fields
+(not entirely true for snoop).
+--> for using snoop, you must have root access on a Solaris machine.
+
+Measurements done with snoop + tkwfd are not that precise, as snoop
+and tkwfd both interact with network for doing their job.
+
+Operation:
+*********
+There are two basic modes of operation:
+
+- continuous
+In this mode, display refreshing is done periodically.
+for invoking this mode, use tkwfd without argument (defaults to 100)
+ or with an argument > 0
+example:
+/usr/sbin/snoop | tkwfd
+or
+/usr/sbin/snoop | tkwfd 200
+"200" means refresh display every 200 input lines (200 Ethernet packets
+in this case)
+fields of interest are:
+0 ... source hosts
+2 ... destination hosts
+3 ... protocols
+Change interesting field by clicking button "-" or "+"
+
+- single pass
+In this mode, display is done once at standard input closing.
+for invoking this mode, use tkwfd with argument = 0 (zero)
+example:
+awk -F: '{print $4}' /etc/passwd | tkwfd 0
+will run a single pass through /etc/passwd and display distribution
+of Unix groups among users
+-> Interesting field is field# 0 and cannot be changed.
+
+Examples:
+********
+smarter examples in tkwfd.examples
+
+Installation:
+************
+unshar 
+edit wish path in the first line to meet your site requirements.
+make sure Unix mode is 755 and ...
+it's ready to run!
+
+Configuration:
+*************
+You may change three variables in the code:
+- COLORLIST list of your preferred colors; choose how many colors you like.
+- increase MINTOKENS to suppress rare events: be aware MINTOKENS is not a 
+percentage.
+- adapt MAXLINES to your display. It depends heavily on your default font.
+
+Bugs: 
+**** 
+known: Integer truncature errors make sum of percentages not always = 100%
+
+Bugs reports, English corrections... : e-mail jlf@essi.fr

@@ -1,0 +1,218 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Non-bugs</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_126.html">previous</A>, <A HREF="usegcc_128.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC130" HREF="usegcc_toc.html#TOC130">Certain Changes We Don't Want to Make</A></H2>
+<P>
+This section lists changes that people frequently request, but which
+we do not make because we think GNU CC is better without them.
+<P>
+<UL>
+<LI>
+Checking the number and type of arguments to a function which has an
+old-fashioned definition and no prototype.
+
+Such a feature would work only occasionally--only for calls that appear
+in the same file as the called function, following the definition.  The
+only way to check all calls reliably is to add a prototype for the
+function.  But adding a prototype eliminates the motivation for this
+feature.  So the feature is not worthwhile.
+
+<LI>
+Warning about using an expression whose type is signed as a shift count.
+
+Shift count operands are probably signed more often than unsigned.
+Warning about this would cause far more annoyance than good.
+
+<LI>
+Warning about assigning a signed value to an unsigned variable.
+
+Such assignments must be very common; warning about them would cause
+more annoyance than good.
+
+<LI>
+Warning about unreachable code.
+
+It's very common to have unreachable code in machine-generated
+programs.  For example, this happens normally in some files of GNU C
+itself.
+
+<LI>
+Warning when a non-void function value is ignored.
+
+Coming as I do from a Lisp background, I balk at the idea that there is
+something dangerous about discarding a value.  There are functions that
+return values which some callers may find useful; it makes no sense to
+clutter the program with a cast to <CODE>void</CODE> whenever the value isn't
+useful.
+
+<LI>
+Assuming (for optimization) that the address of an external symbol is
+never zero.
+
+This assumption is false on certain systems when <SAMP>`#pragma weak'</SAMP> is
+used.
+
+<LI>
+Making <SAMP>`-fshort-enums'</SAMP> the default.
+
+This would cause storage layout to be incompatible with most other C
+compilers.  And it doesn't seem very important, given that you can get
+the same result in other ways.  The case where it matters most is when
+the enumeration-valued object is inside a structure, and in that case
+you can specify a field width explicitly.
+
+<LI>
+Making bitfields unsigned by default on particular machines where "the
+ABI standard" says to do so.
+
+The ANSI C standard leaves it up to the implementation whether a bitfield
+declared plain <CODE>int</CODE> is signed or not.  This in effect creates two
+alternative dialects of C.
+
+The GNU C compiler supports both dialects; you can specify the signed
+dialect with <SAMP>`-fsigned-bitfields'</SAMP> and the unsigned dialect with
+<SAMP>`-funsigned-bitfields'</SAMP>.  However, this leaves open the question of
+which dialect to use by default.
+
+Currently, the preferred dialect makes plain bitfields signed, because
+this is simplest.  Since <CODE>int</CODE> is the same as <CODE>signed int</CODE> in
+every other context, it is cleanest for them to be the same in bitfields
+as well.
+
+Some computer manufacturers have published Application Binary Interface
+standards which specify that plain bitfields should be unsigned.  It is
+a mistake, however, to say anything about this issue in an ABI.  This is
+because the handling of plain bitfields distinguishes two dialects of C.
+Both dialects are meaningful on every type of machine.  Whether a
+particular object file was compiled using signed bitfields or unsigned
+is of no concern to other object files, even if they access the same
+bitfields in the same data structures.
+
+A given program is written in one or the other of these two dialects.
+The program stands a chance to work on most any machine if it is
+compiled with the proper dialect.  It is unlikely to work at all if
+compiled with the wrong dialect.
+
+Many users appreciate the GNU C compiler because it provides an
+environment that is uniform across machines.  These users would be
+inconvenienced if the compiler treated plain bitfields differently on
+certain machines.
+
+Occasionally users write programs intended only for a particular machine
+type.  On these occasions, the users would benefit if the GNU C compiler
+were to support by default the same dialect as the other compilers on
+that machine.  But such applications are rare.  And users writing a
+program to run on more than one type of machine cannot possibly benefit
+from this kind of compatibility.
+
+This is why GNU CC does and will treat plain bitfields in the same
+fashion on all types of machines (by default).
+
+There are some arguments for making bitfields unsigned by default on all
+machines.  If, for example, this becomes a universal de facto standard,
+it would make sense for GNU CC to go along with it.  This is something
+to be considered in the future.
+
+(Of course, users strongly concerned about portability should indicate
+explicitly in each bitfield whether it is signed or not.  In this way,
+they write programs which have the same meaning in both C dialects.)
+
+<LI>
+Undefining <CODE>__STDC__</CODE> when <SAMP>`-ansi'</SAMP> is not used.
+
+Currently, GNU CC defines <CODE>__STDC__</CODE> as long as you don't use
+<SAMP>`-traditional'</SAMP>.  This provides good results in practice.
+
+Programmers normally use conditionals on <CODE>__STDC__</CODE> to ask whether
+it is safe to use certain features of ANSI C, such as function
+prototypes or ANSI token concatenation.  Since plain <SAMP>`gcc'</SAMP> supports
+all the features of ANSI C, the correct answer to these questions is
+"yes".
+
+Some users try to use <CODE>__STDC__</CODE> to check for the availability of
+certain library facilities.  This is actually incorrect usage in an ANSI
+C program, because the ANSI C standard says that a conforming
+freestanding implementation should define <CODE>__STDC__</CODE> even though it
+does not have the library facilities.  <SAMP>`gcc -ansi -pedantic'</SAMP> is a
+conforming freestanding implementation, and it is therefore required to
+define <CODE>__STDC__</CODE>, even though it does not come with an ANSI C
+library.
+
+Sometimes people say that defining <CODE>__STDC__</CODE> in a compiler that
+does not completely conform to the ANSI C standard somehow violates the
+standard.  This is illogical.  The standard is a standard for compilers
+that claim to support ANSI C, such as <SAMP>`gcc -ansi'</SAMP>---not for other
+compilers such as plain <SAMP>`gcc'</SAMP>.  Whatever the ANSI C standard says
+is relevant to the design of plain <SAMP>`gcc'</SAMP> without <SAMP>`-ansi'</SAMP> only
+for pragmatic reasons, not as a requirement.
+
+<LI>
+Undefining <CODE>__STDC__</CODE> in C++.
+
+Programs written to compile with C++-to-C translators get the
+value of <CODE>__STDC__</CODE> that goes with the C compiler that is
+subsequently used.  These programs must test <CODE>__STDC__</CODE>
+to determine what kind of C preprocessor that compiler uses:
+whether they should concatenate tokens in the ANSI C fashion
+or in the traditional fashion.
+
+These programs work properly with GNU C++ if <CODE>__STDC__</CODE> is defined.
+They would not work otherwise.
+
+In addition, many header files are written to provide prototypes in ANSI
+C but not in traditional C.  Many of these header files can work without
+change in C++ provided <CODE>__STDC__</CODE> is defined.  If <CODE>__STDC__</CODE>
+is not defined, they will all fail, and will all need to be changed to
+test explicitly for C++ as well.
+
+<LI>
+Deleting "empty" loops.
+
+GNU CC does not delete "empty" loops because the most likely reason
+you would put one in a program is to have a delay.  Deleting them will
+not make real programs run any faster, so it would be pointless.
+
+It would be different if optimization of a nonempty loop could produce
+an empty one.  But this generally can't happen.
+
+<LI>
+Making side effects happen in the same order as in some other compiler.
+
+<A NAME="IDX541"></A>
+<A NAME="IDX540"></A>
+It is never safe to depend on the order of evaluation of side effects.
+For example, a function call like this may very well behave differently
+from one compiler to another:
+
+<PRE>
+void func (int, int);
+
+int i = 2;
+func (i++, i++);
+</PRE>
+
+There is no guarantee (in either the C or the C++ standard language
+definitions) that the increments will be evaluated in any particular
+order.  Either increment might happen first.  <CODE>func</CODE> might get the
+arguments <SAMP>`2, 3'</SAMP>, or it might get <SAMP>`3, 2'</SAMP>, or even <SAMP>`2, 2'</SAMP>.
+
+<LI>
+Not allowing structures with volatile fields in registers.
+
+Strictly speaking, there is no prohibition in the ANSI C standard
+against allowing structures with volatile fields in registers, but
+it does not seem to make any sense and is probably not what you wanted
+to do.  So the compiler will give an error message in this case.
+</UL>
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_126.html">previous</A>, <A HREF="usegcc_128.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

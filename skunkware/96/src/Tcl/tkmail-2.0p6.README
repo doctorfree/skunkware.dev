@@ -1,0 +1,256 @@
+				***********
+				TkMail v2.0
+				***********
+
+INTRODUCTION:
+
+   TkMail is an X windows interface to mail built using Tcl/Tk and Perl.
+   Reading, sending, and managing mail messages can almost all be done
+   using only the mouse (except for the body of the message, of course).
+   TkMail writes its folders in the format of the standard unix 'Mail'
+   command.  It also uses 'sendmail' commands to do the mail delivery
+   work.
+
+   Major Features:
+	- listbox interface to messages for easy click and read
+	- multiple viewers can be opened on different or the same folder
+	- dynamic (at startup) menus for quick access to mail folders
+	  for reading, copying, and moving messages
+	- button bar for quick composing, replying to, and forwarding of
+	  mail messages
+	- built in 'biff' icon for notification of new mail
+	- easy inclusion of files into message compositions with
+	  automatic uuencoding and compression, if desired
+	- access alternate editor for compositions to send
+	- spell check compositions using a X windows interface
+	  (must have the ispell program version 3.0.09, not 4.0!)
+	- reads aliases from either standard .mailrc or elm aliases.txt
+	- easy piping of message text through unix filters
+	- emacs-like key-bindings for text editing
+	- emacs-like autosave
+	- sorting of messages on any field and the ability to
+	  write out the folder physically in that order
+	- simple MIME reading and compostion tools
+	- viewed messages are editable inside viewing widget so
+	  one can add or delete text for printing or piping X selections
+
+   NOTE: direct reading of the mail spool folder is not supported in
+	 this release. Mail is first incoporated to the ~/mbox file.
+
+COMPATIBILITY:
+
+   This version of TkMail is for Tk3.6 only and will not work with
+   Tk4.0. It will work with Perl4.036, though Perl5 is recommended.
+
+   TkMail is built using only scripts for maximum portability. Still,
+   there may be aspects which are still not standard across all
+   platforms or even versions of operatings systems. Also, there is no
+   guarantee that it is bug free, so don't trust TkMail without at
+   least running it through a few tests yourself!  Make a backup copy
+   of your ~/mbox file and some of your folders and then test out
+   TkMail's operations on those files.
+
+   HPUX:  from the beta testing cycle, this OS seems to be the one with
+     the most compatibility problems. The main source of problems is that
+     signals in Perl don't seem to be handled correctly which causes
+     tkmail to hang on startup even if the WNOHANG was set correctly. The
+     hack solution is to comment out the two $SIG{'CHLD'} lines in
+     tkmail. What is lost without it is the ability for the Perl process
+     to know that the Wish process has died (such as someone closing their
+     X session before quiting TkMail) and the Perl process will be left
+     running in the background. Some report that upgrading to Perl5 fixes
+     the problem.
+
+   SGI/IRIX: I have also had reports of hanging problems that where fixed
+     by commenting out the $SIG{'CHLD'} lines as with HPUX above.
+
+   LINUX: TkMail works fine on my Slackware 2.3 system, but some users
+     of the Red Hat distribution report the same probelm as HPUX users
+     above. It has the same solution
+
+   One cost of using only interpreted scripts is speed. For moderately
+   sized folder, TkMail's response should be sufficient. However, if
+   you maintain many folders of 200+ messages, then you will have to
+   be VERY patient. I would suggest taking advantage of a subdirectory
+   structure in your Mail directory and splitting your folders up a bit.
+
+   TkMail depends on mail delivery program like 'sendmail' such that
+   the following
+
+       cat file | sendmail -bm -t
+
+   mails file to users in To:, Cc:, and Bcc: fields. This bypasses the
+   Mail command and therefore options such as 'record'.  I have
+   created the mf(compose-fcc-folder) user setting to account for
+   this. It might be necessary to hack the mfv:record-mesg procedure
+   in compose.tk to make it fit your mail folder format. You can
+   change the name of the mail delivery program in the Makefile with
+   the DELIVERY variable.
+
+   For spell checking, TkMail uses ispell by Geoff Kuenning, NOT Gnu
+   Ispell 4.0. You can get it by anonftp at ftp.cs.ucla.edu:pub/ispell.
+   This is required only if you want to run the spell checker and can be
+   turned off using the HAVEISPELL variable in the Makefile. If when
+   using the spell checker, you notice that mispelled words are
+   highlighted one character off, you will need to toggle the state of
+   the tkisp(adj_offset) setting at the top of the ispell.tk file.
+
+   TkMail calls the following standard UNIX programs that must be in
+   your path: ls, cat, touch, whoami, sort, rm, uudecode, mkdir and
+   date.
+    
+   >>>>>>>> If you get a core dump read this paragraph <<<<<<<<<<<<
+
+   You will find in the contrib directory two files: tk.patch and
+   tk.patch2.  If you have not applied tk3.6p1.patch.Z available at
+   ftp.aud.alcatel.com:/tcl/ftp.smli.com or the tk.patch file in
+   contrib to your wish, TkMail will coredump.  The file tk.patch2
+   fixes a minor problem that some users had with "illegal unit"
+   messages and should not be stricty necessary if you have already
+   patched the raw tk3.6 distribution.
+
+STABILITY:
+
+  I believe TkMail is very stable in the most important thing: not losing
+  mail.  If TkMail hangs or is killed, you should always be able to find
+  your mail in your system spool, main folder, or in the temporary directory.
+  The most risky operation is always moving mail from your system spool
+  to personal folders.  I took the easy way out here by requiring one to
+  first incorporate there mail from the spool file to a main folder and
+  passing the work of the incorporation to emacs' movemail or procmail's
+  lockfile.  It is possible to have TkMail try to do itself (see the
+  INSTALLATION below) but this is not recommended and you do so at your
+  own risk.
+
+  The Perl/Wish process communication has proven to be more unweildly,
+  slow and fragile than I hoped. For my Tk4.0 port of TkMail I will rework
+  this interface in some way. The Perl process seems to be a huge memory
+  hog and I hope to also cure this by reworking the interface.
+
+  The MIME tools in TkMail are still very experimental. MIME parsing can 
+  be easily turned on an off from the main viewer menu. I try to do all
+  the MIME parsing in the Perl scripts myself. I now think it would be
+  better to use special features of the metamail program. Some might find
+  it more stable to just use the mfv:xterm-command features of tkmail to
+  pipe a message directly to metamail. The included example.tkmailrc file
+  shows how to do this.
+
+INSTALLATION:
+
+   I have run TkMail successfully on SUN, Linux  and IBM RS/6000 systems.
+   However, each system has a special site-tailored mail system so everyone
+   should test tkmail extensively for themselves before using regularly.
+
+   (1)  Edit the Makefile to set the defines to match your site
+	NOTE: some setting may require you to edit the tkmail file
+              to add some platform selection code after normal installation
+	      so that tkmail can run on multiple systems
+
+   (2)  Type 'make' to build the tkmail script executable and other files. 
+
+   (3)  Type 'make iotest'. This will run a small Perl script to check that
+	your Perl handles I/O and signals in a way tkmail can operate with.
+	If you don't see the final line 'The iotest Passed', then your
+	Perl binary won't work with tkmail. This is a know problem for
+	the Perl that comes with Slackware 2.0.2/Linux. I have placed a
+	working Perl binary at the SLAC ftp site for Linux users.
+
+   (4)  If you choose not to use movemail or locktest in (1), you will need
+	to test whether tkmail's internal locking will work for you.  Make
+	sure you have no new mail and backup your ~/mbox (just in case,
+	though it shouldn't be a problem).  You may need to edit the
+	$locktime variable at the top of the lock.test file. This test is
+	to make sure tkmail's way of locking works on your system. I have
+	run successfully on a SUN and IBM at my site since the mail spool
+	directory is user writable. On some Linux systems which uses
+	smail, messages delivered while the spool file is locked seem to
+	get stuck in the queue forever. If you understand this and how to
+	fix it, please write me.
+
+	Type 'make locktest' to see if the default file locking will work
+	for you. If it fails, you need to use Emacs' movemail or procmail's
+	lockfile.  IMPORTANT: if you have your mail forwarded using
+	.forward, this test will not work.  Temporarily move your .forward
+	file for the test.
+
+	If you have neither of these programs but have another you think
+	will do the trick, email me how it works and I will work in
+	support for it. If you have no other program, I suggest getting
+	the procmail package as it is much smaller than Emacs and will
+	provide you with an excellent mail pre-processor. It can be found
+	at
+		ftp.informatik.rwth-aachen.de:/pub/packages/procmail.
+
+	NOTE: On systems where 'make locktest' fails, it is likely that it
+	is because you don't have permission to write in the spool
+	directory.  If the movemail or lockfile programs aren't set uid
+	root or mail, they most likely won't work either. Test them.
+
+   (5)  Type 'make install'.
+
+   (6)  Look at the SETTINGS section in the help.txt file for descriptions
+	of setting you might want to put into your ~/.tkmailrc file
+	(~/.tk/tkmailrc is also supported). An example ~/.tkmailrc is
+	included in example.tkmailrc.
+
+   (7)  If you are updating from a 1.x version of TkMail, you will most
+	likely need to modify your ~/.tkmailrc file to use the new
+	variable name scheme. I have included a sed script called
+	newvar.sed to quickly do this. Type
+		sed -f newvar.sed ~/.tkmailrc > tkmail.new
+        then copy tkmail.new into ~/.tkmailrc.
+
+   Now you are ready to run!
+
+A WORD OF CAUTION:
+
+   The way alot of people use TkMail (including me) is have TkMail
+   always running, most of the time as an icon to signal new mail.
+   When I log off, I don't bother to quit TkMail (or any of the other
+   X applications running) explicitly.  Therefore, pending deletes and
+   marking of messages as read may not be done. On some badly designed
+   systems, it might be possible to lose new incorporated mail. You
+   should test this by sending yourself a test mail message, running
+   TkMail from a shell (not in the background), incorporating the
+   mail, and then killing TkMail abruptly (type ^C in the shell).
+   Rerun TkMail and see if the test message is still there.  Please
+   email me if you find this behavior on your system.
+
+   One way around the problem is to use a problem like xmexit to
+   quit your X session. This program first tries to do tell the X
+   application to quit themselves, and if they don't respond, kills
+   them. TkMail will answer this. I have modified xmexit to use
+   Athena Widgets and placed the distribution at the SLAC ftp site.
+
+   ftp.slac.stanford.edu:pub/software/TkMail/xtexit.tgz
+
+MAILING LIST:
+
+A Majordomo mailing list exists for general discussion of the TkMail
+program. It is unmoderated and unrestricted, but at this point gets
+very little traffic.  Feel free to use it to post examples of your
+extensions to TkMail that you think are of general interest. Most
+bug reports should just be sent to raines@slac.stanford.edu unless 
+you they concern UNIX platform problems. To join, send a message to
+
+           listserv@mailbox.slac.stanford.edu
+
+in which the first line of the BODY is
+
+        subscribe tkmail-l <your_address>
+
+Obviously, <your_address> should be replaced with your address.
+
+Another list, tkmail-dev, is used for beta testers of the current
+development version of tkmail. Feel free to join this list if you
+are intested in contributing to the development of the next release.
+
+FTP SITE:
+
+   The latest version of TkMail is always available by anonymous ftp at
+        ftp.slac.stanford.edu:software/TkMail/tkmail.tar.gz
+
+
+Paul Raines
+September 4, 1995
+

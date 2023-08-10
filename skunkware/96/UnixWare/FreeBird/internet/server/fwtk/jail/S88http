@@ -1,0 +1,30 @@
+#  Run the HTTP server if it and it's config files are present
+#  Install as /etc/rc2.d/S88http
+
+# This can run httpd in a chroot'd environment
+# To do this set the CHROOTDIR variable below
+
+EXE=/opt/bin/httpd
+#CHROOTDIR=/lfs/data1/chrootdir
+CHROOTDIR=
+CHROOTCMD=/usr/sbin/chroot
+
+case "$1" in
+'start')
+	
+	if [ -x ${CHROOTDIR}${EXE} -a -f ${CHROOTDIR}/opt/lib/httpd/config/httpd.conf ]
+	then
+		$CHROOTCMD $CHROOTDIR /opt/bin/httpd -r /opt/lib/httpd/config/httpd.conf
+
+	fi
+
+	exit 0
+	;;
+'stop')
+	kill -9 `/usr/bin/ps -e \
+	|/usr/bin/egrep ' httpd$' | /usr/bin/awk '{print $1}'` 2>/dev/null
+	;;
+*)
+	echo "Usage: $0 { start | stop }"
+	;;
+esac

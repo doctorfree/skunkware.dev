@@ -1,0 +1,77 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:
+TITLE:  Installing Adobe Type1 outline  fonts from th
+DOCUMENT ID:  TID021631
+DOCUMENT REVISION:  A
+DATE:  26JUL94
+AUTHOR:  CGAISFOR
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Symptom Solution
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Applications
+Core OS
+
+ABSTRACT:
+
+Installing Adobe Type1 outline  fonts from the desktop is broken
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+SYMPTOM
+
+Using the Font_Setup in System _Setup in the UnixWare desktop to install adobe Type1 outline fonts from a dos diskette reports that the installation is complete but the fonts never get installed.  This was done in UnixWare 1.0 by selecting Install from the Actions menu in Font_Install.  The program prompts the user for a DOS diskette containing Adobe outline fonts which have the extension .pfb.
+
+With UnixWare 1.1 the result is not the same.
+If Font_Setup is run as root from the command line, the following error is returned when trying to install the fonts:
+
+doscp: no matching source pathname
+Usage: doscp [-rm] device:path . . . device:path
+
+However, Font_Setup reports that the installation was complete.
+
+SOLUTION
+
+The following is a way to manually install the fonts:
+
+su to root
+Make the directory /tmp/fonts
+start dos and copy the *.pfb files from the DOS diskette  to the /tmp/fonts directory
+quit dos
+change directories to /tmp/fonts
+key in the following script to convert the fonts:
+
+for FILE in *
+do
+FILE2=`echo $FILE | sed s/"pfb"/"pfa"/g`
+/usr/X/bin/pfb2pfa < $FILE > $FILE2
+done
+
+Delete all of the *.pfb files and copy the *.pfa files to the /usr/X/lib/fonts/type1 directory.
+chown bin *
+chgrp bin *
+
+Now go and run the Font_Setup program and insert the dos diskette.  Select "Install" from the "Actions" menu and then select "Install All".  Again the program will act as if the fonts are being copied and converted but they are not.  Because you have already converted and copied the fonts, they will then show up in your current list of fonts and be installed in the system.
+
+x_ Verified by customer
+x_ Verified by Novell
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+

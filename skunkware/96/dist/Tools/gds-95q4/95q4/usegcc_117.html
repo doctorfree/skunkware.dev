@@ -1,0 +1,354 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Interoperation</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_116.html">previous</A>, <A HREF="usegcc_118.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC120" HREF="usegcc_toc.html#TOC120">Interoperation</A></H2>
+<P>
+This section lists various difficulties encountered in using GNU C or
+GNU C++ together with other compilers or with the assemblers, linkers,
+libraries and debuggers on certain systems.
+<P>
+<UL>
+<LI>
+Objective C does not work on the RS/6000.
+
+<LI>
+GNU C++ does not do name mangling in the same way as other C++
+compilers.  This means that object files compiled with one compiler
+cannot be used with another.
+
+This effect is intentional, to protect you from more subtle problems.
+Compilers differ as to many internal details of C++ implementation,
+including: how class instances are laid out, how multiple inheritance is
+implemented, and how virtual function calls are handled.  If the name
+encoding were made the same, your programs would link against libraries
+provided from other compilers--but the programs would then crash when
+run.  Incompatible libraries are then detected at link time, rather than
+at run time.
+
+<LI>
+Older GDB versions sometimes fail to read the output of GNU CC version
+2.  If you have trouble, get GDB version 4.4 or later.
+
+<A NAME="IDX501"></A>
+<LI>
+DBX rejects some files produced by GNU CC, though it accepts similar
+constructs in output from PCC.  Until someone can supply a coherent
+description of what is valid DBX input and what is not, there is
+nothing I can do about these problems.  You are on your own.
+
+<LI>
+The GNU assembler (GAS) does not support PIC.  To generate PIC code, you
+must use some other assembler, such as <TT>`/bin/as'</TT>.
+
+<LI>
+On some BSD systems, including some versions of Ultrix, use of profiling
+causes static variable destructors (currently used only in C++) not to
+be run.
+
+<LI>
+Use of <SAMP>`-I/usr/include'</SAMP> may cause trouble.
+
+Many systems come with header files that won't work with GNU CC unless
+corrected by <CODE>fixincludes</CODE>.  The corrected header files go in a new
+directory; GNU CC searches this directory before <TT>`/usr/include'</TT>.
+If you use <SAMP>`-I/usr/include'</SAMP>, this tells GNU CC to search
+<TT>`/usr/include'</TT> earlier on, before the corrected headers.  The
+result is that you get the uncorrected header files.
+
+Instead, you should use these options (when compiling C programs):
+
+<PRE>
+-I/usr/local/lib/gcc-lib/<VAR>target</VAR>/<VAR>version</VAR>/include   /
+           -I/usr/include
+</PRE>
+
+For C++ programs, GNU CC also uses a special directory that defines C++
+interfaces to standard C subroutines.  This directory is meant to be
+searched <EM>before</EM> other standard include directories, so that it
+takes precedence.  If you are compiling C++ programs and specifying
+include directories explicitly, use this option first, then the two
+options above:
+
+<PRE>
+-I/usr/local/lib/g++-include
+</PRE>
+
+
+<LI>
+On some SGI systems, when you use <SAMP>`-lgl_s'</SAMP> as an option,
+it gets translated magically to <SAMP>`-lgl_s -lX11_s -lc_s'</SAMP>.
+Naturally, this does not happen when you use GNU CC.
+You must specify all three options explicitly.
+
+<LI>
+On a Sparc, GNU CC aligns all values of type <CODE>double</CODE> on an 8-byte
+boundary, and it expects every <CODE>double</CODE> to be so aligned.  The Sun
+compiler usually gives <CODE>double</CODE> values 8-byte alignment, with one
+exception: function arguments of type <CODE>double</CODE> may not be aligned.
+
+As a result, if a function compiled with Sun CC takes the address of an
+argument of type <CODE>double</CODE> and passes this pointer of type
+<CODE>double *</CODE> to a function compiled with GNU CC, dereferencing the
+pointer may cause a fatal signal.
+
+One way to solve this problem is to compile your entire program with GNU
+CC.  Another solution is to modify the function that is compiled with
+Sun CC to copy the argument into a local variable; local variables
+are always properly aligned.  A third solution is to modify the function
+that uses the pointer to dereference it via the following function
+<CODE>access_double</CODE> instead of directly with <SAMP>`*'</SAMP>:
+
+<PRE>
+inline double
+access_double (double *unaligned_ptr)
+{
+  union d2i { double d; int i[2]; };
+
+  union d2i *p = (union d2i *) unaligned_ptr;
+  union d2i u;
+
+  u.i[0] = p-&#62;i[0];
+  u.i[1] = p-&#62;i[1];
+
+  return u.d;
+}
+</PRE>
+
+Storing into the pointer can be done likewise with the same union.
+
+<LI>
+On Solaris, the <CODE>malloc</CODE> function in the <TT>`libmalloc.a'</TT> library
+may allocate memory that is only 4 byte aligned.  Since GNU CC on the
+Sparc assumes that doubles are 8 byte aligned, this may result in a
+fatal signal if doubles are stored in memory allocated by the
+<TT>`libmalloc.a'</TT> library.
+
+The solution is to not use the <TT>`libmalloc.a'</TT> library.  Use instead
+<CODE>malloc</CODE> and related functions from <TT>`libc.a'</TT>; they do not have
+this problem.
+
+<LI>
+Sun forgot to include a static version of <TT>`libdl.a'</TT> with some
+versions of SunOS (mainly 4.1).  This results in undefined symbols when
+linking static binaries (that is, if you use <SAMP>`-static'</SAMP>).  If you
+see undefined symbols <CODE>_dlclose</CODE>, <CODE>_dlsym</CODE> or <CODE>_dlopen</CODE>
+when linking, compile and link against the file
+<TT>`mit/util/misc/dlsym.c'</TT> from the MIT version of X windows.
+
+<LI>
+The 128-bit long double format that the Sparc port supports currently
+works by using the architecturally defined quad-word floating point
+instructions.  Since there is no hardware that supports these
+instructions they must be emulated by the operating system.  Long
+doubles do not work in Sun OS versions 4.0.3 and earlier, because the
+kernel eumulator uses an obsolete and incompatible format.  Long doubles
+do not work in Sun OS version 4.1.1 due to a problem in a Sun library.
+Long doubles do work on Sun OS versions 4.1.2 and higher, but GNU CC
+does not enable them by default.  Long doubles appear to work in Sun OS
+5.x (Solaris 2.x).
+
+<LI>
+On HP-UX version 9.01 on the HP PA, the HP compiler <CODE>cc</CODE> does not
+compile GNU CC correctly.  We do not yet know why.  However, GNU CC
+compiled on earlier HP-UX versions works properly on HP-UX 9.01 and can
+compile itself properly on 9.01.
+
+<LI>
+On the HP PA machine, ADB sometimes fails to work on functions compiled
+with GNU CC.  Specifically, it fails to work on functions that use
+<CODE>alloca</CODE> or variable-size arrays.  This is because GNU CC doesn't
+generate HP-UX unwind descriptors for such functions.  It may even be
+impossible to generate them.
+
+<LI>
+Debugging (<SAMP>`-g'</SAMP>) is not supported on the HP PA machine, unless you use 
+the preliminary GNU tools (see section <A HREF="usegcc_43.html#SEC46">Installing GNU CC</A>).
+
+<LI>
+Taking the address of a label may generate errors from the HP-UX
+PA assembler.  GAS for the PA does not have this problem.
+
+<LI>
+Using floating point parameters for indirect calls to static functions
+will not work when using the HP assembler.  There simply is no way for GCC
+to specify what registers hold arguments for static functions when using
+the HP assembler.  GAS for the PA does not have this problem.
+
+<LI>
+In extremely rare cases involving some very large functions you may
+receive errors from the HP linker complaining about an out of bounds
+unconditional branch offset.  This used to occur more often in previous
+versions of GNU CC, but is now exceptionally rare.  If you should run
+into it, you can work around by making your function smaller.
+
+<LI>
+GNU CC compiled code sometimes emits warnings from the HP-UX assembler of
+the form:
+
+<PRE>
+(warning) Use of GR3 when
+  frame &#62;= 8192 may cause conflict.
+</PRE>
+
+These warnings are harmless and can be safely ignored.
+
+<LI>
+The current version of the assembler (<TT>`/bin/as'</TT>) for the RS/6000
+has certain problems that prevent the <SAMP>`-g'</SAMP> option in <CODE>gcc</CODE> from
+working.  Note that <TT>`Makefile.in'</TT> uses <SAMP>`-g'</SAMP> by default when
+compiling <TT>`libgcc2.c'</TT>.
+
+IBM has produced a fixed version of the assembler.  The upgraded
+assembler unfortunately was not included in any of the AIX 3.2 update
+PTF releases (3.2.2, 3.2.3, or 3.2.3e).  Users of AIX 3.1 should request
+PTF U403044 from IBM and users of AIX 3.2 should request PTF U416277.
+See the file <TT>`README.RS6000'</TT> for more details on these updates.
+
+You can test for the presense of a fixed assembler by using the
+command
+
+<PRE>
+as -u &#60; /dev/null
+</PRE>
+
+If the command exits normally, the assembler fix already is installed.
+If the assembler complains that "-u" is an unknown flag, you need to
+order the fix.
+
+<LI>
+On the IBM RS/6000, compiling code of the form
+
+<PRE>
+extern int foo;
+
+... foo ...
+
+static int foo;
+</PRE>
+
+will cause the linker to report an undefined symbol <CODE>foo</CODE>.
+Although this behavior differs from most other systems, it is not a
+bug because redefining an <CODE>extern</CODE> variable as <CODE>static</CODE>
+is undefined in ANSI C.
+
+<LI>
+AIX on the RS/6000 provides support (NLS) for environments outside of
+the United States.  Compilers and assemblers use NLS to support
+locale-specific representations of various objects including
+floating-point numbers ("." vs "," for separating decimal fractions).
+There have been problems reported where the library linked with <CODE>gcc</CODE> does
+not produce the same floating-point formats that the assembler accepts.
+If you have this problem, set the LANG environment variable to "C" or
+"En_US".
+
+<LI>
+Even if you specify <SAMP>`-fdollars-in-identifiers'</SAMP>,
+you cannot successfully use <SAMP>`$'</SAMP> in identifiers on the RS/6000 due
+to a restriction in the IBM assembler.  GAS supports these
+identifiers.
+
+<LI>
+On the RS/6000, XLC version 1.3.0.0 will miscompile <TT>`jump.c'</TT>.  XLC
+version 1.3.0.1 or later fixes this problem.  You can obtain XLC-1.3.0.2
+by requesting PTF 421749 from IBM.
+
+<LI>
+There is an assembler bug in versions of DG/UX prior to 5.4.2.01 that
+occurs when the <SAMP>`fldcr'</SAMP> instruction is used.  GNU CC uses
+<SAMP>`fldcr'</SAMP> on the 88100 to serialize volatile memory references.  Use
+the option <SAMP>`-mno-serialize-volatile'</SAMP> if your version of the
+assembler has this bug.
+
+<LI>
+On VMS, GAS versions 1.38.1 and earlier may cause spurious warning
+messages from the linker.  These warning messages complain of mismatched
+psect attributes.  You can ignore them.  See section <A HREF="usegcc_54.html#SEC57">Installing GNU CC on VMS</A>.
+
+<LI>
+On NewsOS version 3, if you include both of the files <TT>`stddef.h'</TT>
+and <TT>`sys/types.h'</TT>, you get an error because there are two typedefs
+of <CODE>size_t</CODE>.  You should change <TT>`sys/types.h'</TT> by adding these
+lines around the definition of <CODE>size_t</CODE>:
+
+<PRE>
+#ifndef _SIZE_T
+#define _SIZE_T
+<VAR>actual typedef here</VAR>
+#endif
+s@end smallexample
+
+<A NAME="IDX502"></A><LI>
+On the Alliant, the system's own convention for returning structures
+and unions is unusual, and is not compatible with GNU CC no matter
+what options are used.
+
+<A NAME="IDX504"></A>
+<A NAME="IDX503"></A><LI>
+On the IBM RT PC, the MetaWare HighC compiler (hc) uses a different
+convention for structure and union returning.  Use the option
+<SAMP>`-mhc-struct-return'</SAMP> to tell GNU CC to use a convention compatible
+with it.
+
+<A NAME="IDX506"></A>
+<A NAME="IDX505"></A><LI>
+On Ultrix, the Fortran compiler expects registers 2 through 5 to be saved
+by function calls.  However, the C compiler uses conventions compatible
+with BSD Unix: registers 2 through 5 may be clobbered by function calls.
+
+GNU CC uses the same convention as the Ultrix C compiler.  You can use
+these options to produce code compatible with the Fortran compiler:
+
+<PRE>
+-fcall-saved-r2 -fcall-saved-r3
+-fcall-saved-r4 -fcall-saved-r5
+</PRE>
+
+<LI>
+On the WE32k, you may find that programs compiled with GNU CC do not
+work with the standard shared C library.  You may need to link with
+the ordinary C compiler.  If you do so, you must specify the following
+options:
+
+<PRE>
+-L/usr/local/lib/gcc-lib/we32k-att-sysv/2.7.0 -lgcc -lc_s
+</PRE>
+
+The first specifies where to find the library <TT>`libgcc.a'</TT>
+specified with the <SAMP>`-lgcc'</SAMP> option.
+
+GNU CC does linking by invoking <CODE>ld</CODE>, just as <CODE>cc</CODE> does, and
+there is no reason why it <EM>should</EM> matter which compilation program
+you use to invoke <CODE>ld</CODE>.  If someone tracks this problem down,
+it can probably be fixed easily.
+
+<LI>
+On the Alpha, you may get assembler errors about invalid syntax as a
+result of floating point constants.  This is due to a bug in the C
+library functions <CODE>ecvt</CODE>, <CODE>fcvt</CODE> and <CODE>gcvt</CODE>.  Given valid
+floating point numbers, they sometimes print <SAMP>`NaN'</SAMP>.
+
+<LI>
+On Irix 4.0.5F (and perhaps in some other versions), an assembler bug
+sometimes reorders instructions incorrectly when optimization is turned
+on.  If you think this may be happening to you, try using the GNU
+assembler; GAS version 2.1 supports ECOFF on Irix.
+
+Or use the <SAMP>`-noasmopt'</SAMP> option when you compile GNU CC with itself,
+and then again when you compile your program.  (This is a temporary
+kludge to turn off assembler optimization on Irix.)  If this proves to
+be what you need, edit the assembler spec in the file <TT>`specs'</TT> so
+that it unconditionally passes <SAMP>`-O0'</SAMP> to the assembler, and never
+passes <SAMP>`-O2'</SAMP> or <SAMP>`-O3'</SAMP>.
+</UL>
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_116.html">previous</A>, <A HREF="usegcc_118.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

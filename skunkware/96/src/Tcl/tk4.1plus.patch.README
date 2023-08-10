@@ -1,0 +1,80 @@
+********************* tk4.1plus.patch (updated 5/21/96) ********************
+*									  *
+* Written by:	Jan Nijtmans						  *
+*		NICI (Nijmegen Institute of Cognition and Information)	  *
+*		email: nijtmans@nici.kun.nl				  *
+*		url:   http://www.nici.kun.nl/~nijtmans/		  *
+*									  *
+***************************************************************************
+
+This patch updates from Tk 4.1 to Tk 4.1+. It should be applied
+by running the "patch" program in the top-level directory of a clean
+Tk 4.1 release, using the command "patch -p <tk4.1plus.patch"
+
+Then run "configure", and do "make" in this directory. This creates
+all libraries and the Tk4.1 shell (wish). Then do "make install"
+(in super-user mode) to installe it on your machine for general use.
+
+This patch adds a lot of functionality to the standard distributions
+of Tk4.1, such as:
+
+* Tk is compiled as a package. A pkgIndex.tcl file is automatically
+  created for all loadable libraries. This means that the
+  "package require" command is able to load Tk from tclsh as soon
+  as the first tk command is used in the script. For example:
+
+	#!/usr/local/bin/tclsh7.5
+	package require Tk 4.1
+	tk_dialog .t title text {} 0 OK
+
+  This script will work if the environment variable TCLLIBPATH is
+  set to the directory where the Tk library is. For example:
+	setenv TCLLIBPATH /usr/local/lib
+
+* If "--enable-shared" is specified, both the shared and the static
+  libraries are created.
+
+* Standalone Applications. Now an extra function Tk_InitStandAlone() is
+  available that performs the same function as Tk_Init(). The difference
+  is that all the files in /usr/local/lib/tk4.1 are now compiled into
+  the application. This makes the executable a lot larger (about 87 kbyte,
+  compared with the static version), but it will run on any machine (of
+  the same architecture). It makes no difference any more if Tcl is
+  installed or not, or which version.
+
+* C++ support. The following files have been adapted for use with C++:
+	tkTest.c
+	tkUnixTest.c
+	tkSquare.c
+	tkAppInit.c
+
+  Many files have been adapted such that it can be compiled
+  with any C++ compiler. Try:
+	make wish++
+  This will create a version of wish in which tkAppInit is
+  compiled with a C++ compiler.
+
+* Bug fixes. Two small bugs (in tkEvent.c and tkUnixNotfy.c) are fixed.
+
+* Tests are done using the loadable library Tktest.so.
+  In the build directory a file "pkgIndex.tcl" is created which makes it
+  possible to use Tktest.so and Tksquare.so as a package.
+
+MAKE
+====
+You can make the following extra files:
+	make wish		Shared version of wish (default)
+	make wish++		C++ version of wish
+	make wish.static	Static version of wish
+	make wish.standalone	Standalone version of wish
+	make plusplus		the same as make wish++
+	make static		the same as make wish.static
+	make standalone		the same as make wish.standalone
+	make test		Execute tests using wish and Tktest.so
+	make test++		Execute tests using wish++ and Tktest.so
+	make test.static	Execute tests using wish.static and Tktest.so
+	make test.standalone	Execute tests using wish.standalone and Tktest.so
+	make hello.c		C-source of hello.tcl
+	make hello		binary executable of hello.tcl
+	make hello++		binary executable of hello.tcl (using C++)
+

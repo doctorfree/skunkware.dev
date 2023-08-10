@@ -1,0 +1,87 @@
+++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Restoring Privileges on UnixWare 2
+
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT ID:              1004678
+DOCUMENT REVISION:        1
+DATE:                     28JUL95
+ALERT STATUS:             Yellow
+INFORMATION TYPE:         Symptom Solution
+README FOR:NA
+NOVELL PRODUCT CLASS:
+        UNIX
+NOVELL PRODUCT and VERSION:
+        UnixWare 2.01
+ABSTRACT:
+NA
+
+DISCLAIMER 
+
+   THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO
+   NOVELL. NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS
+   INFORMATION. HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS
+   FOR YOUR INFORMATION ONLY. NOVELL MAKES NO EXPLICIT OR IMPLIED
+   CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+
+THIRD-PARTY SOFTWARE CONFIGURATION UnixWare 2 
+
+SYMPTOM
+
+Critical system commands such as tfadmin, no longer execute.
+This causes administration tools in the desktop to not function.
+
+These symptoms could occur after doing a backup and restore of
+system files, or after doing pkgchk -f.
+
+TROUBLESHOOTING
+
+To determine if the filepriv database is out of sync, as
+superuser run the command:
+
+     initprivs
+
+CAUSE
+
+System commands such as passwd, tfadmin, ftp, etc. rely on the
+filepriv database to be correct.  If a file mentioned in the
+filepriv database has been modified on the file system in any
+way, including simply touching the file, and that change is not
+reflected in the filepriv database, the command will not execute
+or will not function properly.
+
+One way to cause a lack of syncronization between the file
+system and the filepriv database is by doing pkgchk -f, which
+goes through the /var/sadm/install/contents file and compares
+file attributes in the file, with those on the file system.  If
+there is a discrepancy between the two, pkgchk changes the file
+attributes on the file system to match the contents file.  Once
+the file on the file system has been modified, the filepriv
+database is now out of sync with the actual file.  This will
+cause the symptoms above to occur.
+
+Another way the filepriv database can become out of sync, is by
+backing up and restoring system files.  This causes the 'last
+update' time of the file to be modified on the file system, which
+does not match the last update time in the filepriv database.
+
+SOLUTION
+
+To syncronize the filepriv database with the file system, run the
+command:
+
+     /etc/security/tools/setpriv -x
+
+To check the filepriv database at any time, run the command:
+
+     initprivs
+
+Initprivs will return nothing if the filepriv database is in
+sync with the file system.
+
+
+Any trademarks referenced in this document are the property of their respective owners. Consult your product manuals for
+complete trademark information. 
+
+

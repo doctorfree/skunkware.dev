@@ -1,0 +1,1399 @@
+<HTML>
+<!-- @(#) $Header: CHANGES.html,v 1.50 96/05/16 05:26:05 van Exp $ (LBL)-->
+<head><title>vat Change Log</title></head>
+<!--
+Light Blue Background
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+New Midnight Blue Background
+<BODY BGCOLOR=#00009C LINK=#00FFFF VLINK=#00C8C8 TEXT=#23D8FF ALINK=#00FF00>
+White Background
+<BODY BGCOLOR=#FFFFFF TEXT=#000000 LINK=#0000FF VLINK=#00009C ALINK=#00FF00>
+Black Background
+<BODY BGCOLOR=#000000  TEXT=#FFFFFF LINK=#0077FF VLINK=#FF3EE4 ALINK=#00FF00>
+-->
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+<h1>vat: Change History</h1>
+
+<hr>
+<h3>v4.0b2  <i> Thu May 16 00:25:19 PDT 1996 </i></h3>
+<ul>
+
+<li>Added code to Windows audio driver to convert to 8-bit linear
+if driver doesn't support 16-bit linear (the code in Win95 that's
+supposed to do this is apparently broken).  Problem reported
+by dozens of SoundBlaster users.
+
+<li>Unicast sessions wouldn't work under Windows.
+(Re-)Incoporated fix from
+<a href=mailto:brezak@apollo.hp.com>John Brezak</a>
+that somehow got left out of b1 release.
+
+<li>Restored vat 3.4 "[net localport]" command (needed by ISI/MIT
+RSVP additions to vat).  Requested by
+<a href=mailto:berson@isi.edu>Steve Berson</a>.
+
+<li>Fixed sitebox display bug on monochrome displays.  Reported by
+<a href=mailto:evi@piper.cs.colorado.edu>Evi Nemeth</a>.
+
+<li>Fixed bug where SS-10 could get stuck sending a continuous
+tone if the last byte before a completely silent frame was non-zero.
+Reported by
+<a href=mailto:deering@parc.xerox.com>Steve Deering</a>.
+
+<li>Correct URL of SCO port on vat homepage.  Fix from
+<a href=mailto:shawnm@sco.com>Shawn McMurdo</a>.
+
+<li>Incorporated Irix5.3 and 6.x configure and config.h fixes from
+<a href=mailto:arc@xingping.engr.sgi.com>Andrew Cherenson</a>.
+
+<li>Incorporated AIX configure and config.h fixes from
+<a href=mailto:zahl@fokus.gmd.de>Christian Zahl</a>.
+
+</ul>
+
+<hr>
+<h3>v4.0b1  <i>Fri May 3 06:29:01 PDT 1996</i></h3>
+<ul>
+
+<li>Incorporated new IBM AIX audio driver from
+<a href=mailto:zahl@fokus.gmd.de>Christian Zahl</a>
+plus fixes for compiling vat under AIX.
+
+<li>Several people reported major audio problems with vat-4
+on a Sparcstation-5, even with Sun's audio driver patches.
+It appears that the Sun cs4231 driver is not resetting the
+sample rate, channels, and format parameters on an open,
+contrary to the documentation and the workings of every other
+audio driver.  Added code to explicitly initialize all the
+audio driver parameters each time vat obtains the audio device.
+
+<li>Several people complained about "monitor_gain" setting
+on Suns -- To use the pass-thru CD audio on an SS-4/5, you
+need to control the volume with the monitor gain but, if it's
+non-zero, it causes horrible feedback when vat takes over the
+audio.  Decided to get rid of code in vat that tries to
+preserve monitor gain and stereo balance settings and instead
+add tcl commands to set them ("audio monitor gain N",
+"audio input balance N", "audio output balance N").  Vat now
+always sets these to "reasonable" values (balance in center
+and monitor gain to zero) and anyone who wants different
+values can put the above commands in a ~/.vat.tcl user_hook
+procedure.
+Detailed description of problem and suggested changes from
+<a href=mailto:kre@munnari.OZ.AU>Robert Elz</a>
+
+<li>Don't adjust playout point or mix in audio packets when
+we don't have the audio device -- otherwise we get a lot of
+wasted cycles (e.g., for gsm decoding) and the only result
+is a bogus playout point and a burst of garbled sound when
+vat (re-)obtains the audio.
+Problem reported by
+<a href=mailto:fenner@parc.xerox.com>Bill Fenner</a>
+and
+<a href=mailto:Craig.M.Votava@att.com>Craig Votava</a>
+
+<li>In `keep all sites' mode, we weren't clearing the `done'
+indication when a site went away then came back so the site
+would stay grayed-out forever.  Fixed.  Also cleaned up logic
+in RTP mode for when a site is `new' vs. a reincarnation of
+a previous session.
+Problem reported by <a href=mailto:phil@ARL.MIL>Phil Dykstra</a>.
+
+<li>Fixed uninitialized-variable bug in session.cc.
+Thanks to <a href=mailto:templin@pa.dec.com>Fred Templin</a>.
+
+<li>Catch error when trying to mtrace a source when mtrace binary
+is not present.  This bug reported by many.
+
+<li>Timestamps in rtcp messages were totally wrong (they were
+in 90KHz video ts units).  Fixed so that timestamps were correct.
+Reported by <a href=mailto:casner@precept.com>Steve Casner</a>
+
+<li>Weren't following the guidelines on sdes content of rtcp
+msgs:  Are supposed to put in cname plus one other piece of
+info.  Instead, were sending all info in every msg.  Changed
+to follow guidelines and sequence through the available info,
+one item per msg.
+Reported by <a href=mailto:casner@precept.com>Steve Casner</a>
+
+<li>Removed tk.tcl from list of source files since it should
+always be built from local tk library (otherwise you can end
+up with a version mismatch between -ltk and the support files
+built into vat/vic.
+Reported by <a href=mailto:Hans.Mayer@gmd.de>Hans Mayer</a>
+
+<li>Configure wasn't reporting error if gsm library wasn't found.
+Reported and fix supplied by
+<a href=mailto:fenner@parc.xerox.com>Bill Fenner</a>
+
+<li>Middle-click for starting a side conversation wasn't working
+(code was completely bogus).   Problem reported by
+<a href=mailto:jimmy.kyriannis@nyu.edu>Jimmy Kyriannis</a>
+
+<li>Setting mikeAGC and/or speakerAGC to `true' would cause
+vat to abort during intialization (because AGC stuff is
+temporarily commented out).  Fixed.
+Problem reported by <a href=mailto:kepler@if.ufrgs.br>Kepler Oliveira</a>
+
+<li>Several people reported
+"ld.so: call to undefined procedure _XOpenIM" errors when
+trying to run the SunOS binary due to Sun making incompatible
+changes in their OpenWin libary.  We have now tried dynamically
+linking against four different versions of SunOS X
+(X11R5, X11R6 and 2 versions of openwin) and the result
+always seems to cause trouble for someone.
+Future SunOS binaries will be statically linked.
+If anyone wants a dynamically linked SunOS binary, they'll have to
+build it locally from the source we distribute.
+
+<li>Input and output port selection X resources weren't accepting
+port aliases (e.g., required "LineIn" and wouldn't take "line").
+Fixed to map aliases to canonical port name so aliases now ok.
+Problem reported by <a href=mailto:wicklund@cdfsga.fnal.gov>Eric J. Wicklund</a>
+
+<li>In encodings with more than one frame per packet (which is most
+of them), the packet at the tail of a talkspurt was usually
+getting sent at the start of the next talkspurt but with its
+correct timestamp & concatenated with the first packet of the
+new talkspurt.  This probably explains some of the vat-4 audio
+anomalies and why the playout delay with vat-4 seemed to avg
+larger than vat-3.
+
+<li>We were usually not sending the extra pre-talk detection packets
+at the start of a talkspurt.  This probably explains why vat-4
+seems to clip conversation starts more than vat-3.
+
+<li>Converted to tcl7.5/tk4.1.
+
+<li>Added os name and version to `tool' sdes report (if tcl knows them).
+
+<li>Added tcl `user_hook' proc invoked at the very end of the tk/tcl
+gui initialization for users to redefine to add their own customization
+via ~/.vat.tcl.
+
+<li>Added ^U binding to entry widget to delete all of entry.  (People
+quite reasonably expect their Unix erase and kill characters to
+work in entry widget.)
+
+<li>Add version number to error traceback since people never tell us
+which version when they send in bug reports.
+
+<li>Tcl7.5 seems to have fixed the problems with non-blocking reads
+from pipes so the one character pipe reads in the mtrace support
+code (a bug workaround) were removed.  This seems to fix the problems
+where doing an mtrace would interfere with audio playout.
+
+<li>Rewrote Win32 audio driver.  It now does both input and output and
+seems to run reasonably (i.e., as well as anything can hope to run
+under WinDoze) on a 66MHz 486 instead of locking up the machine at
+100% cpu use.  Everything seems to work including the input and
+output port selection controls and volume sliders.
+
+</ul>
+
+<hr>
+<h3>v4.0a8  <i>Mon Mar 18 02:55:47 PST 1996</i></h3>
+<ul>
+
+<li>Win32 audio driver rewritten to do 16-bit linear i/o instead
+of 8-bit ulaw. Rewrite from
+<a href=mailto:brezak@apollo.hp.com>John Brezak</a>
+
+<li>GSM was sending one frame per packet instead of four.  Fixed.
+Was also generating garbage if told to put more than one frame
+in a packet.
+Reported by <a href=mailto:casner@precept.com>Steve Casner</a>
+
+<li>Integrated patches from
+<a href=mailto:james@allmalt.cs.uwm.ed>Jim Lowe</a>
+to use vat with <a href=http://personal.eunet.fi/pp/voxware/>VoxWare</a>
+under <a href=http://www.freebsd.org/>FreeBSD</a>.
+
+<li>Added `recvOnly' check button to control panel so recv only mode
+is `soft' (user changable) like in wb.
+
+<li>Made `lecture mode' be a check button rather than conference/lecture
+radio buttons.
+
+<li>Added both 'mtrace from' and 'mtrace to' options to site popup menu.
+
+<li>Made help text agree with this version of vat (was holdover from vat-3).
+
+<li>Added controller 'talk-thresh' command and Vat.talkThresh to allow
+adjustable threshhold for 'start of speech' detection (to work better
+with echo cancellers in high ambient noise environments).
+
+<li>Attempted to make everything compile without errors under gcc -Wall.
+
+</ul>
+
+<hr>
+<h3>v4.0a7  <i>Thu Feb 22 23:00:26 PST 1996</i></h3>
+<ul>
+
+<li>Incorporated fifth round of patches from 
+<a href=mailto:brezak@apollo.hp.com>John Brezak</a>
+for Win95/NT port.
+
+<li>Fixed bug where someone sending a 'note' in an RTP session would
+cause vat to abort when you tried to popup that site's info window.
+Reported by <a href=mailto:fenner@parc.xerox.com>Bill Fenner</a>
+
+<li>Fixed several bugs in handling of `mixers' when using old vat
+protocol:  list of site names was getting truncated to 254 characters;
+padding computation was wrong so bogus site names or numbers could
+get inserted; both mixer & site would always be marked active rather
+than just site.
+Reported by <a href=mailto:fenner@parc.xerox.com>Bill Fenner</a>
+
+<li>Removed leading space from initial icon name.
+Reported by <a href=mailto:fenner@parc.xerox.com>Bill Fenner</a>
+
+<li>Corrected configure's Audiofile search to match AF distribution.
+Reported by <a href=mailto:martin@teco.uni-karlsruhe.de>Martin Richartz</a>
+
+<li>Added -R (recv only) to allowed options & added -R & -r to usage line.
+Reported by <a href=mailto:casner@precept.com>Steve Casner</a>
+
+<li>Made left click over site name pop up a menu rather than bringing
+up a window.  Menu contains entries to bring up info window, RTP and
+decoder stats displays, and to do an mtrace from the site.
+
+<li>Added code to filter out duplicate packets when using old vat
+protocol (used to only work if using RTP).
+
+</ul>
+
+<hr>
+<h3>v4.0a6  <i>Wed Feb 15 14:39:06 PST 1996</i></h3>
+<ul>
+
+<li>Incorporated fourth round of patches from 
+<a href=mailto:brezak@apollo.hp.com>John Brezak</a>
+for Win95/NT port.  Added README.WIN32 file containing
+brief description and tcl/tk patches from John.
+
+<li>Fixed bug with undefined variable when trying to open side-conversation
+with mixer.  Reported by <a href=mailto:baguet@reblochon.imt-mrs.fr>
+baguet@reblochon.imt-mrs.fr</a>.
+
+</ul>
+
+<hr>
+<h3>v4.0a5  <i>Wed Feb  7 14:39:06 PST 1996</i></h3>
+<ul>
+
+<li>Incorporated third round of patches from 
+<a href=mailto:brezak@apollo.hp.com>John Brezak</a>
+for <b>Win95/NT</b> port.
+
+</ul>
+
+<hr>
+<h3>v4.0a4  <i>Tue Feb  6 14:41:34 PST 1996</i></h3>
+<ul>
+
+<li>Incorporated second round of patches from 
+<a href=mailto:brezak@apollo.hp.com>John Brezak</a>
+for <b>Win95/NT</b> port.
+
+</ul>
+
+<hr>
+<h3>v4.0a3  <i>Tue Feb  6 02:48:49 PST 1996</i></h3>
+<ul>
+
+<li>Integrated <a href=mailto:brezak@apollo.hp.com>John Brezak's</a>
+port to <b>Win95/NT</b>!  We haven't tested this code so it might
+be a few more versions before it stabilizes (or even compiles
+out of the box).
+
+<li>Changed audio-linux.cc to audio-voxware.cc since it's used
+on more than just linux systems.
+
+<li>Changed audio device file names from *_audio.cc to audio-*.cc.
+
+<li>Ported to SCO Unix, thanks to 
+<a href=mailto:shawnm@sco.com>Shawn McMurdo</a>.
+
+<li>Fixed bug in sitebox that was probably trashing random memory.
+Fix supplied by <a href=mailto:oka@is.aist-nara.ac.jp>
+Koji Okamura</a>.
+
+<li>Fixed bug that caused last_sr field in RTCP sender reports to be
+miscomputed.  Reported by <a href=mailto:stewart@hibp7.ecse.rpi.edu>
+Paul Stewart</a>.
+
+<li>
+Added Vat.keepAudio resource so that vat can be configured to grab
+and hold the audio on start-up.  Change suggested by
+<a href=mailto:Craig.M.Votava@att.com>Craig Votava</a>.
+
+<li>
+Fixed bug in idleDropTime resource: 0 should mean "don't drop audio"
+but was being interpreted as "immediately drop audio".
+
+<li>
+Only update window manager icon name when it changes, not on all
+source activity.
+
+<li>
+Added rules to build tk.tcl from the tk library files so *.tcl patches
+to the tk distribution would make it into vat.
+
+</ul>
+<hr>
+<h3>v4.0a2  <i>Mon Oct 23 21:47:44 PDT 1995</i></h3>
+<ul>
+
+<li>
+The linux stub for sendmsg() in net.cc was broken so linux
+vat could receive but not send.
+Reported by <a href=mailto:cmetz@inner.net>Craig Metz</a>.
+
+<li>
+Don't compile strtol and strtoul under linux because they
+cause the ELF linker to choke.
+Reported by <a href=mailto:cmetz@inner.net>Craig Metz</a>.
+
+<li>
+Remove vat.dyn stuff and always link dynamic unless user does
+"make STATIC=-static" (or whatever).
+Suggested by <a href=mailto:cmetz@inner.net>Craig Metz</a>.
+
+<li>
+Fixed HP compilation problems:
+hp_audio was broken (didn't compile) and HPUX requires include of
+netdb.h in main.cc.
+Reported by <a href=mailto:aswan@cs.berkeley.edu>Andrew Swan</a>.
+
+<li>
+Fixed bug where /usr/lib/libaudio.a would cause sgi_audio.o to
+be used on a Solaris 2.x machine.
+Reported by <a href=mailto:meyer@phloem.uoregon.edu>David Meyer</a>.
+
+<li>
+Changed configure to take a -with-gsm=dir flag for locating gsm and
+-with-af=dir flag for locating AudioFile.  Also changed the default
+gsm & AF search to include ".." and to search both with and without
+the version number.
+Suggested by <a href=mailto:meyer@phloem.uoregon.edu>David Meyer</a>,
+<a href=mailto:aswan@cs.berkeley.edu>Andrew Swan</a>,
+and <a href=mailto:arc@xingping.engr.sgi.com>Andrew Cherenson</a>.
+
+<li>Fixed various portability problems found by SGI CC compiler.
+Reported by <a href=mailto:arc@xingping.engr.sgi.com>Andrew Cherenson</a>.
+
+<li>CryptDull::Decrypt wouldn't work - it wasn't returning decrypted
+packet length.
+Reported by <a href=mailto:arc@xingping.engr.sgi.com>Andrew Cherenson</a>.
+
+<li>Fixed bug that cause vat to exit with an error when font
+not found.  Reported by <a href=mailto:jwc@icf.hrb.com>John Cieply</a>.
+
+<li>Removed all refs to BLT since it's used by vic but not vat.
+
+<li>Define Tk_Cursor if tk version < 4.1 in tkStrichart.c so things
+will compile with either tk4.0 or 4.1.
+
+<li>An idle mixer could cause vat to exit with a:
+<em>vat: "grayout XXX": can't read "src_name(XXX)":
+no such element in array</em> error.
+
+</ul>
+
+<hr>
+<h3>v4.0a1  <i>Sat Oct 14 22:55:37 PDT 1995</i></h3>
+
+<p>
+<strong>First public source-code release.</strong>
+<ul>
+
+<li>Added Vat.recvOnly X resource (or "-R" command switch)
+to prevent transmission.  When set to true, the mike controls
+in the user interface are disabled so the user cannot enable
+the mike and transmit audio to the session.
+This flag can be used by a session control tool (e.g., sd/sdr),
+when a ``recvonly'' attribute is declared in the session advertisement.
+
+<li>Added Vat.displayMixers so you can control whether or not mixers
+that don't advertise their RTP name show up in the user list.
+(In vat compat mode, vat-3 mixers will always show up due to bugs
+in the old mixer code.)
+
+<li>Removed support for mixing.  This functionality never belonged in vat
+and it should be easy to build a GUI-less audio gateway using
+the new software architecture.
+
+<li>[internal] Changed sitebox widget to run updates as idle tasks to
+  minimize screen flicker.
+
+<li>Removed heuristics for generated RTP "name" and "email" strings.
+  Instead, the *rtpName and *rtpEmail X resources are required.
+  If they aren't present when vat starts, a dialog box will prompt
+  the user for values and place them in ~/.RTPdefaults (so they need
+  not be re-entered).
+
+<li>Removed vt compatibility.
+
+<li>Added backward compatibility with old vat protocol.
+
+<li>Got rid of Vat.idleHoldTime since Vat.idleDropTime accomplished more
+  or less the same thing.
+
+<li>Added -fsigned-char to cflags for gcc because it doesn't always used
+  sign extension on char's (e.g., gcc-2.6.2 on SGI).  The lpc code
+  relies on this.
+
+<li>Major changes to internal architecture based on the improved
+  tcl/c++ framework from vic.
+
+<li>Inverted logic on mute buttons and labeled them "talk" and "listen".
+
+<li>Ported to RTPv2.
+
+<li>Ported to tk4.0.
+
+<li>Use GNU autoconf.
+
+</ul>
+
+<hr>
+<h3>v3.5  <i>Thu Oct  5 18:23:16 PDT 1995</i></h3>
+<ul>
+
+<li>Correct manual entry to replace obsolete 'Vat.speaker' example with
+  current "Vat.outputPort: Jack".
+  
+<li>Include hp audio fix from Terje Vernly (terje.vernly@usit.uio.no)
+  to work around HPUX kernel bug where sample rate isn't set to
+  8KHz on open but is instead left at whatever last app. used.
+
+<li>Fixed long standing bug that would cause coredumps on Alphas:
+  we were using a u_int in an address calc where we should have
+  been using an int -- lack of sign extension only showed up on
+  a 64 bit machine.  Thanks to Dan Mosedale (mosedale@genome.Stanford.EDU)
+  for much help in tracking this down.
+
+<li>Bug fixes to make -K flag work (from Bill Fenner).
+
+<li>Change convention on port names so that 'p' command now works
+  (bug reported by Bill Fenner).  Names now always in lower case
+  & routine that uses them responsible for changing case if
+  necessary.  Also added "audio input|output gain" function so
+  "psetup" command could be coded in tcl rather then C.
+
+<li>Many changes to support linux (most having to due with halfduplex
+  audio support & a few because of gratuitous changes in things
+  like 'getopt()'.
+
+<li>Add code to AF input routine to estimate DC bias & remove it
+  from mike signal (there seemed to be a large DC offset on
+  an Alpha).
+
+<li>Finally fix bug that made switching audio between vats very difficult
+  if the one you were switching from had active audio.  Made audio access
+  code not request for 'MinRequestTime' ticks after release otherwise
+  get scheduler race where active guy does release than immediate
+  request & never drops audio.
+
+<li>Found that if you request mono input, SGI does (L+R)/2 on mike
+  input signal.  Since SGI ships a mono mike (i.e., one channel
+  is grounded & has no signal), this cuts the mike input gain
+  by a factor of two.  Added code to multiply to 2 (clipped) to
+  approximate what they should have done (clip(L+R)).
+
+<li>Added Solaris version of Sun DBRI driver that uses linear input/output
+  rather than mulaw so noise caused by non-linear mulaw quantization doesn't
+  get amplified by bias shift (suggested by Steve Casner).  Unfortunately
+  this fix doesn't work under SunOS because braindead DBRI driver doesn't
+  let you set audio blocksize.
+
+<li>Fixed ancient bug in all the audio drivers that subtracted
+  DC bias (SGI, Sun, HP) where clipping wasn't being done on
+  signal after bias removal.
+
+<li>Fix minor bug where external-echo-cancellor mode might not default
+  correctly on jack or line-out ports.
+
+<li>Make silencethresh, echothresh and echodelay tcl accessible.
+  Set echothresh and echodelay more appropriately for a typical
+  office.
+
+<li>Added Vat.sortSites & Vat.compactSites resources.  Setting these
+  to true (the default) will keep sitebox sorted and compacted,
+  respectively.  Setting them "false" will prevent the auto-sort
+  and/or auto-compact.
+
+<li>Make check for Sun vs. BSD audio driver on sparcs more robust:
+  We were saying it was Sun driver if audio open failed but that
+  might happen because some other vat had audio.  Now say it's
+  Sun if can open /dev/audioctl.
+
+<li>got rid of mouse click handling built into sitebox & added tcl
+  commands so that previous behavior could be duplicated via normal
+  tk 'bind' machinery.  all sitebox commands now documented in
+  comments in vat.tcl.  (changes suggested by John Wroclawski.)
+
+<li>Kluge around yet more Solaris braindamage (is "Solaris braindamage"
+  redundent?): "connect" on a udp socket isn't implemented in any
+  useful way so "getsockname" on always returns "0" for the local
+  address on a connected socket.  This could cause problems on a
+  multi-homed host since we would then try to bind to the "default"
+  local ip address which is usually the wrong one.
+
+<li>Added yet more hacks so the name "idvi" would work for dvi2 audio
+  format.
+
+</ul>
+
+<hr>
+<h3>v3.4  <i>Tue Jun 21 23:45:37 PDT 1994</i></h3>
+<ul>
+
+<li>Fixed initial value of idleDropTime so that vat will drop the
+  audio device when it's not using it. (Value was 0, changed to
+  20 seconds - I thought I'd made this change in v3.3 but
+  apparently botched it.)
+
+<li>Fixed longstanding bug that caused core dumps under Solaris-2
+  if you don't define Vat.sessionName and your shell doesn't
+  set the USER environment variable (e.g., Solaris /bin/sh
+  and /bin/ksh).  Bug report and diagnosis from Atanu Ghosh
+  <A.Ghosh@cs.ucl.ac.uk>.
+
+<li>Fixed (I hope) problem where hp vat would occasionally lock up.
+  My guess is that scheduling delays occasionally cause us to
+  get behind & the kernel audio input buffer overflows so the
+  driver goes into 'pause' (a really stupid design decision
+  on hp's part) and we have to manually unpause it or we get
+  continuous EIO errors.
+
+<li>Implement MBone ttl/bandwidth guidelines in vat encoding
+  choices:  If ttl>160, pcm format is not allowed.  If ttl>192,
+  pcm2 & pcm4 format not allowed.  If ttl>200, only gsm & lpc
+  allowed.  (We're getting really tired of people running
+  80Kb/s pcm at ttl 255.)
+
+<li>Save & restore monitor gain & record/play balance setting in
+  sun audio driver so that these values are local to a vat session.
+
+<li>Added tcl [net localaddr] & [net localport] tcl commands to get
+  local ip address & port.
+
+<li>Added Vat.afSoftOuputGain and Vat.afSoftInputGain resources which
+  control the software gain settings (in dB) for AudioFile when using
+  hardware gain control.  (Vat queries the server to see if it can
+  support hardware gain control.  If so, the mike slider controls the
+  hardware gain factor and the above attributes control an additional
+  software gain factor, both of which are done inside the AudioFile server.
+  If the server does not support hardware gain, then the above resources
+  are ignored and the slider controls the software gain level directly.)
+
+  These resources were added because the default behavior of the
+  Aj300 server results in mike levels that are too low even with
+  the hardware gain maxed out.  We've found that afSoftInputGain
+  set to 10 (dB) provides a good level (with our mikes).
+
+  There seems to be a bug in the Aj300 server which causes substantial
+  distortion when afSoftOuputGain is set to anything other than 0
+  (the default).  At least afSoftInputGain works.
+
+<li>Change tk color allocation code so that any request for a gray
+  gets mapped into the closest one of the 32 grays that nv/ivs/vic
+  use so that vat won't take up any extra cells in the colormap
+  (colormap problems noted & alternate fix suggested by Mark Handley
+  at UCL).
+
+<li>Removed hack that worked around 'sticky' socket error indication
+  in OSF/1.3 since OSF/2.0 seems to have fixed the kernel.
+
+</ul>
+
+<hr>
+<h3>v3.3  <i>Wed Jun  1 13:46:55 PDT 1994</i></h3>
+<ul>
+
+<li>Another cut at release/hold button.  Removed the "Release" button
+  since idleHoldTime is now non-zero by default so that de-selecting
+  the Keep button is the same as clicking the Release button.
+
+<li>Fixed LPC decoding on an SGI.
+
+<li>Added support for AudioFile on SparcStations and Indigos.
+  Set Vat.useAF if you want to use AudioFile instead of the
+  bare audio device.  Vat.afDevice controls the AudioFile
+  device number.  -U allows you to specify AudioFile from the
+  command line.  If you give a number instead of a pathname,
+  AudioFile is used with the device numer indicated.
+  (The man page explains what -U with a pathname does.)
+
+<li>Added checks for 4.4BSD multicast IP options encodings.  If the
+  standard setsockopt's don't work, try the BSD numbers.  This means
+  that the i386 binary should work both on systems with the standard
+  encodings as well as BSD/386 v1.1 and 4.4BSD.  CSRG and BSDI changed
+  the encodings to be keep binary compatibility with the IP options
+  that were added in Net 2 (IP_HDRINCL, IP_TOS etc.).
+
+<li>DEC Alpha and DEC mips versions now linked against Release 3 AudioFile
+  server.  Vat will no longer work with the Release 2 server.
+
+<li>Fixed bug that allowed only one stat window per mixer, even when there
+  were multiple sources behind the mixer (bug reported by David Comay).
+
+<li>Added backward compatibility for "idvi" format string, which is equivalent
+  to "dvi".
+
+<li>Added button to enable/disable encryption, as opposed to typeing in
+  an empty key to disable it.
+
+<li>Change default ttl from 127 to 16 so people who start vat manually
+  don't pollute the world with their audio tests.
+
+<li>Tried to make audio access stuff (keep/release/etc.) work more
+  reliably but was largely stymied by tk's totally broken event
+  handling.
+
+<li>Keep track of incoming packet lengths so encoding doesn't
+  flicker between pcm/pcm2/pcm4 when there's significant packet
+  loss.  (problem first reported by Mark Handley).
+
+</ul>
+
+<hr>
+<h3>v3.2  <i>Sun Jan 16 23:18:49 PST 1994</i></h3>
+<ul>
+
+<li>Removed maximum size limitation on vat window (suggested by
+  Denton Gentry).
+
+<li>Added time-of-day of last activity to stat window.  Update session
+  name and audio format in stat window when it changes.
+
+<li>Tuned sitebox drawing code so exposure events don't cause
+  entire window to flicker (problem reported by Ron Frederick).
+
+<li>Added a workaround for wrapping XIDs (reported by Anders Klemets).
+
+<li>Documented `-u' command switch which allows you to override vat's
+  built-in tcl program with your own script.  We're releasing
+  the source code to vat's tcl script so you experiment with the
+  user interface (i.e., fix our bugs) and use it as a reference
+  when our documentation is lacking.  The preferred way to make
+  customizations to the script is to override tcl procedures
+  and variables with customized tcl code in $HOME/.vat.tcl.
+
+<li>Append uid to audio lock file name so that different users won't
+  collide with eachother.  The presumption is only one user at
+  a time will try to use the audio hardware and since the lock
+  files are never deleted, we make them unique.
+  (suggestion from Tomi Leppikangas)
+
+<li>Added `-g' command option to specify window geometry.  Replaces
+  `-geometry' flag from vat-2 (which had been parsed by InterViews).
+  (thanks to Atanu Ghosh)
+
+<li>Changed the user interface to the audio device aquisition.  The ``Keep''
+  button prevents other vats from taking the audio, and the ``Release''
+  button explicitly releases the device.  The title string is shown in
+  an oblique font when the audio is not held.  (These changes inspired
+  by discussions with George Michaelson, Ron Frederick, and Steve Casner.)
+
+<li>Fix "entry" bindings so that C-d deletes selection if it exists
+  (thanks to Mark Prior).  Fix C-k to delete from cursor to end.
+  Fix other miscellaneous entry problems (reported by Bill Fenner).
+
+<li>Lots of good fixes suggested by Steve Casner: made stat window reliefs
+  raised instead of sunken; animate mute, menu, and help buttons;
+  removed "help" title from help window since it's redundant with
+  the window manager's title (the vat developer's don't use window
+  manager title bars and we've repeatedly made the mistake of adding
+  them to the application.); shutdown gracefully when window is
+  destroyed by external agent; make peak indicator in VU meter change
+  color above *VatVU.hotLevel percent of full scale.  default is 90%.
+  *VatVU.hot sets the color, which defaults to firebrick1;
+  fixed lots of window title bugs.
+
+<li>Make sure windows are mapped entirely within the screen (suggestion
+  by many).
+
+<li>Disable input/output port buttons when not selectable (suggestion
+  from George Michaelson).
+
+<li>Replace "Okay" button labels with "Dismiss" (suggestion from Piete Brooks).
+
+<li>Recode sitebox drawing algorithm to work around bug in broken Parallax
+  X servers that caused names to be imaged into the root window (reported
+  by Steve Casner and Bill Fenner).
+
+<li>Fixed bug that caused occasional core dumps when bringing up stat window
+  (thanks to Piete Brooks).
+
+<li>Fixed bug that caused bogus placement of popup windows with virtual
+  desktops (thanks to Bruce Mah).
+
+</ul>
+
+<hr>
+<h3>v3.0-3.1  <i>Tue Jan 11 16:02:50 PST 1994</i></h3>
+<ul>
+
+<li>New look to user interface; ported to tcl/tk.  The painful side effect
+  is that the vat X resource names have all changed.  Tk requires them
+  to have the form Vat.resource, i.e., vat must be capitalized and
+  the attribute name must start with a lower case letter.  We changed
+  all the old resource names from the form vat*FooBar to Vat.fooBar.
+ 
+<li>Made push-to-talk mode built-in.
+
+<li>Changed invocation of auxiliary control panel from clicking on bottom
+  title bar, to clicking on a button labeled ``Menu''.  Added an
+  ``Okay'' button to the control panel to make it go away.
+
+<li>Added a help window.
+
+<li>Removed the "mute both" button since it's rarely used.
+
+<li>Added per-site statistics windows.  Use left-mouse button on site
+  name to get popup window with packet stats.  Use shift-left-mouse
+  to get permanent window with stats & stripchart.
+
+<li>Added Vat.iconPrefix resource.  This string is prepended to the
+  conference name and the result used as vat's icon name.  For example,
+  you might set Vat.iconPrefix to ``vat:''.
+
+<li>Give better error message when a multicast destination is used on
+  a non-multicast capable system.
+
+<li>Added a type-in box for audio device priority.
+
+<li>Added AGC sliders to auxiliary controls window.
+
+<li>Added a quit button.
+
+<li>Make muteNewSites X resource match name in cbox (changed
+  from "supressNewSites").
+
+<li>Changed "-f idvi" option "-f dvi" to match name in cbox.
+
+<li>Remove support for Vat.Speaker resource (per warning in v2.17beta
+  change log).
+
+<li>Anti-social practice of using pure whitespace for session name
+  is no longer permitted.
+
+<li>Removed conference title bar.  Moved audio access functionality
+  to title bar at bottom of window.
+
+</ul>
+
+<hr>
+<h3>v2.18-20beta  <i>Thu Dec  9 18:45:17 PST 1993</i></h3>
+<ul>
+
+<li>add support for both kinds of audio hardware on HP snakes (710's
+  PSB2160 in addition to 715/735's CS4215).
+
+<li>based on input from Steve Casner, tried to make Sparcstation-10
+  audio a bit better:  Estimate & remove DC bias from input signals
+  and reduce gain of mike signal slightly in hope that people will
+  be able to run without turning on mike agc.
+
+<li>"full duplex" mode got broken in last release.  It works again.
+  (problem reported by Toerless Eckert)
+
+<li>add support for external echo cancellers (-E flag & ExternalEchoCancel
+  resource (suggestion from Steve Casner).
+
+<li>add control of echo suppress deadtime (EchoSuppressTime X resource).
+  changed way speakerphone modes do mute to use explicit deadtime
+  rather than decay of mike's echo return signal.  (motivated by
+  auditorium echo problems in "net mutes mike" mode reported by
+  Ron Frederick and Mitch Collingsworth)
+
+<li>fix way gains are initialized so we set gain on right port (now
+  done in abox rather than in main). (problem reported by Steve
+  Casner)
+
+<li>fix bug in 'p' printout (printing input port names rather than
+  output port names in output gain resource).  (problem reported
+  by Steve Casner)
+
+<li>make SuppressNewSites X resource match name in cbox (changed
+  from "SuppressAll").  Make SuppressNew variable match name in cbox.
+  (problem reported by George Michaelson)
+
+<li>Change the way the 'inactive' timeout is computed so sites running
+  a compression much lower than the conference's (e.g., lpc4 in a
+  pcm conference) don't flicker between gray and black.
+
+<li>Lots of changes to support hpux & hp's audio model.
+
+<li>add support for audio input via Unix domain socket rather than
+  /dev/audio ("-U sockname" flag).
+
+<li>ignore ENOPROTOOPT errors on network sends (bug reported by
+  Carl Malamud).
+
+
+</ul>
+
+<hr>
+<h3>v2.17beta  <i>Tue Oct 19 16:10:32 PDT 1993</i></h3>
+<ul>
+
+<li>Added support for more inputs & outputs on machines that support
+   them.  On a Sparcstation-10 or SGI Indigo, clicking on the mike
+   icon will toggle between mike in & line in.  On a Sparcstation-10,
+   clicking on the speaker icon will toggle between speaker, headphone
+   jack and line outputs.  The default input and output ports are
+   set by the X resources:
+
+       vat.InputPort:  Mike	(can be "Mike" or "Line")
+       vat.OutputPort: Speaker	(can be "Speaker", "Phones" or "Line")
+
+   (The 'OutputPort' resource supercedes the "vat.Speaker: true/false"
+   resource that use to select between the speaker and headphone jack.
+   For backwards compatibility, this release will still interpret
+   a vat.Speaker resource and **it overrides any vat.OutputPort
+   selection.**  If you have trouble setting the output port, look
+   for a vat.Speaker resource in your Xdefaults & remove it.  The
+   next vat release will probably remove support for vat.Speaker.)
+
+   There are now 5 resources that set default gains for each port:
+
+	vat.MikeGain, vat.LineinGain,
+	vat.SpeakerGain, vat.JackGain, vat.LineoutGain
+
+   For output ports there are now three resources that set the
+   default `mode' (speakerphone, full duplex, etc.) when that
+   port is in use:
+
+	vat.SpeakerMode, vat.JackMode, vat.LineoutMode
+
+   (These resources can have the values "MikeMutesNet",
+   "NetMutesMike" or "FullDuplex").
+
+<li>Made the default audio format pcm2 instead of pcm to cut down on
+   the average packet rate.
+
+
+</ul>
+
+<hr>
+<h3>v2.1[56]beta  <i>Tue Jul 27 19:32:25 PDT 1993</i></h3>
+<ul>
+
+<li>Changed default of PushToTalk from "false" to "true" since that's
+   a 'safer' choice for novice users.
+
+<li>Changed right button semantics so that 'down' always means 'unmute'
+   and 'up' always means 'mute' rather than up/down toggling
+   current state.  Toggling isn't particularly intuitive & is
+   easy to get mute in wrong state.
+
+<li>Changed names of `speakerphone' modes to match labels
+   in control box.  "SpeakerPhone" is now "MikeMutesNet" and
+   "VTSpeakerPhone" is now "NetMutesMike".  (problem reported
+   by Greg Ryan (gregr@barossa.cs.su.oz.au)).
+
+<li>Fixed bugs in setting audio format (-f on command line): Was
+   sending specified format but selection in control box was
+   wrong, e.g., "pcm" when "pcm4" was selected.  (bug reported
+   by Eve Schooler)
+
+<li>SGI's IRIX 5.x seems to have broken the audio access socket
+   when running multiple vats.  Changed setup to set SO_REUSEPORT
+   (which is hack to get around problems introduced by not having
+   the real in_pcb.c fix).  (problem report by Jim Martin; fix
+   suggested by Andrew Cherenson)
+
+<li>Added checkbox controls for 'Keep All Sites' (-k) option and
+   'Mute New Sites' (-S) option.  Fixed 'keep sites' logic so
+   control would work with clobbering SiteDropTime setting.
+
+<li>added -M (make mike start unmuted), -J (make speaker start muted)
+   and "-F audiodev" (use 'audiodev' as audio device rather than
+   /dev/audio).  (suggested by Ron Frederick)
+
+<li>fixed bug where site that re-used the empty slot of a site that
+   had been muted came up muted.  (analyzed by Matt Crawford.)
+
+<li>fixed bug where new site inherited 'rank' of last user of empty
+   slot so dislay could end up with multiple 'last speaker' marks
+   only one of which was real.  (bug reported by Jim Martin & Steve
+   Casner.)
+
+<li>Made bsd_audio work right for 2nd & later active vats (since
+   2nd & later think they're running with sun-audio).
+
+<li>Fixed lots of bugs in sun_audio processing when multiple vat
+   windows active (was I asleep when I coded this?)
+
+<li>sites were vanishing after SiteDropTime minutes even if -k (keep
+   sites) specified.  Now make -k set SiteDropTime to 0 so inactive
+   sites are really kept.  (problem reported by Steve Casner.)
+
+<li>Change audio device model to support totally braindead, half-duplex
+   PC audio cards (like SoundBlaster).
+
+<li>Fixed bug in Interviews that was sending a truncated WM_SIZE_HINTS
+   struct to X server (this may have been cause of huge windows under
+   DEC window manager).  (problem reported by George Michaelson and
+   Simon Coppins)
+
+<li>Added "vat.AF.blocks" resource (which defaults to 2) to try to get
+   AudioFile cpu hogging down to reasonable levels.  This resource
+   multiplies the vat 20ms blocksize & is the unit that AF I/O is
+   done in (e.g., 2 means 40ms blocks to/from AF, 3 means 60ms blocks,
+   etc.).
+
+<li>Tried to get around bugs in Ultrix scheduler that seemed to be
+   triggered by 20ms timeouts when vat released audio (a vat without
+   audio should have been taking ~0% of cpu & was taking ~90%).
+   Changed timeout to 200ms & cpu util went to 0 as expected.
+
+<li>Gave controls window same title as main window but with a
+   preceeding "@".  Made controls window pop up first time over
+   vat window but, if you move it, it now stays where you put it.
+   (suggested by Jim Martin & Daniel Karrenberg).
+
+<li>Made yet another try at making 'speakerphone' labels comprehensible.
+   "Speakerphone (mike pri)" is now called "Mike mutes net",
+   "Speakerphone (net pri)" is now called "Net mutes mike" and
+   "Headphone" is now called "Full duplex".  (too many people to list
+   complained about old labels)
+
+<li>Fixed interviews to color field editor typein box gray, not pink.
+   (color problem reported by Ken Hayes & Ron Frederick).
+
+<li>Fixed core dump that resulted when site vanished then re-appeared
+   within two audio frame times (bug found by Steve Casner).
+
+
+</ul>
+
+<hr>
+<h3>v2.14beta  <i>Wed Jun 30 18:48:50 PDT 1993</i></h3>
+<ul>
+
+[First vat v2 public release (v2 based on Interviews 3.x rather than 2.6 --
+ seems to fix lots of X performance problems)].
+
+<li>added PCM2, DVI2, PCM4 & DVI4 audio formats (40 & 80ms frames)
+   to test whether dropping packet rate helps the IETF distribution
+   more than the increased error susceptibility hurts.
+   (test suggested by Paul Milazzo at BBN.)
+
+<li>Sense of 'no silence suppression' button was backwards
+   (diagnosed by Jim Martin at Rutgers).
+
+<li>re-did audio class to handle problems with Sun streams audio
+   driver not giving us the amount of data we requested on reads.
+   (SunOS problems diagnosed by Ron Frederick at PARC)
+
+<li>Fix problem where vat 'locks up' after running continuously
+   for a couple of days.  Problem was file position index on
+   audio fd incrementing through sign bit which causes system
+   to abort future reads & writes with EINVAL error.  Now we
+   lseek to 0 on EINVAL from audio read since it probably means
+   we wrapped through the sign bit in the file position.
+
+<li>Put echo-cancel button back (currently only works on DEC with Lofi
+   running Steve McCanne's DSP kernel).
+
+<li>Add rover to Network::SendIDList() so all sites eventually get
+   sent even if they don't all fit in one packet.
+
+<li>Added -S (suppress all new sites) flag and SuppressAll X resource.
+
+<li>Added SiteDropTime X resource that sets number of minutes until
+   an inactive (grayed out) site is deleted from sitebox.  Default
+   is 30 minutes.  If SiteDropTime drop time is zero, sites will
+   only be deleted when a `c' command is given.
+
+<li>Made `c' command delete sites that have never sent session
+   messages (ones that appear as IP numbers in the sitebox).
+
+<li>Require that both addresses be specified if mixing (-m) -- too
+   many people were using -m without understanding it & cross-
+   connecting some random conference with Mbone Audio.
+
+<li>Fixed bug where vat would core dump if session packet arrived
+   while vat window was being mapped.  ('canvas' pointer in sitebox
+   was initialized to zero.)
+
+<li>On SGIs, made volume & speaker sliders use same scaling as sliders
+   on SGI's Audio Control panel.  (scaling supplied by Andrew
+   Cherenson.)
+
+<li>On SGIs added high-pass filter (first order Bessel filter with ~15Hz
+   passband) in audio read routine to get rid of DC bias introduced by
+   mike 'phantom power' signal.  (This was screwing up vat's power
+   calculations & breaking the speakerphone modes & vu meters.)
+   I have some trouble understanding why SGI didn't invest the
+   dime it would cost to capacitively couple the mike or put the 4
+   instructions into the Indigo's DSP that it would take remove this
+   DC bias.  Clearly audio is far, far down on SGI's priority list.
+
+</ul>
+
+<hr>
+<h3>v1.56beta  <i>Thu Dec 17 13:48:17 PST 1992</i></h3>
+<ul>
+
+<li>Incorporated v1.1 idvi fixes from Jack Jansen (Jack.Jansen@cwi.nl).
+
+<li>(Hopefully) fixed bug in sitebox activity indicator that was
+   causing vat to occasionally blow off with a BadGC X error.
+
+</ul>
+
+<hr>
+<h3>v1.54beta  <i>Tue Nov 24 06:20:23 PST 1992</i></h3>
+<ul>
+
+<li>Added IconMark X resource & associated support.  If
+   "vat.IconMark" is set to some string, if sound arrives
+   while the vat window is iconified, the icon name will
+   be prefixed with the IconMark string.  This is intended
+   to help you find which window is making noise when you
+   have several vat windows active but iconified.  (Suggested
+   by Robert Elz.)
+
+</ul>
+
+<hr>
+<h3>v1.51/52/53beta  <i>Fri Nov 20 04:45:06 PST 1992</i></h3>
+<ul>
+
+<li>put in workaround for 4.1.3 sun audio driver bug
+
+<li>fixed (I hope) bug that would occasionally cause core dumps
+   when receiving GSM audio (core dumps received from Julian Onions
+   and Robert Elz).
+
+<li>added buttons to change audio access priority (suggested by
+   Robert Elz).
+
+<li>fixed bug where vat would try to grab audio device if audio packet
+   arrived from a site that had been suppressed (reported by Robert
+   Elz).
+
+</ul>
+
+<hr>
+<h3>v1.49/50beta  <i>Wed Nov 18 02:50:55 PST 1992</i></h3>
+<ul>
+
+<li>Made session announcement packets have same ttl as audio data packets.
+
+<li>Added 'c' ('compact sitebox') command to remove blank & grayed
+   out names from the sitebox.
+
+<li>Added 'o' ('order') command to sort the sitenames into lexical order.
+
+<li>Made window name be same as conference name & added a typein box
+   in the aux controls window to change the window name.
+
+<li>Fixed a null pointer bug that caused at least one core dump
+   (reported by Julian Onions).
+
+ (The 'c' & 'o' options were suggested by many people; most recently
+  by Julian Onions.)
+
+</ul>
+
+<hr>
+<h3>v1.47/8beta  <i>Mon Nov 16 03:05:28 PST 1992 (pre-IETF release)</i></h3>
+<ul>
+
+<li>changed session ttl to 255 per Steve Deering's request
+
+<li>added a vt-style speakerphone mode (mike disabled if audio
+   arriving from network) for ietf auditorium use. (Suggested
+   by Steve Casner.)
+
+<li>fixed the way 'recent activity' markers are updated so X traffic
+   wouldn't cause speech breakup with multiple talkers.  (Bug
+   found & fix suggested by Steve Casner.)
+
+<li>fixed major bug in gsm reception on paths that reorder or
+   significantly delay packets.  (Problem pointed out by
+   Robert Elz.)
+
+</ul>
+
+<hr>
+<h3>v1.46beta  <i> Mon Nov  2 21:46:48 PST 1992</i></h3>
+<ul>
+
+<li>Fixed a stupid bug that could cause multihomed hosts to pick
+   the wrong destination address (resulting in one-way communication).
+
+</ul>
+
+<hr>
+<h3>v1.41/2/3/4beta  <i>Sat Sep 19 20:35:04 PDT 1992</i></h3>
+<ul>
+
+<li>Added support for GSM coding (13Kb/s European Digital Cellular
+   standard) using a very nicely written GSM libary done by Carsten
+   Bormann and Jutta Degener of the Communications and Operating
+   Systems Research Group (KBS) at the Technische Universitaet Berlin.
+<p>
+   GSM uses 160 sample (20ms) frames.  Previous versions of vat used
+   180 sample (22.5ms) frames but with this version we have switched
+   to 20ms.  This change doesn't affect interoperation (e.g., old
+   vat's can talk to this one & this one can talk to them) but may
+   require that you update a patch made to your kernel (see below).
+   This change helps more than GSM:  Since the only way to generate
+   a 22.5ms "clock" for packet output was to use the audio input,
+   a vat doing "mixing" had to have the audio assigned to it.
+   This meant the mixing host couldn't run multiple vats or forward
+   multiple conferences.  Since the system can easily supply a 20ms
+   "clock", we can now code things so a "mixing" vat can run off
+   of either the audio or the system scheduling clock.  (We haven't
+   made this change yet but plan to in the next version.)
+<p>
+   NOTE: This change means that you might have to change your kernel.
+   If you are using Sun's hopeless audio driver, you already had
+   to change the audio buffer size in your kernel from 1024 to 180
+   bytes to run vat.  You now have to change it from 180 to 160 bytes.
+   To do this, do the following as root:
+<p>
+	<ul>
+	<li>	adb -k -w /vmunix /dev/mem <br>
+	<li>	audio_79C30_bsize/W 0xa0 <br>
+	<li>	audio_79C30_bsize?W 0xa0 <br>
+	</ul>
+<p>
+   If you do not make this change, the audio you send to other sites
+   will sound very strange (their audio will sound fine to you).
+   Note that if you are running the BSD audio driver (which, in
+   spite of its name, can be used as the audio driver for SunOS 4.x)
+   you don't need to change anything.  [The BSD audio driver is
+   available on ftp.ee.lbl.gov as file bsd_audio.tar.Z if you want
+   to play with it.]
+
+<li>Added optional DES encryption of audio stream.  To send & receive
+   encrypted audio, place the cursor in the type-in box labeled "Key:"
+   in the aux controls window and type in a key for the conference.
+   (A key is an arbitrary ascii string of up to 127 characters.
+   Everyone in the conference must use the same key, of course.)
+   A key can also be supplied using the -K flag when you start
+   vat (this is not a good idea since it will be visible to anyone
+   doing a "w" or "ps").
+
+<li>Lowered default mike gain to a value more suitable for a Sun
+   microphone (32 instead of 180).
+
+<li>Made "session" packets always use a multicast ttl of 127
+   (make it slightly harder to eavesdrop).
+
+<li>Fixed a bug in the mike AGC (now updates only during speech).
+
+<li>Fixed a bug in audio access (IdelDropTime was defaulting to
+   10 sec. instead of zero so audio got released unexpectedly).
+
+<li>Changed audio access control code to run a host without multicast
+   (but, since multiple vats can't communicate, this means you have
+   to pass the audio by clicking on the vat title bars.
+
+</ul>
+
+<hr>
+<h3>v1.40beta  <i>Thu Jul 30 19:28:23 PDT 1992</i></h3>
+<ul>
+
+<li>Added indicators to show recent talkers:  The most recent is
+indicated by a black square next to the site name.  The next
+most recent by a gray square & the third most recent by a smaller
+gray square.  (Change suggested by Robert Elz, kre@munnari.oz.au).
+
+</ul>
+
+<hr>
+<h3>v1.39beta  <i>Tue Jul 28 22:00:25 PDT 1992</i></h3>
+<ul>
+
+<li>Fix a stupid coding error introduced in 1.38 that would cause
+core dump if packet arrived when we didn't have audio.  Problem
+identified thanks to core dump supplied by Jon Crowcroft at UCL.
+
+<li>Paul Traina (pst@cisco.com) pointed out that mixing still didn't
+work right:  A mix host running in speakerphone mode couldn't hear
+the host it was mixing for unless the mike was muted.  Redid the
+mix logic yet again with no corner-cutting this time -- it seems
+to work.
+
+</ul>
+
+<hr>
+<h3>v1.38beta  <i>Sat Jul 25 01:39:19 PDT 1992</i></h3>
+<p>
+A "push to talk" button has been added:  If the X resource
+vat.PushToTalk is set to true (it defaults to false) the right
+mouse button will toggle the mute state of the mike if pushed
+or released in a white part of the site box.  (It should work
+anywhere in the vat window but InterViews 2.6 makes that hard
+to do).  Also, if the vat window where you push the right button
+doesn't currently have the audio, it will grab the audio.
+[Adding a push-to-talk was first suggested by Dave Bachmann,
+<dave@citi.umich.edu>.]
+<p>
+Vat can now completely give up the audio (as opposed to passing it
+to another vat):  Just click on the title bar until it turns white.
+If audio data arrives from the network, vat will automatically
+try to grab the audio back.  (You can prevent this automatic
+grabbing by muting the speaker in this vat window.)  If you set
+the X resource IdleDropTime to some number, vat will automatically
+drop the audio if there has been no in or out net activity for
+that many seconds.  (You can prevent this automatic dropping by
+clicking on the title bar until it turns black -- this `pins'
+the audio to a particular vat window.)
+<p>
+Giving up the audio on inactivity & grabbing it back on activity
+is half of the additions we've made to support semi-automatic
+passing of audio between multiple vat windows.  The other half
+is intended to control which window gets the audio when multiple
+windows request it:  Windows have a priority (typically set by the
+X resource vat.DefaultPriority [defaults to 100] but this can be
+overridden by a `-P pri' flag).  If a window requests the audio
+(because new network data arrived or the mike has been unmuted)
+and the window currently holding the audio is either lower priority
+or hasn't used audio for IdleHoldTime seconds, the audio holder
+immediately gives it up.  Otherwise the new window's request is
+ignored.  (IdleHoldTime provides hysteresis to prevent `thrashing'
+when two conferences go active at about the same time; the priority
+provides a way to distiguish `background' windows, say a radio
+station broadcast or a `directory' window of people reachable via
+vat, from `foreground' activity like a particular audio conference
+so vat can make better decisions on what should get the audio.)
+<p>
+If all of the above sounds complicated, ignore it & don't worry.
+Just start up as many vat windows in different conferences as
+you want.  If there's activity in some conference, it will grab
+the audio and you'll hear what's being said.  If you want to
+talk in some conference, just unmute the mike in that window and
+start talking.  If vat makes the wrong decision about the audio
+(e.g., there are two conferences active and it flips between them)
+click on the title bar of the one you want.
+<p>
+[The changes to support passing & releasing the audio derived
+from a series of suggestions & a very interesting conversation
+between Jon Crowcroft, Ian Wakeman & Mark Handley of University
+College, London.]
+<p>
+Note that the title bar now indicates the audio state of a window:
+
+    White  No audio
+    Gray   Unpinned audio
+    Black  Pinned audio
+
+And that there are five new X resoures associated with this stuff: 
+
+    vat.PushToTalk:	 false	! if true, right mouse button does
+				!   mike unmute/mute.
+    vat.AutoRaise:	 true	! raise window when audio is acquired
+    vat.IdleDropTime:    0	! seconds we have to be idle before we'll
+				!   release the audio (0 => never).
+    vat.IdleHoldTime:    10	! seconds we have to be idle before we'll
+				!   honor a request to give up audio.
+    vat.DefaultPriority: 100	! default priority if no -P flag
+
+Also note that INPCB.patch has been updated -- we'd made another change
+to in_pcb.c that my last diff didn't pick up.
+
+<hr>
+<h3>v1.37beta  <i>Thu Jul 23 23:35:56 PDT 1992</i></h3>
+<p>
+Many, many errors showed up in 1.34 when other sites tried to
+run it.  Some were just stupid coding on my part but several
+have to do with differences between the network code we run
+and the stuff that Sun ships.  1.37 tries to deal with the
+differences by not letting you do things that won't work
+under stock SunOS+Deering IP multicast.  In particular, only
+one `side conversation' window per conference can be open
+at a time.  Any attempt to open others will result in a
+"bind: Address already in use" error & no new vat window
+will be created.  (You can still have multiple vat windows,
+but each one has to have a unique local address and port
+which is where the above restriction comes from.)
+<p>
+If you have source for the kernel network code (including
+the multicast mods) you can apply the patch file INPCB.patch
+to /sys/netinet/in_pcb.c.  This will allow you to open as
+many side conversation windows as you want and will make multiple
+active conferences to different multicast addresses work *much*
+better (the patch is upwards compatible with the earlier system,
+it just removes some stupidity that prevents using the entire
+address to identify a 'connection').  When Steve Deering gets
+back from vacation, I'll talk to him about folding this change
+into the multicast distribution on Gregorio so it will be
+available to sites without source.
+
+</ul>
+
+<hr>
+<h3>v1.32beta  <i>Thu Jul 23 10:45:58 PDT 1992</i></h3>
+
+<p>
+Vat now supports multiple vat windows, each participating in a
+different conference.  You control which vat window gets access to the
+audio hardware (speaker & mike) by clicking on the title bar.  (The
+other windows will continue to highlight sites to show that data is
+arriving, they just won't be able to make any noise.)
+<p>
+There is some support for dynamically establishing `side
+conversations' with other participants in a conference: If you middle
+click on some participant's name in the site box, you'll get a new vat
+window that unicasts to only that participant.  If they do the same on
+your site name, you can have a private conversation in the new
+windows. 
+<p>
+To help sort out the multiple windows, there's now a -C flag that sets
+the 'conference name' (the name displayed in the window title bar). 
+If you don't specify -C, the destination address and port is used. 
+<p>
+The way you specify the destination for -m (address/port/format/ttl)
+can also be used for the main conference destination.  E.g.,
+"vat foo/3456" rather than "vat -p 3456 foo".  The -p, -f and -t
+flags still work if you want to use the old form.
+<p>
+A major bug in `mixing' (the -m flag) was fixed: A site mixing for
+some other wasn't able to hear the audio generated by that site
+(anyone else could -- only the site doing the mixing was excluded).
+A mixing site can now hear and talk to every one, including the site
+it's mixing for. 
+<p>
+In the rush to get a version of vat that could display more site names
+for IETF, we broke the auxillary controls window.  Many people have
+noted that it wouldn't appear unless you resized the vat window. 
+We've fixed that.  The fix required making the aux controls window a
+completely separate window, rather than having it part of the main vat
+window.  This is good & bad: The vat window no longer changes size
+when you open or close the aux controls but you now have to move &
+iconify the two windows separately if the aux controls window is open.
+Unfortuanately, the current scheme seems to be the best we can do with
+the 2.6 version of InterViews we're using. 
+<p>
+The mike and speaker AGC both seem to be working fairly well now. 
+They both still default to "off" since we'd like to get a bit more
+experience with using them in large conferences but they will probably
+default to "on" in the next version of vat.  We encourage you to turn
+them on and let us know if there are any problems. 
+<p>
+You can now type 'p' in the vat window to get the current mike and
+speaker gain settings printed to standard out.  They are printed in a
+form suitable for inclusion in your .Xdefaults file.  I.e., once you
+get the speaker & mike set to your taste, just type "p" and paste the
+result into .Xdefaults so you won't have to ever set them again. 
+<p>
+Henning Schulzrinne has been testing a new version of Nevot that
+turned out to be a vat killer:  Six different people reported vat core
+dumps yesterday, all due to a bug triggered by Nevot continuously
+sending a site id message immediately followed by a site done message.
+This bug has been fixed. 
+</BODY>
+</HTML>

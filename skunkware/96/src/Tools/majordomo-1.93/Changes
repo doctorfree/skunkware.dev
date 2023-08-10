@@ -1,0 +1,319 @@
+Changes since release 1.62
+==========================
+
+New in version 1.90 are:
+
+The changes in majordomo are:
+
+	All options to majordomo can be set remotely using a
+	        configuration file. This includes
+		setting the subscribe policy to open, closed or auto, and
+		stripping comments from addresses.
+
+	The ability to hide a list when a "lists" command is issued.
+
+	A 50 character description can be shown when using the "lists"
+		command.
+
+	The info file can be dated when it is installed. This is useful if the
+		info file is being served using a method besides majordomo
+		(e.g. finger, gopher, www).
+
+	The operations get, index, info, which, who can each be made
+		private individually. If they are private, access to
+		the command is restricted to people on the list.
+
+	Addresses of the form user@host.dom.ain can be made to compare
+		equivalent to user@dom.ain. This works for subscribe,
+		unsubscribe, and all private options.
+
+	The sender name (in the envelope address) can be set remotely
+		on a per list basis.
+
+        Command lines can be continued by using a \
+		at the end of the line.
+
+        Spaces can be preserved in command line arguments by
+               preceding the space with a \. Thus files with spaces
+	       in their names can be retrieved.
+		
+		
+        New commands to manipulate configuration files have been
+	added:
+	    config <list> <password>
+
+	          retrieve a self-documenting configuration file for
+	          the list <list>.  The <password> can be the password
+	          contained in the file <listname>.passwd or the
+	          admin_password in the configuration file.
+
+	          Think of it as the info command with a password. I
+	          cribbed enough code from info for it.
+
+	    newconfig <list> <password>
+            <config file>
+	    EOF
+
+	    	Validates and installs a new configuration file. The
+		config file is expected to be a complete config file
+		as returned by "config".  Incremental changing of the
+		config file is not yet supported.  As soon as the
+		config file is validated and installed its settings
+		are available for use. This is useful to remember if
+		you have multiple commands in your mail message since
+		they will be subject to the settings of the new config
+		file.  If there is an error in the config file
+		(incorrect value...), the config file will not be
+		accepted and the error message identifying the problem
+		line(s) will be returned to the sender. Buglet: only
+		the error lines are returned to the sender not the
+		entire config file.
+
+		(does this remind you of "newinfo"; it should, I
+		shamelessly stole the newinfo code to make it into
+		newconfig).
+
+           writeconfig <list> <password> 
+
+                Write a new config in standard form. All of the config
+		file documentation is optional. Only the keywords and
+		values are necessary. If a config file, stripped of
+		all comments is installed using newconfig, that is
+		what is returned by config.  Writeconfig forces a
+		rewrite of the config file with all comments and
+		default values in place. It is useful to use after an
+		upgrade of majordomo since it will add the new
+		keywords for people to change. It also updates the
+		documentation in the file if that has changed.
+
+	A new command to generate a digest has been added:
+
+	  mkdigest <digest list name> <password>
+
+	  This will force a digest for the specified list to be created.
+
+With resend
+
+	Most of resend's options can be controlled remotely using a 
+	configuration file including:
+		moderation status
+		approval password
+		enabling administrivia checks
+		debugging
+		setting the maximum size for a message (in bytes)
+		setting the message precedence
+		purging received lines
+		setting a reply-to header
+		setting the list of files that determines valid posting
+			 addresses
+		setting the sender envelope name
+		
+	A number of features have been added to resend that are also
+	able to be controlled remotely.
+
+		Arbitrary headers can be added to outgoing messages
+		Arbitrary text can be added before the body of an
+			  outgoing message.
+		Arbitrary text can be added at the end of the body of
+			  an outgoing message.
+
+		An arbitrary word can be prefixed to the subject line
+		   to allow easier scanning of list mail
+                	   
+
+With digest
+
+    Brent Chapman's digest program has been integrated with majordomo.
+    As with the rest of the programs, the config file can be used to
+    set all of its parameters including:
+
+	issue and volume numbers
+	digest name
+	the size when a digest is automatically created
+	the header and trailer for the digest
+	the reply-to address can be set
+	the sender name can be set
+
+   In addition to the above, the config file version allows arbitrary
+   headers to be added to the outgoing digest.
+
+
+
+Changes since release 1.60
+==========================
+
+Fixed a major bug in "majordomo" where a file wasn't properly being
+closed during an "unsubscribe" operation; this would cause (on some
+platforms, under some circumstances) multiple "unsubscribe" operations
+contained in a single message to Majordomo to fail silently.
+
+Added "Doc" directory, with documentation (well, more documentation
+than was there previously, anyway) for Majordomo.  Included in the
+directory is the original paper on Majordomo and a file of instructions
+and explanations about Majordomo for new list owners.
+
+Added "Doc/samples" directory of sample list configuration files; thanks
+to Vince Skahan <vince@atc.boeing.com>.
+
+Added "Doc/man" directory of online manual pages.  Added "majordomo.8"
+and "approve.1" as the first entries; thanks to Jim Duncan <jim@math.psu.edu>.
+
+Fixed a major bug in "approve" that was keeping it from working on standard
+input.
+
+Fixed a minor bug in "approve" that was causing an extra blank line to be
+added after each "approve" line generated.
+
+Changes since release 1.56
+==========================
+
+"resend" will now look for an "Approved:" line as the first line of the
+body, in addition to as a header.  This makes it easier for folks who
+can't insert headers with their mailer to generate "Approved:" lines.
+
+"approve" will now approve messages that have been bounced by "resend",
+in addition to "request for approval" messages generated by Majordomo.
+This means that you can now easily set up a moderated mailing list by
+specifying the "-A" and "-a <passwd>" arguments to "resend", which will
+cause "resend" to send messages without a valid "Approved:" line to
+the list owner, who can then use "approve" to OK the messages that they
+want to be posted.
+
+Added support for a "majordomo_version.pl" file, which now lists the
+official version number for a particular release of the Majordomo package.
+A "help" command will now return this number, reflecting the version number
+of the entire package, rather than the version number of the "majordomo"
+PERL file (which is what "help" returned before).
+
+Fixed minor bug where list names were not always being converted to
+lower case.  Thanks to Roger Klorese <rogerk@queernet.org>.
+
+Changes since release 1.54
+==========================
+
+Added "--" as the first line of responses generated by Majordomo.  This
+keeps bounces of Majordomo-generated messages from being reprocessed as
+input if some broken mailer bounces them back to Majordomo instead of
+Majordomo-Owner.
+
+Added check to ensure that an address really is subscribed to a list
+before attempting to process an "unsubscribe" request for that address.
+This should stop the generation of "approve unsubscribe" requests for
+addresses that aren't really on the list anyway.
+
+Added comments to "sample.cf" file to document all variables set there.
+
+Added "get" and "index" commands to access files related to a list.
+Courtesy of Alan Millar <amillar@bolis.sf-bay.org> and
+Paul Haas <paulh@hamjudo.mi.org>.
+
+Added "-I" (restrict incoming messages to list members) and "-r" (add a
+"Reply-To:" field) flags to "resend"; see "resend.README" for details.
+Courtesy of Jon Luini <jonl@hal.com>.
+
+Renamed "sendmail" subroutine in "resend" to "resend_sendmail", to avoid
+conflict with "sendmail" subroutine in "majordomo.pl" file.  This should
+put an end to the "Malformed command links" warnings from "resend".
+
+Added "-a" (set an "approval" password) and "-A" (require approval of
+all messages; i.e., make this a moderated mailing list) flags to "resend";
+see "resend.README" for details.
+
+Added a comment to "README" about running setuid to a sendmail "trusted"
+user.
+
+Added "W_MAJORDOMO_CF" environment variable support to "Makefile" and
+"wrapper.c", so that this can be hard-coded into "wrapper", rather than
+inheireted from the environment of "wrapper" (which is a security problem).
+
+Changed "request-answer" by expanding recording to include info about
+the "unsubscribe" command.
+
+Changes since release 1.46
+==========================
+
+Updated README file.
+
+Removed MH dependencies from "approve"; it now works on stdin or file
+names passed as arguments.
+
+Changed "approve" from using multiple ~/.passwd/* files to using a single
+file ~/.majordomo.  See the comments at the start of "approve" for more info.
+
+Changed "bounce" from using multiple ~/.passwd/* files to using a single
+file ~/.majordomo.  See the comments at the start of "bounce" for more info.
+
+Changes in 1.46
+===============
+NOTE WELL: existance of a "<list>.private" file used to mean the same thing
+as existance of a "<list>.closed" file.  "<list>.private" now means something
+different (see below).  If you've got lists that are currently ".private",
+you should make them ".closed" before you install this version of Majordomo.
+
+Filename changes (mostly to accomodate 14-character limits):
+    bounce-reminder		bounce-remind
+    majordomo.cf.sample		sample.cf
+    request-recording		request-answer
+    mailstuff.pl		majordomo.pl
+
+Code reorganization; moved must support functions to "majordomo.pl".
+
+Fixed log locking bug; log now locked before each write.
+
+Fixed truncation bug caused by indiscriminate "chop"; now only chops
+trailing newlines.
+
+Both "subscribe" and "unsubscribe" now check to see if a requesting
+address looks like a real name rather than an email address (i.e., if
+the user issued a LISTSERV-style "subscribe <list> <real name>" command,
+rather than a Majordomo-style "subscribe <list> [<addr>]" command).  If
+it doesn't look like an email address, it squawks to the user and punts
+the request.
+
+Majordomo now slightly more liberal in accepting list names; it will now
+take "<list>", "list@site", and "<list@site>" as synonyms for "list".
+
+Majordomo now recognizes any line beginning with a "-" as equivalent
+to an "end" command, so it won't process automatically-added signatures
+any more.
+
+All requests to a given list can now be automatically approved by creating
+a file "$listdir/<list>.auto".  The list owner still gets the standard
+"SUBSCRIBE" and "UNSUBSCRIBE" advisories.
+
+Responses to "info" requests now include a "last updated <date>" line
+at the end, telling when the "<list>.info" file was last updated.  If
+you want the date printed and labelled in a particular timezone (GMT,
+say), you need to set that timezone in your TZ environment variable;
+something like this in your majordomo.cf file works well:
+    $ENV{"TZ"} = "GMT";
+
+Which mailer to use, and what arguments to pass it, can now be configured
+in the .cf file.  You have to use a mailer that will accept the header along
+with the text of the message (such as sendmail).  To set your own mailer,
+set the "$mailer" variable in the .cf file to the string to use to invoke
+the mailer.  The default, if none is specified, is:
+    "/usr/lib/sendmail -f\$sender \$to"
+You can use "\$sender", "\$to", "\$from", and/or "\$subject" in your command.
+Make sure you use the "\", so that these variables will be expanded later,
+rather than when the .cf file is read.
+
+The "which" command now does a case-insensitive substring match, rather
+than an address match.  Any address which matches the argument to "which"
+is included in the output to "which".  I.e., "which brent" will now match
+"brent", "Brent@GreatCircle.COM", "Chapman@GreatCircle.COM (Brent Chapman)",
+etc.
+
+You can now tell Majordomo, on a per-list basis, to strip comments
+from addresses before writing them to the list file by creating a
+file "$listdir/<list>.strip".  For example, in both
+"Brent@GreatCircle.COM (Brent Chapman)" and
+"Brent Chapman <Brent@GreatCircle.COM>", "Brent Chapman" is a comment,
+and the address can be simplified to "brent@greatcircle.com".
+
+You can now tell Majordomo, on a per-list basis, that a list is "private"
+by creating a file "$listdir/<list>.private".  If such a file exists,
+then only members of the list can access the list with "who" and "which"
+commands. 
+
+$Header: /sources/cvsrepos/majordomo/Changes,v 1.2 1994/04/02 22:46:16 rouilj Exp $

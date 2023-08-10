@@ -1,0 +1,105 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Errors</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_46.html">previous</A>, <A HREF="make_48.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX273"></A>
+<A NAME="IDX274"></A>
+<A NAME="IDX275"></A>
+<H2><A NAME="SEC46" HREF="make_toc.html#TOC46">Errors in Commands</A></H2>
+<P>
+After each shell command returns, <CODE>make</CODE> looks at its exit status.
+If the command completed successfully, the next command line is executed
+in a new shell; after the last command line is finished, the rule is
+finished. 
+<P>
+If there is an error (the exit status is nonzero), <CODE>make</CODE> gives up on
+the current rule, and perhaps on all rules.
+<P>
+Sometimes the failure of a certain command does not indicate a problem.
+For example, you may use the <CODE>mkdir</CODE> command to ensure that a
+directory exists.  If the directory already exists, <CODE>mkdir</CODE> will
+report an error, but you probably want <CODE>make</CODE> to continue regardless.
+<A NAME="IDX276"></A>
+<P>
+To ignore errors in a command line, write a <SAMP>`-'</SAMP> at the beginning of
+the line's text (after the initial tab).  The <SAMP>`-'</SAMP> is discarded before
+the command is passed to the shell for execution.  
+<P>
+For example,
+<P>
+<PRE>
+clean:
+        -rm -f *.o
+<A NAME="IDX277"></A>
+</PRE>
+<P>
+This causes <CODE>rm</CODE> to continue even if it is unable to remove a file.
+<A NAME="IDX278"></A>
+<A NAME="IDX279"></A>
+<A NAME="IDX280"></A>
+<P>
+When you run <CODE>make</CODE> with the <SAMP>`-i'</SAMP> or <SAMP>`--ignore-errors'</SAMP>
+flag, errors are ignored in all commands of all rules.  A rule in the
+makefile for the special target <CODE>.IGNORE</CODE> has the same effect, if
+there are no dependencies.  These ways of ignoring errors are obsolete
+because <SAMP>`-'</SAMP> is more flexible.
+<P>
+When errors are to be ignored, because of either a <SAMP>`-'</SAMP> or the
+<SAMP>`-i'</SAMP> flag, <CODE>make</CODE> treats an error return just like success,
+except that it prints out a message that tells you the status code
+the command exited with, and says that the error has been ignored.
+<P>
+When an error happens that <CODE>make</CODE> has not been told to ignore,
+it implies that the current target cannot be correctly remade, and neither
+can any other that depends on it either directly or indirectly.  No further
+commands will be executed for these targets, since their preconditions
+have not been achieved.
+<P>
+<A NAME="IDX281"></A>
+<A NAME="IDX282"></A>
+<P>
+Normally <CODE>make</CODE> gives up immediately in this circumstance, returning a
+nonzero status.  However, if the <SAMP>`-k'</SAMP> or <SAMP>`--keep-going'</SAMP>
+flag is specified, <CODE>make</CODE>
+continues to consider the other dependencies of the pending targets,
+remaking them if necessary, before it gives up and returns nonzero status.
+For example, after an error in compiling one object file, <SAMP>`make -k'</SAMP>
+will continue compiling other object files even though it already knows
+that linking them will be impossible.  See section <A HREF="make_86.html#SEC85">Summary of Options</A>.
+<P>
+The usual behavior assumes that your purpose is to get the specified
+targets up to date; once <CODE>make</CODE> learns that this is impossible, it
+might as well report the failure immediately.  The <SAMP>`-k'</SAMP> option says
+that the real purpose is to test as many of the changes made in the
+program as possible, perhaps to find several independent problems so
+that you can correct them all before the next attempt to compile.  This
+is why Emacs' <CODE>compile</CODE> command passes the <SAMP>`-k'</SAMP> flag by
+default.
+<A NAME="IDX283"></A>
+<A NAME="IDX284"></A>
+<A NAME="IDX285"></A>
+<A NAME="IDX286"></A>
+<A NAME="IDX287"></A>
+<P>
+Usually when a command fails, if it has changed the target file at all,
+the file is corrupted and cannot be used--or at least it is not
+completely updated.  Yet the file's timestamp says that it is now up to
+date, so the next time <CODE>make</CODE> runs, it will not try to update that
+file.  The situation is just the same as when the command is killed by a
+signal; see section <A HREF="make_48.html#SEC47">Interrupting or Killing <CODE>make</CODE></A>.  So generally the right thing to do is to
+delete the target file if the command fails after beginning to change
+the file.  <CODE>make</CODE> will do this if <CODE>.DELETE_ON_ERROR</CODE> appears
+as a target.  This is almost always what you want <CODE>make</CODE> to do, but
+it is not historical practice; so for compatibility, you must explicitly
+request it.
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_46.html">previous</A>, <A HREF="make_48.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

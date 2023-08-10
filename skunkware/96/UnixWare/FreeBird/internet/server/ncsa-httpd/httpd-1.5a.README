@@ -1,0 +1,183 @@
+
+httpd (this version for UnixWare 2)
+-----
+
+(Note we also have the cern 3.0 httpd daemon available which install
+a working server with demo page and no extra setup - this one requires
+some additional setup of config files after installing - see below)
+
+This package will install a http daemon onto a UnixWare machine.  This
+will give the machine the ability to act as a http server (see the Mosaic
+package for a suitable client).
+
+The package will install the httpd as a daemon by installing
+and starting /etc/rc2.d/S81httpd (there's also an rc1.d/K81httpd
+to stop it)
+
+See the documents for further information
+
+Installation
+------------
+
+i)	tar -xvf httpd-1.5a.pkg.UW2.tar
+ii)	pkgadd -d`pwd` httpd
+
+
+Here is some info to help you set up the httpd daemon.
+
+
+After install, the httpd executable is placed in /opt/bin.
+
+The config files are placed in /opt/lib/httpd/conf
+
+IMPORTANT NOTE:
+
+The config files need to be modified for your site, minimally
+the file /opt/lib/httpd/conf/httpd.conf needs to have a suitable
+entries added for:
+
+ServerAdmin	webmaster@your.domain
+ServerName 	your.server.domain
+
+Common Gateway Interface (CGI) scripts can be set up
+including imagemaps.
+
+The html documents are put into /opt/lib/httpd/htdocs
+When a user specifies your site they get the index.html file
+from the directory they specify.
+
+To setup a default home page insert a file index.html into
+the top level directory of /opt/lib/httpd/htdocs. Note if
+you want to relocate the htdocs directory change DocumentRoot in
+srm.conf.
+
+
+Do install some simple demo docs, take the WWWdemopages.tar.Z
+and unwind the archive in the htdocs directory.
+---------------------------------------------------------------------
+USE OF THE VIRTUAL SERVER
+
+(This part of this doc taken from www.uux.org - with some supplemental
+notes added/changed ...)
+
+This HTTPD server, has a feature which allows you to have web pages for 
+more than one domain on your system. For example, this server is 
+actually running on sailor.dpcsys.com even though the URL says it is  
+www.uux.org. Each domain can have their own home page, so 
+http://www.dpcsys.com and
+http://www.uux.org while both pointing at the same physical machine will
+return different documents.
+
+This is actually quite easy to configure with UnixWare, it just isn't
+documented anywhere. Until now.
+
+All you really need to do is
+add an appropriate < Virtual Host> section to your httpd.conf. Here is
+ours:
+
+
+< VirtualHost avirtual.ukb.novell.com>
+ServerAdmin     < webmaster@avirtual.ukb.novell.com>
+ServerName      avirtual.ukb.novell.com
+ErrorLog        /var/opt/httpd/logs/avirtual/error_log
+TransferLog     /var/opt/httpd/logs/avirtual/access_log
+ResourceConfig  conf/avirtual.conf
+</VirtualHost>
+
+In the ResourceConfig you can specify a DocumentRoot and
+All of your pages for a given virtual host need to be placed under it's
+DocumentRoot, most other directories such as cgi-bin/ and icons/ are
+shared.
+
+Now comes the harder (but not hard) part. The virtual host must have an
+entry in the DNS with a valid IP number under your site's control. And
+you need an interface that responds to this IP address. The trick is to
+fool a PPP interface into routing packets aimed at it back to your
+ethernet card.
+
+The procedure to do this differs between UnixWare 2.0x and UnixWare 2.1.
+
+UnixWare 2.0x Config
+=====================
+First, to create a spare PPP interface, add a line like this to
+/etc/confnet.d/inet/interface:
+
+www:0:165.90.143.56:/dev/ppp:165.90.143.3 netmask 255.255.255.0:add_ppp:
+
+The interface prefix isn't particularily important, I named it www since
+we're going to be using this as web hosts. The second field is the unit
+number, from 0-9. The third field is the IP address assigned to this
+interface. The fourth field says this interface uses /dev/ppp and the
+fifth field includes the paramaters we want to pass to ifconfig. The
+second IP address is the address of your  real interface to the 'Net.
+
+[Note- to restart the interface as root, do:
+	sh /etc/inet/rc.restart
+To see if the interface came up then do:
+	ifconfig -a
+You should see a line for www0 
+SMC8K0: flags=23<UP,BROADCAST,NOTRAILERS>
+        inet 164.99.11.176 netmask ffffffc0 broadcast 164.99.11.191
+www0: flags=11<UP,POINTOPOINT>
+        inet 164.99.11.177 --> 164.99.11.176 netmask ffffffc0
+lo0: flags=49<UP,LOOPBACK,RUNNING>
+        inet 127.0.0.1 netmask ff000000     ]
+
+UnixWare 2.1 Configuration
+=============================
+In 2.1 either use the loopback devices or use 
+a new feature of ifconfig - the alias
+command, and use this as
+
+	ifconfig interface alias ip-addr
+
+	ifconfig SMC8K0 alias 193.82.115.24
+
+To use the loopback devices edit /etc/confnet.d/inet/interface and
+add devices as follows (example 3 added)
+
+lo:1:193.99.11.1:/dev/loop::add_loop:
+lo:2:193.99.11.2:/dev/loop::add_loop:
+lo:3:193.99.11.3:/dev/loop::add_loop:
+
+
++++++++++++++++++++++++++++++++++++
+After adding lines for all of your virtual hosts, you will need to get
+the world to recognize them. To do this we will preload the arp cache
+with entries that point from the virtual interfaces to your ethernet
+card's hardware address.
+
+I added an entry to /etc/inet/config that looks like this: 
+
+2:/usr/sbin/arp::y:/etc/inet/arptable:-f /etc/inet/arptable:
+
+Note that I'm running it early. You want this entry in place before the
+PPP interfaces are brought up. You will need to create the file
+/etc/inet/arptable which consists of entries listing the hostname or IP
+address you are faking followed by the hardware address of your ethernet
+card.  Here's ours:
+
+www.uux.org 0:0:c0:21:9e:27 pub
+
+[Note; to found out your macaddr look in /etc/inet/macaddr,
+You can try this by hand initially by creating the file
+/etc/inet/arptable and then:
+	arp -f /etc/inet/arptable ;
+doing an arp -a should so the permanent published (in this example
+i added lechlade.ukb.novell.com
+# arp -a
+yeti.ukb.novell.com (164.99.11.168) at 0:80:5f:48:52:5b
+lechlade.ukb.novell.com (164.99.11.177) at 0:0:c0:fb:b6:68 permanent published
+usg.ukb.novell.com (164.99.11.131) at 0:0:1b:50:ce:55  
+]
+
+Make sure you include the "pub" our your system won't announce the entry. 
+
+That's it. Reboot and you will have a working virtual interface.
+
+[ Note, no need to reboot if you use the Notes above ]
+
+Dan Busarow
+dan@dpcsys.com 
+
+Andrew Josey, andrew@tamarix.demon.co.uk

@@ -1,0 +1,1279 @@
+
+From robertl Fri Nov 17 18:10:45 1995
+From: robertl@arnet.com (Robert Lipe)
+To: configure@cygnus.com
+Subject: Patches for SCO OpenServer 5
+Date: Fri, 17 Nov 95 18:10:45 CST
+
+
+These patches are against the 95q4 release.  I think all these
+files are Cygnus local, and would welcom your help in integrating 
+them.
+
+Thanx,
+RJL
+
+
+[ Yes, this is a bit of a form letter.  Sorry. I have a lot of patches 
+to send. ] 
+
+I've done a round of changes to support hosting and targeting the GNU
+development tools on SCO OpenServer Release 5.  The patches have had
+the test suites run on them, and I'm happy with the results.  Lots of
+SCO users are interested in this stuff, as it's now possible [ for the
+first time ever ] to have a complete non-SCO development chain now.
+
+The patches have received a lot of testing and airtime, but I'll still
+welcome feedback on them.  If you, the package maintainer, suggests
+implementing something in a different manner, I'm receptive to that.
+
+I understand I'll have to work with each package maintainer to get
+the copyrights transferred where appropriate, so please be gentle with
+me.  My employer has agreed to sign any necessary releases, but advice
+on how to do that exercise once instead of nine times is welcome.
+
+For more information about a complete GNU development distribution for
+SCO OpenServer 5, see my home page at
+
+	http://www.dgii.com/people/robertl/scods/sco_ds.html
+
+Thanx for your help.
+
+---
+Robert Lipe     Sr. Software Engr.    Digi Internatinoal   robertl@dgii.com
+*** ./config/mh-sco5.orig	Wed Nov  8 22:07:12 1995
+--- ./config/mh-sco5	Wed Nov  8 22:07:13 1995
+***************
+*** 0 ****
+--- 1,8 ----
++ # Define SYSV as -DSYSV if you are using a System V operating system.
++ SYSV = -DSYSV
++ RANLIB = true
++ # You may need this if you don't have bison.
++ # BISON = yacc -Sm10400
++ # CC = cc 
++ 
++ # X11_LIB = -lX11_s -lsocket -lm -lintl -lmalloc
+
+*** ./configure.in.orig	Wed Oct 11 05:31:09 1995
+--- ./configure.in	Wed Nov  8 22:07:21 1995
+***************
+*** 105,110 ****
+--- 105,111 ----
+    mips*-*-sysv*)	  host_makefile_frag=config/mh-riscos ;;
+    i[345]86-ncr-sysv4.3)   host_makefile_frag=config/mh-ncrsvr43 ;;
+    i[345]86-ncr-sysv4*)    host_makefile_frag=config/mh-ncr3000 ;;
++   i[345]86-*-sco3.2v5*)   host_makefile_frag=config/mh-sco5 ;;
+    i[345]86-*-sco*)        host_makefile_frag=config/mh-sco ;;
+    i[345]86-*-isc*)	  host_makefile_frag=config/mh-sysv ;;
+    i[345]86-*-linux*)      host_makefile_frag=config/mh-linux ;;
+***************
+*** 385,390 ****
+--- 386,394 ----
+      # but don't build gdb
+      configdirs=`echo go32 ${configdirs}`
+      noconfigdirs="$noconfigdirs gdb libg++ libstdc++ libio librx"
++     ;;
++   i[345]86-*-sco*)
++     noconfigdirs="$noconfigdirs gprof ld"
+      ;;
+  
+    i[345]86-*-win32)
+*** ./config.guess.orig	Sun Aug  6 14:49:54 1995
+--- ./config.guess	Wed Nov  8 22:07:22 1995
+***************
+*** 368,374 ****
+  		echo ${UNAME_MACHINE}-unknown-isc$UNAME_REL
+  	elif /bin/uname -X 2>/dev/null >/dev/null ; then
+  		UNAME_REL=`(/bin/uname -X|egrep Release|sed -e 's/.*= //')`
+! 		(/bin/uname -X|egrep i80486 >/dev/null) && UNAME_MACHINE=i486
+  		echo ${UNAME_MACHINE}-unknown-sco$UNAME_REL
+  	else
+  		echo ${UNAME_MACHINE}-unknown-sysv32
+--- 368,377 ----
+  		echo ${UNAME_MACHINE}-unknown-isc$UNAME_REL
+  	elif /bin/uname -X 2>/dev/null >/dev/null ; then
+  		UNAME_REL=`(/bin/uname -X|egrep Release|sed -e 's/.*= //')`
+! 		(/bin/uname -X|egrep '^Machine.*486' >/dev/null) && UNAME_MACHINE=i486
+! 		# Until things become Pentium aware, treat them like a 486
+! 		# so we get the more efficient opcodes, cache alignment, etc.
+! 		(/bin/uname -X|egrep '^Machine.*Pentium' >/dev/null) && UNAME_MACHINE=i486
+  		echo ${UNAME_MACHINE}-unknown-sco$UNAME_REL
+  	else
+  		echo ${UNAME_MACHINE}-unknown-sysv32
+
+
+
+From robertl Fri Nov 17 18:14:15 1995
+From: robertl@arnet.com (Robert Lipe)
+To: rob@cygnus.com
+Subject: Patch for expect/SCO OpenServer 5
+Date: Fri, 17 Nov 95 18:14:15 CST
+
+
+Hi, Rob.
+
+We meet again.
+
+The Honorable Ian suggests that you could help get this change into 
+expect on my behalf.  It's against the 95q4 progressive.
+
+Thanx,
+RJL
+
+
+[ Yes, this is a bit of a form letter.  Sorry. I have a lot of patches 
+to send. ] 
+
+I've done a round of changes to support hosting and targeting the GNU
+development tools on SCO OpenServer Release 5.  The patches have had
+the test suites run on them, and I'm happy with the results.  Lots of
+SCO users are interested in this stuff, as it's now possible [ for the
+first time ever ] to have a complete non-SCO development chain now.
+
+The patches have received a lot of testing and airtime, but I'll still
+welcome feedback on them.  If you, the package maintainer, suggests
+implementing something in a different manner, I'm receptive to that.
+
+I understand I'll have to work with each package maintainer to get
+the copyrights transferred where appropriate, so please be gentle with
+me.  My employer has agreed to sign any necessary releases, but advice
+on how to do that exercise once instead of nine times is welcome.
+
+For more information about a complete GNU development distribution for
+SCO OpenServer 5, see my home page at
+
+	http://www.dgii.com/people/robertl/scods/sco_ds.html
+
+Thanx for your help.
+
+---
+Robert Lipe     Sr. Software Engr.    Digi Internatinoal   robertl@dgii.com
+
+*** ./expect/configure.orig	Thu Oct 12 13:46:18 1995
+--- ./expect/configure	Thu Nov  9 02:17:54 1995
+***************
+*** 3566,3572 ****
+  # can't be run in the background, so we trap this. 
+  # Unfortunately, it gets the wrong answer, but at least
+  # it doesn't hang configuring. FIXME
+! trap "true" 21 22 26 27
+  stty_reads_stdout=0
+  /bin/stty > /dev/null 2> /dev/null
+  if test $? -ne 0 ; then
+--- 3566,3576 ----
+  # can't be run in the background, so we trap this. 
+  # Unfortunately, it gets the wrong answer, but at least
+  # it doesn't hang configuring. FIXME
+! # SCO's shell doesn't like this trap at all.  *sigh*
+! case $host in 
+! 	*-sco3.2v[45]*) ;;
+! 	*) trap "true" 21 22 26 27 ;;
+! esac
+  stty_reads_stdout=0
+  /bin/stty > /dev/null 2> /dev/null
+  if test $? -ne 0 ; then
+
+
+
+From robertl Fri Nov 17 18:19:59 1995
+From: robertl@arnet.com (Robert Lipe)
+To: gas2@cygnus.com
+Subject: gas patches for SCO OpenServer 5
+Date: Fri, 17 Nov 95 18:19:59 CST
+
+
+Of all my patches required to host and target SCO OpenServer 5, I 
+consider this one to be the most, er, questionable in its approach.
+
+If, after looking at that, you suggest better ways to implement 
+this, I'm receptive.  This does allow ELF and COFF generation with
+no problems.
+
+Thanx,
+RJL
+
+
+[ Yes, this is a bit of a form letter.  Sorry. I have a lot of patches 
+to send. ] 
+
+I've done a round of changes to support hosting and targeting the GNU
+development tools on SCO OpenServer Release 5.  The patches have had
+the test suites run on them, and I'm happy with the results.  Lots of
+SCO users are interested in this stuff, as it's now possible [ for the
+first time ever ] to have a complete non-SCO development chain now.
+
+The patches have received a lot of testing and airtime, but I'll still
+welcome feedback on them.  If you, the package maintainer, suggests
+implementing something in a different manner, I'm receptive to that.
+
+I understand I'll have to work with each package maintainer to get
+the copyrights transferred where appropriate, so please be gentle with
+me.  My employer has agreed to sign any necessary releases, but advice
+on how to do that exercise once instead of nine times is welcome.
+
+For more information about a complete GNU development distribution for
+SCO OpenServer 5, see my home page at
+
+	http://www.dgii.com/people/robertl/scods/sco_ds.html
+
+Thanx for your help.
+
+---
+Robert Lipe     Sr. Software Engr.    Digi Internatinoal   robertl@dgii.com
+*** ./gas/config/tc-i386.c.orig	Sun Aug  6 15:10:35 1995
+--- ./gas/config/tc-i386.c	Wed Nov  8 22:07:18 1995
+***************
+*** 2970,2973 ****
+--- 2970,3073 ----
+  
+  #endif /* BFD_ASSEMBLER? */
+  
++ #if SCO_ELF
++ /* 
++ 	Heavily plagarized from  obj_elf_version.  The idea is to 
++ 	emit the SCO specific identifier in the .notes section to 
++ 	satisfy the SCO linker.
++ 
++ 	This looks more complicated than it really is.  As opposed
++ 	to the "obvious" solution, this should handle the cross dev
++ 	cases correctly.  (i.e, hosting on a 64 bit big endian
++ 	processor, but generating SCO Elf code)   Efficiency isn't
++ 	a concern, as there should be exactly one of these sections
++ 	per object module.
++ 
++ 	SCO OpenServer 5 identifies it's ELF modules with a standard
++ 	ELF .note section.
++ 
++ 	int_32 namesz  = 4 ;  Name size 
++ 	int_32 descsz  = 12 ; Descriptive information 
++ 	int_32 type    = 1 ;  
++ 	char   name[4] = "SCO" ; Originator name ALWAYS SCO + NULL 
++ 	int_32 version = (major ver # << 16)  | version of tools ;
++ 	int_32 source  = (tool_id << 16 ) | 1 ;
++ 	int_32 info    = 0 ;    These are set by the SCO tools, but we
++ 				don't know enough about hte source 
++ 				environment to set them.  SCO ld currently
++ 				ignores them, and recommends we set them
++ 				to zero.
++ 
++ */
++ 
++ #define SCO_MAJOR_VERSION 0x1
++ #define SCO_MINOR_VERSION 0x1
++ 
++ 
++ sco_id()
++ {
++   char *name;
++   unsigned int c;
++   char ch;
++   char *p;
++   asection *seg = now_seg;
++   subsegT subseg = now_subseg;
++   Elf_Internal_Note i_note;
++   Elf_External_Note e_note;
++   asection *note_secp = (asection *) NULL;
++   int i, len;
++ 
++       /* create the .note section */
++ 
++       note_secp = subseg_new (".note", 0);
++       bfd_set_section_flags (stdoutput,
++ 			     note_secp,
++ 			     SEC_HAS_CONTENTS | SEC_READONLY);
++ 
++       /* process the version string */
++ 
++       i_note.namesz = 4 ; 
++       i_note.descsz = 12 ;	/* 12 descriptive bytes */
++       i_note.type = NT_VERSION; /* Contains a version string */
++ 
++       p = frag_more (sizeof (i_note.namesz));
++       md_number_to_chars (p, (valueT) i_note.namesz, 4);
++ 
++       p = frag_more (sizeof (i_note.descsz));
++       md_number_to_chars (p, (valueT) i_note.descsz, 4);
++ 
++       p = frag_more (sizeof (i_note.type));
++       md_number_to_chars (p, (valueT) i_note.type, 4);
++ 
++       p = frag_more (4);
++       strcpy(p, "SCO"); 
++ 
++       /* Note: this is the version number of the ELF we're representing */
++       p = frag_more (4);
++       md_number_to_chars (p, (SCO_MAJOR_VERSION << 16) | (SCO_MINOR_VERSION), 4);
++ 
++       /* Here, we pick a magic number for ourselves (yes, I "registered" it
++          with SCO.
++ 	 The bottom bit shows that we are compat with the SCO ABI.
++       */
++       p = frag_more (4);
++       md_number_to_chars (p, 0x4c520000 | 0x0001, 4);
++ 
++       /*
++ 	If we knew (or cared) what the source language options were, 
++ 	we'd fill them in here.  SCO has given us permission to ignore
++ 	these and just set them to zero.
++ 	*/
++       p = frag_more (4);
++       md_number_to_chars (p, 0x0000, 4);
++ 
++       frag_align (2, 0); 
++ 
++       /* We probably can't restore the current segment, for there
++ 	likely isn't one yet... */
++       if (seg && subseg )
++ 	subseg_set (seg, subseg);
++ }
++ #endif /* SCO_ELF */
++ 
+  /* end of tc-i386.c */
+*** ./gas/config/sco5.mt.orig	Wed Nov  8 22:07:18 1995
+--- ./gas/config/sco5.mt	Wed Nov  8 22:07:18 1995
+***************
+*** 0 ****
+--- 1 ----
++ TDEFINES=-Dtc_init_after_args=sco_id -DSCO_ELF
+*** ./gas/configure.orig	Mon Sep 18 14:31:38 1995
+--- ./gas/configure	Mon Nov 13 22:36:52 1995
+***************
+*** 693,698 ****
+--- 693,699 ----
+  			     em=lynx ;;
+        i386-*-sysv4* | i386-*-solaris* | i386-*-elf)
+  			    fmt=elf ;;
++       i386-*-sco*elf)       fmt=elf targ=sco5 ;;
+        i386-*-coff | i386-*-sysv* | i386-*-sco* | i386-*-isc*)
+  			    fmt=coff targ=i386coff ;;
+        i386-*-vsta)          fmt=aout ;;
+***************
+*** 894,900 ****
+  if test ! -r ${target_frag}; then
+    target_frag=/dev/null # ick! but subst_file can't be conditionalized
+  fi
+- 
+  
+  case ${user_bfd_gas}-${primary_bfd_gas} in
+    yes-yes | no-no)
+--- 895,900 ----
+*** ./gas/configure.in.orig	Mon Sep 18 14:31:42 1995
+--- ./gas/configure.in	Wed Nov  8 22:16:52 1995
+***************
+*** 168,173 ****
+--- 168,175 ----
+  			    fmt=elf ;;
+        i386-*-coff | i386-*-sysv* | i386-*-sco* | i386-*-isc*)
+  			    fmt=coff targ=i386coff ;;
++       i386-*-sco*elf)
++ 			    fmt=elf ;;
+        i386-*-vsta)          fmt=aout ;;
+        i386-*-go32)          fmt=coff targ=i386coff ;;
+        i386-*-gnu*)          fmt=elf ;;
+
+
+
+From robertl Fri Nov 17 18:21:16 1995
+From: robertl@arnet.com (Robert Lipe)
+To: bfd@cygnus.com
+Subject: Bfd patch for SCO OpenServer 5
+Date: Fri, 17 Nov 95 18:21:16 CST
+
+
+I'll spare you the boilerplate on this, as I suspect you saw it in the
+GAS patch that I submitted moments ago.
+
+Thanx for your help.
+RJL
+
+*** ./bfd/config.bfd.orig	Sun Aug  6 14:52:55 1995
+--- ./bfd/config.bfd	Wed Nov  8 22:07:20 1995
+***************
+*** 48,53 ****
+--- 48,54 ----
+    i[345]86-*-sysv4*)	bfd_name=i386-elf ;;
+    i[345]86-*-unixware)	bfd_name=i386-elf ;;
+    i[345]86-*-solaris2*)	bfd_name=i386-elf ;;
++   i[345]86-*-sco*elf)	bfd_name=i386-elf ;;
+    i[345]86-*-sysv*)	bfd_name=i386-coff ;;
+    i[345]86-*-isc*)	bfd_name=i386-coff ;;
+    i[345]86-*-sco*)	bfd_name=i386-coff ;;
+
+
+
+From robertl Fri Nov 17 18:23:57 1995
+From: robertl@arnet.com (Robert Lipe)
+To: bug-gcc@prep.ai.mit.edu
+Subject: GCC Patches for SCO OpenServer 5
+Date: Fri, 17 Nov 95 18:23:57 CST
+
+
+Attached you'll find patches that allow GCC to host and target on 
+SCO OpenServer 5.  
+
+I realize there's quite some volume here, and will gladly explain
+or change things to meet up with GCC standards.  Just let me know
+what I can do to help get them integrated in.
+
+Thank you.
+RJL
+
+
+[ Yes, this is a bit of a form letter.  Sorry. I have a lot of patches 
+to send. ] 
+
+I've done a round of changes to support hosting and targeting the GNU
+development tools on SCO OpenServer Release 5.  The patches have had
+the test suites run on them, and I'm happy with the results.  Lots of
+SCO users are interested in this stuff, as it's now possible [ for the
+first time ever ] to have a complete non-SCO development chain now.
+
+The patches have received a lot of testing and airtime, but I'll still
+welcome feedback on them.  If you, the package maintainer, suggests
+implementing something in a different manner, I'm receptive to that.
+
+I understand I'll have to work with each package maintainer to get
+the copyrights transferred where appropriate, so please be gentle with
+me.  My employer has agreed to sign any necessary releases, but advice
+on how to do that exercise once instead of nine times is welcome.
+
+For more information about a complete GNU development distribution for
+SCO OpenServer 5, see my home page at
+
+	http://www.dgii.com/people/robertl/scods/sco_ds.html
+
+Thanx for your help.
+
+---
+Robert Lipe     Sr. Software Engr.    Digi Internatinoal   robertl@dgii.com
+
+*** ./gcc/config/i386/x-sco5.orig	Wed Nov  8 22:07:14 1995
+--- ./gcc/config/i386/x-sco5	Wed Nov  8 22:07:14 1995
+***************
+*** 0 ****
+--- 1,3 ----
++ RANLIB = :
++ RANLIB_TEST = false
++ CLIB = -lmalloc -lPW
+*** ./gcc/config/i386/sco5elf.h.orig	Wed Nov  8 22:07:14 1995
+--- ./gcc/config/i386/sco5elf.h	Wed Nov  8 22:07:14 1995
+***************
+*** 0 ****
+--- 1,29 ----
++ /* Definitions for Intel x86 running SCO OpenServer 5 that are unique to ELF 
++    Written by Robert Lipe, (robertl@dgii.com)
++    Copyright (C) 1995, Free Software Foundation, Inc.
++ 
++ This file is part of GNU CC.
++ 
++ GNU CC is free software; you can redistribute it and/or modify
++ it under the terms of the GNU General Public License as published by
++ the Free Software Foundation; either version 2, or (at your option)
++ any later version.
++ 
++ GNU CC is distributed in the hope that it will be useful,
++ but WITHOUT ANY WARRANTY; without even the implied warranty of
++ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ GNU General Public License for more details.
++ 
++ You should have received a copy of the GNU General Public License
++ along with GNU CC; see the file COPYING.  If not, write to
++ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  
++ */
++ 
++ /* 
++  * All the "hard" work is done in sco5.h [ for my sanity ].
++  * We just set a flag that tells sco5.h how to do it's thing.
++  */
++ #define __SCO_ELF 1 
++ 
++ #include "i386/sco5.h"
++ 
+*** ./gcc/config/i386/sco5.h.orig	Wed Nov  8 22:07:14 1995
+--- ./gcc/config/i386/sco5.h	Tue Nov 14 22:46:10 1995
+***************
+*** 0 ****
+--- 1,305 ----
++ /* Definitions for Intel 386 running SCO OpenServer Release 5.
++    Borrowed from sco4.h which was
++    Written by Chip Salzenberg.
++    Ported to OpenServer Release 5 by Robert Lipe, 1995
++ 	robertl@dgii.com
++    Copyright (C) 1992, 1994 Free Software Foundation, Inc.
++ 
++ 
++ Open Issues: 
++   Find some floating point wizard to explain the 80 bit F-mode thing.
++ 
++ 
++ This file is part of GNU CC.
++ 
++ GNU CC is free software; you can redistribute it and/or modify
++ it under the terms of the GNU General Public License as published by
++ the Free Software Foundation; either version 2, or (at your option)
++ any later version.
++ 
++ GNU CC is distributed in the hope that it will be useful,
++ but WITHOUT ANY WARRANTY; without even the implied warranty of
++ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ GNU General Public License for more details.
++ 
++ You should have received a copy of the GNU General Public License
++ along with GNU CC; see the file COPYING.  If not, write to
++ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
++ 
++ /* 
++  * Mostly it's like AT&T Unix System V.  If COFF, we're more like
++  * GCC's concept of an SVR3.2 box with a few ELF-isms to keep us on 
++  * our toes.  If we're ELF, we match GCC's concept of SVR4 closer.
++  * Note that keeping this logic contained entirely in this file
++  * instead of scattered around makes the other code much nicer, 
++  * but sadly, makes this file look like hell.
++  */
++ 
++ #if __SCO_ELF
++   /* This gets us the ability to understand #pragma weak, the .type
++      operator and a number of other niceties */
++ # include "i386/sysv4.h"
++ # define __SCO_BINARY_MANIFESTS "-D_SCO_ELF "
++ #else
++ # include "i386/sysv3.h"
++ #endif
++ 
++ /* By default, target has a 80387, uses IEEE compatible arithmetic,
++    and returns float values in the 387, ie,
++    (TARGET_80387 | TARGET_FLOAT_RETURNS_IN_80387)
++ 
++    SCO's software emulation of a 387 fails to handle the `fucomp'
++    opcode.  fucomp is only used when generating IEEE compliant code.
++    So don't make TARGET_IEEE_FP default for SCO. 
++    OpenServer FIXME: Does anyone know how to test this assertion??
++ */
++ 
++ #undef TARGET_DEFAULT
++ #define TARGET_DEFAULT 0201
++ 
++ /* 
++    Let's guess that the SCO software FPU emulator can't handle
++    80-bit XFmode insns, so don't generate them.  
++    OpenServer FIXME: Does anyone know how to test this assertion??
++ */
++ #undef LONG_DOUBLE_TYPE_SIZE
++ #define LONG_DOUBLE_TYPE_SIZE 64
++ 
++ /* Use atexit for static destructors, instead of defining
++    our own exit function.  This is used by libgcc2.c */
++ #define HAVE_ATEXIT 
++ 
++ /* Specify the size_t type.  */
++ #define SIZE_TYPE "unsigned int"
++ 
++ /* caller has to pop the extra argument passed to functions that return
++    structures. */
++ 
++ #undef RETURN_POPS_ARGS
++ #define RETURN_POPS_ARGS(FUNDECL,FUNTYPE,SIZE)   \
++   (TREE_CODE (FUNTYPE) == IDENTIFIER_NODE ? 0			\
++    : (TARGET_RTD						\
++       && (TYPE_ARG_TYPES (FUNTYPE) == 0				\
++ 	  || (TREE_VALUE (tree_last (TYPE_ARG_TYPES (FUNTYPE)))	\
++ 	      == void_type_node))) ? (SIZE)			\
++    : 0)
++ /* On other 386 systems, the last line looks like this:
++    : (aggregate_value_p (TREE_TYPE (FUNTYPE))) ? GET_MODE_SIZE (Pmode) : 0)  */
++ 
++ /* Handle #pragma pack. */
++ #define HANDLE_SYSV_PRAGMA
++ 
++ 
++ #define MD_STARTFILE_PREFIX "/usr/ccs/lib/"
++ #undef STARTFILE_SPEC
++ /* 
++ 	Always use crt1.o as a startup file, but link the 
++ 	"values-X?" that's appropriate for our environment
++ 	so the runtime libraries (like libc) can figure out
++ 	what to do for each of the flavors:
++ 		-ansi strict ansi dialect of the lib, -Xc.
++ 		if not -ansi, but -traditional, use transitional
++ 			dialect of the lib, -Xt
++ 		otherwise (default), use extended ANSI C, -Xa
++ 	Pick up crt1begin to call C++ contructors/destructors
++ 	after crt1 and values-Xt in case the [cd]tors need to
++ 	access system libraries.
++ */
++ #define STARTFILE_SPEC  "/usr/ccs/lib/crt1.o 		\
++ 	%{ansi:/usr/ccs/lib/values-Xc.o %s}		\
++ 	%{!ansi:					\
++ 	   %{traditional:/usr/ccs/lib/values-Xt.o %s} 	\
++   	   %{!traditional:/usr/ccs/lib/values-Xa.o %s} 	\
++ 	}  \
++ 	crtbegin.o%s"
++ 
++ 
++ /* 
++ 	All environments use same end files. 
++ 	Insure that the we prepare the crtend to be linked before
++ 	the crtn.o.  This insures we have a "ret" after our dtors.
++  	Otherwise, our PC (%eip) falls off the end of our .dtors 
++ 	section, and this is a Bad Thing.
++ */
++ #undef ENDFILE_SPEC
++ #define ENDFILE_SPEC "-lcrypt -lgen -lc crtend.o%s crtn.o%s "
++ 
++ /* Library spec.  
++ 	We always use the same library, we just feed different  
++ 	arguments to the linker.  Yes, the linker knows & cares.
++ 	The library code reserves the right to act differently
++ 	depending upon which standard you've asked it to conform to.
++ 
++ 	Unlike the SCO tools, we don't specify the binary type
++  	to the linker.  We assume the linker driver [ that which
++ 	calls coff ld or elf ld ] knows what it's doing.
++ */
++ 
++ #undef LIB_SPEC
++ #define LIB_SPEC " 		\
++  %{Ansi:			\
++ 	-Ra,ansi		\
++   } 				\
++  %{Compat30:			\
++ 	-Ra,ods30		\
++   } 				\
++  %{Posix:			\
++ 	-Ra,posix		\
++   } 				\
++  %{Xpg4:			\
++ 	-Ra,xpg4		\
++   } 				\
++  %{Xpg4plus:			\
++ 	-Ra,xpg4plus		\
++   } 				\
++  -YP,/usr/ccs/lib:/lib:/usr/lib \
++  " 
++ 
++ /* Macros, macros everywhere:
++    Specify predefined symbols in preprocessor.  */
++ 
++ #undef CPP_PREDEFINES
++ #define CPP_PREDEFINES \
++  "-Asystem(__unix) -Acpu(__i386) -Amachine(__i386)"
++ 
++ /* These may be overridden by sco5elf.h */
++ #ifndef __SCO_BINARY_MANIFESTS
++ #  define __SCO_BINARY_MANIFESTS  "-D_M_COFF -D_SCO_COFF "
++ #endif
++ /* 
++ 	Here, it's a little sad that the syntax won't let you have
++ 	ors and ands.  i.e., "xpg4 || xpg4plus".
++ 
++ 	NOTE: These are alphabetic, and are arranged in this order:
++ 
++ 	Things common to all compilation environments.
++ 
++ 	Things specific to specific environments.
++ 
++ 	Things common to specific environments (defined in terms like
++ 		"not posix and not compat30 and not ansi")
++ */
++ 
++ #undef CPP_SPEC
++ #define CPP_SPEC 							\
++  __SCO_BINARY_MANIFESTS 						\
++  "-D__i386 -D_SCO_DS=1 -D__unix 					\
++ 	-D_M_I386 -D_M_XENIX -D_M_UNIX 					\
++   -D_SCO_C_DIALECT=1 							\
++ 									\
++   %{Ansi: 								\
++ 	-I/usr/include/ansi 						\
++ 	-D_STRICT_ANSI -D_STRICT_NAMES 					\
++ 	} 								\
++   %{Compat30: 								\
++ 	-DM_BITFIELDS -DM_INTERNAT -DM_SYSV -DM_SYS5 -DM_SYSIII 	\
++ 	-DM_WORDSWAP  							\
++ 	-DM_I86 -DM_I86SM -DM_SDATA -DM_STEXT				\
++ 	-D_SCO_ODS_30 							\
++ 	} 								\
++   %{Posix: 								\
++ 	-I/usr/include/posix 						\
++ 	-D_POSIX_SOURCE=1 -D_POSIX_C_SOURCE=2 -D_STRICT_NAMES 		\
++ 	} 								\
++   %{Xpg4: 								\
++ 	-D_XOPEN_SOURCE=1  						\
++ 	-I/usr/include/xpg4 						\
++ 	} 								\
++   %{Xpg4plus: 								\
++ 	} 								\
++ 									\
++   %{!Ansi:%{!Compat30:%{!Posix: 					\
++ 	-D_STRICT_NAMES -D_SCO_XPG_VERS=4 				\
++ 	}}} 								\
++   %{!Ansi:%{!Posix:%{!Xpg4: 						\
++ 	-I/usr/include 							\
++ 	-D_M_BITFIELDS -D_M_INTERNAT -D_M_SYSV -D_M_SYS5 -D_M_SYSIII 	\
++ 	-D_M_WORDSWAP -Di386 -Dunix -DM_I386 -DM_UNIX -DM_XENIX 	\
++ 	-D_M_I86 -D_M_I86SM -D_M_SDATA -D_M_STEXT 			\
++ 	}}} 								\
++ "
++     
++ /* The system headers are C++-aware.  */
++ #define NO_IMPLICIT_EXTERN_C
++ 
++ #define SDB_DEBUGGING_INFO
++ #define DWARF_DEBUGGING_INFO 
++ 
++ #if __SCO_ELF
++ 	/* Let the .ctors/.dtors sections be executed in the 
++ 	"obvious" manner by crtstuff.c */
++ #  define OBJECT_FORMAT_ELF 
++ 	/* This gives us compatbility with the SCO provided debuggers
++ 	by default */
++ #  define PREFERRED_DEBUGGING_TYPE DWARF_DEBUG
++ #else
++ #  define PREFERRED_DEBUGGING_TYPE SDB_DEBUG
++ #endif
++ 
++ #define SET_ASM_OP ".set"
++ #ifndef IDENT_ASM_OP 
++ #  define IDENT_ASM_OP ".ident"
++ #endif
++ 
++ /* 
++  * This is safe for us to define regardless if we're using
++  * GAS or SCO's assembler in either COFF or ELF targets.
++  */
++ #undef ASM_FILE_END
++ #define ASM_FILE_END(FILE)				\
++ 	{						\
++ 	fprintf((FILE), "\t%s\t\"GCC: (GNU) %s\"\n", 	\
++ 	IDENT_ASM_OP, version_string);			\
++ 	} 
++ 
++ #if __SCO_ELF
++ # define __SCO_IFILE ""
++ #else
++ 	/* If we're COFF, we have to give the linker an ifile.  This 
++ 	ensures that our specially crafted .dtors section is paged in 
++ 	at the correct address. 
++ 	We add in the -b coff, becuase SCO's ld is overly picky about
++ 	the presence of an ifile if we're mixing COFF and ELF.  Since
++ 	we're targeting COFF here, tell the linker to trust us.
++ 	*/
++ # define __SCO_IFILE " -b coff sco5.ifile%s "
++ 
++ #endif
++ 
++ #undef  LINK_SPEC
++ 
++ /* Here, we'll try to emulate all the SCO cc flags that make
++    any sense at all to emulate.  This logic comes from 
++    ../svr4.h.  See that file for description.   If we're 
++    targeting COFF, some of these options make no sense, 
++    but we'll leave it to the invoker to discover that.  */
++ 
++ /* Hint: the libp stuff is the library profiling */
++ 
++ #define LINK_SPEC 					\
++ 	__SCO_IFILE \
++ 	"%{h*} %{V} %{v:%{!V:-V}} \
++ 	%{b} %{Wl,*:%*} \
++ 	%{static:-dn -Bstatic} \
++ 	%{shared:-G -dy -z text} \
++ 	%{symbolic:-Bsymbolic -G -dy -z text} \
++ 	%{G:-G} \
++ 	%{YP,*} \
++ 	%{!YP,*:%{p:-Y P,/usr/ccs/lib/libp:/usr/lib/libp:/usr/ccs/lib:/usr/lib} \
++ 	%{!p:-Y P,/usr/ccs/lib:/usr/lib}} "
++ 
++ /* Note: Our version of GAS doesn't support -Qy, so nuke it here. */
++ /*	%{Qy:} %{!Qn:-Qy} */
++ 
++ /* It's my belief that none of the SVR4 assembler options are useful
++    with GAS, so we take the defaults instead of what's picked up in
++    ../svr4.h [if ELF ] or what we'd get if we were COFF anyway.. */
++ 
++ #undef ASM_SPEC
++ 
++ #if !__SCO_ELF
++ #undef DTORS_SECTION_ASM_OP 
++ #undef FINI_SECTION_ASM_OP 
++ #define FINI_SECTION_ASM_OP  ".section\t.dtors, \"x\""
++ #define DTORS_SECTION_ASM_OP FINI_SECTION_ASM_OP
++ #endif
+*** ./gcc/config/i386/t-sco5.orig	Wed Nov  8 22:07:15 1995
+--- ./gcc/config/i386/t-sco5	Wed Nov  8 22:07:15 1995
+***************
+*** 0 ****
+--- 1,9 ----
++ # When running for COFF, we need a custom ifile so the linker 
++ # keeps our .[dc]tors in paged in addresses.
++ 
++ sco5.ifile: $(srcdir)/config/i386/sco5.ifile
++ 	rm -f svr3.ifile; cp $(srcdir)/config/i386/sco5.ifile .
++ 
++ # From t-crtstuff
++ # The pushl in CTOR initialization interferes with frame pointer elimination.
++ CRTSTUFF_T_CFLAGS = -fno-omit-frame-pointer
+*** ./gcc/config/i386/t-sco5pic.orig	Wed Nov  8 22:07:15 1995
+--- ./gcc/config/i386/t-sco5pic	Wed Nov  8 22:07:15 1995
+***************
+*** 0 ****
+--- 1,16 ----
++ # When running for COFF, we need a custom ifile so the linker 
++ # keeps our [cd]tors in paged in addresses.
++ 
++ sco5.ifile: $(srcdir)/config/i386/sco5.ifile
++ 	rm -f svr3.ifile; cp $(srcdir)/config/i386/sco5.ifile .
++ 
++ # from t-crtpic
++ # The pushl in CTOR initialization interferes with frame pointer elimination.
++ 
++ # We need to use -fPIC when we are using gcc to compile the routines in
++ # crtstuff.c.  This is only really needed when we are going to use gcc/g++
++ # to produce a shared library, but since we don't know ahead of time when
++ # we will be doing that, we just always use -fPIC when compiling the
++ # routines in crtstuff.c.
++ 
++ CRTSTUFF_T_CFLAGS = -fPIC -fno-omit-frame-pointer
+*** ./gcc/config/i386/xm-sco5.h.orig	Wed Nov  8 22:07:15 1995
+--- ./gcc/config/i386/xm-sco5.h	Wed Nov  8 22:07:16 1995
+***************
+*** 0 ****
+--- 1,7 ----
++ /* Configuration for GCC for Intel i386 running SCO OpenServer Release 5.  */
++ 
++ #include "i386/xm-sysv3.h"
++ 
++ /* Big buffers improve performance.  */
++ 
++ #define IO_BUFFER_SIZE (0x8000 - 1024)
+*** ./gcc/config/i386/sco5.ifile.orig	Wed Nov  8 22:07:16 1995
+--- ./gcc/config/i386/sco5.ifile	Wed Nov  8 22:07:16 1995
+***************
+*** 0 ****
+--- 1,20 ----
++ /*
++ 	sco5.ifile - required by SCO OpenServer systems to get
++ 	the .dtors section loaded into pagable memory correctly.
++ 
++ 	This is just like the default linker options with the
++ 	addition of the .dtors section being forced into the 
++ 	end.
++  */
++ SECTIONS
++ {
++ 	.text 0xD0 :
++ 	{
++ 		*(.init) *(.text) *(.fini) *(.dtors)
++ 	}
++ 	GROUP BIND(NEXT(0x400000) + ((SIZEOF(.text) + ADDR(.text)) % 0x1000)) :
++ 	{
++ 		.data : { }
++ 		.bss : { }
++ 	}
++ }
+*** ./gcc/cp/lex.c.orig	Tue Aug 22 22:56:46 1995
+--- ./gcc/cp/lex.c	Thu Nov  9 01:44:02 1995
+***************
+*** 4662,4669 ****
+--- 4662,4671 ----
+  	case END_OF_LINE:
+  	  handle_pragma_token (NULL_PTR, NULL_TREE);
+  	  return;
++ #if 0
+  	default:
+  	  abort ();
++ #endif
+  	}
+      }
+  }
+*** ./gcc/configure.orig	Fri Sep 22 00:55:32 1995
+--- ./gcc/configure	Wed Nov  8 22:07:17 1995
+***************
+*** 1079,1084 ****
+--- 1079,1122 ----
+  		xmake_file=i386/x-osfrose
+  		extra_objs=halfpic.o
+  		;;
++ 	i[345]86-*-sco3.2v5*elf*)	# 80x86 running SCO OpenServer 5, elf
++ 		cpu_type=i386
++ 		xm_file=i386/xm-sco.h
++ 		xmake_file=i386/x-sco5
++ 		fixincludes=fixinc.sco
++ 		broken_install=yes
++ 		install_headers_dir=install-headers-cpio
++                 if [ x$stabs = xyes ]
++ 		then
++ 			# Not tested.  10/16/95 robertl
++ 			tm_file=i386/sco4dbx.h
++ 			tmake_file=i386/t-svr3dbx
++ 			extra_parts="svr3.ifile svr3z.rfile"
++ 		else
++ 			tm_file=i386/sco5elf.h
++ 			tmake_file=i386/t-sco5pic
++ 			extra_parts="crtbegin.o crtend.o"
++ 		fi
++ 		;;
++ 	i[345]86-*-sco3.2v5*)		# 80x86 running SCO OpenServer 5.
++ 		cpu_type=i386
++ 		xm_file=i386/xm-sco.h
++ 		xmake_file=i386/x-sco5
++ 		fixincludes=fixinc.sco
++ 		broken_install=yes
++ 		install_headers_dir=install-headers-cpio
++                 if [ x$stabs = xyes ]
++ 		then
++ 			# Not tested.  10/16/95 robertl
++ 			tm_file=i386/sco4dbx.h
++ 			tmake_file=i386/t-svr3dbx
++ 			extra_parts="svr3.ifile svr3z.rfile"
++ 		else
++ 			tm_file=i386/sco5.h
++ 			tmake_file=i386/t-sco5
++ 			extra_parts="sco5.ifile crtbegin.o crtend.o"
++ 		fi
++ 		;;
+  	i[345]86-*-sco3.2v4*)	 	# 80386 running SCO 3.2v4 system
+  		cpu_type=i386
+  		xm_file=i386/xm-sco.h
+*** ./gcc/fixincludes.orig	Sun Aug  6 15:27:26 1995
+--- ./gcc/fixincludes	Wed Nov  8 22:07:17 1995
+***************
+*** 322,328 ****
+  		s/ \([a-zA-Z0-9_][a-zA-Z0-9_]*\) /\1/g
+  	  }
+  	  /^#define.NULL[ 	]/	i\
+! 		#undef NULL
+  	' $2/$file > $2/$file.
+  	mv $2/$file. $2/$file
+  	if cmp $file $2/$file >/dev/null 2>&1 \
+--- 322,328 ----
+  		s/ \([a-zA-Z0-9_][a-zA-Z0-9_]*\) /\1/g
+  	  }
+  	  /^#define.NULL[ 	]/	i\
+! #undef NULL
+  	' $2/$file > $2/$file.
+  	mv $2/$file. $2/$file
+  	if cmp $file $2/$file >/dev/null 2>&1 \
+
+
+
+From robertl Fri Nov 17 18:29:32 1995
+From: robertl@arnet.com (Robert Lipe)
+To: gdb-patches@cygnus.com
+Subject: gdb for SCO OpenServer 5 patches
+Date: Fri, 17 Nov 95 18:29:32 CST
+
+
+Armed with these patches [ and the ones in bfd ], GDB targets ELF 
+and COFF binaries SCO OpenServer just fine.  I was quite impressed
+that bfd automatically detects the object file form in use and
+uses the right back ends.
+
+There are several little patchlets in this message.  Since they're 
+all related to configuration and contain nothing terribly creative,
+I don't expect there to be problems with integration or necessary
+copyright issues.
+
+Thanx for your help.
+RJL
+
+
+
+[ Yes, this is a bit of a form letter.  Sorry. I have a lot of patches 
+to send. ] 
+
+I've done a round of changes to support hosting and targeting the GNU
+development tools on SCO OpenServer Release 5.  The patches have had
+the test suites run on them, and I'm happy with the results.  Lots of
+SCO users are interested in this stuff, as it's now possible [ for the
+first time ever ] to have a complete non-SCO development chain now.
+
+The patches have received a lot of testing and airtime, but I'll still
+welcome feedback on them.  If you, the package maintainer, suggests
+implementing something in a different manner, I'm receptive to that.
+
+I understand I'll have to work with each package maintainer to get
+the copyrights transferred where appropriate, so please be gentle with
+me.  My employer has agreed to sign any necessary releases, but advice
+on how to do that exercise once instead of nine times is welcome.
+
+For more information about a complete GNU development distribution for
+SCO OpenServer 5, see my home page at
+
+	http://www.dgii.com/people/robertl/scods/sco_ds.html
+
+Thanx for your help.
+
+---
+Robert Lipe     Sr. Software Engr.    Digi Internatinoal   robertl@dgii.com
+*** ./gdb/config/i386/i386sco5.mh.orig	Wed Nov  8 22:07:13 1995
+--- ./gdb/config/i386/i386sco5.mh	Wed Nov  8 22:07:13 1995
+***************
+*** 0 ****
+--- 1,11 ----
++ # Host: Intel 386 running SCO Unix 3.2v5
++ # Much like 3.2v4, except we don't have to avoid problems with const
++ 
++ XM_FILE= xm-i386sco5.h
++ XDEPFILES= 
++ XM_CLIBS= -lPW
++ 
++ NAT_FILE= nm-i386sco5.h
++ NATDEPFILES= infptrace.o inftarg.o fork-child.o coredep.o corelow.o \
++ 	i386v-nat.o solib.o
++ 
+*** ./gdb/config/i386/nm-i386sco5.h.orig	Wed Nov  8 22:07:13 1995
+--- ./gdb/config/i386/nm-i386sco5.h	Wed Nov  8 22:07:13 1995
+***************
+*** 0 ****
+--- 1,41 ----
++ /* Native support for SCO OpenServer 5
++    Copyright 1993 Free Software Foundation, Inc.
++    By Robert Lipe <robertl@dgii.com>. Based on 
++    work by Ian Lance Taylor <ian@cygnus.com. and 
++    Martin Walker <maw@netcom.com>.
++ 
++ This file is part of GDB.
++ 
++ This program is free software; you can redistribute it and/or modify
++ it under the terms of the GNU General Public License as published by
++ the Free Software Foundation; either version 2 of the License, or
++ (at your option) any later version.
++ 
++ This program is distributed in the hope that it will be useful,
++ but WITHOUT ANY WARRANTY; without even the implied warranty of
++ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ GNU General Public License for more details.
++ 
++ You should have received a copy of the GNU General Public License
++ along with this program; if not, write to the Free Software
++ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
++ 
++ /* SCO OpenServer 5 is a superset of 3.2v4.  It is actually quite
++    close to SVR4 [ elf, dynamic libes, mmap ] but misses a few things
++    like /proc. */
++ 
++ #include "i386/nm-i386sco.h"
++ 
++ /* Since the native compilers [ and linkers ] are licensed from USL,
++    we'll try convincing GDB of this... */
++ 
++ #include "solib.h" /* Pick up shared library support */
++ #define SVR4_SHARED_LIBS
++ 
++ #define ATTACH_DETACH
++ 
++ /* SCO, does not provide <sys/ptrace.h>.  infptrace.c does not 
++    have defaults for these values.  */
++ 
++ #define PTRACE_ATTACH 10
++ #define PTRACE_DETACH 11
+*** ./gdb/config/i386/xm-i386sco5.h.orig	Wed Nov  8 22:07:13 1995
+--- ./gdb/config/i386/xm-i386sco5.h	Wed Nov  8 22:07:13 1995
+***************
+*** 0 ****
+--- 1,23 ----
++ /* Host definitions for SCO OpenServer 5
++    Copyright (C) 1995 Free Software Foundation, Inc.
++ 
++ This file is part of GDB.
++ 
++ This program is free software; you can redistribute it and/or modify
++ it under the terms of the GNU General Public License as published by
++ the Free Software Foundation; either version 2 of the License, or
++ (at your option) any later version.
++ 
++ This program is distributed in the hope that it will be useful,
++ but WITHOUT ANY WARRANTY; without even the implied warranty of
++ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ GNU General Public License for more details.
++ 
++ You should have received a copy of the GNU General Public License
++ along with this program; if not, write to the Free Software
++ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
++ 
++ #include "i386/xm-i386sco.h"
++ 
++ /* New in OpenServer 5 is mmap() support */
++ #define HAVE_MMAP
+*** ./gdb/configure.in.orig	Thu Oct 12 13:43:43 1995
+--- ./gdb/configure.in	Wed Nov  8 22:07:13 1995
+***************
+*** 181,186 ****
+--- 181,187 ----
+  i[345]86-*-mach3*)	gdb_host=i386m3 ;;
+  i[345]86-*-mach*)	gdb_host=i386mach ;;
+  i[345]86-*-osf1mk*)	gdb_host=osf1mk ;;
++ i[345]86-*-sco3.2v5*)	gdb_host=i386sco5 ;;
+  i[345]86-*-sco3.2v4*)	gdb_host=i386sco4 ;;
+  i[345]86-*-sco*)	gdb_host=i386sco ;;
+  i[345]86-*-solaris*)	gdb_host=i386sol2 ;;
+
+
+
+
+From robertl Fri Nov 17 18:31:09 1995
+From: robertl@arnet.com (Robert Lipe)
+To: gdb-patches@cygnus.com
+Subject: Patch for gdbtk on System V
+Date: Fri, 17 Nov 95 18:31:09 CST
+
+
+Some UNIXes call SIGIO by the name SIGPOLL.  I've seen this on SCO 
+OpenServer 5 and on AT&T's MP-RAS product.
+
+From what I can tell, they're the same.
+
+Thanx for your help.
+RJL
+
+
+*** ./gdb/gdbtk.c.orig	Sun Aug  6 16:09:37 1995
+--- ./gdb/gdbtk.c	Wed Nov  8 22:07:14 1995
+  
+***************
+*** 47,52 ****
+--- 48,59 ----
+  
+  #ifndef FIOASYNC
+  #include <sys/stropts.h>
++ #endif
++ 
++ #ifndef SIGIO
++ # ifdef SIGPOLL
++ #  define SIGIO SIGPOLL
++ # endif
+  #endif
+  
+  /* Handle for TCL interpreter */
+
+
+
+From robertl Fri Nov 17 18:32:39 1995
+From: robertl@arnet.com (Robert Lipe)
+To: g++@cygnus.com
+Subject: libio patch for SCO OpenServer 5
+Date: Fri, 17 Nov 95 18:32:39 CST
+
+
+Gosh.  This was pretty boring. :-)
+
+Thank you for your help integrating this.
+
+RJL
+
+*** ./libio/configure.in.orig	Sun Aug  6 16:49:45 1995
+--- ./libio/configure.in	Wed Nov  8 22:17:42 1995
+***************
+*** 20,26 ****
+  case "${target}" in
+    *-hpux*)       frags=hpux.mt ;;
+    *-linux*)      frags=linux.mt ;;
+!   *-sco3.2v4*)   frags=sco4.mt ;;
+    *-isc*)        frags=isc.mt ;;
+    *-netware*)    frags=netware.mt ;;
+    *)             frags=${target_cpu}.mt ;;
+--- 20,26 ----
+  case "${target}" in
+    *-hpux*)       frags=hpux.mt ;;
+    *-linux*)      frags=linux.mt ;;
+!   *-sco3.2v[45]*)   frags=sco4.mt ;;
+    *-isc*)        frags=isc.mt ;;
+    *-netware*)    frags=netware.mt ;;
+    *)             frags=${target_cpu}.mt ;;
+
+
+
+From robertl Fri Nov 17 18:41:09 1995
+From: robertl@arnet.com (Robert Lipe)
+To: bug-gnu-utils@prep.ai.mit.edu
+Subject: A make problem and patch...
+Date: Fri, 17 Nov 95 18:41:09 CST
+
+
+On some systems [ SCO 3.2v4, SCO OpenServer 5, perhaps others], GNU 
+make and GNU gcc don't like to play nice with each other.
+
+>     gcc -O   -c bsdinstall.c -Fobsdinstall.o
+>     gcc: unrecognized option `-Fobsdinstall.o'
+
+The probelm seems to be that the SCO environment predefines M_XENIX
+and this invokes some code in default.c that appears archaic.   I would
+suggest removing the offending code, but here's a patch that merely
+neutralizes it when hosting on OpenServer 5.  Note that this patch
+doesn't help the 3.2v4 case.
+
+I think that even with Xenix, the -Fo flag is functionally equivalent
+to -o, so I don't know what it's trying to accomplish here.
+
+Thanx for your help.
+RJL
+
+
+
+
+*** ./make/default.c.orig	Wed Apr 19 22:10:29 1995
+--- ./make/default.c	Wed Nov  8 22:07:21 1995
+***************
+*** 315,321 ****
+      "LINT.c", "$(LINT) $(LINTFLAGS) $(CPPFLAGS) $(TARGET_ARCH)",
+  
+  #ifndef	NO_MINUS_C_MINUS_O
+! #if !defined(M_XENIX) || defined(__GNUC__)
+      "OUTPUT_OPTION", "-o $@",
+  #else	/* Xenix.  */
+      "OUTPUT_OPTION", "-Fo$@",
+--- 315,321 ----
+      "LINT.c", "$(LINT) $(LINTFLAGS) $(CPPFLAGS) $(TARGET_ARCH)",
+  
+  #ifndef	NO_MINUS_C_MINUS_O
+! #if !defined(M_XENIX) || defined(__GNUC__) || defined _SCO_DS
+      "OUTPUT_OPTION", "-o $@",
+  #else	/* Xenix.  */
+      "OUTPUT_OPTION", "-Fo$@",
+
+
+
+From robertl Fri Nov 17 18:45:53 1995
+From: robertl@arnet.com (Robert Lipe)
+To: gdb-patches@cygnus.com
+Subject: readline patches for SCO OpenServer 5
+Date: Fri, 17 Nov 95 18:45:53 CST
+
+
+Readline doesn't contain a "where to send patches". Ian suggested
+that since readline was used by GDB that I make this your problem. 
+That sounded reasonable to me, but if you know of a "standalone" 
+readline distribution with different maintainers, please help me
+find who maintains it and I'll bean them with this patch.
+
+This is a pretty boring patch from 95q4, but is necessary to host 
+on SCO OpenServer 5.    Without this, it picks up the wrong terminal
+handling stuff.
+
+Thank you for your help integrating this stuff.
+
+RJL
+
+*** ./readline/configure.in.orig	Wed Nov 16 23:20:13 1994
+--- ./readline/configure.in	Wed Nov  8 22:07:20 1995
+***************
+*** 25,31 ****
+    m88*-harris-cxux7*)	host_makefile_frag=config/mh-sysv4 ; files=sysdep-cxux7.h ;;
+    *-*-sysv4*)		host_makefile_frag=config/mh-sysv4 ; files=sysdep-sysv4.h ;;
+    *-*-solaris2*)	host_makefile_frag=config/mh-sysv4 ;;
+!   i[345]86-*-sco3.2v4*)	host_makefile_frag=config/mh-sco4; files=sysdep-sco.h ;;
+    i[345]86-*-sco*)	host_makefile_frag=config/mh-sco; files=sysdep-sco.h ;;
+  # Don't use this; ISC 4.0 only supports POSIX features if you link with
+  # -lcposix.  No thanks.
+--- 25,31 ----
+    m88*-harris-cxux7*)	host_makefile_frag=config/mh-sysv4 ; files=sysdep-cxux7.h ;;
+    *-*-sysv4*)		host_makefile_frag=config/mh-sysv4 ; files=sysdep-sysv4.h ;;
+    *-*-solaris2*)	host_makefile_frag=config/mh-sysv4 ;;
+!   i[345]86-*-sco3.2v[45]*)	host_makefile_frag=config/mh-sco4; files=sysdep-sco.h ;;
+    i[345]86-*-sco*)	host_makefile_frag=config/mh-sco; files=sysdep-sco.h ;;
+  # Don't use this; ISC 4.0 only supports POSIX features if you link with
+  # -lcposix.  No thanks.
+
+

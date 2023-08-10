@@ -1,0 +1,80 @@
+This may help (this is part of a file on UUCP tips that
+was on ftp.uu.net a while back, by Jason Levitt):
+
+Debugging UUCP
+----------------
+
+a. Find the connection server (cs) process and kill it.
+Then restart it with the debug flag.
+CAUTION: leaving the cs process running in debug mode may be a
+serious security hole since it prints out the passwords
+of systems that you dial. Also, the cs.debug file will get
+really big if you don't truncate it occasionally.
+
+[Aside: you may want to ensure that /var/adm/log/cs.debug is owned
+by root and mode 600, and add the following two lines to your
+root crontab:
+
+15 01 * * * cp /dev/null /var/adm/log/cs.log
+15 01 * * * cp /dev/null /var/adm/log/cs.debug
+
+end aside]   
+
+# ps -ef | grep cs
+
+root   426     1  0 16:52:24 ?        0:01 /usr/sbin/cs
+root  1533  1532  0 08:59:15 pts/2    0:00 grep cs
+root  1532  1520  1 08:59:15 pts/2    0:00 /bin/sh -c ps -ef | grep cs
+
+# kill -15 426
+# /usr/sbin/cs -d
+#
+b. Open a terminal window, become superuser, and "tail -f" the log file.
+Whenever outgoing "cu" or "uucico" sessions happen, you'll see the chat script
+debug output in this window. You'll get some additional info if you use
+/usr/lib/uucp/Uutry or "cu -d" to dialout.
+
+# tail -f /usr/adm/log/cs.debug
+
+
+c. Here's another idea. Do a truss -p on the ttymon process to see
+what it's doing.
+
+# ps -ef | grep ttymon
+    root   281     1  0 12:29:28 console  0:00 /usr/lib/saf/ttymon -g -v -p Cons
+ole Login:  -d /dev/syscon -l console
+    root   289   280  0 12:29:31 ?        0:00 /usr/lib/saf/ttymon
+# truss -p 289
+
+4. stopping and starting the ttymon port service
+
+These commands are equivelant to enabling and disabling the
+tty port on other versions of Unix. You can do the same
+thing, but slower, through the sysadm command by choosing
+"ports", "port services", and then the enable and disable
+selections. The command line is much faster:
+
+Starting it:
+
+# sacadm -s -p ttymon1
+
+Stopping it:
+
+# sacadm -k -p ttymon1
+
+
+
+5. Error messages
+
+  NO DEVICES AVAILABLE
+
+  The tty device is not configured under a ttymon.
+
+  DEVICE FAILED
+
+  The tty device is configured under a ttymon but is
+  not available. It's probably busy. Look for errno=16 in
+  your cs.debug output.
+
+--
+Andrew Josey, USL Europe Ltd.

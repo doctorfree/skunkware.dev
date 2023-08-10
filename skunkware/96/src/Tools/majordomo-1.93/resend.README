@@ -1,0 +1,68 @@
+The .cf file is a config file for my listserv-like package called
+Majordomo.  The only one of those variables that "resend" actually
+uses is "homedir", which tells it where to look for the "majordomo.pl"
+library.
+
+Note that the "-C <config-file>" flag, if used, MUST BE THE FIRST FLAG.
+
+Here's the rundown of the arguments to "resend":
+
+        -C <config-file>        specify alternate config file (must be first!)
+        -l <list-name>          REQUIRED: specify list name
+        -h <host-name>          REQUIRED: specify host name
+        -f <from-addr>          specify "sender" (default <list-name>-request)
+        -m <sendmail-flags>     specify special sendmail flags
+        -M <max-msg-length>     specify max message length to forward
+        -p <precedence>         add "Precedence: <precedence>" header
+	-r <reply-to>		add "Reply-To: <reply-to>" header
+	-I <file-list>		Bounce messages from users not listed in file
+					in colon-separated <file-list>
+	-a <passwd>		approval password
+	-A			moderate list (require "Approved:" for posting)
+        -R                      delete "Received:" lines
+        -s                      enable "administrivia" checks
+        -d                      debug; say it, but don't do it
+
+Any message that "resend" doesn't like is sent to the list owner (the
+"-f" address, or "<list-name>-request" if -f isn't used) along with a
+comment indicating what "resend" didn't like about it.  To go ahead
+and send the message, just feed it to resend without the flag that
+caused it to reject it (in other words, if it rejected it because it
+was too long, omit the "-M <>" flag; if it rejected it because it was
+administrivia, omit the "-s" flag).
+
+If you specify "-a <passwd>" flag, this "approval" password can be
+used in an "Approved: <passwd>" line to override most of the other
+checks (those enabled by "-s", "-M", and so forth).  The "Approved:
+<passwd>" line can either be one of the mail headers, or the first
+line of the body of the message.  If it is in the headers, the rest
+of the headers are resent as part of the approved message.  If it is
+in the body, the current headers are discarded in favor of the headers
+from the original message which should follow the "Approved:" line in
+the body.
+
+The owner of a mailing list can thus post messages that were initially
+bounced by adding an "Approved: <passwd>" line and resubmitting the
+message.  Any "Approved: <passwd>" line is stripped before the message
+is sent to the mailing list, so that list members won't learn the
+password.  If the <passwd> argument to the "-a" flag begins with a "/",
+it is assumed to be a file name from which the actual password is read.
+
+You can make a list "moderated" by specifying the "-A" flag.  If the
+"-A" flag is set, then any messages not containing a valid "Approved:"
+line are sent to the list owner, rather than the whole list.; the
+list owner can then review the message, add an appropriate "Approved:"
+line, and resubmit them (these last two steps can be done easily with
+the "approve" command that comes with Majordomo).  If you specify
+the "-A" flag, you must also specify the "-a <passwd>" flag, so that
+resend knows what approval password to use.
+
+If you only want to accept messages from members of a list, you can
+use the "-I <file-list>" flag to do this.  "<file-list>" should be a
+colon-separated list of files in the $listdir directory (specified in
+the config file) that "resend" will check the address in "From:" line
+of a message against.  If the address doesn't show up in one of those
+files, and the message doesn't have a valid "approved" header on it,
+it will be bounced to the list owner.
+
+$Header: /sources/cvsrepos/majordomo/resend.README,v 1.1.1.2 1993/09/03 08:01:08 rouilj Exp $

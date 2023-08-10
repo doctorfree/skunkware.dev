@@ -1,0 +1,147 @@
+							TclVSdb-1.1a1
+							=============
+						    (Dec. 8. 1995)
+
+Version 1.1 - Alpha Release 1
+
+TclVSdb is a native Tcl database facility, written entirely in vanilla
+Tcl code, and is suitable in any Tcl application environment.
+
+The features of TclVSdb are:
+
+o  The paradigm for a database is one or more tables consisting of rows 
+   and fields.  Each database element may be a string, a Tcl list
+   of any length, or a list of row numbers of another table (giving
+   hierarchical data structuring).
+
+o  Each open database is associated with a Tcl associative array.
+   Each table has its current row stored in this array variable.
+   access to a field within the current row is achieved by:
+       set field-contents $dbvar(tablename,fieldname)
+   Modifying the contents of a field within the current row is
+   achieved by:
+       set dbvar(tablename,fieldname) some-valid-Tcl-assignment
+
+o  Each table consists of two files, an index files (.idx) and a data
+   file (.tbl).  A directory of .idx and .tbl files are a database.
+
+o  No database read operation takes more than two file accesses.
+
+o  Table and row locking are transparently implemented, allowing 
+   multiple concurrent user access to a database.
+
+o  An application may have any number of databases open concurrently.
+
+o  Database operations supported are:
+   - dbCreate:    table create
+   - dbOpen:      database open
+   - dbClose:     database close
+   - dbCleanup:   database cleanup (eliminate voids, resequence data 
+                  table files)
+   - dbNewRow:    create a new row in a table
+   - dbClearRow:  clear contents of current row of a table
+   - dbGetRow:    get an arbitrary row from a table
+   - dbPutRow:    commit and store current row of a table.
+   - dbDelRow:    delete the current row of a table
+   - dbFirstRow:  get first data-full row from a table
+   - dbNextRow:   get next data-full row from a table
+   - dbPrevRow:   get prior data-full row from a table
+   - dbLastRow:   get last data-full row from a table
+   - dbEOF:       return "1" if stepped beyond bounds of a table
+
+o  Database utility operations supported are:
+   - dbuDateToday:    return current date as "Mmm dd, yyyy"
+   - dbuDateToTs:     transform date string into sortable numeric 
+                      timestamp value
+   - dbuDateFromTs:   convert a numeric timestamp value into a
+                      date string
+   - dbuSearchString: return a list of row numbers from a table
+                      who have a named field's contents matching
+                      a "glob"bed string pattern
+   - dbuSearchDate:   return a list of row numbers from a table
+                      who have a named field's contents falling
+                      within the range given by two date strings
+   - dbuSearchValue:  return a list of row numbers from a table
+                      who have a named field's contents falling
+                      within the range specified by two numeric
+                      values.
+o  Planned utility operations:
+   - dbuSort:         resequence a list of row numbers for a table
+                      (such as given by the dbuSearch* procedures)
+                      so as to provide access to rows within a table
+                      by ascending / descending order, by either
+                      string, numeric, date, or user provided
+                      collation order.
+
+
+This is the first alpha release of TclVSdb-1.1.  As a result, you will
+have to examine the contents of the TclVSdb.tcl file for procedure
+calling conventions.  You will have to issue a "parray" call giving
+a database array variable as the argument to see what information is
+maintained for the database.  Documentation and an installation
+procedure will come with either the beta or final release.
+
+Testing of TclVSdb-1.1a1 has been limited, but basic operations are
+known to work.
+
+A compatibility package will be provided in the next update to
+allow applications which used tclvsdb (version 1) to work with
+TclVSdb-1.1 without modification.
+
+Please send your feedback on TclVSdb to:  steven@cirque.com
+
+Quicky example of a TclVSdb application:
+
+1) Create two tables in current directory:
+
+	$ tclsh
+    > source TclVSdb.tcl
+    > dbCreate . db friends "name address city state zip email phonelist"
+    > dbCreate . db phones  "friendrow description phonenum"
+    > dbClose
+
+2) Open the database and add some entries 
+
+    > dbOpen . db
+    > set frow [dbNewRow db friends]
+    > set db(friends,name) "Bill Jones"
+    > set db(friends,address) "123 Main St."
+    > set db(friends,city) "St. Paul"
+    > set db(friends,state) "MN"
+    > set db(friends,zip) 99999
+    > set db(friends,email) "billj@megacorp.com"
+    > lappend db(friends,phonelist) [dbNewRow db phones]
+    > set db(phones,friendrow) $frow
+    > set db(phones,description) "Home"
+    > set db(phones,phonenum) "612-555-3434"
+    > dbPutRow db phones
+    > set db(phones,friendrow) $frow
+    > set db(phones,description) "Work"
+    > set db(phones,phonenum) "612-555-0000 ext. 2345"
+    > dbPutRow db phones
+    > dbPutRow db friends
+	> dbClose db
+
+3) Traverse the database and report 
+    > dbOpen . db
+    > dbFirstRow db friends
+    > while {![dbEOF db friends]} {
+        puts stdout "Name:  $db(friends,name)"
+		foreach rownum $db(friends,phonelist) {
+            dbGetRow db phones $rownum
+            puts stdout "   $db(phones,description):  $db(phones,phonenum)"
+        }
+        puts stdout " "
+        dbNextRow db friends
+      }
+      Name:  Bill Jones
+         Home:  612-555-3434
+         Work:  612-555-0000 ext 2345
+    
+    > dbClose db
+    > exit
+    $
+
+
+
+

@@ -1,0 +1,393 @@
+	     Frequently-noted Problems concerning Xarchie
+				   
+			   George Ferguson
+		      ferguson@cs.rochester.edu
+
+			      16 Jun 1993
+
+The following list includes problems that I have heard about
+repeatedly, and which I am tired of hearing about. Sometimes there's a
+fix, sometimes not. This list will no doubt continue to grow. I'd be
+happy to receive contributions that address any of these issues. I
+will, at best, ignore anyone who mails me about them without useful
+suggestions.
+
+CONTENTS:
+--------
+ 1. The configure script crashes when it tries to invoke sed.
+ 2. I don't have xmkmf
+    OR I don't have imake
+    OR xmkmf didn't work.
+ 3. I get the following messages from my linker during the final link
+    of xarchie:
+	ld: Undefined symbol
+	   _sin
+	   _cos
+	   _pow
+	   _floor
+	   _get_wmShellWidgetClass
+	   _get_applicationShellWidgetClass
+ 4. I get the following message from my linker:
+	ld: Undefined symbol 
+	   _XtStrings 
+ 4a. I get the following message from my linker:
+	ld: Undefined symbol 
+	   _XtQString
+	   _XtQFont
+	   _XtQFontStruct
+ 4b. I get something like the following from my linker under Solaris2.2:
+	ld: Undefined symbol 
+	   _step
+	   _compile
+	   _advance
+ 5. The linker complains about -lresolv.
+ 6. I can't see anything in the Text widgets, but xarchie appears to
+    be doing something.
+ 7. Xarchie built fine, but I always get ``Can't resolve hostname''
+    errors when I try to query.
+ 8. Xarchie built fine, but I never get a reply the server. It always
+    times out.
+ 9. I see some #ifdef's for VMS. Can I run xarchie on VMS and/or
+    DecWindows?
+10. How can I run xarchie through a firewall?
+11. How do I link under Solaris 2.1 and OpenWindows 3.1? (May apply
+    to other combinations of Solaris and OW.)
+12. Why does Xarchie sometimes crash when I scroll the Help?
+13. The list of files in the FileChooser widgets don't seem to get
+    displayed properly all the time.
+14. The icons don't change like the manpage says they should.
+15. I get what seems to be an endless stream of "select failed" messages.
+16. I get messages like the following when I try to run xarchie:
+	Actions not found: "settings"
+    Also other complaints about resources and the main window is all
+    jumbled up. 
+17. On my HP machine, xarchie crashes with an error like:
+	Warning: Cannot convert string "" to type Cursor
+	X Error of failed request:  BadPixmap (invalid Pixmap parameter)
+	Major opcode of failed request:  93 (X_CreateCursor)
+	Resource id in failed request:  0x0
+	Serial number of failed request:  147
+	Current serial number in output stream:  149
+18. When I try to run xarchie, especially with an X terminal, it says
+    it can't open the display. I have my DISPLAY variable set
+    correctly.
+
+
+QUESTIONS and ANSWERS:
+---------------------
+ 1. The configure script crashes when it tries to invoke sed. What can
+    I do about it?
+
+    The configure script (generated automatically by autoconf from
+    config.in and included in the distribution ready-to-run) puts
+    together a long sed command to effect the appropriate
+    substitutions to create config.h from config.h.in. You should
+    probably get a new version of sed, like maybe GNU sed. For
+    xarchie, you can to copy config.h.in to config.h and make the
+    appropriate definitions for your system.
+
+ 2. "I don't have xmkmf" OR "I don't have imake" OR "xmkmf didn't
+    work".
+
+    See item (A) in the INSTALL file.
+
+ 3. I get the following messages from my linker during the final link
+    of xarchie:
+	ld: Undefined symbol
+	   _sin
+	   _cos
+	   _pow
+	   _floor
+	   _get_wmShellWidgetClass
+	   _get_applicationShellWidgetClass
+
+    Well, from what I can gather, this is a problem for some flavours
+    of OpenWindows. As a quick check would show, xarchie doesn't use
+    any of these functions. The first functions can be found by adding
+    "-lm" to the LOCAL_LIBRARIES definition in the Imakefile,
+    something that should have been looked after by the installation
+    of imake/xmkmf. The other functions I have never heard of. Your
+    one hope is that some people have reported that the resulting
+    "xarchie" file is still executable despite the errors. Try it and
+    see.
+
+    >From: Harald Tveit Alvestrand <harald.t.alvestrand@delab.sintef.no>
+    >
+    >It turns out that the problem occurs with X11R4 on SunOS 4.1.2 and
+    >later. SUN "fixed a bug" in the linker that made it conform to the
+    >documentation (AARRGGHH), which, as a side effect, wrecked linking
+    >to X11R4. 
+    >
+    > There are only 2 solutions that I know of:
+    > - Upgrade to X11R5 libraries, which don't have the problem
+    > - Add the following line to the Imakefile:
+    >     LDOPTIONS = $(CDEBUGFLAGS) $(CCOPTIONS) -Bstatic
+
+    Your mileage may vary. I suggest doing this if only if necessary
+    (that is, if your executable isn't executable).
+
+    >From: palm@tokyo.rockwell.com (Stephen [kiwin] PALM)
+    >
+    >Using -Bstatic can make a huge binary.  Xmu is the only file that needs to
+    >be static  so surrounding Xmu with -Bstatic -Bdynamic in the final
+    >compile works too.  eg:  ... -lXaw -Bstatic -lXmu -Bdynamic -lXt ...
+
+    >From: ivan@stat.ph.albany.edu (Ivan Auger)
+    >
+    >You need sun patch 100573-03. The problem is caused by an
+    >incorrectly built Xmu library.  Then you will not the undefined
+    >ld symbols: 
+    >  _get_wmShellWidgetClass
+    > _get_applicationShellWidgetClass
+    >
+    >Patch-ID# 100573-03
+    >Keywords: libxmu, shared, symbols, patch, ld, cte2336, libXmu,
+    >          undefined, 100170-06 
+    >Synopsis: OpenWindows 3.0: ld patch 100170-06 causes undefined
+    >          symbols when used with shared libXmu 
+    >Date: 08-Jul-92
+    >SunOS release: 4.1.1, 4.1.2
+    >Unbundled Product: OpenWindows
+    >Unbundled Release: 3.0
+    >Topic: Patch for libXmu
+    >BugId's fixed with this patch: 1087332
+    >Architectures for which this patch is available: sun4
+    >Patches which may conflict with this patch: 
+    >Obsoleted by:  
+    >Files included with this patch: libXmu.so.4.0, libXmu.sa.4.0
+    >Problem Description: With patched ld and libc, customer is
+                          getting undefined symbols
+
+ 4. I get the following message from my linker:
+	ld: Undefined symbol 
+	   _XtStrings 
+
+    XtStrings is an array used in <X11/StringDefs.h>. It was introduced
+    in R5 to allow internationalization of the resource names by
+    storing, eg, the name XtNstring (that is, the C constant)
+    as
+	#define XtNstring ((char*)&XtStrings[733])
+    rather than
+	#define XtNstring "string"
+    The choice is controlled by a cpp constant XTSTRINGDEFINES used in
+    the above-mentioned header file.
+
+    I would say that whoever installed your X botched it, since they
+    apparently didn't define XTSTRINGDEFINES, but also didn't arrange
+    for the string array itself to get compiled into the library.
+    You could try recompiling with -DXTSTRINGDEFINES added to DEFINES
+    in the Imakefile.
+
+ 4a. I get the following message from my linker:
+	ld: Undefined symbol 
+	   _XtQString
+	   _XtQFont
+	   _XtQFontStruct
+
+    This indicates that you are compiling with X11R4 (or earlier) header
+    files (see types.c) and linking against X11R5 libraries. You
+    should probably sort this out locally. If you must report this
+    problem, be sure to include enough information for me to be able
+    to do anything, since I'm not at your site.
+
+    It could also mean you're using X11R3, in which case all bets are
+    off. 
+
+ 4b. I get something like the following from my linker under Solaris2.2:
+	ld: Undefined symbol 
+	   _step
+	   _compile
+	   _advance
+
+    Apparently in Solaris2.2, you need to link against the "string
+    pattern-matching  & pathname manipulation library, libgen." How
+    they get "gen" from this I don't know, but you need it to find the
+    regexp routines. Add -lgen to the LOCAL_LIBRARIES line in the
+    Imakefile and rebuild (xmkmf, etc.).
+
+    Since xarchie doesn't make use of the FWF Directory regexp
+    capabilities anyway, you could just add "DEFINES=-DNO_REGEXP" to
+    the Imakefile there, but I haven't tested that.
+
+ 5. The linker complains about -lresolv.
+
+    From the INSTALL file:
+    >One fairly common problem is that configure will decide that you
+    >need to link with -lresolv and define NEED_LRESOLV in config.h.
+    >This happens when the test program resolv.c either doesn't compile
+    >or compiles but doesn't work properly. Normally, this means that
+    >your system requires linking with libresolv.a to force DNS
+    >nameserver lookups. If you don't have /usr/lib/libresolv.a (or some
+    >local variant), or if resolv.c compiles and runs properly, you
+    >shouldn't define NEED_LRESOLV.
+
+ 6. I can't see anything in the Text widgets, but xarchie appears to
+    be doing something.
+
+    This seems to be a problem with SGI systems. I believe that the
+    problem was/is that the "fixed" font used in version 1.3 as a
+    presumably well-chosen default wasn't in fact well-chosen. In fact,
+    it seemed to be 0 points, or something equally small.
+
+    As of version 2.0, it is easier to change the fonts used by xarchie
+    without editing all the definitions in the Xarchie.ad file. The two
+    resources "xarchieFont" and "xarchieBoldFont" are defined near the
+    top of that file, and the resource converter for fontnames has been
+    modified to convert a request for font "xarchieFont", for example,
+    into the corrresponding font. That is, a level of indirection was
+    introduced so you'd only have to change one resource entry to
+    affect all fonts in the application. The default was also chosen to
+    be something that will hopefully exist and be readable on all
+    systems. I hope to never hear about this again.
+
+ 7. Xarchie built fine, but I always get ``Can't resolve hostname''
+    errors when I try to query.
+
+    This means that your C library doesn't use DNS hostname lookup by
+    default. You should have uncommented the definition of RESOLV_LIB
+    in the Imakefile. See the file INSTALL for details. You can further
+    test this by compiling the file "resolv.c" and running it. If you
+    get an error, then you need -lresolv.
+
+ 8. Xarchie built fine, but I never get a reply from the server. It
+    always times out.
+
+    The Prospero protocol that underlies xarchie requires that UDP
+    traffic be enabled on your system. If you get nothing but timeouts
+    from dirsend, then either the server is just too heavily loaded or
+    UDP traffic is disabled. To test the latter hypothesis, compile
+    "udp.c" and follow the directions at the top of the file. If UDP
+    traffic is in fact disabled, talk to to your syadmins. Otherwise,
+    if you're *sure* it isn't just a loaded server, report the
+    situation in detail.
+
+ 9. I see some #ifdef's for VMS. Can I run xarchie on VMS and/or
+    DecWindows?
+
+    No. The #ifdef's are in parts of the code shared with the
+    standalone archie client written by Brendan Kehoe, which does,
+    apparently, run under VMS.
+
+10. How can I run xarchie through a firewall?
+
+    I don't know. You need to enable UDP traffic, as described above.
+    I would suggest contacting some of the Prospero or Xarchie people
+    listed elsewhere in the documentation. I include below the
+    following message from comp.unix.wizards, in case it's useful:
+
+    >From: wietse@wzv.win.tue.nl (Wietse Venema)
+    >Subject: Re: FTP & TELNET Through a fewall
+    >Date: 11 Feb 93 21:35:10 GMT
+    >
+    >The socks (socket call redirection library) comes with an example of an
+    >ftp proxy client. Applying the same operation to a telnet client (using
+    >freely-available bsd sources) should be relatively easy.
+    >socks can be found on s1.gov in /pub/socks.tar.Z. It is described in
+    >the proceedigs of the 3rd UNIX Security Symposium last September.
+
+11. How do I link under Solaris 2.1 and OpenWindows 3.1? (May apply
+    to other combinations of Solaris and OW.)"
+
+    >From: simon@lia.di.epfl.ch (Simon Leinen)
+    >
+    >Under SunOS 5.1 with OpenWindows 3.1, one has to manually add
+    >"-lsocket" and "-lnsl" to the linker command; I think this is because
+    >the OW3.1 config files don't handle SVR4 very well.
+
+    That is, add "-lsocket -lnsl" to the definition of LOCAL_LIBRARIES
+    and re-run xmkmf.
+
+12. Why does Xarchie sometimes crash when I scroll the Help?
+
+    I don't know. At least on X11R5p20, a stack trace shows that the
+    error is occurring in XtCallCallbacks() called from
+    XawPanedAllowResize(). Problem is, I don't see how that can
+    happen, since the latter function simply sets a flag. A fix would
+    be welcome.
+
+13. The list of files in the FileChooser widgets don't seem to get
+    displayed properly all the time.
+
+    This seems like an Xaw bug, but is difficult to repeat in
+    isolation. Refreshing the window (eg., iconify/deiconify or
+    scrolling up/down) clears it up. Fixes are welcome.
+
+14. The icons don't change the way the manpage says they should.
+
+    Icons are a tricky business, since they involve the application
+    and the window manager and whatever "look and feel" they all feel
+    like imposing. All I can say is that simply set the XtNiconName
+    and XtNiconPixmap resources for the toplevel xarchie shell. I
+    trust the Intrinsics to do the right thing with respect to ICCCM
+    protocols and the like. Your window manager may not support icons.
+    Your version of the Intrinsics may not do the right thing. Too
+    bad.
+
+    Note: This problem should be resolved as of version 2.0.3, but
+    I've left the text here since it's still possible that people's
+    window managers won't cooperate, and I don't want to hear about it.
+
+15. I get what seems to be an endless stream of "select failed" messages.
+
+    These messages are coming from the heart of the X11 event dispatch
+    loop. What it probably means is that one of the various file
+    descriptors registered with the server for asynchronous
+    notification (for Prospero or FTP) is no longer valid but hasn't
+    been cleared from X's select mask. Unfortunately, the X code
+    simply prints a message and loops, which means that select() will
+    fail again, etc., ad nauseam.
+
+    Please do not report this problem without the following
+    information! You should add a line `#define DEBUG' before the
+    `#include "debug.h"' in files ftp.c and ftp-actions.c, then
+    rebuild xarchie. Include the resulting trace (from stderr) with
+    your bug report. 
+
+16. I get messages like the following when I try to run xarchie:
+	Actions not found: "settings"
+    Also other complaints about resources and the main window is all
+    jumbled up. 
+
+    You are finding an old version of xarchie's resources and/or not
+    finding the new resources. You should either install xarchie so
+    its resources are found in the system-default place, or read the
+    INSTALL file about running without installing. Note that you not
+    only have to find the new resources (XAPPLRESDIR), you also have
+    to avoid finding the old resources if they are installed
+    (XFILESEARCHPATH).
+
+17. On my HP machine, xarchie crashes with an error like:
+	Warning: Cannot convert string "" to type Cursor
+	[...]
+
+    This appears to be a problem with HP's version of the Athena
+    widgets, libXaw. According to Ronald van Loon (rvloon@cv.ruu.nl),
+    compiling without MultiList is one alternative. To do that,
+    replace "#define UseMultiList" by a #undef in the Imakefile and
+    rebuild. According to Dave Shield (daves@csc.liv.ac.uk), using the
+    MIT version of the Athena widget library will also solve the
+    problem.
+
+    Further suggestions about this should be directed to Brian Totty
+    at the FWF (tooty@cs.uiuc.edu, free-widgets-request@kzoo.cs.uiuc.edu),
+    although you can CC: me so I know what's going on. 
+
+18. When I try to run xarchie, especially with an X terminal, it says
+    it can't open the display. I have my DISPLAY variable set
+    correctly.
+
+    As far as I can tell, this problem arises with systems (Suns?)
+    that run NIS for nameserver lookups. Xarchie uses hostname lookup
+    for two things: (1) to interpret the DISPLAY variable and
+    determine which host to open the display on; and (2) to lookup the
+    IP addresses of host for Archie queries and ftp connections. For
+    the second function, you presumably need DNS lookups, which is why
+    some systems require "-lresolv" to be linked in. It's my guess
+    that this somehow screws up the interpretation of $DISPLAY.
+
+    A workaround is to specify the IP address of the displaying host
+    in the DISPLAY variable, as in "NNN.NNN.NNN.NNN:0.0" rather than
+    "foobar:0.0". This results in inet_addr() begin called rather than
+    gethostbyname() (in the XOpenDisplay() call), for those of you
+    interested in working on this. Xarchie also interprets numeric IP
+    addresses in this way, in case you care.

@@ -1,0 +1,125 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from gasp.texi on 9 October 1995 -->
+
+<TITLE>GASP, an assembly preprocessor - Macros</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="gasp_1.html">first</A>, <A HREF="gasp_6.html">previous</A>, <A HREF="gasp_8.html">next</A>, <A HREF="gasp_20.html">last</A> section, <A HREF="gasp_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC7" HREF="gasp_toc.html#TOC7">Defining your own directives</A></H2>
+<P>
+The commands <CODE>.MACRO</CODE> and <CODE>.ENDM</CODE> allow you to define macros
+that generate assembly output.  You can use these macros with a syntax
+similar to built-in GASP or assembler directives.  For example,
+this definition specifies a macro <CODE>SUM</CODE> that adds together a range of
+consecutive registers:
+<P>
+<PRE>
+        .MACRO  SUM FROM=0, TO=9
+        ! \FROM \TO
+        mov     r\FROM,r10
+COUNT   .ASSIGNA        \FROM+1
+        .AWHILE \&#38;COUNT LE \TO
+        add     r\&#38;COUNT,r10
+COUNT   .ASSIGNA        \&#38;COUNT+1
+        .AENDW
+        .ENDM
+</PRE>
+<P>
+With that definition, <SAMP>`SUM 0,5'</SAMP> generates this assembly output:
+<P>
+<PRE>
+        ! 0 5
+        mov     r0,r10
+        add     r1,r10
+        add     r2,r10
+        add     r3,r10
+        add     r4,r10
+        add     r5,r10
+</PRE>
+<P>
+<DL COMPACT>
+<A NAME="IDX52"></A>
+<DT><CODE>.MACRO <VAR>macname</VAR></CODE>
+<DD><A NAME="IDX53"></A>
+<DT><CODE>.MACRO <VAR>macname</VAR> <VAR>macargs</VAR> ...</CODE>
+<DD>Begin the definition of a macro called <VAR>macname</VAR>.  If your macro
+definition requires arguments, specify their names after the macro name,
+separated by commas or spaces.  You can supply a default value for any
+macro argument by following the name with <SAMP>`=<VAR>deflt</VAR>'</SAMP>.  For
+example, these are all valid <CODE>.MACRO</CODE> statements:
+
+<DL COMPACT>
+<DT><CODE>.MACRO COMM</CODE>
+<DD>Begin the definition of a macro called <CODE>COMM</CODE>, which takes no
+arguments.
+
+<DT><CODE>.MACRO PLUS1 P, P1</CODE>
+<DD><DT><CODE>.MACRO PLUS1 P P1</CODE>
+<DD>Either statement begins the definition of a macro called <CODE>PLUS1</CODE>,
+which takes two arguments; within the macro definition, write
+<SAMP>`\P'</SAMP> or <SAMP>`\P1'</SAMP> to evaluate the arguments.
+
+<DT><CODE>.MACRO RESERVE_STR P1=0 P2</CODE>
+<DD>Begin the definition of a macro called <CODE>RESERVE_STR</CODE>, with two
+arguments.  The first argument has a default value, but not the second.
+After the definition is complete, you can call the macro either as
+<SAMP>`RESERVE_STR <VAR>a</VAR>,<VAR>b</VAR>'</SAMP> (with <SAMP>`\P1'</SAMP> evaluating to
+<VAR>a</VAR> and <SAMP>`\P2'</SAMP> evaluating to <VAR>b</VAR>), or as <SAMP>`RESERVE_STR
+,<VAR>b</VAR>'</SAMP> (with <SAMP>`\P1'</SAMP> evaluating as the default, in this case
+<SAMP>`0'</SAMP>, and <SAMP>`\P2'</SAMP> evaluating to <VAR>b</VAR>).
+</DL>
+
+When you call a macro, you can specify the argument values either by
+position, or by keyword.  For example, <SAMP>`SUM 9,17'</SAMP> is equivalent to
+<SAMP>`SUM TO=17, FROM=9'</SAMP>.  Macro arguments are preprocessor variables
+similar to the variables you define with <SAMP>`.ASSIGNA'</SAMP> or
+<SAMP>`.ASSIGNC'</SAMP>; in particular, you can use them in conditionals or for
+loop control.  (The only difference is the prefix you write to evaluate
+the variable: for a macro argument, write <SAMP>`\<VAR>argname</VAR>'</SAMP>, but for
+a preprocessor variable, write <SAMP>`\&#38;<VAR>varname</VAR>'</SAMP>.)
+
+<A NAME="IDX54"></A>
+<DT><CODE><VAR>name</VAR> .MACRO</CODE>
+<DD><A NAME="IDX55"></A>
+<DT><CODE><VAR>name</VAR> .MACRO ( <VAR>macargs</VAR> ... )</CODE>
+<DD>An alternative form of introducing a macro definition: specify the macro
+name in the label position, and the arguments (if any) between
+parentheses after the name.  Defaulting rules and usage work the same
+way as for the other macro definition syntax.
+
+<A NAME="IDX56"></A>
+<DT><CODE>.ENDM</CODE>
+<DD>Mark the end of a macro definition.
+
+<A NAME="IDX57"></A>
+<DT><CODE>.EXITM</CODE>
+<DD>Exit early from the current macro definition, <CODE>.AREPEAT</CODE> loop, or
+<CODE>.AWHILE</CODE> loop.
+
+<A NAME="IDX59"></A>
+<A NAME="IDX58"></A>
+<A NAME="IDX60"></A>
+<DT><CODE>\@</CODE>
+<DD>GASP maintains a counter of how many macros it has
+executed in this pseudo-variable; you can copy that number to your
+output with <SAMP>`\@'</SAMP>, but <EM>only within a macro definition</EM>.
+
+<A NAME="IDX61"></A>
+<DT><CODE>LOCAL <VAR>name</VAR> [ , ... ]</CODE>
+<DD><EM>Warning: <CODE>LOCAL</CODE> is only available if you select "alternate
+macro syntax" with <SAMP>`-a'</SAMP> or <SAMP>`--alternate'</SAMP>.</EM>  See section <A HREF="gasp_19.html#SEC19">Alternate macro syntax</A>.
+
+Generate a string replacement for each of the <VAR>name</VAR> arguments, and
+replace any instances of <VAR>name</VAR> in each macro expansion.  The
+replacement string is unique in the assembly, and different for each
+separate macro expansion.  <CODE>LOCAL</CODE> allows you to write macros that
+define symbols, without fear of conflict between separate macro expansions.
+</DL>
+<P>
+<HR>
+Go to the <A HREF="gasp_1.html">first</A>, <A HREF="gasp_6.html">previous</A>, <A HREF="gasp_8.html">next</A>, <A HREF="gasp_20.html">last</A> section, <A HREF="gasp_toc.html">table of contents</A>.
+</BODY>
+</HTML>

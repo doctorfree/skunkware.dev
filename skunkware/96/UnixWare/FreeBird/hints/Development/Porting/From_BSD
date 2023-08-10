@@ -1,0 +1,744 @@
+
+[ This is the Solaris 2 FAQ - but it pretty much is equivalent
+  to a guide to Porting from BSD to SVR4 ]
+
+Archive-name:	Solaris2/porting-FAQ
+Last-modified:	18 August 93
+Version: 	2.0
+
+
+Solaris 2 Porting FAQ
+
+[Last changed: 18 August 93]
+
+This article contains the answers to some Frequently
+Asked Questions (FAQ) often seen in comp.unix.solaris
+that relate to porting BSD/Solaris 1 applications to
+Solaris 2. Over the first few days of its existence, it has
+evolved into a more general discussion about portability among
+Unix systems, especially as it relates to BSD, ANSI, POSIX, and
+SVID compliant systems.  It is hoped that this document will
+help reduce volume in this newsgroup and to provide hard-to-find
+information of general interest. 
+	
+	Please redistribute this article!
+
+This FAQ is maintained by David Meyer (meyer@ns.uoregon.edu).
+Send updates and corrections to me at this address.  It
+would help if the subject line contained the phrase "FAQ".
+
+This article includes answers to the following questions.
+Ones marked with a + indicate questions new to this
+issue; those with changes of content since the last issue
+are marked by *: 
+
+0)* Which preprocessor symbols to use?
+1)* Some Include File Issues
+2)* Libraries
+3)* Possible ANSI/POSIX/SVR4 replacements for some popular BSD functions 
+4)* Signal Primer
+5)* Waiting for Children to Exit
+6)* Dealing with Shadow Password Files
+7)* Other Resources
+
+
+-----------------------------------------------------------------------------
+0)* TOPIC: Which preprocessor to use?
+
+[Last modified: 18 August 93]
+
+[Editor's Note: This section began life as a Solaris 1 and
+Solaris 2 centric discussion. However, it has grown into a more 
+generalized portability discussion. I believe that this is a
+useful discussion, but it appears that contrasting styles,
+preferences, and requirements will make consensus difficult. DM]  
+
+Answer:	This is a difficult and controversial question.
+
+In order to understand the following discussion, we need to be
+aware of the following standards:
+
+ANSI C (ANSI X3J11) 
+		
+	This is the standard C definition, originally adopted as
+	American National Standard X3.159-1989 and has since been
+	adopted as international standard ISO/IEC 9899:1990.
+
+		
+POSIX.1 (IEEE 1003.1-1990)
+
+	POSIX.1, the Portable Operating System Interface for
+	Computer Environments,  is a system level API that deals
+	with the function and format of system calls and
+	utilities such as signal handling. 
+
+SVID3
+
+	SVID3, the System V Interface Definition Issue 3, is is
+	fully compliant with POSIX.1, and is the SVR4 system API.
+
+XPG
+
+	XPG, X/Open Company Ltd's X/Open Portability Guide, is a
+	broad document which covers a great number of areas,
+	including operating systems and programming languages,
+	system interfaces, and internetworking. The latest
+	version, XPG4, groups these components into "profiles",
+	which are packaged together according to market needs.
+
+
+Two additional standards are relevant for Suns:
+
+SCD 2.0 and x86 ABIs
+
+	SCD 2.0 is the SPARC Compliance Definition 2.0. The SCD
+	has two components: On the hardware side, 
+
+	 (i).	System Compliance Test verifies that the hardware
+		and operating system successfully emulates what
+		Sun is doing. It covers low level system issues
+		such as alignment, and linking and loading. 
+
+	(ii).	The SPARC Application Verifier tests software to
+		be sure that it runs on SCD hardware. 
+
+		
+As an example of subtle differences that exist between the BSD
+interface and SVID/POSIX standards, consider the BSD mktemp(3)
+call. The SunOS 4.1 mktemp() replaced the trailing X characters
+with the letter (e.g., X) and the current process ID. The SVID
+and SVR4 versions specify only that the six trailing Xs be
+replaced with a character string that can be used to create a
+unique filename, and does not depend on the specific name of the
+file.  Thus, the BSD and SVR4/SVID3 versions are only
+semantically equivalent in the case where only the application
+cares that the filename is unique.  
+
+Now, the basic philosophical question of which preprocessor to
+use here would appear to revolve around the following choices: 
+
+	(i).	Use a high level, large grained standard
+		definition (e.g., _POSIX_SOURCE). In this case,
+		features are implicitly defined. One problem with
+		such definitions is that they may cause other
+		useful functions to become unavailable. However,
+		there are several such definitions in common use.
+		For operating systems, we have
+
+			SVR4
+			SYSV
+			BSD
+			OSF1
+
+		to name a few. For standards, the we are mainly
+		interested in
+
+			__STDC__
+			_POSIX_SOURCE
+			_XOPEN_SOURCE
+		
+  
+		This method is not without pitfalls.  For
+		example, the Sun SC2.0.1 compiler defines
+		__STDC__ as 0 when compiling in transition mode
+		(-Xt), only setting it to 1 when the strict ANSI 
+		mode (-Xc) is used. The expression 
+
+			#if (__STDC__ - 0 == 0) 
+
+		can be used to recognize strict v. transition
+		ANSI modes. On Solaris 2, if you compile with
+		-Xc, you will loose all non-ANSI functionality
+		However, if you you can define _POSIX_SOURCE or
+		_XOPEN_SOURCE to get a POSIX or XOPEN
+		environment.  
+		
+		If you use _POSIX_SOURCE, .eg., 
+		
+			#define _POSIX_SOURCE 1
+
+		then all symbols not defined by Standard C or the
+		POSIX standard will be hidden (except those with
+		leading underscores). If you wish to use
+		_POSIX_SOURCE, be sure to define it before
+		including any standard header files, and avoid
+		name clashes by not defining any symbols that
+		begin with "_" (Similarly, note that almost all
+		names beginning with  "E" are reserved by
+		errno.h, and many names prefixed by "va_"
+		reserved by stadarg.h). 
+
+		Another potential portability pitfall is the
+		__svr4__ feature defined by the FSF (gcc). If you
+		depend on __svr4__, you may loose portability.
+		gcc also defines sun if you don't give the -ansi
+		argument. If you use -ansi,  then sun is not
+		defined and __sun__ is.
+
+		Finally, complexity may arise surrounding a
+		feature which may be part of some vendor's
+		version of some system Y, but may also exist in
+		non-Y compliant systems. Consider, for example,
+		shadow passwording. Systems conforming to the
+		latest SVID (e.g., SVR4) have shadow.h, but there
+		are many systems that have shadow.h without
+		conforming to the SVID.
+
+		So, in general, for code that uses a FEATURE and
+		runs on systems W, Y, and Z, you are left with 
+		something that may look like   
+
+			#if defined(W)				||
+			   (defined(Y) && _Y_VERSION_ > 3)	||
+			   (defined(Z) || defined(__Z__))
+			#include <FEATURE.h>
+			#endif
+
+		[W, Y, Z are things like SVR4, AIX, NeXT, BSD,
+		and so on. FEATURE.h is something like shadow.h] 
+
+		This example exposes two problems the large
+		grained method.. First, it forces one to keep
+		track of exactly which vendors supply
+		<FEATURE.h>.  Second, the complexity of the
+		preprocessor expressions may be a serious
+		consideration, since their complexity is
+		something like     
+
+			O(n*m) where
+
+			n = the number of features, and
+			m = number of vendors/systems
+
+
+	(ii).	Define new fine grained feature tests (e.g.,
+		HAVE_POSIX_SIGNALS, or HAVE_SHADOW_H) for
+		features of interest. Such fine grained features
+		could be used in conjunction with large grained
+		definitions. An nice example of using feature
+		definitions is the GNU configure program. It
+		uses, for example, the features HAVE_BCOPY and
+		HAVE_MEMCPY to enable either the bcopy (BSD) or
+		memcpy (ANSI) functions.   
+
+		Feature testing has the advantage of being useful
+		for automatic configuration with programs such as
+		GNU configure. However, it results in code that
+		might appear like  
+	
+			#ifdef SVR4
+			#define HAVE_xxxx
+			...
+			#endif
+			#ifdef BSD43
+			#define HAVE_yyyy
+			...
+			#endif
+			#ifdef NEWTHING
+			#define HAVE_zzzz
+			...
+			#endif
+	
+		Feature testing also helps to avoid constructs
+		such as 
+
+		#if defined(_POSIX_SOURCE) || defined(_XOPEN_SOURCE)
+
+
+		Another possibility is to use a hybrid scheme:
+		Use the standard to define the feature, e.g., 
+
+			#ifdef _POSIX_SOURCE
+			#define HAS_POSIX_SIGNALS
+			...
+			#endif
+
+		then
+			#ifdef	HAS_POSIX_SIGNALS
+			...
+			#endif
+
+		This will help portability to systems which are not
+		fully POSIX/XOPEN compliant.
+
+	
+		Finally, an observation: The real issue here is
+		how many of these "features" are migrating to the
+		standard operating systems and interfaces, and
+		how many vendors implement these standards. In 
+		general, some people feel that feature testing
+		improves portability (and readability), and
+		others believe that these feature testing
+		decreases portability and readability.  
+
+
+	(iii).	Use some part of the feature's definition itself
+		to enable the feature, for example 
+
+			#ifdef _IOLBF
+				setvbuf(stderr, NULL, _IOLBF, 0);
+			#else
+				setlinebuf(stderr);
+			#endif	/* _IOLBF  */
+
+		Note that in this case, another, possibly better
+		option is (consider the case in which some vendor
+		has inadvertently defined _IOLBF for some other
+		purpose):
+
+			#ifdef	 __STDC__
+				setvbuf(stderr, NULL, _IOLBF, 0);
+			#else
+				setlinebuf(stderr);
+			#endif	/* __STDC__  */
+
+		since setvbuf is required by Standard C.
+
+
+
+	Finally, some people have suggested the use of
+	expressions like 
+
+		#if defined(sun) && defined(__svr4__)
+			<Solaris 2 centric code>
+		#else 
+			...
+		#endif
+
+
+	As noted above, the __svr4__ feature defined by the FSF
+	(gcc). If you depend on __svr4__, you may loose
+	portability. gcc also defines sun if you don't give the
+	-ansi argument. If you use -ansi,  then sun is not
+	defined and __sun__ is. The implication here is that
+	depending on symbols defined by a given compiler can
+	reduce portability.
+
+	In general, such a construct should be used if and only if
+	the code in question cannot be covered by some standard
+	(e.g., SVR4, _POSIX_SOURCE, etc.). Note that it is also
+	compiler specific.
+	
+
+-----------------------------------------------------------------------------
+1)* TOPIC: Include File Issues
+
+[Last modified: 18 August 93]
+
+The first and apparently most common problem is that
+/usr/include/strings.h not ANSI compliant, and as such does not 
+exist on Solaris 2 (or SVR4). It should be replaced by
+/usr/include/string.h, e.g. (following GNU feature definition
+conventions)
+
+	#if HAVE_STRING_H || defined(STDC_HEADERS)
+	#include <string.h>
+	#else
+	#include <strings.h>
+	#endif
+	#if defined(STDC_HEADERS)
+	#include <stdlib.h>
+	#endif /* HAVE_STRING_H */
+
+	while ANSI-C requires the name be string.h, one might
+	define this as
+
+	#ifdef __STDC__
+	#include <string.h>
+	#else
+	#include <strings.h>
+	#endif	/* __STDC__ */
+
+	However, this again neglects the case where the vendor
+	provides string.h in a non-ANSI environment.
+
+			
+Another thing to watch is for the symbols O_CREAT, O_TRUNC, and
+O_EXCL being undefined. On BSD/Solaris 1, these are defined in
+/usr/include/sys/fnctlcom.h (which is included in sys/file.h). On
+a POSIX compliant system, these symbols are defined in fcntl.h,
+which is not included in sys/file.h. Since fcntl.h is defined on
+SunOS 4.1.x, replacing sys/file.h with fcntl.h works for both
+SunOS 4.1.x and SVR4. See, for example, section 5.3.1.1 of the
+POSIX spec. 
+
+
+-----------------------------------------------------------------------------
+
+2)* TOPIC: Libraries
+
+[Last modified: 18 August 93]
+
+Network Libraries:
+
+Many of the network functions and definitions that were present
+in the BSD libc are now in libnsl.a and libsocket. Thus
+networking code will generally need to be linked with
+-lsocket -lnsl (Since libsocket uses stuff from libnsl, you must
+specify them in this order).
+
+
+Regular Expressions
+
+Another problem frequently encountered is that the regexp
+functions (see regexpr(3G)) not defined in libc. On Solaris 2,
+you must link with libgen in order to get these definitions. See
+Intro(3) for a more complete discussion.   
+
+-----------------------------------------------------------------------------
+
+3)* TOPIC: Possible ANSI/POSIX/SVR4 replacements for some popular
+          BSD functions  
+
+[Last modified: 18 August 93]
+
+[Editor's Note: Once again, this section began life a SunOS
+4.1.x and SunOS 5.x centric discussion.  It too has grown into a 
+discussion dealing with general portability for BSD to other
+standards. DM]
+
+Problems finding functions that were defined in the BSD libc.a is
+one of the most frequently asked porting questions. The following
+table and code fragments suggest substitutes for some common BSD
+constructs (more complete lists can be found in some of the texts
+listed in section 7 below).
+
+
+BSD			Possibilities		Standards/Notes
+============================================================================
+srandom(seed)		srand(seed)		ANSI-C (Also, some older UNIX)
+			srand48(seed)		SVR4
+
+non-ANSI signal()	sigset()		SVR4   (systems calls not
+(e.g., SunOS)					       restarted, but bytes r/w
+						       returned, else EINTR) 
+			sigaction		POSIX  (but extensible by
+						       implementation) 
+
+sigvec()		sigaction		POSIX
+sigblock		sigprocmask()		POSIX
+			sigset(.., SIG_HOLD)
+			sighold()		SVR4
+sigsetmask		sigprocmask()		POSIX
+			sigset/sigrelse		SVR4	
+	
+bcopy 			memmove 		ANSI-C (BSD bcopy() handles
+						       overlapping areas
+						       correctly, as does
+						       memmove, but not memcpy)
+
+index			strchr			ANSI-C
+rindex			strrchr			ANSI-C
+
+getwd			getcwd			SVR4
+
+getrusage		open,sysconf		The getrusage information
+						(and a whole lot more) can be
+						found in the prusage structure;
+						See the proc(4) man page for
+						detail.
+
+
+wait3 w/o rusage	waitpid()		POSIX
+wait3 w/ usage		waitid()		SVR4
+
+
+Some other commonly used functions are setlinebuf, gethostid, and
+getdtablesize. The following fragments give some idea of how to
+emulate this functionality. 
+
+
+	/*
+	 *	setlinebuf --
+         *
+         *	In this example, a constant defined in the
+	 *	definition is used to identify a feature.
+	 */
+	
+	#ifdef _IOLBF
+		setvbuf(stderr, NULL, _IOLBF, 0);
+	#else
+		setlinebuf(stderr);
+	#endif	/* _IOLBF  */
+
+
+	/*
+	 *	gethostid 
+         *
+	 *	This example has a combination of high-level
+	 *	(SVR4) and (SI_HW_SERIAL) feature declarations.
+	 */
+	
+	#if defined(SVR4) && defined(SI_HW_SERIAL)
+	long  gethostid() {
+			
+	  char buf[128];
+		
+	  if (sysinfo(SI_HW_SERIAL, buf, 128) == -1) {
+	    perror("sysinfo");
+	    exit(1);
+	  }
+	  return(strtoul(buf,NULL,0));
+	}
+	#endif /* SVR4 && SI_HW_SERIAL */
+
+	/*
+	 *	getdtablesize
+	 */
+	#ifdef	SVR4
+		struct rlimit rlp;
+	#endif	/* SVR4 */
+		....
+	#ifdef	SVR4
+        if (getrlimit(RLIMIT_NOFILE, &rlp) == -1){
+		 perror("getrlimit");
+		 exit(1);
+	}
+		tableSize = rlp.rlim_max;
+
+	#else       	/* Assume BSD */
+		tableSize = getdtablesize();
+	#endif	/* SVR4 */
+
+
+-----------------------------------------------------------------------------
+
+4)* TOPIC: BSD/Solaris 1/POSIX Signal Primer
+
+[Last modified: 18 August 93]
+
+
+The most common problem encountered when porting BSD/Solaris 1
+signal code is that Solaris 2 (and SVR4) handles interrupted
+systems calls differently than does BSD. In Solaris 2 (SVR4),
+system calls are interrupted and return EINTR, unless the call is
+read, write, or some other call that returns the number of bytes
+read/written (unless 0 bytes have been read/written, in which
+case the call returns EINTR). 
+
+On the other hand, system calls are restarted on BSD/Solaris 1
+systems. The signal calls can be made to restart by specifying a
+SA_RESTART with sigaction().  Note, however, that code that
+relies on restartable system calls is generally considered bad
+practice. The following code is provided for illustrative
+purposes only. It is recommended that you remove these
+dependencies. Sigaction is the preferred (POSIX) way of
+installing signal handlers.  
+
+
+	The BSD/Solaris 1 code 
+
+		omask = sigblock(sigmask(SIGXXX));
+		do_stuff_while_SIGXXX_blocked();
+		(void)sigsetmask(omask);
+	
+	can be emulated by
+
+		sigset_t block, oblock;
+		....
+		(void)sigemptyset(&block);
+		(void)sigaddset(&block, SIGXXX);
+		if (sigprocmask(SIG_BLOCK, &block, &oblock) < 0)
+			perror("sigprocmask");
+		do_stuff_while_SIGXXX_blocked();
+		(void)sigprocmask(SIG_SETMASK, &oblock, (sigset_t *)NULL);
+	#ifdef	SA_RESTART			/* make restartable */
+		act.sa_flags |= SA_RESTART;
+	#endif	/* SA_RESTART */
+		if (sigaction(SIGXXX, &act, &oact) < 0)
+		       return(SIG_ERR);
+
+
+	Note that this (emulating) construct is also available on
+	Solaris 1 (sans SA_RESTART), so should work on either
+	Solaris 1 or SVR4.
+
+	To summarize some basic rules are:
+
+		(i).	Limit signal handling code to the POSIX
+			interface where ever possible.
+
+		(ii).	Use sigaction to install signal handlers
+			wherever possible. Use Standard C's
+			signal() only for portability to
+			non-POSIX systems. 
+
+		(iii).	Avoid code that relies on restartable system calls. 
+
+   		(iv).	Note: the main difference between SVR4
+			sigset() (not POSIX) and SunOS 4.x/BSD
+			signal() is that system calls will return
+			EINTR with sigset() but will be restarted
+			on BSD/SunOS 4.x. On SVR4 EINTR is only 
+			returned when no bytes have been
+			read/written.    
+
+
+-----------------------------------------------------------------------------
+
+5)* TOPIC: Waiting for Children to Exit
+
+[Last modified: 18 August 93]
+
+
+waitpid(2) is the preferred (POSIX) interface. Wait3 can be
+replaced by waitpid (when you don't need the rusage). For
+example, the BSD segment  
+	
+	while((id = wait(&stat)) >=0 && id != pid);
+
+can be emulated on a POSIX system as follows:
+
+	int status;
+	int options;			/* e.g., WNOHANG */
+	....
+	options |= WNOHANG;
+	if (waitpid((pid_t) -1, &status, options) == -1)
+		perror("waitpid");
+	}
+
+
+Another possibility is emulate the BSD wait(2) call with SVR4's
+waitid(2). The code fragment below is an example. In this case,
+we wait for a particular child in our process group ((pid_t) 0)
+to exit (WEXITED).   
+
+
+	#ifdef	SVR4
+	#include <sys/types.h>
+	#include <sys/wait.h>
+		siginfo_t	stat;
+		int		retcode;
+	#else
+		union	wait	stat;
+	#endif
+
+	.....
+
+	#ifdef	SVR4
+	      while (retcode = waitid(P_ALL,(pid_t) 0, &stat, WEXITED)) {
+		if (retcode < 0) {
+		  perror("waitid");
+		  exit(1);
+		}
+		if (stat.si_pid == pid)
+		  break;
+	      }
+	#else		/* BSD */
+	       while((id = wait(&stat)) >=0 && id != pid);
+	#endif	/* SVR4 */
+
+
+-----------------------------------------------------------------------------
+
+6)* TOPIC: Dealing With Shadow Password Files
+
+[Last modified: 18 August 93]
+
+The following code segment outlines how to handle shadow password
+files. In the outline below, <passwd> is the clear text password.
+Note that shadow passwords are part of SVR4, so again we have the
+conflict between using high level system definitions (e.g., SVR4)
+and feature definitions (for systems other than SVR4). I'll use
+feature a feature definition (HAVE_SHADOW_H) to illustrate this.
+
+
+	#ifdef	HAVE_SHADOW_H
+	#include <shadow.h>
+	    register struct spwd    *sp;
+	#endif	/* HAVE_SHADOW_H */
+
+             .....
+		
+	#ifdef	HAVE_SHADOW_H
+	    if ((sp = getspnam(<username>)) == NULL)
+	       <no password entry for username>
+	    if (sp->sp_pwdp == NULL)
+	       <NULL password for username>
+	    if (strcmp (crypt (<passwd>, sp->sp_pwdp), sp->sp_pwdp) != 0)
+	#else 
+	    if ((pw = getpwnam(<username>)) == NULL)
+	       <no password entry for username>
+	    if (pw->pw_passwd == NULL)
+	       <NULL password for username>
+	    if (strcmp (crypt (<passwd>, pw->pw_passwd), pw->pw_passwd) != 0)
+	#endif	/* HAVE_SHADOW_H */
+	       <incorrect password for username>
+		       
+
+-----------------------------------------------------------------------------
+
+7)* TOPIC: Other Resources
+
+[Last modified: 18 August 93]
+
+Porting to Solaris 2
+
+A excellent text on this subject is  "Solaris Porting Guide",
+SunSoft ISV Engineering, et. al., Prentice Hall, 1993. ISBN
+0-13-030396-8. 
+
+Solaris 2 General FAQ
+
+The official Solaris 2 Frequently Answered Questions is
+maintained by Ian Darwin, ian@sq.com, and is posted once or twice
+a month to various newsgroups including comp.unix.solaris and
+comp.answers.  
+
+
+General
+
+"Advanced Programming in the UNIX Environment", W. Richard
+Stevens, Addison Wesley, 1992, ISBN 0-201-56317-1, is a nice, in
+depth text covering large parts of this topic.
+
+ANSI C
+
+A very nice text here is "The Standard C Library", P.J. Plauger,
+Prentice Hall, 1992, ISBN 0-13-131509-9.
+
+An example of the many texts here is "C,  a Reference Manual", 
+Harbison and Steele, Prentice Hall. ISBN 0-13-110933-2. 
+
+POSIX
+
+A nice reference text on the POSIX interface is "POSIX
+Programmer's Guide", Donald Levine, O'Reily & Associates, 1991.
+ISBN 0-937175-73-0. 
+
+
+ACKNOWLEDGMENTS
+
+I would like to thank everyone who contributed to this, and I
+hope that it clarifies some of these issues. I would especially 
+acknowledge the contributions of Casper H.S. Dik and J.G. Vons in
+helping me organize my thoughts on all this.
+
+Thanks to:
+
+	Pedro Acebes Bayon	<pacebes@tid.es>
+	Ian Darwin		<ian@sq.com>
+	Casper H.S. Dik		<casper@fwi.uva.nl>
+	Paul Eggert		<eggert@twinsun.com>
+	Stephen L Favor		<xcpslf@atom.oryx.com>
+	Pete Hartman		<pwh@bradley.bradley.edu>
+	Guy Harris 		<guy@auspex.com>
+	Jens-Uwe Mager 		<jum@anubis.han.de>
+	Richard M. Mathews	richard@astro.West.Sun.COM 
+	Davin Milun   		<milun@cs.buffalo.edu>
+	M C Srivas		<M._C._Srivas@transarc.com>
+	J.G. Vons   		<vons%ulysse@crbca1.sinet.slb.com>
+	Peter Wemm		<peter@DIALix.oz.au>
+	christos@deshaw.com
+	jorgens@pvv.unit.no
+
+----- End of Solaris 2 Porting FAQ -- Maintained by David Meyer meyer@ns.uoregon.edu --
+
+
+
+	David M. Meyer 503/346-1747
+	meyer@cambium.uoregon.edu
+	Fri Jul 16 14:59:28 1993
+
+	$Header: /net/network-services/disk1/home/meyer/FAQ/RCS/porting-FAQ,v 1.14 1993/08/18 14:34:52 meyer Exp $
+

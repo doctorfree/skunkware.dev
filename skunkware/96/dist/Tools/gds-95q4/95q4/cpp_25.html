@@ -1,0 +1,161 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from cpp.texi on 6 October 1995 -->
+
+<TITLE>The C Preprocessor - Argument Prescan</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="cpp_1.html">first</A>, <A HREF="cpp_24.html">previous</A>, <A HREF="cpp_26.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX66"></A>
+<A NAME="IDX67"></A>
+<A NAME="IDX68"></A>
+<H4><A NAME="SEC26" HREF="cpp_toc.html#TOC26">Separate Expansion of Macro Arguments</A></H4>
+<P>
+We have explained that the expansion of a macro, including the substituted
+actual arguments, is scanned over again for macro calls to be expanded.
+<P>
+What really happens is more subtle: first each actual argument text is scanned
+separately for macro calls.  Then the results of this are substituted into
+the macro body to produce the macro expansion, and the macro expansion
+is scanned again for macros to expand.
+<P>
+The result is that the actual arguments are scanned <EM>twice</EM> to expand
+macro calls in them.
+<P>
+Most of the time, this has no effect.  If the actual argument contained
+any macro calls, they are expanded during the first scan.  The result
+therefore contains no macro calls, so the second scan does not change it.
+If the actual argument were substituted as given, with no prescan,
+the single remaining scan would find the same macro calls and produce
+the same results.
+<P>
+You might expect the double scan to change the results when a
+self-referential macro is used in an actual argument of another macro
+(see section <A HREF="cpp_24.html#SEC25">Self-Referential Macros</A>): the self-referential macro would be expanded once
+in the first scan, and a second time in the second scan.  But this is not
+what happens.  The self-references that do not expand in the first scan are
+marked so that they will not expand in the second scan either.
+<P>
+The prescan is not done when an argument is stringified or concatenated.
+Thus,
+<P>
+<PRE>
+#define str(s) #s
+#define foo 4
+str (foo)
+</PRE>
+<P>
+expands to <SAMP>`"foo"'</SAMP>.  Once more, prescan has been prevented from
+having any noticeable effect.
+<P>
+More precisely, stringification and concatenation use the argument as
+written, in un-prescanned form.  The same actual argument would be used in
+prescanned form if it is substituted elsewhere without stringification or
+concatenation.
+<P>
+<PRE>
+#define str(s) #s lose(s)
+#define foo 4
+str (foo)
+</PRE>
+<P>
+expands to <SAMP>`"foo" lose(4)'</SAMP>.
+<P>
+You might now ask, "Why mention the prescan, if it makes no difference?
+And why not skip it and make the preprocessor faster?"  The answer is
+that the prescan does make a difference in three special cases:
+<P>
+<UL>
+<LI>
+Nested calls to a macro.
+
+<LI>
+Macros that call other macros that stringify or concatenate.
+
+<LI>
+Macros whose expansions contain unshielded commas.
+</UL>
+<P>
+We say that <DFN>nested</DFN> calls to a macro occur when a macro's actual
+argument contains a call to that very macro.  For example, if <SAMP>`f'</SAMP>
+is a macro that expects one argument, <SAMP>`f (f (1))'</SAMP> is a nested
+pair of calls to <SAMP>`f'</SAMP>.  The desired expansion is made by
+expanding <SAMP>`f (1)'</SAMP> and substituting that into the definition of
+<SAMP>`f'</SAMP>.  The prescan causes the expected result to happen.
+Without the prescan, <SAMP>`f (1)'</SAMP> itself would be substituted as
+an actual argument, and the inner use of <SAMP>`f'</SAMP> would appear
+during the main scan as an indirect self-reference and would not
+be expanded.  Here, the prescan cancels an undesirable side effect
+(in the medical, not computational, sense of the term) of the special
+rule for self-referential macros.
+<P>
+But prescan causes trouble in certain other cases of nested macro calls.
+Here is an example:
+<P>
+<PRE>
+#define foo  a,b
+#define bar(x) lose(x)
+#define lose(x) (1 + (x))
+
+bar(foo)
+</PRE>
+<P>
+We would like <SAMP>`bar(foo)'</SAMP> to turn into <SAMP>`(1 + (foo))'</SAMP>, which
+would then turn into <SAMP>`(1 + (a,b))'</SAMP>.  But instead, <SAMP>`bar(foo)'</SAMP>
+expands into <SAMP>`lose(a,b)'</SAMP>, and you get an error because <CODE>lose</CODE>
+requires a single argument.  In this case, the problem is easily solved
+by the same parentheses that ought to be used to prevent misnesting of
+arithmetic operations:
+<P>
+<PRE>
+#define foo (a,b)
+#define bar(x) lose((x))
+</PRE>
+<P>
+The problem is more serious when the operands of the macro are not
+expressions; for example, when they are statements.  Then parentheses
+are unacceptable because they would make for invalid C code:
+<P>
+<PRE>
+#define foo { int a, b; ... }
+</PRE>
+<P>
+In GNU C you can shield the commas using the <SAMP>`({...})'</SAMP>
+construct which turns a compound statement into an expression:
+<P>
+<PRE>
+#define foo ({ int a, b; ... })
+</PRE>
+<P>
+Or you can rewrite the macro definition to avoid such commas:
+<P>
+<PRE>
+#define foo { int a; int b; ... }
+</PRE>
+<P>
+There is also one case where prescan is useful.  It is possible
+to use prescan to expand an argument and then stringify it--if you use
+two levels of macros.  Let's add a new macro <SAMP>`xstr'</SAMP> to the
+example shown above:
+<P>
+<PRE>
+#define xstr(s) str(s)
+#define str(s) #s
+#define foo 4
+xstr (foo)
+</PRE>
+<P>
+This expands into <SAMP>`"4"'</SAMP>, not <SAMP>`"foo"'</SAMP>.  The reason for the
+difference is that the argument of <SAMP>`xstr'</SAMP> is expanded at prescan
+(because <SAMP>`xstr'</SAMP> does not specify stringification or concatenation of
+the argument).  The result of prescan then forms the actual argument for
+<SAMP>`str'</SAMP>.  <SAMP>`str'</SAMP> uses its argument without prescan because it
+performs stringification; but it cannot prevent or undo the prescanning
+already done by <SAMP>`xstr'</SAMP>.
+<P>
+<HR>
+Go to the <A HREF="cpp_1.html">first</A>, <A HREF="cpp_24.html">previous</A>, <A HREF="cpp_26.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+</BODY>
+</HTML>

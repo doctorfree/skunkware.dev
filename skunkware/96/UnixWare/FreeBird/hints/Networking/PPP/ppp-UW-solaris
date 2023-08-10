@@ -1,0 +1,44 @@
+From edhall@nntp.rand.org Mon May 30 10:11:16 BST 1994
+Article: 5542 of comp.unix.unixware
+Newsgroups: comp.unix.unixware
+Subject: Re: PPP Solaris 2.3 <> UnixWare 1.1
+Date: 25 May 1994 17:55:19 GMT
+Organization: RAND Corporation
+Lines: 34
+
+Ed Hall (edhall@nntp.rand.org) wrote:
+: I'm having problems getting UnixWare 1.1's PPP to interoperate with
+: Solaris 2.3's (on a SPARCStation 2).  Basically, negotiation seems to
+: complete, but the Solaris side doesn't recognize incoming packets.  The
+: data is there (well, it gets as far as the serial port) but then it
+: disappears--I don't even see it as Ierr's.
+
+After exploring the combinatorics of the PPP configure options on both
+ends, I finially hit upon one which works:
+
+    UnixWare's /etc/inet/ppphosts:
+	###.###.###.### - systemname mru=296 nomgc protcomp accomp VJ old
+
+    Solaris's /etc/asppp.cf:
+	ifconfig ipdptp0 plumb thisname thatname up
+	path
+	    interface ipdptp0
+	    peer_system_name systemname
+		inactivity_timeout 0
+		ipcp_async_map 00000000
+		lcp_mru 296
+
+Note the "old" keyword in UW's ppphosts configuration.  That and "nomgc"
+seem to be the keys on the UW side, while "ipcp_async_map 00000000"
+was the trick on the Sun side.  The only thing I needed on the Solaris
+side to make the remote system visible to the net was:
+
+	arp -s thatname ##:##:##:##:##:## pub
+
+using the gateway system's ethernet address.  The UnixWare end has a
+"route add default thisname 3" to give it access to the world.
+
+		-Ed Hall
+		edhall@rand.org
+
+

@@ -1,0 +1,156 @@
+
+USE -- a tool for designing windowing user shells with Tcl and Tk
+
+Whom USE is written for -- why did I write it?
+----------------------------------------------
+
+USE is written for people who:
+  - are experienced Tcl user and want to become more effective
+  - prefer to edit Tk code by hand instead of searching (or missing)
+    Tcl's and Tk's features in an "easy to start" interface builder
+  - want to see and test their results immediately
+  - would like to have more support for designing modular user shells
+    with Tcl and Tk
+
+Two simple Tcl procedures for a standard wish allow:
+  - writing user shell components with Tcl that appear like Tk widgets
+  - overloading of widgets to add (or modify) subcommands
+
+USE provides a graphical tool for designing user shells with Tcl and Tk
+as a hierarchical trees of widgets. Every node may be a tree itself.
+
+Tcl code is added to nodes (for configuration, lay-outing or behaviour).
+Tcl scripts may be generated for running under wish or for
+integrating with binaries.
+
+Todays USE has only little support for specific widgets, however,
+every Tk widget, John Ousterhouts or your own, written in C or with Tcl,
+is supported from the moment it exists.
+
+USE is designed and bootstrapped with itself.
+
+
+How to get and test USE:
+------------------------
+
+0. Requirements
+
+  Following packages are needed:
+    - Tcl, Tk
+      (tested with Tk 3.3b3, 3.6 and according Tcl;
+       it won't run with Tk 3.2 or older)
+    - BLT (especially drag&drop, table, bgexec, win)
+      (tested with 1.0, 1.5)
+
+  FTP Server:
+    harbor.ecn.purdue.edu
+    cranach.rz.tu-ilmenau.de
+
+1. Uncompress and untar the distribution file.
+
+   gunzip -c use1.0.tar.gz | tar -xf -
+
+   This will create a directory "use1.0".
+
+2. Run ./configure
+
+   Go into the "use1.0" directory 
+   and run the auto-configuration script "./configure"
+
+	cd use1.0
+	./configure 
+
+   * C-Compiler
+	- gcc is used if available
+ 	- else it defaults to cc
+
+        self defined:
+        CC='lcc -whatever' ./configure
+
+   * Installation Prefix
+        - you are queried for the installation prefix
+
+	or predefined:
+	./configure --prefix=/home/someone
+
+   * Tcl includes and libraries
+        - it is looked beyond your installation prefix
+	- if nothing is found, you are queried for locations
+
+   * Generated files
+        - install.mk
+	- Makefile
+	- tpc/Makefile
+	- src/Makefile
+        - src/shared/Makefile
+
+3. Compile the package.
+
+	make 
+
+4. Testing
+
+   run USE
+    
+        cd examples
+	../custom/use &
+
+   Examples for loading can be found in the "examples" directory.
+   Read the documentation for detailed information.
+
+5. Installing
+
+   USE will be installed beyond the installation prefix as follows:
+
+        make install
+
+   -+- bin -+- use
+    |       |
+    |       +- tpc
+    |
+    +- include --- use.h
+    |
+    +- lib -+- libuse.*
+            |
+            +- use -+- tclIndex
+                    |
+                    +- *.tcl
+                    |
+                    +- examples --- *
+                    |
+                    +- custom -+- use.ad
+                               |
+                               +- Makefile
+                               |
+                               +- useEntInit.c
+
+   * If you don't install USE, you will need to set the USE_LIBRARY
+     environment variable. Otherwise you may not to be able to generate 
+     stand-alone applications that need two procedures of "use_basic.tcl".
+
+6. Send correspondence, bug reports etc. to
+
+	rf@rz.tu-ilmenau.de
+
+Known problems:
+---------------
+* The function "Tk_CreateMainWindow" got with Tk3.3 a fourth argument.
+  If you want to compile USE with an older Tk (e.g. Tk3.3b3) you shall
+  need to delete the fourth argument "Tk" from the function call 
+  in the file "src/useInstallTk.c".
+
+* On some machines installation doesn't work with option "-m". 
+  However, all installation is coded in the toplevel Makefile, 
+  that should be easy to modify.
+
+* With BLT1.0 starting an external editor might crash USE.
+  With BLT1.5 I couldn't produce that problem.
+
+* There are two problems with Tk
+  - USE works with the "send" command to a local interpreter,
+    that dismisses results sometimes.
+    (e.g. error string for exceptions -- shown with empty braces () then)
+  - options (e.g. fonts) are invalid sometimes
+  I have reported these bugs to John Ousterhout and hope that a corrected
+  release will be available soon.
+  If you want to patch them today, I can send you my changes for Tk.

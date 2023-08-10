@@ -1,0 +1,225 @@
+TITLE: MHS "A complete solution" 
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Symptom Solution
+NOVELL PRODUCT and VERSION: UnixWare 1.1
+
+
+CATEGORY:
+Networking
+MHS
+
+ADDITIONAL CONFIGURATION
+
+Third-Party Product and Version:
+Novell MHS v1.5
+Novell NGM
+
+Other:
+
+
+ISSUE
+The following issue describes how to workaround problems that are 
+associated with the UnixWare 1.1 MHS mail gateway.  All problems have been 
+corrected in a future update release for UnixWare 1.1.  If the following 
+areas marked for change have not been updated at the time of this issue, 
+please correct the problems and update the mail files to provide a 
+temporary resolution until an update has been released.
+
+Problem 1:
+
+If incoming SMTP (Internet) mail messages are to be routed through the 
+UnixWare 1.1 MHS gateway, the following files should be corrected:
+
+After you have installed TCP/IP, you must correct a configuration file 
+for mail addressing to work properly.  Open a Terminal window, type su and 
+the root password, and open the /etc/inetd.conf file with your favorite editor.
+Next, change the smtp entry near the end of the file to add the -r option.  
+The new entry should read as follows:
+
+smtp stream tcp nowait root /usr/lib/mail/surrcmd/in.smtpd in.smtpd -H sys -r 
+(where sys is replaced by your system name).
+
+When mail comes into the UnixWare host, it comes in via in.smtpd.  The -r 
+option tells the incoming SMTP mail daemon to NOT retranslate the mail 
+address of incoming mail, and to process it as RFC822 format which follows 
+spec.  Without the -r option, mail headers will be re-processed improperly, 
+and you will experience mail routing issues.
+
+Once the change has been saved, send a SIGHUP to the daemon in order to 
+reread the inetd.conf configuration file for the change to be active as 
+shown below:
+
+#ps -ef | grep in.smtpd
+( note the process id number of the process.  (PID)
+#kill -HUP <PID>
+
+Problem 2:
+
+A problem occurs when incoming mail is routed through the MHS gateway 
+addressed to user@domain.  The mail message does not arrive on the 
+MHS gateway system.  This problem is associated with some syntax errors 
+in the smf delivery command located in the /usr/lib/mail/mailsurr.proto 
+file on lines 80 and 82.  The lines in question are shown below. Please 
+note the syntax error to user@domain is %R@1D which is incorrect:
+
+(NOTE LINE 80->)<MHS>  '[^@]+'  '([^@,:]+)@%g'    '< B=4096; /usr/lib/mail/surrcmd/smfqueue -h 0 -r %R@1D ' '\\1@%g%D'
+<MHS>  '.+'  '([^@,:]+)@%g'    '< B=4096; /usr/lib/mail/surrcmd/smfqueue -h 0 -r %R ' '\\1@%g%D'
+(NOTE LINE 82->)<MHS>  '[^@]+'  '([^@,:]+)@(.+).%g%D'  '< B=4096; /usr/lib/mail/surrcmd/smfqueue -h 0 -r %R@1D ' '\\1@\\2.%g%D'
+<MHS>  '.+'  '([^@,:]+)@(.+).%g%D'  '< B=4096; /usr/lib/mail/surrcmd/smfqueue -h 0 -r %R ' '\\1@\\2.%g%D'
+<MHS>  '.+'  '([^@,:]+)@(.+).%g'  '< B=4096; /usr/lib/mail/surrcmd/smfqueue -h 0 -r %R ' '\\1@\\2.%g%D'
+
+The corrected entries should read as follows:
+
+<MHS>  '[^@]+'  '([^@,:]+)@%g'    '< B=4096; 
+/usr/lib/mail/surrcmd/smfqueue -h 0 -r %R@%U%D ' '\\1@%g%D'
+<MHS>  '.+'  '([^@,:]+)@%g'    '< B=4096; /usr/lib/mail/surrcmd/smfqueue -h 0 -r %R ' '\\1@%g%D'
+<MHS>  '[^@]+'  '([^@,:]+)@(.+).%g%D'  '< B=4096; /usr/lib/mail/surrcmd/smfqueue -h 0 -r %R@%U%D ' '\\1@\\2.%g%D'
+<MHS>  '.+'  '([^@,:]+)@(.+).%g%D'  '< B=4096; /usr/lib/mail/surrcmd/smfqueue -h 0 -r %R ' '\\1@\\2.%g%D'
+<MHS>  '.+'  '([^@,:]+)@(.+).%g'  '< B=4096; /usr/lib/mail/surrcmd/smfqueue -h 0 -r %R ' '\\1@\\2.%g%D'
+
+The %R@1D is replaced with %R@%U%D denoting the machine and domain.
+
+Problem 3:
+
+If Domain Name Service is used in a mail environment, the /etc/resolv.conf 
+file is configured on the UnixWare host to resolve name to address mapping.  
+The MHS configuration utilities parse this file to derive the domain name.  
+However, there is a syntax error in the /usr/lib/mail/surrcmd/getDomain 
+Perl script that causes incorrect parsing of this file when multiple 
+tabs or space are inserted between the word "domain" and the domain name.
+
+The entry in this file is shown below:
+
+if (/^ domain (.+)/i) {printf "%s", $1; exit 0;}
+
+Edit this entry, and insert the following correction to parse out spaces 
+and tabs to extract the domain name properly:
+
+if (/^ domain\s+(.+)/i) {printf "%s", $1; exit 0;}
+
+Problem 4:
+
+At the time of installation of UnixWare 1.1, the smfsched process used to 
+schedule the MHS mail messages may not be set with the appropriate privileges.
+This problem results in the ability to receive mail, but no ability to 
+send mail.  To determine whether the priviledges should be set, execute 
+the following command as the super user:
+
+#/usr/sbin/initprivs
+
+If the smfsched process is returned invalid, execute the following command:
+
+#filepriv -f setuid /usr/lib/mail/surrcmd/smfsched
+
+In addition to the above mentioned correction, the smtp scheduler may also 
+require updated file priviledges by executing the following commands:
+
+#filepriv -f setuid /usr/lib/mail/surrcmd/smtpsched
+#filepriv -f setplevel /usr/lib/mail/surrcmd/smtploop
+
+Problem 5:
+
+Ensure that the system has two different smf-out files located in the mail 
+directory.  There has been problems with customers removing the 
+/usr/lib/mail/surrcmd/smf-out executable with the thought that this file 
+is already located in the /usr/lib/mail/surrcmd/suid/smf-out directory.  
+These two files are not the same, and should not be deleted from the 
+UnixWare host.  If one or both of the entries are removed, the MHS gateway 
+will not work properly, and the file will need to be re-installed on the 
+UnixWare host.  The /usr/lib/mail/surrcmd/smf-out file is an ELF 
+executable file whereas the /usr/lib/mail/surrcmd/suid/smf-out is a 
+Perl script.
+
+Problem 6:
+
+If a user encodes a file as an attachment and send it through the gateway, 
+the message will bounce stating that the attachment is located in the 
+wrong place.  This problem can be corrected by editing the 
+/usr/lib/mail/surrcmd/suid/smf-out file and prepending the /usr/sbin 
+path to the mknod command.
+
+Problem 7:
+
+The UnixWare 1.1 connectivity to the NetWare mail gateway host is 
+not stable on freshly installed 1.1 system.   To determine this problem, 
+view the /var/spool/smf/log file periodically to see if a No working 
+directory error message or Cannot open netdir.tab error message has been 
+encountered. To correct the problem until a final resolution is provided, 
+edit the following files:
+
+/usr/lib/mail/surrcmd/smf-poll
+
+Search for the following line entry:
+
+$gatedir="$MV/mhs/mail/gates/$mhsGW";
+
+Add the following two lines of perl script after the above entry:
+
+system("nwlogout $MAILSERV");
+sleep 5;
+
+In addition to the above mentioned changes, search for the following entry 
+in the same file:
+
+#0=OK
+There should be three entries after the above mentioned entry that 
+looks like the following entry:
+
+$_.$$  This entry should be changed to read $_.use.
+
+All changes recorded in problem 7 should be applied to the 
+/usr/lib/mail/surrcmd/suid/smf-out file in order to correct 
+connectivity issues with MHS.
+
+Problem 8:
+If the following error is displayed when sending mail to user@mhs.domain, 
+the /etc/mail/Cmailsurr file should be removed.
+
+UX:mail:ERROR: Can't send to user@machine
+UX:mail:ERROR: Return to root
+UX:mail:ERROR: Unusable address in 'From:' header field
+
+Once the /etc/mail/Cmailsurr file is removed, generate an updated version 
+of the Cmailsurr file by executing /usr/lib/mail/surrcmd/createSurr.  
+This command also generates a new /etc/mail/mailsurr file from the 
+/usr/lib/mail/mailsurr.proto file.
+
+Problem 9:
+
+If problems exist sending email to user@domain, the 
+/usr/lib/mail/mailsurr.proto file and the /etc/mail/mailcnfg file 
+should be edited to include an address translation entry as shown below:
+
+/etc/mail/mailcnfg:
+
+%g=mhs
+SMARTERHOST=uwphost.primedom.com
+%d=primedom.com
+
+The %d defines the domain name as stated in the /etc/resolv.conf file.  
+The address translation entry for user@domain should be added in the 
+mailsurr.proto file as shown below:
+
+# Map all names of the form user@local-machine -> user
+# Map all names of the form user@uname -> user
+# Map all names of the form user#domain
+# Then loop back through from the top.
+#
+'.+'  '(.+)@%L'    'Translate R=\\1'
+'.+'  '(.+)@%U'    'Translate R=\\1'
+'.+'  '(.+)@%d'    'Translate R=\\1'   #added entry here
+
+Once the entry has been added to the mailsurr.proto file, an update to 
+/etc/mail/mailsurr needs to take place by executing 
+/usr/lib/mail/surrcmd/createSurr as the super user.
+
+Problem 10:
+
+The MHS_Setup GUI on the desktop is used to set up the MHS gateway 
+configuration files.  However, the GUI will accept uppercase characters 
+for the gateway system name, but the MHS utilities will fail.  It is 
+important to note that all entries configured in the MHS_Setup GUI be in 
+lowercase to prevent failures from occuring.
+
+

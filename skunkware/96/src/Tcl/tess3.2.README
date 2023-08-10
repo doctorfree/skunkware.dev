@@ -1,0 +1,335 @@
+README file for tess, tar extraction simplification script.
+
+This file documents tess version 3.2.
+
+Please send comments, suggestions, bug-reports, etc to
+	pcoad@crl.com
+Any feedback is welcome!
+
+If you use tess please let me know.  I want only to track the distribution 
+of tess.  User lists will not be sold.  No salesmen will call.    
+
+1. Legal Stuff:
+
+Copyright 1994, Paul E Coad
+The author disclaims all warranties with regard to this software, including
+all implied warranties of merchantability and fitness.  In no event
+shall the author be liable for any special, indirect or consequential 
+damages or any damages whatsoever resulting from loss of use, data or 
+profits, whether in an action of contract, negligence or other 
+tortuous action, arising out of or in connection with the use or 
+performance of this software.
+
+This package is being released under the terms of Larry Wall's 
+"Artistic license". 
+
+2. Files:
+
+README          this file
+tess.tmpl    	the tar extractor template
+tkcd.tmpl	directory changer hyper-tool template
+tkcf.tmpl	file selecter hyper-tool template
+tessinst	tess installation tool
+Artistic	Larry Wall's "Artistic license"
+library/
+  disjoint.tk         DISJOINT.TK v1.1 - by Paul Raines
+  fileselect.tcl      file select box - by Mario Jorge Silva (modified)
+  read.tcl	      tar file related routiles.
+  tessdlg.tk	      common dialog routine.
+  tclIndex            index file of procedures in the above files
+docs/
+  hyper.txt	      descriptions of tess, tkcd, tkcf, and hyper-tools.
+  tess.1	      the man page for tess
+  tkcd.1              the man page for tkcd
+  tkcf.1              the man page for tkcf
+
+3. General:
+
+tess attempts to simplify the extraction of tar archives by providing a 
+graphical interface to the tar command.  tess provides for automatic 
+decompression of compressed or gziped archives.  Since tess requires
+tar and compress it may not work under any operating system which is
+not Unix-like.  To make use of tess' uncompress facilities the programs
+zcat and/or gzcat are required.  Although not required GNU tar is 
+strongly reccomended.  
+
+	* tess is totally based on tcl/tk.  
+	* tess contains no c-code. 
+	* tess includes an installation script to ease installation.
+
+4. Warning:
+
+This package includes tools which rely on the use of send.  If your
+system is unable to use send (you are using xhost authorization) you
+will not be able to use the change file and change directory tools.
+You are strongly encouraged to switch to xauth authorization which
+is a much stronger authorization scheme for X. 
+
+If you specified 1 for the use_mht variable and the change directory
+and change file programs to not seem to be changing the directory
+or file, you are probibly running xhost.  In this case you have a few
+choices:
+1. Change the use_mht variable to 0.  This will disallow the use of 
+   the change directory and file tools, but will cause fileselect to
+   be used for changing the file.  You will not be able to change
+   directory other than starting tess in a different directory.
+2. Recompile tk with the -DTK_NO_SECURITY flag set.  This will disable
+   checking for xhost security.  (THIS OPTION IS VERY INSECURE.)
+3. Beg your system administrator to switch to xauth authorization.  If
+   you are the system administrator you can ask yourself why you are
+   still using xhost.
+
+5. Installation:
+
+No compilation is required.  Extract by typing: 
+
+	zcat tess3.1.tar.gz | tar oxvf -
+
+If you already has tess you would type:
+
+	tess tess3.1.tar.gz
+
+and select List/Extract -> Extract All.
+
+The tess package now uses a tclsh based installation tool.  To install
+follow the following steps:
+
+1. Set the #!path voodoo so that the path points to the tclsh executable
+   or the wish executable if tclsh is not on the system.
+2. Set the wish_path variable for the !#path voodoo for the wish executable 
+3. Set the base_dir variable to be the base directory under which
+   to place tess files.  The default is /usr/local.  The binary_dir, man_dir,
+   and tess_lib can also be set, but the defaults should be the best.  Make
+   sure that base_dir/binary_dir is in your PATH, or tess may not be to
+   find tkcd and tkcf.
+4. Set the defaults for your system and desires.  Reasonable defaults are
+   provided.
+5. Type: ./tessinst  
+ 
+Defaults for several options can be set within tess:
+
+default_device - sets the default value to appear in the Device entry.*
+default_owner_perms - sets the Owner Perms flag.*
+default_update_mod_time - sets the Update Mod Time flag*
+temp_dir - sets the name of the directory in which to place temporary files*
+use_mht - specifies the ability to use send.*
+have_gzip - specifies existence of gzip and friends**
+have_gzcat - specifies a non-standard installation of gzip.**
+have_funky_tar - specifies that tar writes everything to stdout.
+tar_cmd - specifies the name of the tar program to use.
+devices - can be used to assign aliases to devices.  
+
+*  - Now setup in the installation script
+** - Now determined automatically by the installation script
+
+All of the above should need to be set only once so are not changed through
+menu options or settings.
+
+6. Use:
+
+tess is started from the command line.  If an argument is specified, it
+is used as the File entry (see below).  Like any description of a GUI
+the following is best used as a reference.  IMHO tess is fairly simple
+to use (few moving parts!)  Try it out then look at the documentation.
+
+File: (button) starts tkcf for selection of a file.  Selecting a file in the
+      list (double clicking, or pressing the Select button ) will list the file 
+      in the tess' listbox.  See the description of the tkcf below for more
+      details.
+
+File: (entry) enter the name of the device (file) from which to extract 
+      the archives.  Pressing the Enter key in this field will cause the 
+      archive to be listed in the listbox.
+
+List/Extract: 
+      Change Directory: starts the tkcd program for changing the current
+                        working directory.
+
+      List Archive: reads the named archive and displays a list of the 
+                    contents in the listbox.
+
+      Extract All:  extracts all files from the named archive.
+
+      Extract Selected: extracts the files selected in the listbox.
+
+      About: shows the legal stuff in a window.
+
+      Quit: quit.
+
+Options:
+      Owner Perms: when set "on" the extracted files take the owner and 
+                   group ID of the user running the program.
+
+      Update Mod Time: when set "on" the extracted files will have a 
+                       modification time of the time of extraction.
+
+Devices: 
+     The devices menu displays aliases for available devices.  This allosw
+     /dev/fd0 to be named "Floppy 1" or /dev/rmt0 "Reel Tape".
+    
+
+tkcf window:
+
+File: (menu) displays a menu which contains one or twooptions.  If tkcd is 
+      not owned, the options are:
+
+      Select Application  (pull right menu) which displays another menu of the 
+                          available tk based applications.  Selecting an 
+                          application from this menu selects the application 
+                          to which cd commands will be sent.  The Select
+                          Application option only appears in unowned instances 
+                          of tkcf.
+ 
+     Quit                 exits from tkcf.
+
+list (scrolling list) displays a list of files and directories.  Directories
+     end with a forward slash "/" and executable files end with an asterisk 
+     "*" (this is simmilar to the output from the command ls -F).  Double 
+     clicking with button-1 on a dirctory will cause the current contents of 
+     the list to be removed and be replaced with the contents of the selected 
+     directory.  Double clicking with button-1 on a file will list the 
+     selected file in tess' scrolling list.
+                     
+current directory (message area) displays the path to the directroy displayed
+                  in the scrolling list described above.
+
+Select (button) changes the tess' current file to the file selected in tkcf's
+        scrolling list.
+
+ 
+7. Changes 
+
+Changes since 3.1
+
+- Added warnings in the README file about the use of send and xhost
+  authorization.
+
+Bugs:
+- Fixed a problem with the version of the tessinst script.  The version
+  variable was commented out.
+- Fixed a problem with attempting to use files which do not exist.
+
+Changes since 3.0
+
+Enhancements:
+- The installation script now uses a version number for the tess_lib
+  directory.
+
+Bugs:
+- Fixed a bug in the installation script and the template files.  tess_lib
+  was not being set the installed library.
+- Fixed a #! voodoo problem.  The -f was missing from the voodoo line.
+- Fixed a small problem with tkcf where it would return the current
+  directory to tess for listing.
+
+Changes since 2.0
+
+Enhancements:
+- It looks better IMHO.  The clunkieness rating of tess has been reduced.
+  The commonly used features like listing and extracting are now available
+  as buttons.
+- Buttons for listing and extracting have been added to the bottom of the
+  window to ease commonly performed operations.
+- The Device: button has been relabeled File:.
+- A Devices menu has been added to allow names to be associated with devices.
+  (Hopefully this will make use of the program useful for people unfamilliar
+  with tar, gzip, and compress.)
+- The temporary file used by tess now uses the process id to lessen the 
+  chances of two instances of tess interfering with each other.
+- Fields for displaying the current working directory and messages have been
+  added.  The Messages field displays the number of files found and extracted.
+- tess now uses the programs tkcd and tkcf to change directories and files
+  respectively.  Both programs use send.  fileselect is still being 
+  distributed with tess in case some sites can not use send.  Unfortunately
+  if send is not available there is no way to change the current directory
+  short of quiting out of tess changing to the desired directory and restarting
+  tess.  More information about tkcd, tkcf and hyper-tools is availible in the 
+  file named hyper.txt in the doc directory.
+- An attempt to shield the user from the cryptic and sometimes incorrect
+  error messages produced by tar, compress, and gzip has been made.  Since
+  tar and compress are implemented slightly differently some messages will
+  not be caught and made sensible.  Please notify me by email if a message
+  is not caught which you believe should have been.  Please include the
+  system type and version, the message, and anyother relavent information.
+Bugs:
+- None reported, none fixed.
+Nits:
+- A bug relating to resizing the main window has been fixed.  After the user
+  resized the main window tess was not able to resize the window to match
+  the line lengths when listing files.  This has ben fixed.
+
+Changes since 1.1
+
+Enhancements:
+- Disjoint selections of files inside of the archive are now allowed
+  thanks to Paul Raines' DISJOINT.TK v1.1.
+- The archive file now can be selected (from the Device: button) by
+  means of the fileselect box thanks to Mario Jorge Silva's fileselect.tcl.
+- Files ending in ".tgz", ".taz", and ".taZ" are now recognized as being
+  zipped/compressed tar files.  (This enhancement really requires gzip.
+  If you don't have it, it can be obtained at prep.ai.mit.edu in /pub/gnu.)
+Bugs:
+- One portability problem has been fixed.  At least one version of tar
+  writes everything to stderr, a redirector was added to cover this.
+  If you have this kind of tar, set the variable have_funky_tar to 1.
+Nits:
+- Windows are automatically resized to display the longest line in the list.
+- Some typos in tess and the README file have been fixed.
+- Moved tessdlg to the library so it can be used elsewhere.
+
+Changes since 1.0
+
+- Added options in the code for setting the defaults on the Options menu.
+- Removed the zcat is gzcat option from the options menu and added a 
+  configuration option to specify non-standard gzip installations.
+- Fixed 2 bugs related to extracting a subset of files.
+- Changed the list boxes to have fixed size fonts.
+- Added an "About" window  to show legal stuff. 
+
+8. To Do:
+
+tess attempts to provide a simple interface to the tar command, and so
+does not deal with the less used options of the tar command.  tess does
+not even deal with creating an archive.  
+
+Things to do:
+
+* Document more of the code.
+
+* Add support for drag and drop, busy, and bgexec and other cool BLT stuff.  
+
+* Find ways to minimize the annoyances listed below.
+
+* Add nroffed man pages to the distribution.
+
+* Add a build archive tool.
+
+9. Annoyances:
+
+* On SVR3.2 systems with short (14 character) file names, tar does not
+  properly extract files with long file names when it is extracting from
+  stdin.  This may be true on other systems.
+
+* On my system occasionally the message "child killed: write on pipe with no
+  readers" is displayed.  All of the files are listed and can be extracted
+  but the annoying message is displayed.  Related to this when tar files
+  contain archived directories (e.g. src/, src/port/, src/port/sun) an
+  error dialog is displayed stating that the directories can't be created.
+  I think this is a problem when the tar file was created on a BSD system
+  and is being read on a (old?) SYSV system.  The messages are annoying
+  but in most cases can be ignored.
+
+10. Bug reports and suggestions:
+
+pcoad@crl.com
+
+Your suggestions (especially when accompanied with code) are welcome
+and weigh heavily in the selections of new features for new releases.
+
+11. Thanks:
+
+Dr. John Ousterhout and the UCB for such a fun free language/toolkit.
+My wife for her saintly patience.
+Harold A Pagenkopf, for a lifetime of inspiration.
+All of those who sent me bug reports, suggestions, and code including:
+John Harres, Jens Henrik Jensen, Dimitry Kloper, and Pat Niemeyer.

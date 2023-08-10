@@ -1,0 +1,195 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Filename Functions</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_74.html">previous</A>, <A HREF="make_76.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX473"></A>
+<A NAME="IDX474"></A>
+<H2><A NAME="SEC74" HREF="make_toc.html#TOC74">Functions for File Names</A></H2>
+<P>
+Several of the built-in expansion functions relate specifically to
+taking apart file names or lists of file names.
+<P>
+Each of the following functions performs a specific transformation on a
+file name.  The argument of the function is regarded as a series of file
+names, separated by whitespace.  (Leading and trailing whitespace is
+ignored.)  Each file name in the series is transformed in the same way and
+the results are concatenated with single spaces between them.
+<P>
+<A NAME="IDX475"></A>
+<A NAME="IDX476"></A>
+<A NAME="IDX477"></A>
+<DL COMPACT>
+<DT><CODE>$(dir <VAR>names</VAR>...)</CODE>
+<DD>Extracts the directory-part of each file name in <VAR>names</VAR>.  The
+directory-part of the file name is everything up through (and
+including) the last slash in it.  If the file name contains no slash,
+the directory part is the string <SAMP>`./'</SAMP>.  For example,
+
+<PRE>
+$(dir src/foo.c hacks)
+</PRE>
+
+produces the result <SAMP>`src/ ./'</SAMP>.
+
+<A NAME="IDX479"></A>
+<A NAME="IDX480"></A>
+<A NAME="IDX478"></A>
+<DT><CODE>$(notdir <VAR>names</VAR>...)</CODE>
+<DD>Extracts all but the directory-part of each file name in <VAR>names</VAR>.
+If the file name contains no slash, it is left unchanged.  Otherwise,
+everything through the last slash is removed from it.
+
+A file name that ends with a slash becomes an empty string.  This is
+unfortunate, because it means that the result does not always have the
+same number of whitespace-separated file names as the argument had;
+but we do not see any other valid alternative.
+
+For example,
+
+<PRE>
+$(notdir src/foo.c hacks)
+</PRE>
+
+produces the result <SAMP>`foo.c hacks'</SAMP>.
+
+<A NAME="IDX482"></A>
+<A NAME="IDX483"></A>
+<A NAME="IDX481"></A>
+<DT><CODE>$(suffix <VAR>names</VAR>...)</CODE>
+<DD>Extracts the suffix of each file name in <VAR>names</VAR>.  If the file name
+contains a period, the suffix is everything starting with the last
+period.  Otherwise, the suffix is the empty string.  This frequently
+means that the result will be empty when <VAR>names</VAR> is not, and if
+<VAR>names</VAR> contains multiple file names, the result may contain fewer
+file names.
+
+For example,
+
+<PRE>
+$(suffix src/foo.c hacks)
+</PRE>
+
+produces the result <SAMP>`.c'</SAMP>.
+
+<A NAME="IDX485"></A>
+<A NAME="IDX486"></A>
+<A NAME="IDX484"></A>
+<DT><CODE>$(basename <VAR>names</VAR>...)</CODE>
+<DD>Extracts all but the suffix of each file name in <VAR>names</VAR>.  If the
+file name contains a period, the basename is everything starting up to
+(and not including) the last period.  Otherwise, the basename is the
+entire file name.  For example,
+
+<PRE>
+$(basename src/foo.c hacks)
+</PRE>
+
+produces the result <SAMP>`src/foo hacks'</SAMP>.
+
+<A NAME="IDX488"></A>
+<A NAME="IDX489"></A>
+<A NAME="IDX487"></A>
+<DT><CODE>$(addsuffix <VAR>suffix</VAR>,<VAR>names</VAR>...)</CODE>
+<DD>The argument <VAR>names</VAR> is regarded as a series of names, separated
+by whitespace; <VAR>suffix</VAR> is used as a unit.  The value of
+<VAR>suffix</VAR> is appended to the end of each individual name and the
+resulting larger names are concatenated with single spaces between
+them.  For example,
+
+<PRE>
+$(addsuffix .c,foo bar)
+</PRE>
+
+produces the result <SAMP>`foo.c bar.c'</SAMP>.
+
+<A NAME="IDX491"></A>
+<A NAME="IDX492"></A>
+<A NAME="IDX490"></A>
+<DT><CODE>$(addprefix <VAR>prefix</VAR>,<VAR>names</VAR>...)</CODE>
+<DD>The argument <VAR>names</VAR> is regarded as a series of names, separated
+by whitespace; <VAR>prefix</VAR> is used as a unit.  The value of
+<VAR>prefix</VAR> is prepended to the front of each individual name and the
+resulting larger names are concatenated with single spaces between
+them.  For example,
+
+<PRE>
+$(addprefix src/,foo bar)
+</PRE>
+
+produces the result <SAMP>`src/foo src/bar'</SAMP>.
+
+<A NAME="IDX494"></A>
+<A NAME="IDX495"></A>
+<A NAME="IDX493"></A>
+<DT><CODE>$(join <VAR>list1</VAR>,<VAR>list2</VAR>)</CODE>
+<DD>Concatenates the two arguments word by word: the two first words (one
+from each argument) concatenated form the first word of the result, the
+two second words form the second word of the result, and so on.  So the
+<VAR>n</VAR>th word of the result comes from the <VAR>n</VAR>th word of each
+argument.  If one argument has more words that the other, the extra
+words are copied unchanged into the result.
+
+For example, <SAMP>`$(join a b,.c .o)'</SAMP> produces <SAMP>`a.c b.o'</SAMP>.
+
+Whitespace between the words in the lists is not preserved; it is
+replaced with a single space.
+
+This function can merge the results of the <CODE>dir</CODE> and
+<CODE>notdir</CODE> functions, to produce the original list of files which
+was given to those two functions.
+<A NAME="IDX497"></A>
+<A NAME="IDX498"></A>
+<A NAME="IDX496"></A>
+<DT><CODE>$(word <VAR>n</VAR>,<VAR>text</VAR>)</CODE>
+<DD>Returns the <VAR>n</VAR>th word of <VAR>text</VAR>.  The legitimate values of
+<VAR>n</VAR> start from 1.  If <VAR>n</VAR> is bigger than the number of words
+in <VAR>text</VAR>, the value is empty.  For example,
+
+<PRE>
+$(word 2, foo bar baz)
+</PRE>
+
+returns <SAMP>`bar'</SAMP>.
+
+<A NAME="IDX500"></A>
+<A NAME="IDX499"></A>
+<DT><CODE>$(words <VAR>text</VAR>)</CODE>
+<DD>Returns the number of words in <VAR>text</VAR>.  
+Thus, the last word of <VAR>text</VAR> is
+<CODE>$(word $(words <VAR>text</VAR>),<VAR>text</VAR>)</CODE>.
+<A NAME="IDX502"></A>
+<A NAME="IDX501"></A>
+<DT><CODE>$(firstword <VAR>names</VAR>...)</CODE>
+<DD>The argument <VAR>names</VAR> is regarded as a series of names, separated
+by whitespace.  The value is the first name in the series.  The rest
+of the names are ignored.
+
+For example,
+
+<PRE>
+$(firstword foo bar)
+</PRE>
+
+produces the result <SAMP>`foo'</SAMP>.  Although <CODE>$(firstword
+<VAR>text</VAR>)</CODE> is the same as <CODE>$(word 1,<VAR>text</VAR>)</CODE>, the
+<CODE>firstword</CODE> function is retained for its simplicity.
+<A NAME="IDX504"></A>
+<A NAME="IDX503"></A>
+<DT><CODE>$(wildcard <VAR>pattern</VAR>)</CODE>
+<DD>The argument <VAR>pattern</VAR> is a file name pattern, typically containing
+wildcard characters (as in shell file name patterns).  The result of
+<CODE>wildcard</CODE> is a space-separated list of the names of existing files
+that match the pattern.
+See section <A HREF="make_22.html#SEC21">Using Wildcard Characters in File Names</A>.
+</DL>
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_74.html">previous</A>, <A HREF="make_76.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

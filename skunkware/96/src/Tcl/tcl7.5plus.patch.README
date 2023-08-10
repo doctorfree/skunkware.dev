@@ -1,0 +1,100 @@
+******************** tcl7.5plus.patch (updated 5/21/96) **********************
+*									  *
+* Written by:	Jan Nijtmans						  *
+*		NICI (Nijmegen Institute of Cognition and Information)	  *
+*		email: nijtmans@nici.kun.nl				  *
+*		url:   http://www.nici.kun.nl/~nijtmans/		  *
+*									  *
+***************************************************************************
+
+This patch updates from Tcl 7.5 to Tcl 7.5+. It should be applied
+by running the "patch" program in the top-level directory of a clean
+Tcl 7.5 release, using the command "patch -p <tcl7.5plus.patch"
+
+Then run "configure", and do "make" in this directory. This creates
+all libraries and the Tcl7.5 shell (tclsh). Then do "make install"
+(in super-user mode) to install it on your machine for general use.
+
+This patch adds a lot of functionality to the standard distributions
+of Tcl7.5, such as:
+
+* Tclsh is now fully event-driven. Events can now be processed during
+  command imput. This is one of the changes required to make Tk
+  dynamically loadable. It works for Mac and Windows too, and it is
+  fully upwards compatible with the official Tcl7.5.
+
+* If "--enable-shared" is specified, both the shared and the static
+  libraries are created.
+
+* Better support for a.out loadable libraries. ldAout.tcl is extended
+  to create archives (such as libtk4.1_GO.a for Ultrix) that can be
+  loaded in the same way as objects.
+
+* Standalone Applications. Now an extra function Tcl_InitStandAlone() is
+  available that performs the same function as Tcl_Init(). The difference
+  is that all the files in /usr/local/lib/tcl7.5/ are now compiled into
+  the application. This makes the executable larger (about 7 kbyte), but
+  it will run on any machine (of the same architecture). It makes no
+  difference any more if Tcl is installed or not, or which version.
+
+* tcl2c. A tiny compiler (only 10 kBytes of source-code, the executable
+  is about 17 kByte for Solaris2.4 ) that compiles any well-formed
+  tcl-script into C-source code. The resulting output can be compiled
+  using any C (K&R, ANSI) or C++  compiler. As an example for how to
+  use it, there is a "hello.tcl" script in the distribution. You can
+  compile this example by:
+	tcl2c hello.tcl -o hello.c -tcl		(create hello.c)
+	cc -o hello hello.c libtcl.a -lm	(create hello)
+  Or, simply do:
+	make hello
+  The result is a binary executable that performs the same function as
+  the original "hello.tcl" script. It will run as a standalone
+  application, excuting your own script that you compiled into it.
+  Don't expect any faster operation, because everything is still
+  interpreted internally.
+
+* C++ support. tclAppInit.c and some other files have been adapted
+  such that it can be compiled with any C++ compiler. Try:
+	make tclsh++
+  This will create a C++ version of tclsh (if you have a C++ compiler).
+
+* Namespace support. This small utility is almost entirely written in
+  tcl, and fully upwards compatible with Tcl7.5. It can be easily
+  removed by deleting a few lines in the file "init.tcl".
+
+* Static variables, both for namespaces and procedures.
+
+* Tests are done using shared libraries Tcltest.so and Tclunixtest.so
+  if possible
+
+* Added support for some extra mathematical functions: erf(), erfc(),
+  lgamma(), j0(), j1(), jn(), y0() ,y1() and yn().
+
+CONFIGURE
+=========
+
+The configure script has the following options:
+
+	configure --disable-load	disallow dynamic loading and load command
+	configure --enable-shared	enable creation of shared library
+
+These options can be used combined. They influence which files will
+be created when you do "make" or "make all".
+
+MAKE
+====
+You can make the following extra files:
+	make tclsh		Shared version of tclsh (default)
+	make tclsh++		C++ version of tclsh
+	make tclsh.static	Static version of tclsh
+	make tclsh.standalone	Standalone version of tclsh
+	make plusplus		the same as make tclsh++
+	make static		the same as make tclsh.static
+	make standalone		the same as make tclsh.standalone
+	make test		Execute tests using tclsh and Tcltest.so
+	make test++		Execute tests using tclsh++ and Tcltest.so
+	make test.static	Execute tests using tclsh.static and Tcltest.so
+	make test.standalone	Execute tests using tclsh.standalone and Tcltest.so
+	make hello.c		C-source of hello.tcl
+	make hello		binary executable of hello.tcl
+	make hello++		binary executable of hello.tcl (using C++)

@@ -1,0 +1,161 @@
+	      Installation Instructions for XARCHIE 2.0
+				   
+	      George Ferguson, ferguson@cs.rochester.edu
+				   
+			     23 Apr 1993
+
+
+Please see the file README and the manpage regarding reporting problems.
+Please read the file PROBLEMS before reporting anything.
+-> If you don't have imake/xmkmf, see item (A) below.
+
+1. Xarchie comes with a GNU autoconf-generated configure script that
+   will hopefully configure the distribution for your system
+   automatically. Complete generic details for running the script
+   are contained in the file INSTALL.GNU. Basically, you should run
+   the script by doing
+	% sh ./configure
+   to create the config.h file. This file is used both by C files and
+   by the Imakefile. You can edit it by hand to change anything that
+   the script got wrong (see (B), below).
+
+   Note: If you use "strange" compiler (that isn't cc or gcc), you
+   should set the environment variable CC appropriately before running
+   configure. Otherwise it will get things that require compilation
+   wrong.
+
+   Note: Using the configure options like "--prefix" will probably
+   set the install directories properly. See item (C) below.
+
+   If running configure yields sed errors, see the file PROBLEMS.
+
+2. Execute
+   	% xmkmf
+   to create the Makefile. Alternatively,
+        % imake -DUseInstalled -I/usr/local/lib/X11/config
+   where the directory given with "-I" is where your Imake.tmpl and
+   Imake.rules live. If you have neither xmkmf nor imake, see (A)
+   below. 
+
+3. Unless you commented out the use of both the MultiList and
+   FileChooser widgets in the Imakefile (see (C), below), execute
+	% make Makefiles
+   to run imake in the FWF/* subdirectories. Alternately, run it
+   (or xmkmf) in the subdirectories by hand.
+
+4. Execute
+	% make depend
+   to add the dependencies to the Makefile. This is only necessary if
+   you change any of the files, including the app-defaults file Xarchie.ad
+   or the manpage. Note that if you change Xarchie.ad you will need
+   "ad2c" and if you change the manpage you will need to be able to run
+   the shell scripts "help-text[12].sh".
+
+5. Make the package using
+	% make
+   You can try xarchie without installing it, provided that the
+   fallback resources have been compiled in using ad2c.
+
+   To experiment with different resource settings without recompiling,
+   edit Xarchie.ad and then do:
+	% ln -s Xarchie.ad Xarchie
+	% setenv XAPPLRESDIR $cwd
+   If you have a previous version of xarchie installed, you will need
+   to do
+	% setenv XFILESEARCHPATH $cwd
+   to prevent the old app-defaults (in the standard place, presumably,
+   since you installed them) from conflicting. Your mileage will vary
+   on this depending on your version of X.
+
+6. Install the package using
+	% make install install.man
+   This will install the xarchie executable, the app-defaults file,
+   and the manpage.
+
+NOTE: The Imakefile provides the target "World", which does the following:
+	% make -n World
+	make Makefile
+	make Makefiles
+	make depend
+	make clean
+	make
+
+
+A. If you don't have imake/xmkmf, you'll have to work with the file
+   Makefile.dst. You should copy Makefile.dst to Makefile, and then
+   edit it to set the definitions of XINCS, XLIBS, etc., to reflect
+   the peculiarities of your X installation. Subdirectories also have
+   Makefile.dst files, which you will have to rename to Makefile. You
+   can do this with the command:
+	% make Makefiles
+   or
+	% make -f Makefile.dst Makefiles
+   if you didn't copy Makefile.dst to Makefile.
+
+   After that, try simply "make" (or "make -f Makefile.dst" if you
+   didn't copy it to Makefile). If there are problems, go through
+   the Makefile using the instructions in item (C) below (for
+   Imakefiles) as a guide. Most things are similar. NOTE: Without,
+   imake, Makefile.dst cannot use C preprocessor directives to
+   configure itself based on the config.h file created by the
+   configure script. You will have to adjust definitions accordingly,
+   using the values in config.h (for your system!) as a guide.
+
+B. Running the configure script will generate a file "config.h" from
+   the template "config.h.in". It may not get everything right for
+   your system. If it doesn't, you'll have to edit "config.h" and
+   make the required changes. Each definition has a short comment
+   indicating the conditions under which it should be defined.
+
+   Be sure to run xmkmf/imake again after changing it.
+
+   One fairly common problem is that configure will decide that you
+   need to link with -lresolv and define NEED_LRESOLV in config.h.
+   This happens when the test program resolv.c either doesn't compile
+   or compiles but doesn't work properly. Normally, this means that
+   your system requires linking with libresolv.a to force DNS
+   nameserver lookups. If you don't have /usr/lib/libresolv.a (or some
+   local variant), or if resolv.c compiles and runs properly, you
+   shouldn't define NEED_LRESOLV.
+
+C. The Imakefile uses definitions in "config.h" to setup a Makefile
+   that is correct for your system. In addition, there are several
+   parameters that you can change by editing the Imakefile directly,
+   although you shouldn't need to do so.
+
+   Note that the Imakefile uses the notation "/**/#" for comments --
+   the "/**/" is for cpp (so the "#" isn't interpreted as a
+   directive), the "#" is for make. You need to delete both parts to
+   "uncomment" a definition, unless it is explicitly indicated that
+   the "#" should be left for cpp (as in "#define").
+
+   o Set BINDIR, LIBDIR, and MANDIR if needed to change where the
+     stuff goes on "make install" and "make install.man".
+   o Xarchie uses the "ad2c" program to compile-in a set of default
+     resources. You should get a copy of ad2c in this distribution,
+     otherwise you may have to adjust the definition of AD2C. To not
+     compile-in any fallback resources, comment out the #include of
+     Xarchie.ad.h in file xarchie.c (see comments there).
+   o Change CDEBUGFLAGS as appropriate to override the default
+     debugging or optimization levels. You might also want to add a
+     definition of CC, or you can type "make CC=gcc", for example.
+   o By default, xarchie compiles the manpage into a set of C strings
+     that are used for the Help browser. If you simply can't handle
+     all that string data, comment out all the HELP definitions.
+   o If you understand and want to trace at the Prospero level,
+     uncomment the definition of PDEBUG.
+   o By default, xarchie uses some widgets from the Free Widget
+     Foundation. These can cause problems with some versions of X that
+     get upset about widget subclassing.
+     - The MultiList widget allows multiple selections in the browser.
+       To *not* use it, comment out the "#define MultiList" line (that
+       is, add "/**/" at the front or delete it).
+     - The FileChooser widgets allows you to use a hierarchical
+       filesystem browser for specifying filenames. It also uses
+       directory reading routines that may have portability problems.
+       To *not* use it, comment out the "#define FileSelector" line.
+
+   Finally, you may want to change defaults in Xarchie.ad. In
+   particular, you should set the default archie host as appropriate
+   for your location, and possibly the hostWeights also. See the man
+   page for details, and see the Imakefile regarding "ad2c".

@@ -1,0 +1,142 @@
+This is the Known Problem List for ETET 1.10.3
+
+This section  contains minor problems which have not yet been placed into
+a patch file.
+
+	None at present.
+
+The patch files for this release are:
+
+	etet1.10.3patch1
+	etet1.10.3patch2
+
+All current known  problems are fixed in the patch files.
+Their changes are summarised here.
+
+
+Subject: ETET1.10.3 Patch #1
+
++ reference 1.10.3.1  class bug
+
+Synopsis: A call to setpgid(0,0) when TET_EXTENDED was set to true prevents
+keyboard input.
+
+Resolution: Remove call to setpgid(0,0), and change associated
+termination code no longer to send kill (-cpid, signal).
+
++ reference 1.10.3.3 class bug
+
+Synopsis: journal dir appears garbled. In journal.c, function get_jnl_dir 
+returns a pointer to a local string (full_name) which is out of 
+scope on function exit.
+
+Resolution : 
+Make full_name "static" in get_jnl_dir (journal.c).
+
+
++ reference 1.10.3.4 class bug
+
+Synopsis:  In tcc.c the following code is in place...
+    
+        /*  locking defaults to TET1.10 compatible unless TET_LOCK is
+         *  is set to FALSE or TET_EXTENDED is set to True
+         */
+    
+        tet_lock_set = TRUE;
+    /*-*/
+        tet_lock_p = get_tetenv("TET_LOCK");
+        if ( (tet_lock_p != NULL) && (toupper(*tet_lock_p) == 'F') )
+            tet_lock_set = FALSE;
+    
+        if (etet_ext_set == TRUE)
+            tet_lock_set = FALSE;
+
+    I have a couple of problems with this - once extended tet is set,
+    you can't even explicitly set locking.
+
+    I don't see the reason for it either.  Can you tell me the rationale
+    for doing this?
+
+Resolution: remove explicit setting of  tet_lock_set to FALSE in
+TET_EXTENDED mode
+
+Synopsis:  The  code for resume-restart has a problem. If
+no codes have been selected and a resume or rerun option is passed,
+tcc gets a seg fault.  The diff follows ...
+
+===================================================================
+RCS file: RCS/again.c,v
+retrieving revision 1.1
+retrieving revision 1.2
+diff -wc -r1.1 -r1.2
+*** 1.1	1994/05/24 21:30:04
+--- 1.2	1994/08/17 18:14:20
+***************
+*** 69,75 ****
+  
+  
+  static char  linein[JNL_LINE_MAX]; /* A line read in from an old journal file */
+! char  *g_tc_line;                  /* Global tc line - used in resume mode */
+  int   g_ic_num = -1;               /* Global ic number - used in resume mode */
+  
+  
+--- 69,75 ----
+  
+  
+  static char  linein[JNL_LINE_MAX]; /* A line read in from an old journal file */
+! char  *g_tc_line = "_no_line_";    /* Global tc line - used in resume mode */
+  int   g_ic_num = -1;               /* Global ic number - used in resume mode */
+  
+Resolution: make change as per diff.
+
++ reference 1.10.3.11 class bug
+
+
+Synopsis: 
+The ETET 1.10.3 ./src/posix_c/makefile has an error in it for the cplusplus 
+target. The TET_ROOT variable should have parenthesis around it.
+
+$ diff makefile.fixed makefile.org
+73c73
+<       cd posix_c ; $(MAKE) TET_ROOT="$(TET_ROOT)" cplusplus
+---
+>       cd posix_c ; $(MAKE) TET_ROOT="$TET_ROOT" cplusplus
+
+
+Resolution: make change as per diff
+
+
+
+Subject: ETET1.10.3 Patch #2
+
+
++ reference 1.10.3.1.0  class no change
+(this was not documented in the last patch notes but was there)
+
+Synopsis: perl api does not use tet_xres file
+Fix: a known problem with 1.10.3 fixed in 1.10.3 PL1, to fix
+    apply etet1.10.3.patch1 file
+
++ reference 1.10.3.1.1  class bug
+
+Synopsis:  tcc usage message is incorrect
+
+Resolution: change to show that one of -b -c -e are mandatory
+
+
+
++ reference 1.10.3.1.2 class enhancement
+
+Synopsis: 
+ETET should allow non-consecutive ic numbers in the iclist without complaint.
+
+Resolution : 
+Comment out code in ksh and xpg3sh api's
+
++ reference 1.10.3.1.3 class bug
+
+Synopsis:   SIGTERM changes cause problems on Solaris 2.x
+
+Resolution: Add an || defined (sparc) to the code.
+
+

@@ -1,0 +1,33 @@
+
+Running httpd standalone
+--------------------------
+
+If you're running a heavily loaded http you need to run httpd in 
+standalone mode rather than out of inetd.
+
+Remove the httpd entry from /etc/inet/inetd.conf
+and send inetd the HUP signal to re-read its config file.
+Add an /etc/rc3.d/S30http file with something like:
+
+#!/bin/sh
+
+case "$1" in
+'start')
+
+        if [ -x /opt/bin/httpd -a -f /opt/lib/httpd/conf/httpd.conf ]
+        then
+                /opt/bin/httpd -r /opt/lib/httpd/conf/httpd.conf &
+        else
+                # hmmm .... nfs not yet up?
+                (sleep 300; /opt/bin/httpd -r /opt/lib/httpd/conf/httpd.conf) &
+        fi  
+	exit 0
+	;;
+'stop')
+        kill -9 `/usr/bin/ps -e \
+      |/usr/bin/egrep ' httpd$' | /usr/bin/awk '{print $1}'` 2>/dev/null
+        ;;
+*)
+        echo "Usage: $0 { start | stop }"
+        ;;
+esac         

@@ -1,0 +1,520 @@
+DOCUMENT PROCESSING INFO: Delete TID #'s: 
+TF-P-21123, 21054-57, 20859, 15523, 15525, TID/16Nov93 
+TITLE:  DNS/Email A Complete Solution
+DOCUMENT ID:   
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+NOVELL PRODUCT and VERSION: UnixWare 1.1
+
+CATEGORY
+
+Basic networking
+Communications
+
+ADDITIONAL CONFIGURATION
+
+Third-Party Product and Version:
+
+Other:
+
+
+ISSUE
+
+The following issue describes how to configure Primary Domain Name Server on 
+UnixWare 1.1 that is configured with two secondary name servers, and is the 
+SMTP mail gateway to the internet.  The configuration files listed in this 
+issue reflects an actual customer "working model".
+
+IS CONFIGURATION
+
+Primary Name Server hostname = uwphost
+Domain name = primedom.com
+Internet address = 137.65.127.1
+Information Provider = linkup.net
+Secondary name server = ns1.linkup.net  internet address = 144.220.1.1
+Secondary name server = ns2.linkup.net  internet address = 144.220.1.2
+
+--------------------------
+
+DNS CONFIGURATION FILES:
+
+/etc/resolv.conf:
+
+domain  primedom.com
+nameserver  127.0.0.1   #the address of the localhost (uwphost), not the IP address of uwphost
+nameserver  144.220.1.1
+nameserver  144.220.1.2
+
+
+/etc/inet/named.boot:
+
+; #ident  "@(#)/etc/inet/named.boot.s1 1.1 1.0 10/31/92 30460 Univel"
+; #ident  "$Header: named.boot 1.2 91/06/26 $"
+;
+;  boot file for name server;
+;type  domain  source    file or host
+;
+directory /var/named
+cache    .      named.ca
+primary    primedom.com    primedom..hosts.fwd
+primary    127.65.137.in-addr.arpa  primedom.hosts.rev
+primary    0.0.127.in-addr.arpa  named.local
+
+
+/var/named/primedom.hosts.fwd:
+
+@  IN  SOA  uwphost.primedom.com.  sysop.primedom.com.  (
+      94051701  ;serial yymmddnn
+      43200    ; refresh 12 hours
+      3600    ; retry 1 hour
+      2419200    ; expire 4 weeks
+      2419200)  ; Minumum 4 weeks
+;
+  IN  NS  uwphost.primedom.com.
+  IN  NS  ns1.linkup.net.
+  IN  NS  ns2.linkukup.net.
+primedom.com.  IN  MX  10 uwphost.primedom.com.
+*.primedom.com.  IN  MX  20 uwphost.primedom.com.
+uwphost  IN  A  137.65.127.1
+  IN  HINFO  486  UNIX
+  IN  WKS  137.65.127.1  UDP  syslog timed domain
+  IN  WKS  137.65.127.1  TCP  (echo telnet discard rpc qotd supdup
+            sftp uucp-path systat daytime rje 
+            netstat nntp link chargen ftp auth
+            time finger smtp hostnames
+            domain nameserver)
+;
+----------------------------
+
+/var/named/primedom.hosts.rev:
+
+@  IN  SOA  uwphost.primedom.com.  sysop.uwphost.primedom.com.  (
+    94051701   ;yymmddnn
+    10800
+    1800
+    3600000
+    86400 )
+  IN  NS  uwphost.primedom.com.
+  IN  NS  ic1.icp.net.
+  IN  NS  ic2.icp.net.
+1  IN  PTR  uwphost.primedom.com.
+-----------------------------
+
+/var/named/named.ca:
+
+  99999999  IN  NS  NS.NIC.DDN.MIL.
+  99999999  IN  NS  KAVA.NISC.SRI.COM.
+
+NS.NIC.DDN.MIL.    99999999  IN  A  192.112.36.4
+KAVA.NISC.SRI.COM.  99999999  IN  A  192.33.33.24
+
+------------------------------
+
+/var/named/named.local:
+
+;
+; named.local for server UHOST1.SERVTECH.COM
+;
+@  IN  SOA  uwphost.primedom.com.  sysop.uwphost.primedom.com. (
+    94051701
+    10800
+    3600
+    432000
+    86400 )
+  IN  NS  uwphost.primedom.com.
+1  IN  PTR  localhost.
+-----------------------------------
+
+The next step is to restart the name server by killing the in.named process.  
+This process will restart once again and populate the database with the 
+new entries.  
+
+Note:  Remember to increment the serial number field of each required file 
+in order to propagate all changes to all servers in the domain, otherwise 
+the secondary name servers may contain outdated information.
+
+To kill the name server, execute the following command to get the current 
+process ID as shown below:
+
+#ps -ef | grep in.named
+
+#kill -1 326
+
+RUNNING NSLOOKUP TO VERIFY DATABASE INTEGRITY
+
+#/usr/sbin/nslookup
+Default Server:  uwphost.primedom.com
+Address:  127.0.0.1
+
+>uwphost.primedom.com
+Server:  uwphost.primedom.com
+Address:  127.0.0.1
+
+Non-authoritative answer:
+Name:  uwphost.primedom.com
+Address:  137.65.127.1
+
+Note:  The above entry provides the address record as located in 
+the /var/named/primedom.hosts.fwd forward file.
+
+>set type=ns
+>primedom.com
+Server:  uwphost.primedom.com
+Address:  127.0.0.1
+
+Non-authoritative answer:
+primedom.com  nameserver = UWPHOST.PRIMEDOM.COM
+primedom.com  nameserver = NS1.LINKUP.NET
+primedom.com  nameserver = NS1.LINKUP.NET
+
+Authoritative answers can be found from:
+primedom.COM  nameserver = UWPHOST.PRIMEDOM.COM
+primedom.COM  nameserver = NS1.LINKUP.NET
+primedom.COM  nameserver = NS1.LINKUP.NET
+UWPHOST.PRIMEDOM.COM  internet address = 137.65.127.1
+NS1.LINKUP.NET  internet address = 144.220.1.1
+NS2.LINKUP.NET  internet address = 144.220.1.2
+
+Note:  The above command provides all name servers and their addresses that can
+be found who knows about your primary, including the primary domain name server.
+
+>set type=mx
+>primedom.com
+Server:  uwphost.primedom.com
+Address:  127.0.0.1
+
+primedom.com    preference = 10, mail exchanger = uwphost.primedom.com
+uwphost.primedom.com  internet address = 137.65.127.1
+
+Note:  The above mail exchange record points to the domain and the primary 
+host in the domain.  If this entry returns the following error message, the 
+MX record entry in the forward file is incorrect, or placed in an incorrect 
+position of the file:
+
+*** No mail exchanger (MX) record available for primedom.com
+
+Edit the /var/named/primedom.hosts.fwd file and modify the MX record entry.  
+Kill the in.named process once again to reload the database.  Execute the 
+nslookup command, and re-execute the above steps until an MX record is 
+established.
+
+Note:  If an MX record is not established for the domain, and the primary 
+host on the domain, incoming and outgoing mail will cease to function.
+
+>set type=soa
+>primedom.com
+Server:  uwphost.primedom.com
+Address:  127.0.0.1
+
+Non-authoritative answer:
+primedom.com
+  origin = uwphost.primedom.com
+  mail addr = sysop.primedom.com
+  serial = 94050506
+  refresh  = 43200 ( every 12 hours )
+  retry = 3600 ( every 1 hour)
+  expire = 2419200 ( every 28 days )
+  minimum ttl = 2419200 ( every 28 days)
+
+Authoritative answers can be found from:
+
+primedom.COM   nameserver = UWPHOST.PRIMEDOM.COM
+primedom.COM   nameserver = NS1.LINKUP.NET
+primedom.COM   nameserver = NS2.LINKUP.NET
+UWPHOST.PRIMEDOM.COM  internet address = 137.65.127.1
+NS1.LINKUP.NET  internet address = 144.220.1.1
+NS2.LINKUP.NET  internet address = 144.220.1.2
+
+Note:  Notice the mail address = sysop.primedom.com.  All incoming mail 
+goes to the sysop username
+
+>set type=soa
+>127.65.137.in-addr.arpa
+Server:  uwphost.primedom.com
+Address:  127.0.0.1
+
+Non-authoritative answer:
+127.65.137.in-addr.arpa
+  origin = uwphost.primedom.com
+  mail addr = sysop.uwphost.primedom.com
+  serial = 94050506
+  refresh  = 43200 ( every 12 hours )
+  retry = 3600 ( every 1 hour)
+  expire = 2419200 ( every 28 days )
+  minimum ttl = 2419200 ( every 28 days)
+
+Authoritative answers can be found from:
+
+127.65.137.in-addr.ARPA   nameserver = uwphost.primedom.com
+127.65.137.in-addr.ARPA   nameserver = IC1.ICP.NET
+127.65.137.in-addr.ARPA   nameserver = IC2.ICP.NET
+uwphost.primedom.com  internet address = 137.65.127.1
+IC1.ICP.NET  internet address = 144.225.1.1
+IC2.ICP.NET  internet address = 144.225.1.2
+
+At this point, email should be operative.  Try sending a test message to the 
+primary as shown below:
+
+mail -d sysop@uwphost.primedom.com
+Subject:  test primary
+ 
+This is a mail test to sysop@uwphost.primedom.com
+.
+
+The delivery command should provide enough information to know whether the mail message was sent.  Check the /var/mail/sysop file for the message.
+
+EMAIL CONFIGURATION:
+
+To send mail messages to sysop@primedom.com or user@domain, it is necessary to 
+create a translation entry in /usr/lib/mail/mailsurr.proto.  The user@domain 
+entry is shown below from the mailsurr.proto file:
+
+# Map all names of the form user@local-machine -> user
+# Map all names of the form user@uname -> user
+# Map all names of the form user@domain
+# Then loop back through from the top.
+#
+'.+'  '(.+)@%L'    'Translate R=\\1'
+'.+'  '(.+)@%U'    'Translate R=\\1'
+'.+'  '(.+)@%d'    'Translate R=\\1'   #This is the added entry for user@domain
+
+In addition to the mailsurr.proto change, the "%d" will need to be 
+defined for your domain as shown in the /etc/mail/mailcnfg file:
+
+/etc/mail/mailcnfg:
+
+ADD_FROM=1
+%d=primedom.com
+
+Note:  The ADD_FROM=1 entry specifies SMTP to add a From: line to a mail 
+message that may not contain it in order to reply to incoming mail messages.  
+If a From: line exists, SMTP will NOT add an additional reply line.
+
+SMARTERHOST PROCESSING:
+
+If another host is the mail gateway for all incoming and outgoing mail, 
+this gateway host should have a mail exchange record or MX record entry in 
+the DNS hosts or forward file.  This gateway host contains all the alias 
+records for the distribution of mail messages to all hosts on the local 
+network, or domain.  This gateway host is called the SMARTERHOST.  All 
+UnixWare clients that are located on the network should be configured to 
+route all incoming or outgoing mail through the SMARTERHOST for deliveries, 
+and all UnixWare clients may address the mail messages to user@domain 
+which allows the SMARTERHOST to process the delivery of all mail messages.
+
+The UnixWare client should be configured with a domain name resolver file 
+called /etc/resolv.conf which specifies the domain name and the addresses to 
+all nameservers on the domain.  The format of this file is shown in the 
+DNS section of this document.  In addition, the only hosts specified in 
+the /etc/hosts file is the local client host and the IP address of the 
+local client.
+
+The /etc/mail/mailcnfg file should be configured with the SMARTERHOST 
+entry as shown below:
+
+/etc/mail/mailcnfg:
+
+SMARTERHOST=gateway.primedom.com
+ADD_FROM=1
+%d=primedom.com
+
+Once the mail files have been configured, the /usr/lib/mail/surrcmd/createSurr 
+command is executed to generate a new /etc/mail/mailsurr file that contains 
+the SMTP delivery command for SMARTERHOST processing.
+
+Test the mail addressing:
+
+mail -d sysop@primedom.com
+Subject:  test mail to user@domain
+This is a mail test to sysop@primedom.com
+.
+
+
+NOTE:  UUNET can be configured as a primary domain name server and a 
+SMARTERHOST for those sites that utilize the uunet service.
+
+If you are running just SMTP mail, the smtpqer delivery command should be 
+the only delivery displayed.  If the uux delivery command is displayed 
+in addition to the smtpqer entry, then the /usr/lib/uucp/Systems file, 
+by default, has a blank line at the end of the file.
+
+This blank line should be removed because the email autoconfiguration 
+process interprets this line as a uucp remote entry and generates a 
+UUCP flag in /etc/mail/mailflgs.  As a result, the /etc/mail/mailsurr 
+file contains the uux/rmail entry for uucp mail which is not what is wanted 
+in this configuration.  Once the Systems file is edited, re-execute
+/usr/lib/mail/surrcmd/createSurr to generate/update a new /etc/mail/mailsurr 
+file.
+
+
+SMTP and UUCP EMAIL CONFIGURATION:
+
+Customer configuration is TCP/IP connected to other file servers, a remote 
+UUCP connection to an internet provider (PSI), and all electronic mail is 
+sent and picked up via uucico using the Basic Networking Utilities.  
+All mail is bouncing due to the From line postmark line is being stripped 
+from the mail message. 
+
+The mail autoconfiguration routine invoked by /usr/lib/mail/surrcmd/createSurr 
+consults the perl script /usr/lib/mail/surrcmd/configCheck to probe the 
+system configuration.  This customer has the tcpset package installed, but 
+all email is sent via uucp.  The /etc/mail/mailflgs file contains the 
+IP,UUCP, and SMTR flags which generates two delivery commands in 
+/etc/mail/mailsurr.  The first delivery command is the smtpqer command,
+followed by the uux delivery command.
+
+The problem in this configuration is the smtpqer entry in the 
+/etc/mail/mailsurr file.  There contains an I=1; entry on the smtpqer 
+entries which indicates to use RFC822 mail format.  RFC822 does NOT expect 
+the extra postmark From line, and so strips it.  An example mail header 
+processing through both smtpqer and uux delivery command is shown below:
+
+From: root@Novell.COM
+Subject: test mail message
+
+test message
+
+NOTE:  You can add more entries to this message header by adding entries to 
+the /etc/mail/mailcnfg file.  An example of adding an extra FROM line, 
+and DATE line is shown below:
+
+/etc/mail/mailcnfg:
+
+ADD_TO=1
+ADD_FROM=1
+ADD_DATE=1
+
+resulting mail message:
+
+ From: root@Novell.COM
+Subject: test mail message
+To: techsupp@Novell.COM
+Date: Fri, 29 Apr 1994  17:06 -0600 (MDT)
+From: user foo <user@Novell.COM>
+Content-Length: 12
+
+test message
+
+The uux mail delivery in this scenario expects an additional From 
+line at the beginning of the mail header.  This problem can be resolved in 
+two ways:
+
+Solution 1:
+
+Comment out the smtpqer entries in the /usr/lib/mail/mailsurr.proto and 
+execute /usr/lib/mail/surrcmd/createSurr to eliminate the smtp delivery command.  
+
+Solution 2:
+
+Remove the I=1; entries from the smtpqer lines in the 
+/usr/lib/mail/mailsurr.proto and execute /usr/lib/mail/surrcmd/createSurr 
+to update the /etc/mail/mailsurr file.
+
+Conversely, If a user's system  does not have tcp/ip installed, and they 
+wish to have the From line stripped when sending mail via UUCP to say 
+an SCO system which only knows RFC822 format, the I=1; would need to be 
+prepended to  the uux delivery command lines in the mailsurr.proto file, 
+otherwise the mail will bounce because of this postmark line.
+An example mail message with the postmark From line is shown below:
+
+>From root Fri Apr 29 17:03 MDT 1994
+Received: from gateway by remotehost.Novell.COM Fri, 29 Apr 94 17:03 MDT
+Received: from user by remotehost.Novell.COM Fri, 29 Apr 94 17:03 MDT
+Subject: test mail message
+To: techsupp@Novell.COM
+Date: Fri, 29 Apr 1994  17:06 -0600 (MDT)
+From: user foo <user@Novell.COM>
+
+test message 
+
+NOTE:  The autoconfiguration process should be smart enough to know that 
+when tcpip is installed, it doesn't necessarily indicate that smtp mail is used.
+
+LOGGING:
+
+To turn on logging for incoming and outgoing mail, execute the 
+following command:
+
+#/usr/lib/mail/surrcmd/createSurr -l on
+
+The log file can be displayed in /var/mail/:log and /var/mail/:errors 
+for any mail errors.
+
+To determine problems with outgoing mail, check the /var/spool/smtpq/LOG file.
+Each time a mail message is sent, a log of the delivery command is appended 
+to this log file.  A cron entry located in /var/spool/cron/crontabs/smtp 
+recycles daily backup copies of the mail message deliveries on a 7 day 
+cycle.  This is useful for debugging mail problems.  
+
+OPEN ISSUES:
+
+The mailx command in UnixWare had a problem with the From line when mail is 
+sent to a UnixWare host that uses !path addressing vs. @style addressing.  
+A workaround is available by specifying the -r option to the in.smtpd 
+which tells the SMTP daemon to NOT retranslate any incoming mail address 
+so that you don't get the From smtp line when replying to email, and 
+the incoming addresses remain the same.  If you want the UnixWare system 
+to translate the addresses, then leave the -r option out.  It is standard 
+practice to leave it in.
+
+If the From smtp line is being generated on a SCO system  when a user is 
+trying to  reply to a  mail message, the problem is not with UnixWare, 
+but with the mailx  on the SCO side.  This problem should be addressed 
+with the support people at SCO.  We have corrected the problem in our 
+mailx command for the next release, and use the -r option as a workaround.
+
+There is a problem with electronic mail either in the SMTP module or 
+the /bin/mail module which has not been determined at this time.  
+The problem is that mail does not recognize the Errors-To: line in the 
+mail header on a "bounced" mail mesage, and favors the "From:" line of 
+the mail header causing the mail message to bounce to the wrong address.
+
+The problem was found when the administrator created a world wide 
+mailing list for redistribution, and a mail message bounced to everyone 
+on the mailing list instead of back to the mail administrator.
+
+A modification report has been filed, and the problem is currently under 
+investigation.  At this point, a correction is not available.  An updated 
+TID will be generated, once a status update can be obtained
+
+DEBUGGING:
+
+To determine whether a problem can be isolated to the address translation, 
+use the -T option to the mail command as shown below:
+
+mail -T /etc/mail/mailsurr sysop@primedom.com > /tmp/mailsurr.out
+
+View the /tmp/mailsurr.out log file to determine whether the address 
+is improperly translated.  This command will not send a mail message, 
+but is used to determine the integrity of the mailsurr file.
+
+All outgoing mail messages for SMTP are located in /var/spool/smtpq 
+under the domain/host directories.
+
+If a mail message is bouncing back with problems with the From header 
+line or missing the postmark line, it may be necessary to edit 
+the mailsurr.proto file and either insert or
+remove the I=1; field of the smtpqer delivery command line 
+entries as shown below:
+
+
+<IP&&!DNS&&!(SMTR&&STUP)>  '.+'  '([^@,:]+)@(.+)'  '< I=1;B=4096; smtpqer -N -u %R \\2' '\\1@\\2'
+<IP&&!DNS&&!(SMTR&&STUP)>  '.+'  '@([^@,:]+)[,:](.+)'  '< I=1;B=4096; smtpqer -N -u %R \\1' '\\2'
+<IP&&!DNS&&SMTR&&STUP>  '.+'  '([^@,:]+)@(.+)'  '< I=1;B=4096; smtpqer -N -u %R %X' '\\1@\\2'
+<IP&&!DNS&&SMTR&&STUP>  '.+'  '(@[^@,:]+[,:].+)'  '< I=1;B=4096; smtpqer -N -u %R %X' '\\1'
+<IP&&DNS&&!(SMTR&&STUP)>  '.+'  '([^@,:]+)@(.+)'  '< I=1;B=4096; smtpqer -u %R \\2' '\\1@\\2'
+<IP&&DNS&&!(SMTR&&STUP)>  '.+'  '@([^@,:]+)[,:](.+)'  '< I=1;B=4096; smtpqer -u %R \\1' '\\2'
+<IP&&DNS&&SMTR&&STUP>  '.+'  '([^@,:]+)@(.+)'  '< I=1;B=4096; smtpqer -u %R %X' '\\1@\\2'
+<IP&&DNS&&SMTR&&STUP>  '.+'  '(@[^@,:]+[,:].+)'  '< I=1;B=4096; smtpqer -u %R %X' '\\1'
+
+In cases where internet mail is coming in, and forwarded out via uucp, 
+the I=1; field must be removed, otherwise the From line containing the 
+user name and date will be stripped prior to sending the message off via 
+uucp or uux.
+
+NOTE:  It is advisable to remove the -B option of the smtpqer entries in the 
+mailsurr.proto file to eliminate the need for batch processing.
+
+Execute /usr/lib/mail/surrcmd/createSurr to update the /etc/mail/mailsurr 
+file and re-test the mail once again.

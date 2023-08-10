@@ -1,0 +1,74 @@
+This file contains a news article on bootp.
+Also note the following files are available on this mail-server:
+	bootptab.sample.UW1
+	bootptab.sample.UW2
+	rfc1048.txt 
+	rfc951.txt
+
+ALSO SEE internet/systools/bootptest.tar.Z for a tool to test bootp on UnixWare.
+
+ALSO SEE internet/server/bootpd for syslogd instrumented versions of in.bootpd
+
+For setting up syslogd see systools/syslog*
+
+One thing to note is that the bootptab format has changed between 
+UnixWare 1.x and UnixWare 2.x - see the man page for bootptab and
+also see the Dynatext in UW2.x which has a good section on setting
+up a bootp server.
+
+
+-------------------------------------------------------
+Xref: uel comp.unix.unixware:6327
+Newsgroups: comp.unix.unixware
+Path: uel!andrew
+From: andrew@novell.co.uk (Andrew Josey)
+Subject: Re: UnixWare - bootpd/named?
+Message-ID: <Cr9twy.705@novell.co.uk>
+Date: Sun, 12 Jun 1994 06:26:58 GMT
+References: <2t759s$odc@access3.digex.net> <2t7t9v$3v9@chome.ruhr.de>
+Organization: Novell Europe.
+Lines: 40
+
+In article <2t7t9v$3v9@chome.ruhr.de>,
+Christoph Strozyk <chris@chome.en.open.de> wrote:
+>waire@access.digex.net (Timothy A. Waire) writes:
+>
+>>I am basically looking to install a number of PC based unix servers around
+>>my company, specifically to handle the running of bootp and dns.
+>
+>>So the question should be obvious from the subject.
+>>  Can UnixWare be configured
+>>as a bootp and Domain Name Server?  That is are the bootpd/named daemons
+>>available and functional.
+>
+>I don't know about bootp, but the nameserver/dns works on UnixWare.
+>I set up a namerserver there myself and had no major problems.
+
+The bootp server also works fine.
+Just edit the file /etc/inet/bootptab - the database for the bootp server.
+This contains an example.
+
+
+Check your /etc/inet/inetd.conf file:
+
+bootps	dgram	udp	wait	root	/usr/sbin/in.bootpd		in.bootpd
+
+Check you have entries in /etc/services (should be there by default)
+/etc/inet/services:bootps		67/udp		bootp
+
+
+If you're TCP is wrapped, 
+
+Edit /etc/inet/hosts.allow
+in.bootpd: ALL
+
+Edit /etc/inet/inetd.conf
+bootps	dgram	udp	wait	root	/usr/sbin/wrapd		in.bootpd
+
+Remember to restart inetd.
+
+--
+Andrew Josey , #include <disclaimer.h>
+
+
+

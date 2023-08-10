@@ -1,0 +1,50 @@
+1) If you didn't get the binary, build the sliplogin executable with 'make'.
+2) Install it executable by all, owned by root, with the setuid bit set.  The
+   permissions should look like this: ---s--x--x.  Only users who exist in the
+   hosts.slip file will be able to successfully use sliplogin.  If the
+   permissions worry you, make a group for the sliplogin users, and make
+   sliplogin only executable by that group.
+
+3) Create a file /etc/hosts.slip, with the following format:
+
+# Login	Netmask		Local IP addr	Remote IP addr	TTYs		Args
+slhaban	255.255.255.240	199.164.166.193	199.164.166.194	tty3H,tty1H	+f
+slyagi	255.255.255.240	204.75.154.46	204.75.154.45	-		+f
+slmoria 255.255.255.240	199.4.218.1     199.4.218.2	tty3H,tty3G
+
+There is one line per system.
+
+The first field is the name that the remote system logs in with.
+
+The second is the netmask.  NOTE, the use of this field is new to this version. 
+In previous versions it was unused.  The slattach shipped with SCO UNIX 3.2v5.0
+requires a netmask.  On SCO systems, sliplogin will use the __scoinfo() system
+call to determine what release of the OS it is running on; if the release is
+>= 3.2v5, the netmask will be passed.  However, the field is required to exist
+in the hosts.slip file regardless of release.  On a release < 3.2v5, a
+placeholder can be put in the file instead of a netmask, since it won't be used
+for anything.
+
+The third field is the IP address for the local end of the slip link.
+
+The fourth field is the IP address for the remote end of the slip link.
+
+If a fifth field is given it is a comma-separated list of TTYs the system is
+allowed to log in on (by default, the system can log in on any TTY).
+
+If any further fields are given they are arguments to be passed as flags to
+slattach.  If the slattach needs to have arguments passed to it but you want no
+TTY restriction, make the fifth field '-'.
+
+4) Creat each slip login account, with the login shell being sliplogin.  Or,
+   make the login shell be a normal shell, and exec sliplogin from the user's
+   .profile.
+5) To end a slip session, kill off slattach.  Do NOT hang up without killing
+   slattach.  The slip line discipline ignores hangup (loss of carrier), so the
+   slip line discipline will remain in effect even if CD goes low.  Any
+   ordinary user who dials in will not get a login prompt, and another slip
+   user could potentially "steal" the slip connection and any network
+   communications in progress.  If an accidental hangup occurs, the slip login
+   user should immediately connect again and try to re-establish the slip
+   connection (without logging in), or arrange by other means to have slattach
+   killed.

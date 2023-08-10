@@ -1,0 +1,265 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from embed.texi on 19 October 1995 -->
+
+<TITLE>Embed With GNU - MIPSI/O</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="embed_1.html">first</A>, <A HREF="embed_36.html">previous</A>, <A HREF="embed_38.html">next</A>, <A HREF="embed_44.html">last</A> section, <A HREF="embed_toc.html">table of contents</A>.
+<HR>
+<H3><A NAME="SEC37" HREF="embed_toc.html#TOC37">I/O for specific target architectures</A></H3>
+<P>
+Before you can use the Cygnus Developer's Kit to build your programs for
+IDT boards, you need a C library and C run-time initialization
+code.  Unless you already have suitable libraries of your own, you must
+integrate the Cygnus C libraries with low-level code supplied by
+IDT.  This low-level code initializes the C run-time environment,
+and describes the hardware interface to the Cygnus C libraries.
+<P>
+To begin with, make sure you have the following C and assembly source
+files from IDT:
+<P>
+<PRE>
+<EM>C source files:</EM>
+drv_8254.c         sys.c           
+idt_int_hand.c     syscalls.c      
+idtfpip.c          timer_int_hand.c
+sbrk.c
+
+<EM>C header files:</EM>
+dpac.h             idtio.h         
+excepthdr.h        idtmon.h        
+fpip.h             iregdef.h       
+i8254.h            saunder.h       
+idt_entrypt.h      setjmp.h        
+idtcpu.h        
+
+<EM>Assembler files:</EM>
+idt_csu.S          lnkexit.S   
+idt_except.S       lnkhelp.S   
+idtfpreg.S         lnkinstal.S 
+idtmem.S           lnkio.S     
+idttlb.S           lnkioctl.S  
+idtwbf.S           lnkjmp.S    
+lnkatb.S           lnkmem.S    
+lnkcach.S          lnknimp.S   
+lnkchar.S          lnkprint.S  
+lnkcio.S           lnksbrk.S   
+lnkcli.S           lnkstr.S    
+</PRE>
+<P>
+Then follow these steps to integrate the low-level IDT code with
+your Cygnus Developer's Kit:
+<P>
+<OL>
+<LI>
+IDT supplies the C run-time initialization code in the file
+<TT>`idt_csu.S'</TT>.  Since GNU CC expects to find the initialization
+module under the name <CODE>crt0.o</CODE>, rename the source file to match:
+
+<PRE>
+$ mv idt_csu.S crt0.S
+</PRE>
+
+<LI>
+Edit the contents of <TT>`crt0.S'</TT>.  A few more instructions are needed
+to ensure correct initialization, and to ensure that your programs exit
+cleanly.  At the end of the file (after a comment including the text
+<SAMP>`END I/O initialization'</SAMP>), look for these lines:
+
+<PRE>
+        jal     main
+
+ENDFRAME(start)
+</PRE>
+
+Insert <SAMP>`move ra,zero'</SAMP> before <SAMP>`jal main'</SAMP> to mark the top of the
+stack for the debugger, and add two lines after the call to <CODE>main</CODE>
+to call the <CODE>exit</CODE> routine (before the <SAMP>`ENDFRAME(start)'</SAMP>), so
+that the end of the file looks like this:
+
+<PRE>
+        move    ra,zero
+        jal     main
+
+        move    a0,v0
+        jal     exit
+
+ENDFRAME(start)
+</PRE>
+
+<LI>
+Edit <TT>`syscalls.c'</TT>, the interface to the low-level routines required
+by the C library, to remove the leading underbar from two identifiers:
+
+<OL>
+<LI>
+Rename <CODE>_kill</CODE> to <CODE>kill</CODE>;
+
+<LI>
+Rename <CODE>_getpid</CODE> to <CODE>getpid</CODE>.
+</OL>
+
+<LI>
+Edit <TT>`lnksbrk.S'</TT> to remove the definition of <CODE>_init_sbrk</CODE>;
+this definition is not needed, since it is available in <TT>`sbrk.c'</TT>.
+Delete the lines marked with <SAMP>`-'</SAMP> at the left margin below:
+
+<PRE>
+        .text
+ 
+-FRAME(_init_sbrk,sp,0,ra)
+-       j       ra
+-ENDFRAME(_init_sbrk)
+-
+-
+-
+ FRAME(_init_file,sp,0,ra)
+        j       ra
+ ENDFRAME(_init_file)
+</PRE>
+
+<LI>
+Use your Cygnus Developer's Kit to assemble the <SAMP>`.S'</SAMP> files, like
+this (use the compiler driver <CODE>gcc</CODE> to permit C preprocessing).
+
+<EM>For concreteness, these example commands assume the <CODE>mips</CODE>
+(big-endian) variant of the configuration; if you ordered tools
+configured for little-endian object code, type <SAMP>`mipsel'</SAMP> wherever the
+examples show <SAMP>`mips'</SAMP>.</EM>
+
+
+<PRE>
+$ mips-idt-ecoff-gcc -g -c *.S
+</PRE>
+
+<LI>
+Compile the <SAMP>`.c'</SAMP> files.
+
+One particular C source file, <TT>`drv_8254.c'</TT> requires two special
+preprocessor symbol definitions: <SAMP>`-DCLANGUAGE -DTADD=0xBF800000'</SAMP>.
+<EM>Be careful to type the constant value for <SAMP>`TADD'</SAMP> accurately;</EM>
+the correct value is essential to allow the IDT board to
+communicate over its serial port.
+
+The two special preprocessor definitions make no difference to the other
+C source files, so you can compile them all with one call to the
+compiler, like this:
+
+<PRE>
+$ mips-idt-ecoff-gcc -g -O \
+   -DCLANGUAGE -DTADD=0xBF800000 -c *.c
+</PRE>
+
+(The example is split across two lines simply due to formatting
+constraints; you can type it on a single line instead of two lines
+linked by a <SAMP>`\'</SAMP>, of course.)
+
+<LI>
+Add the new object files to the C library archive, <TT>`libc.a'</TT>, from
+your Cygnus Developer's Kit.  Assuming you installed the Kit in
+<TT>`/usr/cygnus/'</TT> as we recommend:
+
+<PRE>
+$ mips-idt-ecoff-ar rvs /usr/cygnus/progressive-94q1/\
+H-<VAR>host</VAR>/mips-idt-ecoff/lib/libc.a *.o 
+</PRE>
+
+As before, you can omit the <SAMP>`\'</SAMP> and type a single line.
+<SAMP>`H-<VAR>host</VAR>'</SAMP> stands for the string that identifies your host
+configuration; for example, on a SPARC computer running SunOS
+4.1.3, you'd actually type <SAMP>`H-sparc-sun-sunos4.1.3'</SAMP>.
+</OL>
+<P>
+<H3>Linking with the GOFAST library</H3>
+<P>
+The GOFAST library is available with two interfaces; <CODE>GCC</CODE>
+<SAMP>`-msoft-float'</SAMP> output places all arguments in registers, which (for
+subroutines using <CODE>double</CODE> arguments) is compatible with the
+interface identified as "Interface 1: all arguments in registers" in
+the GOFAST documentation.  For full compatibility with all
+GOFAST subroutines, you need to make a slight modification to
+some of the subroutines in the GOFAST library.  
+<P>
+details.
+<P>
+If you purchase and install the GOFAST library, you can link your
+code to that library in a number of different ways, depending on where
+and how you install the library.
+<P>
+To focus on the issue of linking, the following examples assume you've
+already built object modules with appropriate options (including
+<SAMP>`-msoft-float'</SAMP>).
+<P>
+This is the simplest case; it assumes that you've installed the GOFAST
+library as the file <TT>`fp.a'</TT> in the same directory where you do
+development, as shown in the GOFAST documentation:
+<P>
+<PRE>
+$ mips-idt-ecoff-gcc -o <VAR>prog</VAR> <VAR>prog</VAR>.o ... -lc fp.a
+</PRE>
+<P>
+In a shared development environment, this example may be more realistic;
+it assumes you've installed the GOFAST library as
+<TT>`<VAR>ussdir</VAR>/libgofast.a'</TT>, where <VAR>ussdir</VAR> is any convenient
+directory on your development system.
+<P>
+<PRE>
+$ mips-idt-ecoff-gcc -o program program.o ... \
+  -lc -L<VAR>ussdir</VAR> -lgofast
+</PRE>
+<P>
+Finally, you can eliminate the need for a <SAMP>`-L'</SAMP> option with a little
+more setup, using an environment variable like this (the example assumes
+you use a command shell compatible with the Bourne shell):
+<P>
+<PRE>
+$ LIBRARY_PATH=<VAR>ussdir</VAR>; export LIBRARY_PATH
+
+$ mips-idt-ecoff-gcc -o program program.o ... -lc -lgofast
+</PRE>
+<P>
+As for the previous example, the GOFAST library here is installed in
+<TT>`<VAR>ussdir</VAR>/libgofast.a'</TT>.  The environment variable
+<CODE>LIBRARY_PATH</CODE> instructs <CODE>GCC</CODE> to look for the library in
+<VAR>ussdir</VAR>.  (The syntax shown here for setting the environment
+variable is the Unix Bourne Shell (<TT>`/bin/sh'</TT>) syntax; adjust as 
+needed for your system.)
+<P>
+Notice that all the variations on linking with the GOFAST library
+explicitly include <SAMP>`-lc'</SAMP> <EM>before</EM> the GOFAST library.
+<SAMP>`-lc'</SAMP> is the standard C subroutine library; normally, you don't
+have to specify this, since linking with that library is automatic.
+<P>
+When you link with an alternate software floating-point library,
+however, the order of linking is important.  In this situation, specify
+<SAMP>`-lc'</SAMP> <EM>to the left</EM> of the GOFAST library, to ensure that
+standard library subroutines also use the GOFAST floating-point code.
+<P>
+<H3>Full compatibility with the GOFAST library</H3>
+<P>
+The <CODE>GCC</CODE> calling convention for functions whose first and second
+arguments have type <CODE>float</CODE> is not completely compatible with the
+definitions of those functions in the GOFAST library, as shipped.
+<P>
+These functions are affected:
+<P>
+<PRE>
+fpcmp   fpadd   fpsub   fpmul   fpdiv   fpfmod
+fpacos  fpasin  fpatan  fpatan2 fppow
+</PRE>
+<P>
+Since the GOFAST library is normally shipped with source, you can
+make these functions compatible with the <CODE>GCC</CODE> convention by adding
+this instruction to the beginning of each affected function, then
+rebuilding the library:
+<P>
+<PRE>
+        move    $5,$6
+</PRE>
+<P>
+<HR>
+Go to the <A HREF="embed_1.html">first</A>, <A HREF="embed_36.html">previous</A>, <A HREF="embed_38.html">next</A>, <A HREF="embed_44.html">last</A> section, <A HREF="embed_toc.html">table of contents</A>.
+</BODY>
+</HTML>

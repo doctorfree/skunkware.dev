@@ -1,0 +1,450 @@
+README for the mxedit distribution, version 2.3
+Last updated: Thu Feb 10 08:11:27 PST 1994
+Maintainter: Brent Welch, welch@parc.xerox.com
+
+This code is derived from the original mx editor by John Ousterhout
+and is subject to Copyright by the Regents of the University of California.
+
+Thanks to Xerox-PARC for hosting this work.
+
+**************** VERSION REQUIREMENTS *****************
+
+Version 0.1 of the mxedit widget was developed with Tcl6.2 and Tk1.4
+Version 1.1 has rolled forward to Tcl6.3 and Tk2.1
+Version 1.2 still uses Tcl6.3 and Tk2.1
+Version 1.3 uses Tcl6.4 and Tk2.3, but for no crucial reasons
+Version 2.0 uses Tcl6.7 and Tk3.2
+Version 2.1 uses Tcl6.7 and Tk3.2, and can use tcl-debug-1.0
+Version 2.2 uses Tcl7.0 and Tk3.3
+Version 2.3 user Tcl7.3 and Tk3.6
+
+**************** THINGS TO READ **************
+
+README - a quick overview
+mxedit.l - a manual page
+lib/mxedit.tutorial - a tutorial about the editor application
+
+The HISTORY section below to see what changed in this release.
+
+**************** QUICK START *****************
+
+./configure
+make
+
+This editor depends on TCL and TK being installed at your site.  The
+version requirements are listed below.  Instead of bundling these
+libraries with mxedit, I encourage you to fetch them via anonymous ftp
+from sprite.Berkeley.EDU under the tcl directory.
+
+Specific dependencies on these libraries are the libtcl.a and libtk.a
+(or shared library versions), include files, including
+tk.in (and tkInt.h for tkReregWin.c) from TK, and tcl.h from TCL, and
+associated TCL scripts, including init.tcl from TCL and
+{button,entry,menu,tk}.tcl from TK.
+
+Some folks have had trouble linking against an extended TCL library.
+Let me know if it works for you, but I do not do this myself.
+
+The GNU autoconf facility is used to create the Makefile.
+The master template is Makefile.in, which you may need to tweak.
+There is also configure.in, but you probably do not need to tweak that.
+Assuming you have TCL and TK installed, then run the configure script
+and go for the compile.
+
+Scripts are found via the TCL auto_load facility.  This is bootstrapped
+inside the mxedit.tk script (described more below) by
+    source [info library]/init.tcl
+    source $tk_library/tk.tcl
+    set auto_path "$auto_path $mxLibrary"
+Thus three library directories of scripts are assumed:
+    [info library] comes from the libtcl.a implementation of "info"
+    $tk_library comes from libtk.a and is initialized as a side
+	effect of Tk_CreateMainWindow.
+    $mxLibrary comes from mxedit.
+All of these are ultimately set by the Makefiles for their
+respective packages.  Assuming you have TCL and TK installed ok,
+you should expect [info library] and $tk_library to be defined right.
+
+Finally, compile the thing and try it out with:
+mxedit -libDir ./lib
+
+Installation involves putting the mxedit and dbmDump binaries into
+a bin directory, and copying the scripts into a library directory.
+The Makefile has an install production that attempts to "do the right thing".
+If it fails, the key thing to get right is the library directory and
+the tclIndex file that it contains.  The library diretory should match
+the MX_LIBRARY directory as specified by the Makefile.  The tclIndex
+file is created automatically by running some wish commands.  This
+uses the MakeTclIndex script that should get installed into
+the library directory and then executed.  If this fails, you can
+get started by copying the tclIndex file that comes in the tar file.
+
+Send mail to welch@parc.xerox.com and let me know how it goes.
+
+
+**************** THE EDITOR ***************************
+
+mxedit is an editor application composed around an mxedit widget.  This
+depends on a bunch of TCL/TK code to organize other widgets around the
+central file editing window. The routines in mxOpen.c are used to get a
+new main window and interpreter context for each open file.  It is
+possible to have multiple windows open at once, on the same or
+different files.  The code in mxOpen.c knows about one script:
+
+    $mxLibrary/mail.tcl
+
+mxLibrary is set, in order of preference:
+    To a compiled in value defined in the Makefile by MX_LIBRARY
+    To a value from the command line option "-libDir pathname"
+    To the value of the MXEDIT_LIB environment variable
+    To "."
+The mxedit.tk script sets things up for auto_loading the rest
+of the mxedit procedures defined in the other scripts.  Make sure
+there is a good tclIndex file in the mxLibrary; one comes in the tar file.
+
+After sourcing this script, the code evals one TCL command
+to initialize a window:
+    mxInit font geometry file1 file2 ...
+Zero or more file arguments can be passed to mxInit, but it currently
+demands font (e.g., times12) and geometry (e.g., 80x25) arguments.
+If no file is passed to mxInit then it opens up the  mxedit.tutorial file.
+If more than one file is passed, then mxOpen (described below) is used
+recursively to open more main windows.
+
+**************** THE SCRIPTS *****************
+
+The main script is mail.tcl.  This composes the mxedit widget with other
+things like a scrollbar, menubar, command entry, and feedback widget.
+This script relies on a number of other scripts:
+    aliases.tcl		Short names for mxFoo commands
+    basic.tcl		Simple layer above raw TK widgets
+    bindings.tcl	Keystroke bindings
+    colors.tk		color definitions that can be used by basic.tcl
+    command.tcl		Command subwindow
+    core.tcl		Wrappers around core widget functions
+    dirbrowser.tcl	Directory browser
+    emacs.tcl		Emacs-style key bindings
+    eval.tcl		TCL eval environment
+    file.tcl		File operations
+    global.tcl		State for a per-process TCL interpreter
+    local.tcl		Local keybindings
+    menus.tcl		Menu definitinos
+    mh.tcl		Interface to exmh, an MH mail reader
+    search.tcl		Search and replace
+    setup.tcl		UI to the keystroke bindings in mxedit
+    utils.tcl		Editing TCL procs
+
+The $mxLibrary directory is searched for these scripts
+via the regular TCL auto_load facility.
+
+Per-user customization is done via the file ~/.mxedit
+This script is sourced early in mxedit.tk to give users a chance
+to set some controlling global variables.  This file can also
+define a proc called "mxUserOpenHook" that is invoked *after*
+a window has been set up.  This is a reasonable place to adjust
+keystroke and menu bindings.  A sample .mxedit file is included.
+
+**************** MX HERITAGE ****************
+
+Ousterhout wrote mx, and editor, and tx, a terminal emulator, in the days
+of X10.  He used a simple toolkit called SX that provided menus and scrollbars.
+He soon invented TCL and retrofited that into mx and tx.  However, SX had
+its own selection mechanism that pre-dated ICCCM, so cut-and-paste
+interoperability with xterms and the like was not possible.
+
+I took the mx code and modified it to be a TK widget. The bulk of the
+editor's mechanisms were left alone.  This includes text management,
+a very nice Undo/Recovery log, search and replace, and power scrolling.
+
+The file "tutorial1" is from the original editor and provides a
+good introduction to the features of the editor.  If you run the
+editor with no arguments, it opens a window on this file.  I updated
+this file to reflect changes in mxedit, plus I added a section at
+the end about customizing mxedit.
+
+**************** HISTORY ********************
+
+Version 2.3
+
+Ported to TCL 7.3 and TK 3.6
+Using GNU autoconf
+Added config.in and Makefile.in
+
+
+Version 2.2
+
+Ported to TCL 7.0 and TK 3.3
+
+Version 2.1.2
+
+Fixed mxGlobal.c to call Tcl_Eval with a mutable string.
+Fixed mxManager.c to make the log database world writable.
+mxedit.bindings: cleaned up with respect to mouse bindings.
+    Changing binding sets now *clears* all old mouse-related bindings.
+    The various mouse binding procs are now simpler.
+    <Escape>r in the replace window does global search and replace.
+    This feature is only documented right here...
+mxedit.menus: has new mxMenuUnBindAll.  Added "Openwin" entries
+    to Help menu mouse binding setup.
+mxedit.tk: changed to enforce clearing of binding sets before
+    installing new sets.
+mxedit.bindings: use mxScan{Mark,Dragto,Done} to do a better job scrolling
+    with click-to-type window managers.  (olwm reorders events
+    so a motion event arives before the keypress event.)
+    Changed mxExchDotMark binding from <Shift-space> to <Mod1-space>
+mxedit.utils: added mxScan{Mark,Dragto,Done}.
+    added catch to mxExchDotMark
+    added mx{Show,Hide}GlobalWindow
+mxedit.mh: looks around harder for the exmh interpreter
+mxedit.emacs: Minor cleanup
+mxedit.global: if mxNoGlobalWindow is set in your ~/.mxedit,
+    the file list window is suppressed.
+
+Version 2.1.1
+
+Fixed some calls to Tcl_SetResult that had bogus free proc args.
+
+Version 2.1
+
+Added a per-process TCL interpreter to hold a stack of kill buffers
+modeled loosely after the emacs kill ring.  This interpreter also
+implements a small info window that currently just records the set of
+files being edited by this mxedit process.  (Recall that there is a
+different TCL interpreter for each window, so this "global" interpreter
+is used for any global state.)  The TCL command mxGlobalEval will
+evalutate something in the context of this global interpreter.  You can
+also "send" mxOpen commands to the global interpreter.
+
+Added the ability to set the selection via keyboard commands.
+<Control-space> starts a selection, after which any keyboard
+motion commands (e.g., <Control-l> to move right) will
+extend the selection.  The mxExchDotMark command will swap
+the anchor point of the selection (a-la emacs mark) and
+the caret (a-la emacs dot).  By default this is bound to
+<Shift-space>, but I'm not sure that I like this binding.
+
+Binding sets.  Started a crude way to offer different sets
+of bindings.  Currently there are three types,
+keys, selection, and scrolling, and two choices for each.
+These choices are reflected by entries under the Help
+menu.  There are also variables that you can set in
+your .mxedit file to choose a particular set.
+
+Nuked the explicit key bindings from all the ascii characters
+to a simple binding from <Any-Key> to {%W insert %A}.
+
+lib/mxedit.contrib has some scripts that were contributed but
+that I have not had time to test or otherwise fold in properly.
+
+Version 2.0
+
+Upgraded to Tk 3.2 and Tcl 6.7
+
+Lots of changes, basically, but mostly cosmetic.  As a user most of
+the changes will be transparent.  If you have written any TCL code
+to interact with the editor you'll have to pay attention to
+the next item.
+
+Virtually all the global variables and command procedures have
+been named consistently with an "mx" prefix and use capitalization
+on word boundaries.  Thus the "save" proc is now "mxSave", and
+the "indent" global variable is now "mxIndent".  Most importantly,
+the "mxeditLibrary" and "mxeditVersion" variables are now
+"mxLibrary" and "mxVersion", respectively.  (The global variable that
+records the identity of the mxedit widget is still "mxedit".)
+
+The library routines in mxedit.aliases violate the naming convention
+by defining more user-friendly commands like "save" and "quit".
+I want to concentrate all the non-standard names, and define them
+in terms of standard names, to ease integration with other TCL packages.
+
+All the utilities in utils.tk keep a list of font'ed widgets in
+FontWidgets and this list of widgets is used when changing
+the font of the aplication dynamically - all widgets change.
+There is an associated Font menu, mxFont command, and mxFont
+global variable.
+
+The color schemes defined in colors.tk have changed a bit.
+I've gone away from dark backgrounds on the advice of folks with taste.
+
+The status (or feedback) widget now defaults to living at the top
+of the window.  You can control the placement of this widget by
+setting the mxFeedback variable to "top" or "bottom".
+
+Middle click now does scroll dragging.  The default is unaccellerated,
+that is, one-to-one scrolling.  Shift middle drags faster.
+
+It is now harder to make selections in the command and
+search windows in order to avoid stealing the selection from
+the main editing window.  You have to left-then-right
+click to make a selection in these windows.
+
+Added support for an MH front end that I use to read my mail.
+Bug me and I'll release exmh.
+
+Added a primitive Tcl Eval mode in which the results of
+TCL expressions are displayed in another mxedit window.
+
+The dialog boxes have been redone a bit.  The error situations
+that arise during startup have been exposed as dialog boxes (finally)
+so you can chose whether or not to recover from an editor log.
+
+The MxMouseProc routine has been eliminated and the widget
+selection command has been beefed up so now all selection-related
+mouse actions are installed by binding actions. The default
+behavior is still the same.  The Help menu provides an
+entry that swaps in "motif mouse bindings" in which the
+left button drags out the selection.
+
+The Redo function has been fixed so that it properly handles
+input strings that contain special TCL characters.  Previously
+if you inserted something like "[date]" and then tried to
+redo that, you'd get an error.
+
+Version 1.3
+
+This is primarily bug fixes over 1.2.  I've used Purify to plug
+some core leaks and find some places during window destruction
+where free data structures are referenced, including one
+write operation that crashed mxedit on AIX.
+
+Added a man page.  Some of the global variable names have been
+changed to be a bit more consistent, and these are listed
+in the manual.  In particular, "mxedit_library" is "mxeditLibrary".
+
+Patched main.c to copy its argv and to be more careful
+in its call to Tcl_Merge.  
+
+Replaced the globals "mxScrollLeft" and "mxScrollRight" with a
+single global "mxScroll" that can take on values {left, right, none}
+
+Fixed up mxedit.local so that bindings are done via a procedure
+that is called at the right time.  This had been broken by
+the switch over to auto_loading.  Fixed the binding for "Again".
+
+A bug that shows up in Click-to-type worlds where clicking always
+caused a scroll action has been fixed.  As part of this, I removed
+the "power scroll" feature that emulated Mac continuous scrolling
+when you dragged out of the window.
+
+The File menu has Cut, Copy, and Delete commands that match what
+a Mac user would expect.  mxedit (and TK) deal mainly with the
+X Primary selection.  The Cut and Copy commands also put the
+current selection in the X Cutbuffer to deal with older programs.
+
+Bugs in the calls to string match in mxedit.tk were fixed up.  Two
+bugs conspired to mask each other, unless there were non-mxedit
+TK applications running. (Don't ask...)
+
+Still undone is support of the X Clipboard selection so that mxedit
+will interoperate better with things like the SunOS DeskSet applications
+that only understand how to paste from the Clipboard.  A quick hack
+did not suffice, and I'm not sure how hard a more general fix will be.
+
+Also undone is a way to direct the current selection into a Unix
+process and replace it with the result.
+
+The dialog boxes are still very primitive also.
+
+Version 1.2
+
+This cleans up some lint and other objections raised by gcc.
+Thanks for all the feedback on this.
+
+The editor scripts are now organized in their own directory,
+plus the standard TCL auto_load capabilities are used instead
+of sourcing all of the scripts at startup.
+
+A directory browser is available under the File menu.
+Thanks go to David S. Herron <david@davids.mmdf.com>
+
+Power-scrolling has been augmented so that if you shift-drag the mouse
+out of the window you get a continuous scroll a la the Mac.
+
+The editor keeps track of different editing sessions and attempts
+to avoid conflicting editing sessions.  When you start up an mxedit
+process it checks the registered set of mxedit applications.  If it
+finds a different mxedit process that is editing the same file it
+will send the other process a command to display itself, and then
+terminate (or go on to the next file).  This does not yet work
+between machines, but it does work among different screens controlled
+by the same server if you patch tkSend.c and replace all occurences of
+DefaultRootWindow(dispPtr->display)
+with
+RootWindow(dispPtr->display, 0)
+This patch ensures a single InterpRegistry property on screen 0 and allows
+send to work between screens.
+
+A simple database of editting sessions is maintained in
+a dbm file, ~/.mxdb.{pag,dir}.  The contents of this database
+are displayed by selecting the "Show session database" entry
+under the Help menu.
+An adjuct program, dbmDump, is used to print out the contents
+of the per-user (~/.mxdb) or per-system registry of edit sessions.
+
+Version 1.1 - Source release at last!
+
+utils.tk and mxedit.bindings add some procs and class bindings for
+Entry that makes them behave a bit more like the mxedit window.
+
+Various minor fixes for other things.
+
+There is still an occasional error when exiting a window
+on the tutorial.  Something is trying to execute the name of
+the application, so you get:
+Bad window path name "tutorial" ...
+Perhaps this is a glitch in the quitdialog.
+
+The most significant thing still not right is that error log recovery
+is automatic.  The old mx used to pop up dialog boxes while creating
+the window if various conditions we not met during recovery.  This
+is not convenient to do, so for now I just punt and always try to
+recover from an existing log.
+
+Outright bugs are that when copying a selection that includes backslashes,
+these get interpreted before insertion.  More TCL quoting madness.
+Similarly, Redo sometimes breaks because of a similar problem.
+
+Warning - I still want to do more clean up in terms of giving all
+the internal procedures consistent names, but I'm torn between
+the current convenience of commands like "save" vs. a long range
+approach that would be more modular and conflict less with future
+extensions.  Similarly for global variables like "file" and "lines".
+
+Version 1.03
+Quite a few small bug fixes that should eliminate most error popups.
+Bugs in search/replace that caused a seg fault are now gone.
+A first pass at emacs-style bindings have been added - put the
+command "emacsBindings" into your .mxedit file to get these
+
+Version 1.02
+This adds the use of the TCL_LIB environment variable in addition
+to the [info library] TCL call for those sites that do not relink
+mxedit against their own TCL library.
+
+Version 1.01
+This adds the Help menu with the popups for Key bindings etc.
+
+Version 1.0 - Released July 1, 1992
+
+The initial release includes a working text widget that supports file
+access, an undo/recovery log, variable-width fonts (but just one at a time),
+and "power scrolling".  Press the shift key and drag the text up or down
+with the left or right mouse button.
+
+Known bugs (1.0):
+
+When running under TWM and focus-folows-mouse mode,
+the insertion caret is not displayed until you click in a window
+even though typing keystrokes will insert characters.
+
+Occasionally an "open" command fails when issued to the
+command subwindow because, I think, the command string gets
+corrupted somewhere.  In this case a bunch of error notifiers
+pop up and the editing window is as small as possible and
+not immediately resizeable.
+
+I have not put together an emacs-style set of bindings nor
+a menu that slams in a new set of keybinding, but I want to.
+
+

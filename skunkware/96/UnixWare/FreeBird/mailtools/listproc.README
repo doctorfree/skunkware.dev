@@ -1,0 +1,188 @@
+ListProcessor Version 6.0, Binary distribution for UnixWare
+Please observe the copyright notice below:
+
+ListProcessor version 6.0 by Anastasios Kotsikonas, Copyright (c) 1991-93.
+Use, duplication or disclosure by the U.S. Federal Government is subject to the
+restrictions set forth in FAR 52.227-19(c), Commercial Computer Software or,
+for U.S. Department of Defense Users, by DFAR 252.227-7013(c)(1)(ii).  
+
+
+Note:
+To make this work with the UnixWare mail subsystem (mailsurr), the
+formail utility from procmail has been used as a front end to
+the ListProcessor catmail utility, to edit the headers etc.
+
+
+Installation instructions for this distribution
+-----------------------------------------------
+
+(1) Login as root
+
+If you are running straight UnixWare 2.0 , 2.01 or 2.02, or 2.03
+you need to apply a patch to the smtp subsystem - tf2100
+
+The supported version can be obtained from
+ftp.sco.com:/UW20
+
+(2) Then install the listproc tools into /home/listserv as follows:
+
+cd /home
+zcat listproc.tar.Z|tar xvf -
+useradd -d /home/listserv -s /usr/bin/ksh listserv
+chown -R listserv listserv
+vi /usr/lib/cron/cron.allow     append listserv to the end of this file
+
+
+(3) Setup the mailaliases etc:
+-----------------------------
+
+You need to add entries in the /etc/mail/mailsurr file
+for your mailing lists. This can be done by editing the
+file /usr/lib/mail/mailsurr.proto adding the lines below
+(note xopen-testing is an example) and then running the
+command:
+
+	/usr/lib/mail/surrcmd/createSurr -l on
+
+
+####
+#### Part 3
+####
+#### Delivery commands should go here.
+####
+
+# Check for binary mail. Uncomment this if you want to use it.
+#
+#'.+'	'!([^!]+)!.+'		'< F=*;C=0; /usr/lib/mail/surrcmd/ckbinarsys -t %C -s \\1'
+
+# mailgate setup:
+# mail-server, mailing lists and information distribution handling section
+# admin requests
+'.+'    'listproc'   	'<S=0;      /home/listserv/catmail -r -f'
+# mailing lists
+'.+'    'xopen-testing'   	'<S=0;F=1-255;C=*;  /home/listserv/catmail -L XOPEN-TESTING -f'
+
+
+(4) Edit /etc/mail/namefiles and add:
+/etc/mail/listaliases
+
+This tells mailalias to look in this file for additional aliases.
+Add the following to that list, change the name (andrew)
+as appropriate
+
+### Mailing Lists ###
+
+# who is the overall admin for listproc
+list-admin	andrew
+# if you share this file on multiple machines enable the next line
+# to get the mail to the right machine
+#xopen-testing	lechladel!xopen-testing
+xopen-testing-request	listproc
+
+
+(5) Login as user listserv:
+----------------------------
+
+Edit the config file and change values in there as appropriate for
+your configuration.
+
+The organization line needs changing, as do the lists that
+you define. In this example a list xopen-testing is shown.
+This list requires all subscription requests to be approved
+by the list owner. (see the file owners)..
+
+Also in this example the lists are running on a machine called
+lechlade, you want to change all email addresses to be those
+of your mail domain.
+
+Check out the documentation in the doc directory.
+
+Lastly when you are ready and feel you have an understanding,
+install a crontab entry .
+
+Install a cron file to start the server:
+	crontab crontab
+
+
+This will start the server.
+
+To test, send some mail to listproc, and also to xopen-testing.
+It takes a while for the listproc to awake the first time, since
+its only started on the hour, once awake the daemon keeps running.
+Edit the crontab to start the daemon sooner.
+
+To see where incoming requests go, if you configured the mailer
+correctly, check the file /home/listserv/requests.
+
+xopen-testing should say you are not subscribed, you can then
+resend and subscribe. Check both the admin mail box and the
+initiator.
+
+
+Look at help/general and change the first line as required.
+
+To add new lists you have to create a set of files in /home/listserv/lists
+in a subdirectory as well as editing /home/listserv/config.
+Check out the doc directory.
+
+
+Good luck!
+
+
+File & Directory Perms in /home/listserv
+----------------------------------------
+
+A couple of utilities have to be setuid listserv - see below:
+
+
+total 4032
+drwxr-xr-x    2 listserv other         96 Apr 12 14:56 News
+drwx------    3 listserv other         96 Apr 12 14:56 arc
+drwx------    5 listserv tech          96 Apr 12 14:55 archives
+-rw-------    1 listserv tech           0 Jan 18  1994 batch
+drwxr-xr-x    2 listserv other         96 Apr 12 14:56 bin
+-rwsr-xr-x    1 listserv other         86 Apr 17 09:10 catmail
+-rwsr-xr-x    1 listserv other     155400 Jan 26  1994 catmail.prog
+-rw-------    1 listserv tech        6745 Feb 14 19:12 config
+-rw-r--r--    1 listserv other         57 Feb 10  1994 crontab
+drwx------    2 listserv tech        1024 Apr 12 14:55 doc
+-rwx------    1 listserv other     175732 Jan 26  1994 farch
+-rw-------    1 listserv tech          84 Jan 18  1994 flocks
+-rwx------    1 listserv other      15208 Jan 26  1994 fwin
+drwxr-xr-x    2 listserv tech          96 Apr 12 14:56 gateway
+drwx------    2 listserv tech        1024 Apr 12 14:56 help
+-rwxr-xr-x    1 listserv other      13892 Jan 26  1994 ilp
+-rwx------    1 listserv other     321880 Jan 26  1994 list
+-rwx------    1 listserv other     424760 Jan 26  1994 listproc
+drwx------   11 listserv tech        1024 Apr 12 14:55 lists
+-rwxr-xr-x    1 listserv other      45208 Jan 18  1994 make
+-rw-r--r--    1 listserv tech         546 Jan 18  1994 makefile
+drwxr-xr-x    4 listserv other         96 Apr 12 14:56 man
+-rw-------    1 listserv other     251796 Jul  6 08:16 mbox
+drwx------    2 listserv tech        1024 Jul 10 18:57 mqueue
+-rwx------    1 listserv tech        1986 Jan 18  1994 news
+-rw-------    1 listserv tech         892 Jul  5 10:18 owners
+-rwx------    1 listserv tech        1888 Jan 18  1994 peer
+-rwx------    1 listserv other     216956 Jan 26  1994 pqueue
+-rwx------    1 listserv tech        1201 Jan 18  1994 queued
+-rwxr-xr-x    1 listserv other        501 Jan 20  1994 rcp
+-rw-------    1 listserv other         57 Jul  6 08:16 received
+-rwx------    1 listserv tech         502 Jan 18  1994 redux
+-rw-------    1 listserv other          0 Jul  6 08:16 requests
+-rwx------    1 listserv other       4808 Jan 26  1994 rev
+-rwxr-xr-x    1 listserv other       7420 Jan 26  1994 semset
+-rw-------    1 listserv other          6 Jul  6 08:16 sent
+-rwxr-xr-x    1 listserv other     172072 Jan 26  1994 serverd
+-rwx------    1 listserv tech        6931 Jan 20  1994 setup
+-rwx------    1 listserv other     169264 Jan 26  1994 start
+-rwx------    1 listserv tech       23389 Jan 18  1994 systest
+-rwx------    1 listserv other      22312 Jan 26  1994 tlock
+-rwx------    1 listserv tech         133 Jan 18  1994 ulock
+-rw-------    1 listserv tech         700 Jan 18  1994 unwanted.hosts
+drwxr-xr-x    2 listserv tech        1024 Apr 12 14:56 util
+-rw-r--r--    1 listserv tech         591 Jan 18  1994 welcome.live
+
+
+
+If you have problems when installing be sure to check the permissions
+of the /home/listserv directory.

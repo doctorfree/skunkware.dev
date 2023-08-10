@@ -1,0 +1,113 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from as.texinfo on 5 October 1995 -->
+
+<TITLE>Using as - M68K-Branch</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="as_1.html">first</A>, <A HREF="as_190.html">previous</A>, <A HREF="as_192.html">next</A>, <A HREF="as_222.html">last</A> section, <A HREF="as_toc.html">table of contents</A>.
+<HR>
+<H3><A NAME="SEC193" HREF="as_toc.html#TOC193">Branch Improvement</A></H3>
+<A NAME="IDX604"></A>
+<A NAME="IDX605"></A>
+<A NAME="IDX606"></A>
+<A NAME="IDX607"></A>
+<P>
+Certain pseudo opcodes are permitted for branch instructions.
+They expand to the shortest branch instruction that reach the
+target.  Generally these mnemonics are made by substituting <SAMP>`j'</SAMP> for
+<SAMP>`b'</SAMP> at the start of a Motorola mnemonic.
+<P>
+The following table summarizes the pseudo-operations.  A <CODE>*</CODE> flags
+cases that are more fully described after the table:
+<P>
+<PRE>
+          Displacement
+          +-------------------------------------------------
+          |                68020   68000/10
+Pseudo-Op |BYTE    WORD    LONG    LONG      non-PC relative
+          +-------------------------------------------------
+     jbsr |bsrs    bsr     bsrl    jsr       jsr
+      jra |bras    bra     bral    jmp       jmp
+*     jXX |bXXs    bXX     bXXl    bNXs;jmpl bNXs;jmp
+*    dbXX |dbXX    dbXX        dbXX; bra; jmpl
+*    fjXX |fbXXw   fbXXw   fbXXl             fbNXw;jmp
+
+XX: condition
+NX: negative of condition XX
+
+</PRE>
+<CODE>*</CODE>---see full description below
+<P>
+<DL COMPACT>
+<DT><CODE>jbsr</CODE>
+<DD><DT><CODE>jra</CODE>
+<DD>These are the simplest jump pseudo-operations; they always map to one
+particular machine instruction, depending on the displacement to the
+branch target.
+
+<DT><CODE>j<VAR>XX</VAR></CODE>
+<DD>Here, <SAMP>`j<VAR>XX</VAR>'</SAMP> stands for an entire family of pseudo-operations,
+where <VAR>XX</VAR> is a conditional branch or condition-code test.  The full
+list of pseudo-ops in this family is:
+<PRE>
+ jhi   jls   jcc   jcs   jne   jeq   jvc
+ jvs   jpl   jmi   jge   jlt   jgt   jle
+</PRE>
+
+For the cases of non-PC relative displacements and long displacements on
+the 68000 or 68010, <CODE>as</CODE> issues a longer code fragment in terms of
+<VAR>NX</VAR>, the opposite condition to <VAR>XX</VAR>.  For example, for the
+non-PC relative case:
+<PRE>
+    j<VAR>XX</VAR> foo
+</PRE>
+gives
+<PRE>
+     b<VAR>NX</VAR>s oof
+     jmp foo
+ oof:
+</PRE>
+
+<DT><CODE>db<VAR>XX</VAR></CODE>
+<DD>The full family of pseudo-operations covered here is
+<PRE>
+ dbhi   dbls   dbcc   dbcs   dbne   dbeq   dbvc
+ dbvs   dbpl   dbmi   dbge   dblt   dbgt   dble
+ dbf    dbra   dbt
+</PRE>
+
+Other than for word and byte displacements, when the source reads
+<SAMP>`db<VAR>XX</VAR> foo'</SAMP>, <CODE>as</CODE> emits
+<PRE>
+     db<VAR>XX</VAR> oo1
+     bra oo2
+ oo1:jmpl foo
+ oo2:
+</PRE>
+
+<DT><CODE>fj<VAR>XX</VAR></CODE>
+<DD>This family includes
+<PRE>
+ fjne   fjeq   fjge   fjlt   fjgt   fjle   fjf
+ fjt    fjgl   fjgle  fjnge  fjngl  fjngle fjngt
+ fjnle  fjnlt  fjoge  fjogl  fjogt  fjole  fjolt
+ fjor   fjseq  fjsf   fjsne  fjst   fjueq  fjuge
+ fjugt  fjule  fjult  fjun
+</PRE>
+
+For branch targets that are not PC relative, <CODE>as</CODE> emits
+<PRE>
+     fb<VAR>NX</VAR> oof
+     jmp foo
+ oof:
+</PRE>
+when it encounters <SAMP>`fj<VAR>XX</VAR> foo'</SAMP>.
+
+</DL>
+<P>
+<HR>
+Go to the <A HREF="as_1.html">first</A>, <A HREF="as_190.html">previous</A>, <A HREF="as_192.html">next</A>, <A HREF="as_222.html">last</A> section, <A HREF="as_toc.html">table of contents</A>.
+</BODY>
+</HTML>

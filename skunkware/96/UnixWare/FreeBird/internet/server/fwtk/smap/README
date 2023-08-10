@@ -1,0 +1,66 @@
+
+smap/smapd 
+
+From the TIS Firewall Toolkit V1.3
+
+Ported to UnixWare2 /rmail subsystem
+
+
+smap is a simple incoming smtp daemon invoked from inetd.
+Its job in life is to store incoming mail for processing by
+smapd. It runs chroot'd in the incoming mail spool area.
+
+smapd reads mail from the incoming spool area, and hands it
+off to the real mail subsystem
+
+The idea behind this mailer is that smap is simple and understandable
+and robust, and can be run on a firewall - you can also run
+it as a replacement to the stock smtpd daemon if you prefer -
+and this allows you to use tcp wrappers if you wish.
+
+The files below contains a new /etc/rc2.d/S81smtp script
+that auto detects if smapd is in place and runs smapd
+on system startup - this assumes you'll reconfigure
+your inetd to include the smap and restart it.
+
+If you have the base UW2.01 or UW2.02 with no mailfixes get mfix.tar
+from ftp.novell.com or mailupd.tar.Z from this server 
+(hints/Mail/mailupd.tar.Z)
+
+smap/smapd use syslog for logging, tail -f /var/adm/log/osmlog
+
+
+To install 
+
+	mkdir /opt/etc
+	ln -s /opt /usr/local   # smap/smapd look in /usr/local/etc
+
+	cp smap smapd netperm-table /opt/etc
+
+	chmod +rx /opt/etc/smap*
+	chmod 555 /opt/etc/netperm-table
+
+	mkdir /var/spool/mailq/smapin
+	mkdir /var/spool/mailq/smapin/bad
+
+	chown smtp:mail /var/spool/mailq/smapin /var/spool/mailq/smapin/bad
+	chmod 700 /var/spool/mailq/smapin /var/spool/mailq/smapin/bad
+
+	sh /etc/rc2.d/S81smtp stop
+	cp /etc/rc2.d/S81smtp /etc/rc2.d/.S81smtp.orig
+	cp S81smtp /etc/rc2.d/S81smtp
+	sh /etc/rc2.d/S81smtp start
+
+
+	
+Edit inetd.conf and add the appropriate lines from the inetd.conf file
+
+Restart inetd using kill -HUP {PID}
+
+where you get {PID} from ps -ef|grep inetd
+
+
+Source to smap/smapd and man pages are in 
+
+	/pub/unixware/usle/internet/server/fwtk
+

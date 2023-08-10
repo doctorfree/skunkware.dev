@@ -1,0 +1,676 @@
+SCO Skunkware 96 Update Note :
+  - SCO custom installable media images are in ./inst/ecu-3.41.tar
+  - ECU 3.41 source archive is in ./src/ecu-3.41.tar.gz
+
+.------------------------------------------------------------.
+| ECU README - last revised Mon Dec  4 12:55:17 EST 1995     |
++------------------------------------------------------------+
+| NOTE: All correspondence to the author regarding ECU must  |
+| be sent to ecu@n4hgf.atl.ga.us or n4hgf!ecu.  See          |
+| CORRESPONDENCE below for details.                          |
++------------------------------------------------------------+
+| WARNING: The manuals have been neglected more than usual   |
+| this release. Check ./CHANGES items 89-$ for information   |
+| which supersedes the manuals in doc/*.man.                 |
+`------------------------------------------------------------'
+
+This is ecu revision 3.41.  ECU is a asynchronous communications
+program for these environments:
+
+  SCO XENIX System V/286          Support has been dropped; ECU
+                                  is now too large. Try versions
+                                  prior to 3.30.
+
+  SCO XENIX System V/386          ECU is stable on SCO XENIX/386
+
+  SCO UNIX System V/386           ECU is very robust on SCO UNIX
+  SCO ODT 1.x,2.0,3.0             ODT is the same as UNIX for ECU
+  SCO Open Server 5
+
+  SunOS 4.1.[123]                 a robust, stable, limited subset
+
+  ISC 386/ix 2.2 or later         Ports to these systems are
+  ISC System V Release 4          not supported as regularly
+  ESIX System V Release 4         and I cannot vouch for
+                                  them at time of release
+                                  PLEASE GIVE ME FEEDBACK!
+
+  Linux 1.1.58                    Color on native video
+    or later                      consoles is disabled for now
+                                  but will be back!
+
+  HP-UX 9.01                      reasonably functional; a few
+                                  rough edges with keyboards and
+                                  modem control signals
+
+  Motorola Delta [68]8K SVR41     compiles with native cc (gcc)
+                                  no time for testing
+
+  Motorola Delta [68]8K SVR32     compiles with Green Hills and gcc;
+                                  (now known to NOT work)
+                                  no machine to debug upon
+
+  NetBSD                          Still under development;
+                                  ANSI emulation disabled until
+                                  work on termcap support is complete
+
+  Solaris 2.x                     compiles; some testing done; needs more
+
+  FreeBSD                         very reliable and full-featured port
+
+           Note: Linux and NetBSD are in a state of flux; 
+           ECU subject to break :)  All Motorola ports untested
+           as of 17 Feb 1995.
+
+-----------------------------------------------------------------------
+
+ECU (Extended Call Utility) is a research and engineering
+communications program originally written for users of SCO UNIX
+V.3.2/386 and XENIX V on 80286 and 80386 systems.  Support for
+other systems has been added and further porting is possible with
+"minor" effort to other systems based on or similar to UNIX
+System V (see README.porting).  
+
+ECU provides the classic terminal communications facility of
+passing keyboard data to a serial line and incoming data to the
+computer video display.  In addition, a dialing directory, a
+function key mapping feature, session logging, and other
+basic features are available.
+
+As of 3.37 a preliminary but stable telnet feature has been added
+for Linux and SunOS.  Read README.telnet for further information.
+Porting this feature to other systems already supporting ECU
+should be fairly easy.
+
+ECU presents to the host a flexible "ANSI" terminal type,
+accepting any valid video control sequences from MS-DOS or SCO
+documentation as of late 1990.  It also fares well, though
+imperfectly, with Sun and VT-100 video control sequences.
+Standards are great: everybody should have one, especially if
+they call it "ANSI". For more information, refer to the manual
+section titled "ANSI Filter."  (NOTE: the porter to BSD did
+not engineer the ANSI terminal emulation. Therefore the incoming
+data is passed directly to your native screen. This may be
+repaired in a future release.)  As of ECU 3.37, the ANSI filter
+may be turned on and off.
+
+Operation from a SCO multiscreen yields the best result since ECU
+passes most receive data directly to the SCO multiscreen driver.
+However, support for the physical consoles of other workstations
+and arbitrary video terminals is included.  Your terminal must be
+fairly "smart", with at least cursor addressing and clear screen
+features.  The accuracy of translation from the SCO
+multiscreen/ANSI presentation to the proper control sequences for
+your local terminal depends entirely upon how completely and how
+accurately your local console terminal's termcap entry defines
+attributes such as blink, character right, insert line, erase to
+end of line, etc..  See "Supported Terminals" in the manual.
+Also check the note below named "KBDTEST3".
+
+ECU supports numerous file transfer protocols: as of this
+writing, XMODEM, XMODEM/CRC, XMODEM-1K, YMODEM/CRC Batch,
+ZMODEM/CRC-16, ZMODEM/CRC-32, and C-Kermit 5 are
+supported.  For more information, refer to the manual sections
+describing the individual interactive and procedure file transfer
+commands.
+
+A very flexible procedure (script) language is also incorporated
+to automate many communications tasks.  In addition to augmenting
+interactive tasks, by using shell scripts and ECU procedures, ECU
+can perform batch-style communications sessions in an entirely
+"unattended" fashion.
+
+For applications too unwieldy for the procedure language,
+"ecufriend" programs are supported.  Friends are spawned by ECU
+having access to the shared memory segment containing an
+ECU-managed "screen image" and other data and having use of the
+attached communications line.
+
+Gcc (1.40 and later) is supported for all programs in the release.
+See the configuration section and the note on gcc for important
+caveats.
+
+The documentation suffers more in this version than in previous
+releases due to the large number of ports.  It is not, for
+instance, documented anywhere that the Linux port does not
+perform ANSI terminal emulation.  However, I can only document
+what I have access to; the manual is trustworthy for SCO users.
+The SunOS and two Motorola ports are covered fairly well too.
+Documentation, the traditional bane of the hacker, is really
+a fun thing for me; however, I must spend more time on things
+that pay the bills these days. 
+
+The doc subdirectory has all of the .txt files used to produce
+ecu.man, the manual of sorts for the program.  A copy of it is
+reluctantly included (net.bandwidth) for those who do not have
+nroff.  I finally blew up my nroff with something related to
+document length, so there are two documents, ecu.man and
+proc.man.
+
+*Please* take the time to read the (tedious) manuals and READMEs
+especially if you are a pre-3.37 user.  This will do me honor and
+yourself justice because there are a lot of goodies in here,
+many of which are not traditional features you'll be looking for.
+
+--------------------------------------------------------------------
+
+KEYBOARD CONFIGURATION
+
+If you are trying ECU on a previously unsupported machine, you
+have the `simple' task of defining your keyboard.  This procedure
+is referred to below under the headings XTERMS and KBDTEST3.  It
+is described in detail.
+
+--------------------------------------------------------------------
+
+ACKNOWLEDGMENTS
+
+MANY THANKS to those who helped me improve the program, especially
+upaya!tbetz, ache@hq.demos.su (now ache@astral.msk.su), spel@hippo.ru.ac.za,
+bel@trout.nosc.mil, dhmadsen@icaen.uiowa.edu, dug@kd4nc.atl.ga.us,
+jts@ki4xo, jsm@n4vu.atl.ga.us, lamy@glsys.in-berlin.de, cma@tridom,
+tabbs!aris, neal@clkwrka, extel@quagga.ru.ac.za,
+mjb@mjbtn, tmcsys.uucp!lothar, mju@mudos.ann-arbor.mi.us
+elastic!fche, genrad!rob and spooley@compulink.co.uk.  There were
+lots of others and I know I've forgotten someone who helped a
+great deal; I apologize.
+
+Very special thanks go to Dion Johnson and Bob Lewis at SCO for
+their untiring and generous support.
+
+Lothar Hirschbiegel <aega84!lh> did the ISC SVR4 port -- THANKS,
+Lothar!
+
+Joseph H Buehler <jhpb@sarto.budd-lake.nj.us> extended the SVR4
+port to ESIX -- THANKS, Joesph!
+
+Bob Lewis <robertle@sco.com> proofread the manual (as of 3.30 --
+don't blame them for errors creeping in since then <smile>).
+This is tedious work and special thanks go to them.
+
+Robert Lipe has contributed greatly to ECU in various esoteric areas
+(wild signals and tty driver dependencies pareticularly).  Also,
+I do not believe there ever has been an alpha revision Robert has
+not compiled and tested at least a bit (usually thoroughly).
+Robert also did early stabs at the ports to Solaris 2.x.
+Thanks, Robert!
+
+Robert "Bob" Broughton ported ECU to LINUX with the help of
+Toomas Losin <a776@mindlink.bc.ca>.  THANKS, Bob and Toomas!
+
+Carl Wuebker ported ECU to HP-UX.  THANKS, Carl!
+
+Daniel Harris ported ECU to NetBSD and helped settle POSIX
+termios/SYSV termio issues.  THANKS, Daniel!
+
+Andrey Chernov <ache@astral.msk.su> ported ECU to NetBSD.
+His port was not only flawless and seamless, but exquisite. All I
+had to do was patch -p0 and make.  He was patient with the
+minor fractures I made in pursuing my own agenda in parallel.
+(Parallel source development across timezones is difficult.
+Corollary: Linux is a miracle.)
+
+Robert Lipe, Bob Friesenhahn and Roger Fujii all
+submitted input and patches for Solaris 2.x The resulting
+port is a melding of these efforts, mostly Mr. Lipe's.
+
+Thanks go to Pat Davitt for checking the guy out under
+XENIX/386 2.3.1.
+
+The 3.30 alpha team of
+
+    Bob Friesenhahn       bob@simple.sat.tx.us
+    Carl Wuebker          clw@hprnd.rose.hp.com
+    Daniel Harris         daniel@reubio.apana.org.au
+    Gert Goering          get@greenie.muc.de
+    Jeff Liebermann       jeffl@comix.santa-cruz.ca.us
+    John Miller           jsm@n4vu.atl.ga.us
+    Mark J. Bailey        root@raider.raider.net
+    Robert Broughton      Robert_Broughton@mindlink.bc.ca
+    Robert Laughlin       bel@nosc.mil
+    Robert Lewis          robertle@sco.com
+    Robert Lipe           robertl@arnet.com
+    Roger Fujii           uunet!media!rmf
+    Tim Sailer            sailer@sun10.sep.bnl.gov
+
+worked diligently over many months.  If there are fewer bugs
+in this major release than in previous releases, you have them
+to thank.  I think they indulged more bad alpha versions on
+this version than ever before.
+
+This version of ECU was longer in the oven.  My schedule on
+an OSI protocol project kept me snowed through the last year
+up until now.  It makes me dizzy switching back and forth.
+
+--------------------------------------------------------------------
+
+MAKING AND INSTALLING
+
+1.   Unshar all of the shars
+
+     I do not intentionally put anything in shell archives that is
+     dangerous, but it is very, very unwise to unshar as root.
+     Unpack shell archives as an unprivileged user.
+
+     Make a directory and cd into it.  Use an unshar program
+     to extract all of the forty-odd parts of ECU and the three
+     or so parts of the manual.  If you do not have unshar, it
+     may be quicker to find one than to extract ecu without it.
+     However, if you must, edit each shar and remove all lines
+     prior to #!/bin/sh and then feed each file to /bin/sh, like
+
+        /bin/sh < part
+
+2.   Type ./Configure
+
+     This procedure builds Makefiles for ECU specific to your
+     system.  You must have your native compiler available for this.
+
+3.   Configure will compile and run config.
+
+     Answer the questions.  If you are using a supported system,
+     answering the few simple questions is all that is necessary
+     to produce a usable configuration.  (If you are trying to
+     port it, make your best guess, hack the Makefiles and sources
+     and send them to me with your patches.)
+
+     You will be asked the system type.  Respond according to
+     the following table (which may have more choices than
+     shown below):
+
+        System                         |   Type
+     ----------------------------------+------------
+       SCO UNIX (any version)          |     s
+       SCO ODT (any version)           |
+       SCO XENIX/386 (2.3 or later)    |
+     ----------------------------------+------------
+       HP-UX                           |     h
+     ----------------------------------+------------
+       Linux 1.1.58 or later           |     l
+     ----------------------------------+------------
+       Motorola Delta [68]8k SVR41     |     M
+     ----------------------------------+------------
+       Motorola Delta [68]8k SVR32     |     m
+     ----------------------------------+------------
+       NetBSD                          |     N
+     ----------------------------------+------------
+       SunOS (4.1.1 or later)          |     S
+     ----------------------------------+------------
+       Solaris 2.x                     |     O
+     ----------------------------------+------------
+       ISC 386/ix (2.2 or later)       |     i
+     ----------------------------------+------------
+       ISC SVR4                        |     I
+     ----------------------------------+------------
+       ESIX SVR4                       |     E
+     ----------------------------------+------------
+       Free BSD                        |     F
+
+     If you answer SCO, you are asked which variety:
+     XENIX/386 or UNIX/386 prior to 3.2v4, or UNIX/386 3.2v4.
+     Equivalent ODT versions are shown in the variety list.
+
+     XENIX/386 has not been tested since 3.34.
+
+     Provided you did not opt for Linux, you will
+     be asked if you want to use the native cc or gcc.
+     Cc is chosen automatically for XENIX/286.
+     If you wish to use gcc, your version must be revision 1.40 or later.
+     Gcc is chosen automatically for Linux.
+
+     You'll be asked two questions about ecuungetty (if it
+     is supported and required on your system).
+
+     You may be asked if you wish to run ecu setuid to uucp.
+     (Under SCO 3.2v5 you have no choice.)  The documentation
+     present in the Configure program is self-explanatory.
+
+     You will be asked for a default tty line, baud rate and parity.
+     The default for the default tty is  system dependent.  The
+     defaults for baud rate and parity is 9600 and none.  You may
+     override these with your personal preferences.
+
+     You will be asked for the directory to install ECU and friends.
+     library.  The default is /usr/local/bin.  If the directory
+     does not exist, the install procedure will attempt to make it.
+
+     You will be asked for the directory to use for a private ecu
+     library.  The default is /usr/local/lib/ecu.  If the directory
+     does not exist, the install procedure will attempt to make it.
+
+     You will be asked how long the ECU built-in dialer should
+     wait for carrier before giving up.  The default value is 60.
+     If you make overseas calls, use high-speed modems or call
+     multi-mode modems such as Telebits, 60 seconds may not be
+     a long enough wait.
+
+     You'll be asked for maximum lines and columns (80x24 minimum).
+
+     After answering these questions, the config program will thank
+     you (;->) and then build Makefiles from the Make.src files in
+     each appropriate subdirectory.
+
+     If you are porting to a new system, you will want
+     to examine and modify the Makefiles before proceeding.
+
+5.   The configure script suggests you "make depend".  This is
+     unnecessary if you are building ECU for the first time.  Also,
+     most patches will require you to rerun Configure.  Each time you
+     reconfigure the software, it is automatically completely remade
+     when you next run make.  Only if you anticipate making changes to
+     the software is "make depend" necessary to ensure the code is
+     properly made.
+
+6.   Type 'make'.  Wait and watch a while.  This is a good time to
+     be reading over doc/ecu.man and various READMEs.  The
+     CHANGES and *HISTORY* files have some note on every change
+     made since 3.16.  Unfortunately, they also contain
+     technical/historical information of no interest.
+
+     If you are using gcc, ignore the warnings:
+
+     previous declarator is not compatible with default argument promotion
+     empty body in an else-statement
+     integer overflow in expression  (seen only with 2.4.5)
+
+7.   Su to root, if not already there, and type 'make install'.
+
+8.   The default models/funckeymap is copied to the ECU library
+     as part of installing the program.  You will probably need
+     to study and modify this file if you plan to use a console
+     (user tty) other than the native console of your system
+     or if you are attempting to use ECU on a unsupported system.
+
+9.   You may have to, as root, chmod +rwx your uucp locks directory. 
+     In addition, if you are on a machine which does not enjoy
+     ecuungetty support, you may have to, as root, chmod +rw all
+     tty lines used by ecu.  If choose to run ecu setuid to uucp,
+     then lines owned by uucp will be available to ecu wherther
+     or not the machine has ecuungetty support and regardless of
+     how you configured ecuungetty.
+
+10.  Dialer programs provide rigorous no-compromise modem control.  
+     The gendial subdirectory contains some rigorous, yet
+     experimental, SCO dialer programs for use with ecu, cu and uucico.
+     They are currently undocumented and "as-is."  I have used each
+     of them successfully at one time or another, but some have been
+     modified since they were last proven to work.
+     I use the T2500 and USR 2400 programs all the time.
+
+     Make sure you like the modem options before using one of these
+     dialers.  In particular, I enable remote access to Telebits.
+
+11.  Make neat removes many temporary files that tend
+     to accumulate over time. No make targets are removed.
+     Make clean runs make neat and also removes all .o files.
+     Make clobber runs make clean and also removes executables.
+
+12.  models/ecu-ansi.tinfo and models/ecu-ansi.tcap are the terminfo
+     and termcap source, respectively, for the ecu presentation
+     (when it performs terminal emulation).  Both have the name 'ansi'
+     and 'ecu'.
+
+13.  Read BUGS (it's short :>).
+
+--------------------------------------------------------------------
+Notes:
+
+1.  KERMIT:
+
+C-Kermit 5 (as of version 5A(179)) directly supports ECU's needs.
+You will need a ~/.kermrc to set up the desired characteristics.
+
+I use:
+
+set block 3
+set win 3
+set send packet-l 2048
+set receive packet-l 2048
+set file name literal
+set file type bin
+show
+
+But that's me.  (Buy the book!!)
+
+2.  SELECT(S) and CFLAGS "USE_SELECT"
+
+ECU uses select() where possible for two purposes:
+1. wait on a tty (comm line) read with timeout -and-
+2. timeout (nap replacement).
+
+If you have a working select, use -DUSE_SELECT.
+The Configure procedure does the job for you for systems I know about.
+
+SCO XENIX V/386 Release 2.3.1 (and evidently 2.3.2) have a
+broken-dead, yet fixable, BSD-style select() feature.  Also,
+select() is missing from libc.a.  While ecu does not *require*
+select(S), it is much more efficient to use it.  The x386sel
+subdirectory in this release has information (thanks to
+csch@netcs, ivar@acc, and ag@elgar) on how to fix the kernel and
+to add select() to libc.a.  You'll have to add USE_SELECT to
+config.local if you do this.
+
+Select(S) is fully functional in SCO UNIX 3.2.0.  I am unsure of ODT
+1.0/UNIX 3.2.1.  It is broken in ODT 1.1/UNIX 3.2v2.  It does work
+in 3.2v4/ODT 2.0 and later.  It works very well on Motorola.
+
+I found it in /usr/lib/libinet.a on the ISC system I used to
+compile for ISC.  It works fine there.  I automatically put
+USE_SELECT into the Makefile.
+
+It works fine on the Sun, Linux, BSD and SVR4, naturally.
+
+3.  SCO MULTISCREEN BUG
+
+There has been a bug in the multiscreen driver for some time
+wherein a MEDIA COPY (screen dump) sequence ("ESC [ 2 i") leaves
+the "ESC [ 2" part "active".  When a screen dump (Cursor 5)
+command is given, I do the screen dump, then send a "l" to the
+screen to work around the bug ("ESC 2 [ l" unlocks the keyboard,
+essentially a no-op).  If and when it gets fixed, you'll see an
+"l" show up on your screen after a screen dump sequence.  To fix
+this, comment out the
+#define MULTISCREEN_DUMP_BUG
+at the top of ecuscrdump.c.
+
+The bug remains in place for every SCO product from XENIX 2.0.6
+through UNIX 3.2v4.  It is a minor nuisance and there are a great
+many other things they have fixed/improved in these years that
+were much more important.
+
+Note that from multiscreens, screen dump produces a dump of the
+actual screen contents, including ecu-generated output.  When
+using a non-multiscreen terminal, screen dump dumps only the
+shared memory virtual screen as received from the host.
+
+If, at a multiscreen, you wish a screen dump free of ecu output
+"pollution," use Shift-Tab (BkTab) to redraw the screen, then
+perform the screen dump.  If you are not on a multiscreen, then the
+screen dump comes from the (sometimes inexact) screen memory
+representation and this step is not necessary.
+
+4. GCC
+
+In case you didn't know, GCC is a great C compiler.  It generates
+excellent code and gives excellent diagnostics and warnings.
+There are more options available than for a Coup de Ville, so you
+have to be careful if you get too fancy.  I should know -- I
+think I may have done it.  With Configure and config.c, I have
+tried to choose the best option set for ECU and it's utilities.
+If you want to play around, you can place GCC_EXTRA_CFLAGS
+definitions in a config.local file and experiment away.
+
+In this release, you may expect version 1.40, 2.3.3 and 2.4.5
+to work for you.  I tested it on SCO with 3.2.3 and on SunOS
+4.1.3 with 2.4.5.  I have also used on Motorola.  
+
+GCC is the *only* compiler supported for Linux and for NetBSD.
+
+5.  XTERMS
+
+If you are using an xterm to run ecu,
+
+1. the maximum geometry is 80x50
+2. 4014 emulation is untested
+3. you should use the following resources:
+
+XTerm*titeInhibit:     true # enable screen clear functions normally
+XTerm*curses:          true # curses bug fix
+
+If titeInhibit fails to work (some versions which use terminfo as
+their basis do fail), then remove the ti and te entries from
+/etc/termcap.
+
+The file models/funckeymap has keyboard definitions for a number
+of xterm implementations.  Use kbdtest3 to determine what key
+sequences are generated by each function key.  If a key produces
+no output or ambiguous output (Home and End both produce the same
+sequence), use xev to determine the keysym associated with the
+keys in question.  Use xmodmap to map the keys to unique
+sequences.  For instance, on the SunOS MIT server, IPX key
+presses of Home and End produce:
+
+Home:
+KeyPress event, serial 13, synthetic NO, window 0xd00001,
+    root 0x8006d, subw 0x0, time 2225786294, (124,70), root:(385,331),
+    state 0x0, keycode 75 (keysym 0xffd8, F27), same_screen YES,
+                                          ^^^
+                                           |
+                                           `--- name to use with xmodmap
+    XLookupString gives 0 characters:  ""
+
+End:
+KeyPress event, serial 15, synthetic NO, window 0xd00001,
+    root 0x8006d, subw 0x0, time 2225787104, (124,70), root:(385,331),
+    state 0x0, keycode 119 (keysym 0xffde, R13), same_screen YES,
+                                           ^^^
+                                            |
+                                            `-- name to use with xmodmap
+    XLookupString gives 0 characters:  ""
+
+Then, choose unique strings to map the keys to.  I generally use
+the SCO function key sequences (described in the very first entry
+in the distribution model/funckeymap).  Construct XTerm translations
+for the chosen sequences.  An example for Home (F27) and End (R13)
+is shown below.
+
+XTerm*VT100*Translations: #override\
+     <Key>F27:        string(0x1b) string("[H") \n \
+     <Key>R13:        string(0x1b) string("[F") \n \
+     Shift<Key>Tab:   string(0x1b) string("[Z")
+
+Included in the above is a mapping for "backwards Tab," Shift Tab.
+Most servers map Shift Tab to generate the same as unshifted Tab
+(or not mapped at all).
+
+Run kbdtest3 and see if all keys now produce a unique sequence.
+If not, repeat the above process until you have each key producing
+a unique sequence.
+
+Sometimes, you just won't be able to get a particular key to work.
+For instance, one X server I used refused to generate an event for
+Shift Keypad 5 (Shift<Key>KP_5).  In these cases, you will have to
+choose another key, perhaps a higher numbered function key.  Likewise,
+if you are using a keyboard unaffected by the True Blue Path,
+you may not have a key marked "Home" or "End" (I pity you :-> heh):
+choose a replacement you are unlikely to need otherwise.
+
+6. SCO UNIX MEMMOVE() AND GCC
+
+Use of memmove has been eliminated.  See memmove/README for some
+history.
+
+7. FAS/i
+
+For the brave, an instrumented version of FAS 2.08 (for i386
+SVR3) is included with this release for those who need driver
+instrumentation at the cost of performance and portability.  It
+is not supported (DO NOT CONTACT UWE DOERING ABOUT FAS/i).  I am
+not at all interested in starting a new tty faction.  Uwe has
+done a brilliant job of striking a balance between compatibility
+and performance.  I only name this thing FAS/i to show the
+derivation from FAS while marking it as different.
+
+8. EXCEL LOGFILE INTERFACE
+
+The excel logfile utility posted to comp.sources.misc for ECU 3.0
+remains compatible with this release of ECU.
+
+9. KBDTEST3 and KBDTEST
+
+Kbdtest3 is included to help you inspect your keyboard for
+making funckeymap entries or for preparing you to ask for help
+from me in getting your keyboard functional.
+
+  cc -o kbdtest3 kbdtest.c
+  run it, following the instructions
+
+Once you have installed a new funckeymap, the ECU interactive
+command "kbdtest" may assist in verifying it works.
+I would appreciate your mailing me the output file (kbdtest3.out)
+from each keyboard you try out.  This will assist me in making
+funckeymap entries for futures releases. [[ HEH HEH, I wrote this
+three years ago -- I've received ONE entry -- wht 4/94]]
+
+-------------------------------------------------------------------------
+
+RIGHTS TO USE
+
+This program, it sources, objects and utilities are in the public
+domain.
+
+Alas, placing "popular" programs in the public domain can cause
+peculiar problems.  As others adopt, modify and redistribute the
+code, it tends to fall apart.  I regularly get mail from folks
+who have found fragmented or damaged buckets of code with my
+e-mail address in it.  Invariably, it has come from some off-net
+BBS where someone has tried to pkzip it or something :).
+
+Your license to redistribute this version of ECU is, of course,
+unlimited.  Even though I'll spend hours poring over patches
+trying to help a user, my patience with folks who modify my code
+without CLEARLY marking it so is at end.  
+
+These are my requests:
+
+1.  If you use or redistribute this program, it should retain the
+ECU name unless you ask me.  This means the base name of the
+program executable must be "ecu" and the program must announce
+itself with the strings "ECU" and "wht@n4hgf".
+
+2.  If you modify the program "substantially" you should not
+redistribute it without asking me.  For purposes of this
+paragraph, "substantially" refers to changes of more than a
+bug-fix or cosmetic nature.  For larger changes, read
+README.porting and, if appropriate, submit patches to
+ecu@n4hgf.atl.ga.us.  If they "pass muster" (we are usually
+easy), then the changes will be incorportated into a released
+patch level of ECU.
+
+You can give modified versions to a associate, but if s/he gives
+it to someone else, does the fourth party know not to contact me
+for bug fixes?
+
+3.  You are still free to use substantial code fragments or
+entire logical subsections of the program in any way you see fit,
+obeying of course any other copyrights and requests made by other
+authors whose code fragments appear within ECU.
+
+4.  Anybody who has contributed to ECU development will find it
+awfully easy to get my permission to do anything they want with
+ECU ("Noooooooooooooooooo ...  not THAT!)
+
+-------------------------------------------------------------------------
+
+CORRESPONDENCE
+
+NOTE: All correspondence to the author regarding ECU must be sent
+to ecu@n4hgf.atl.ga.us or n4hgf!ecu.  One exception: commercial
+users wishing support or custom work, please contact me at the
+address below.  I'll try to be prompt in replies, but I'm ten
+months into a particularly difficult piece of single combat with
+ISO protocols that pays the mortgage and cat food bills.  I've
+got to have SOME priorities, you know :) !
+
+Warren H. Tucker  wht@n4hgf.atl.ga.us   n4hgf!wht
+150 West Lake Drive    Roswell, GA 30075-1153 USA

@@ -1,0 +1,178 @@
+# Copyright 1994 Applied Reasoning Systems Corporation
+# written by Bill Burdick (burdick@arscorp.com)
+
+# version 1.3
+# added error folder convention.
+# PLEASE READ THE 'USING' SECTION
+
+# version 1.2
+# added forward action
+# extended INFO comment to make things easier to understand
+
+##############
+#### INFO ####
+##############
+
+# classifyMail PROGRAM
+
+# automatic mail delivery, as per <MH_LIB>/slocal
+
+# differences between this and slocal:
+
+# * component name is a (case-insensitive but complete) regexp
+# * component pattern is a regexp (case-insensitive by default)
+# * uses .maildelivery.tcl instead of .maildelivery
+# * order of fields is different (condition first)
+# * written to be easily extended
+# * actions can be arbitrary TCL code
+# * determines who's using it (doesn't use the -user option)
+# * error recovery
+# * bounce and defer actions which exit with special values for sendmail
+# * forward action allows forwarding on per-message basis
+# * mailingList action sends to a mailing list
+
+# USING (with sendmail)
+
+# 1) Make sure classifyMail is in your own directory, to prevent sendmail from
+#    getting confused.
+
+# 2) Make sure you have a .maildelivery.tcl file (see below)
+
+# 3) make your .forward execute classifyMail; my .forward entry:
+#    |/home/david/burdick/bin/classifyMail
+
+# 4) make sure you have a folder named error
+
+# 5) test your .maildelivery.tcl file by running it on a few messages
+#    you already have (e.g. classifyMail < ~/Mail/inbox/1).  If you
+#    get a mail.errors file or your message gets put in the 'error'
+#    folder, then you may have a bug in your .maildelivery.tcl file.
+#    Check the X-error component at the top of the message and see
+#    what it says.
+
+# FORMAT of ~/.maildelivery.tcl file:
+
+# example .maildelivery.tcl:
+
+# set < {(^|[^a-zA-Z0-9])}
+# set > {($|[^a-zA-Z0-9])}
+
+# ? From:	ftpmail|archie			{+ ftp}
+# ? To:		uucp|Postmaster|root|usenet	{+ admin}
+# ? To:|Cc:	${<}urs${>}|self-interest	{+ self}
+# ? To:		burdick				{+ talk/bill}
+# R *		-				{> /tmp/mail.tcl}
+# default					{+ inbox}
+
+
+# PATTERNS:
+
+# component-name patterns are case insensitive and complete, so you
+# can say 'From:' or 'from:' and it won't confuse 'Reply-To:' with
+# 'To:'.
+
+# Component-value patterns are case-insensitive by default.  You can
+# turn case-sensitivity on and off with the 'case-sensitive' and
+# 'case-insensitive' commands.
+
+# THE DEAL:
+
+# ~/.maildelivery.tcl is just a TCL source file.  It is sourced by the
+# classifyMail program.  This is sort of roundabout, but I thought it
+# would be nice to keep them separate, so that each user didn't have
+# to have his own copy of the program and so that the
+# .maildelivery.tcl file would look cleaner.
+
+# The conditions and actions are TCL functions.  Most conditions (?,
+# N, A, R) take three arguments: a component, a pattern, and an action
+# to perform if the component line matches the pattern (or if the
+# component is "*"; then the pattern is ignored, but it must be
+# present).  The actions are the traditional '+', '>', 'file', '|',
+# 'pipe', '^', 'qpipe', 'destroy', plus a few others.  Actually, you
+# can just use exit in place of destroy.  I have taken care to
+# evaluate the actions at the level they are called from (see the
+# conditions and proc act? for the uplevel calls), so there shouldn't
+# be any problem with using variables in the actions.  Errors in
+# actions will cause action to be unsuccessful and control to go to
+# the next condition.
+
+# VARIABLES:
+# These variables are set during the action (changing them does affect
+# successive actions):
+# 	components
+# 		an array: indices are the component names (complete
+# 		with trailing colon), values are the complete
+# 		components (including the component name)
+# 	body
+# 		The body of the mail message (the text after the
+# 		components).
+# 	file
+# 		The complete mail message.
+
+# CONDITIONS:
+#	? component value action
+#		take action if:
+#			message undelivered
+#			component matches value
+#		if successful, message considered delivered
+#	N component value action
+#		take action if:
+#			undelivered
+#			last action succeeded
+#			component matches value
+#		if successful, message considered delivered
+#	A component value action
+#		take action if:
+#			component matches value
+#		if successful, message considered delivered
+#	R component value action
+#		take action if:
+#			component matches value
+#		do not change delivered status
+#	default action
+#		always take action
+#		if successful, message considered delivered
+
+# ACTIONS:
+#	+ folder
+#		store message in folder
+#	> filename
+#		store message in file
+#	file filename
+#		store message in file
+#	| arg ...
+#		pipe message to bourne shell command
+#	pipe arg ...
+#		pipe message to bourne shell command
+#	^ arg ...
+#		pipe message to process
+#	qpipe arg ...
+#		pipe message to process
+#	destroy
+#		stop handling this message
+#	defer
+#		stop handling this message and tell sendmail to queue it
+#	bounce
+#		stop handling this message and tell sendmail to bounce it
+#	forward addr ...
+#		forward this message to listed addresses
+#	mailingList listName
+#		send message to the mailing list named listName.
+#		Lists are stored in files in the $listbase directory.
+#		This is ~/lists, by default, but you can set listbase
+#		at the top of the .maildelivery.tcl file.  A list file
+#		just has a bunch of addresses in it (separated by
+#		whitespace).  This is different from a private alias,
+#		because it preserves the original address in the mail
+#		message.
+
+# ERROR RECOVERY:
+
+# If there are problems delivering mail (i.e. sourcing
+# ~/.maildelivery.tcl causes a TCL error or the mail remains
+# undelivered), classifyMail places an X-ERROR: component in the
+# message and attempts to place it in the user's error folder.
+# Failing that, it is appended to the ~/mail.errors file in the packf
+# format.  Failing that, it exits with a status of 1, which should
+# case the mailer to bounce the mail.  So you should normally be able
+# to view erroneous messages with 'show +error'.

@@ -1,0 +1,56 @@
+#!/bin/sh
+#
+# Trim osmlog  nightly out of the root cron
+#
+# needed if you keep your server up for a long time
+# and you use syslog 
+#
+# stops /dev/osm getting too large
+# on average we grow /dev/osm at 1MB a day, and the  system only
+# trims the file on a reboot. Over a sustained period of uptime
+# it starts to eat up disk space on /var
+
+cd /var/adm/log
+pid=
+if [ -z "$_AUTOBOOT" ]
+then
+        pid=`/bin/ps -ef | /bin/grep /dev/osm | /bin/grep cat | /bin/awk '{print $2}'`
+fi      
+if [ "${pid}" = "" ]
+then
+	:
+else
+	kill -9 ${pid}
+fi
+
+# make sure the linkage is correct
+rm /etc/.osm >/dev/null 2>&1
+ln -s /var/adm/log/osmlog /etc/.osm
+# Not yet running
+# First, save old file
+if [ -f /var/adm/log/osmlog ]
+then
+	LOG=osmlog
+	test -f $LOG.6 && mv $LOG.6  $LOG.7
+	test -f $LOG.5 && mv $LOG.5  $LOG.6
+	test -f $LOG.4 && mv $LOG.4  $LOG.5
+	test -f $LOG.3 && mv $LOG.3  $LOG.4
+	test -f $LOG.2 && mv $LOG.2  $LOG.3
+	test -f $LOG.1 && mv $LOG.1  $LOG.2
+	test -f $LOG.0 && mv $LOG.0  $LOG.1
+	test -f $LOG && mv $LOG  $LOG.0
+	# just in case it got changed by someone
+	chmod 644 /var/adm/log/osmlog.[0-7]
+fi
+
+# If Enhanced Security is running,
+# then allocate /dev/osm
+mldmode > /dev/null 2>&1	# shell built-in
+if [ "$?" = "0" ]
+then
+	/usr/sbin/admalloc osm
+fi
+
+# Start the daemon in the background
+cat /dev/osm > /var/adm/log/osmlog &
+chmod 644 /var/adm/log/osmlog

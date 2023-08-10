@@ -1,0 +1,142 @@
+README.newspread
+
+I. Introduction
+
+This file documents some of the internals used in the newspread.tcl code that
+are necessary to better understand what is going on. Files included in
+this distribution:
+	README.newspread - This file. Brief documentation of the
+		newspread software.
+	newspread.tcl - The main portion of the newspread software.
+	utils.tcl - Some useful utilities. Required by newspread.tcl
+
+To use, make sure that you either source in both newspread.tcl or
+utils.tcl, or that you set up auto loading to use both newspread.tcl and
+utils.tcl (i.e. use auto_mkindex).
+
+newspread.tcl requires Tk 3.2 and TclX 6.5c or 6.7c
+
+II. How to create a spreadsheet
+
+The spreadsheet procedure is provided to be able to create a spreadsheet
+widget in much the same way as any other Tk widget. Currently however,
+once the widget is created, it cannot be manipulated in the same way as 
+other Tk widgets. It is hoped that this will be fixed in future versions.
+
+To create a spreadsheet, use the spreadsheet procedure:
+spreadsheet pathname [-labels labels] [-hscroll scroll_width]
+            [-vscroll scroll_height] [-width spread_width]
+            [-height spread_height] [-rows num_rows]
+
+     -labels - This option creates the labels at the top of the spreadsheet.
+               The labels argument is of the form:
+               { {"C1 Label" c1_width} {"C2 Label" c2_width} ... }
+
+               The widths are the minimum width that column will be allowed
+               to be minimized to. They can be specified in any valid Tk
+               method for specifying distances (i.e. pixels, centimeters)
+
+     -hscroll - This option creates a horizontal scrollbar, with the 
+                width of the visible area set to scroll_width. Again,
+                scroll_width can be specified in any valid Tk manner.
+
+     -vscroll - This option creates a vertical scrollbar, with the height
+                of the visible area set to scroll_height. scroll_height
+                can be specified in any valid Tk manner.
+
+     -width - The width of the spreadsheet. This can be larger or smaller
+              than the visible width, although smaller tends to cause 
+              strange scrolling behavior. spread_width can be specified in
+              any valid Tk manner.
+
+     -height - The height of the spreadsheet. This can be larger or smaller
+               than the visible height, although smaller tends to cause
+               strange scrolling behavior. spread_height can be specified in
+               any valid Tk manner.
+
+     -rows - The number of empty rows to start off with in the spreadsheet.
+             It is a good idea to start off with some. Although the more
+             that you start off with, the longer it takes for the 
+             spreadsheet to be built.
+
+The spreadsheet procedure returns the pathname of the widget just like
+normal Tk widgets.
+
+III. The make up of the spreadsheet
+
+The spreadsheet widget is actually a whole bunch of Tk widgets packaged
+together to look like a spreadsheet. Depending on the options chosen when
+creating the spreadsheet, the widget (call it $w) may actually contain:
+	$w - A frame that contains all spreadsheet parts.
+	$w.vscroll - The vertical scrollbar
+	$w.hscroll - A frame containing the horizontal scrollbar and
+	    an empty canvas to make the scrollbars appear correctly.
+	$w.hscroll.blank - The empty canvas for looks.
+	$w.hscroll.bar - The horizontal scrollbar.
+	$w.labelf - A frame to hold the label canvas and an empty canvas
+            to make the scrollbars appear correctly.
+        $w.labelf.blank - The empty canvas for looks.
+	$w.labelf.labelc - The label canvas
+	$w.spreadc - The spreadsheet canvas
+
+These are all packed together to form the spreadsheet widget. If you have 
+to do some application specific mucking with the spreadsheet, those names
+are how you can access the widgets, and change their configuration
+directly. It shouldn't affect the spreadsheet as a whole.
+
+IV. Internal variables
+
+There are numerous internal variables which are used quite frequently
+when extending the spreadsheet to suit your specific needs. Here's a
+description of some of them.
+	spreadc_list($w) - An array that has the name of the spreadsheet
+           canvas associated with the spreadsheet widget $w.
+	labelc_list($w) - An array that has the name of the label canvas
+	   associated with the spreadsheet widget $w.
+	all_rows($w) - An array that contains ordered lists of tags
+           for the rows in the spreadsheet widget $w.
+	all_cols($w) - An array that contains ordered lists of tags
+           for the columns in the spreadsheet widget $w.
+        min_widths($w) - An array that contains keyed lists for the
+           minimum column widths in the spreadsheet widget $w.
+
+Note, when ordered is mentioned, that means that column number 0 has
+the column tag at index 0, for example.
+	set col0_tag [lindex all_cols($w) 0]
+Will put the tag for column number 0 into the variable col0_tag.
+
+Note, most of these variables can be accessed by convience functions which
+are described below.
+
+V. Brief function descriptions
+
+This is a description of most of the functions that a programmer might need
+to use a spreadsheet in his or her application. Look at the source code for
+the parameter descriptions and other functions.
+
+spreadsheet - Creates a new spreadsheet widget
+addRow - Adds a row to the bottom of the specified spreadsheet
+spreadsheetInsertText - Place text into the specified cell
+spreadsheetGetText - Get the text that is in the specified cell
+spreadsheetFindCanvas - Returns the pathname of the spreadsheet canvas
+   for a specified spreadsheet widget.
+spreadsheetFindLabels - Returns the pathname of the label canvas for a
+   specified spreadsheet widget.
+spreadsheetSave - Saves the specified spreadsheet to a file.
+spreadsheetLoad - Loads a spreadsheet from a file and creates a spreadsheet
+   widget containing that information.
+spreadsheetColNum - Returns the column number of a column given its tag.
+spreadsheetRowNum - Returns the row number of a row given its tag.
+spreadsheetCol - Returns the column tag of a column given its number.
+spreadsheetRow - Returns the row tag of a row given its number.
+spreadsheetBind - Add application specific bindings to cells, rows, columns,
+   or the whole spreadsheet.
+spreadsheetSetCurrentCell - Sets the current cell of the spreadsheet.
+
+VI. To do
+
+Clean up the code! Especially document all the strange adding of a few pixels
+here and a few pixels there to work around bounding box problems and other
+strangeness.
+
+Possibly rewrite the whole thing in C to act more like a real widget.

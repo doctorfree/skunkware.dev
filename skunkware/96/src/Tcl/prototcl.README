@@ -1,0 +1,141 @@
+The TCL Proto-Compiler.
+
+
+This is my humble effort towards a usable tcl pseudo-compiler. I am
+putting this code on the net in the hope that the Tcl community will
+take interest and develop it further. As it is, I have achieved a modest
+but non-negligible speed-up on the execution of pure tcl code. I urge
+fellow Tcl'ers to try to compile this code in your installations and,
+if possible, report bugs, quirks, suggestions, improvements to me directly
+(esperanc@umiacs.umd.edu) or, better still, to the Tcl'ers at large
+via a post to comp.lang.tcl. 
+
+
+DISCLAIMER:
+
+I am providing this code "as-is". Try it at your own risk. Don't send
+lawyers after me - I can't afford one. I'm assuming we're among
+friends here. If you use it in any product of yours, please be nice
+and mention my name (Claudio Esperanca) and the names of the
+institutions I'm connected to (University of Maryland and Universidade
+Federal do Rio de Janeiro).
+
+
+COMPILING THE COMPILER:
+
+The enclosed Makefile contains targets "compilesh" and "compilewish",
+which are modifications of "tclsh" and "wish", respectively. You
+will have to modify the Makefile in order to be able to 'make'. 
+Most probably, the only things you will need to do is to provide
+the proper paths to the source directories of Tcl7.4 and Tk4.0 and to
+the libraries. It should not be too hard. You will also need
+an ANSI C compiler (I used gcc 2.6.3) - or else you will have to
+remove all function prototypes. I should have followed Dr Ousterhout's
+example and provided _ANSI_ macros and whatnot, but I am ashamed to
+say that I was too lazy. All in all, only the 3 first lines of the
+Makefile should be customized. I should also say that I used a
+Sun Sparcstation IPX running SunOS 4.1.3 for the development and I am
+not sure how things will work out in other architectures. Ah! I
+remember at least one big problem: I assume sizeof (char*)==sizeof(int).
+
+
+USING THE COMPILER:
+
+If you reached this point, you should have a working "compilesh". Try running
+test*.tcl and see what happens. These are simple test programs that
+compare the relative speed of interpreted and pseudo-compiled code. I got
+between 1.3 and 3x speed improvement. In order to try to compile your own
+code use:
+
+	compile { <put your code here> }
+
+This command will return a handle to the compiled code (if no errors
+were reported, of course). This code can then be executed by invoking
+its name. In order to free the memory associated with the code, invoke
+its name followed by "free" (or use the tcl "rename" command).
+Here's a simple example of a session with compilesh:
+
+% compile {
+        set i 0
+        while { $i < 1000 } { 
+                incr i ; incr i -1; incr i
+        }
+        puts "finished"
+}
+code0
+% code0
+finished
+% code0 free
+% 
+
+If you want to compile and run a program residing in a disk file, use the
+"csource" command. This is a modification of Tcl's "source" command that
+compiles the text of a program, executes and then frees up the compiled code.
+For instance, 
+	
+	csource test3.tcl
+
+will compile and execute the program in file test3.tcl.
+
+
+OVERALL APPROACH USED IN THE PROTO-COMPILER:
+
+The proto-compiler tries to mimic the lexical analysis performed 
+by the Tcl interpreter, i.e., it breaks the source into commands
+and each command into a list of "words" or arguments. Each word
+is analyzed and broken into pieces which can be: constant strings,
+references to variables (i.e., $var or $var(index)) or embedded commands
+(i.e., [command]). These pieces are then stored into a linked list
+which is then used at run-time to reconstruct a fully substituted string
+that is to be passed as an argument to a command. 
+Similarly, commands are also stored as elements of a linked list.
+Each node in the list may denote different things depending 
+on the analysis of the first word of the command performed at compile time:
+	
+(1) A command that will only be known at run time. The command is 
+    merely stored as a list of pre-processed words and not
+    processed further. At run time, the internal execution engine
+    will fully substitute each word, look up the
+    first arg in the command table and execute the proper Tcl_CmdProc.
+
+(2) A standard tcl command such as "expr" "for", etc. The compiler
+    assumes that these commands are never renamed (this is a possible
+    source of incompatibility, but it is reasonable enough). These
+    commands are processed as in (1), with the exception that no
+    lookup is necessary since the Tcl_CmdProc is known at compile time.
+
+(3) A tcl command currently supported by the compiler. In this
+    version, only commands "if" "set" "while" and "incr" 
+    are supported. These are processed at compile time mostly as in (2).
+    Commands "if" and "while" however, may have arguments that 
+    are commands themselves. The compiler then tries to generate
+    code for these in a recursive fashion (this is only possible if
+    these arguments are literal strings). At run time, the execution
+    engine will not invoke the corresponding Tcl_CmdProc provided 
+    in the standard Tcl distribution, rather, it will execute them
+    directly.
+
+(4) Commands "proc" and "source" are processed as in (2), except
+    that at run time a custom Tcl_CmdProc provided with the compiler will be 
+    invoked. For instance, the customized procedure that handles
+    the "proc" command will not merely store the last argument 
+    in an internal data structure, but will invoke the compiler and store the
+    corresponding code.
+
+This is all I care to say. More details can hopefully be learned from
+the source code. If there's anybody who seriously wants to work on the 
+compiler and needs more clarification, I'll be glad to help within
+my time constraints.
+
+
+TO DO:
+
+Lots of things. In particular, all Tcl commands that implement control
+structures should be handled as in case (3) above, including "for",
+"foreach" "switch" "return" "break" "continue". Also, in my opinion, the
+single improvement that will result in the most dramatic speed-up
+is the compilation of expressions - what Tcl has to do 
+in order to evaluate "$i<100" is out of proportion. 
+
+
+--Claudio (esperanc@umiacs.umd.edu)

@@ -1,0 +1,149 @@
+<HTML><HEAD><TITLE>XV: Adding Algorithms to xv</TITLE></HEAD>
+<BODY>
+<H1>Adding Algorithms to <I>xv</I></H1>
+<P>With the addition of the 
+ <B>Algorithms</B>
+ menu in the  <I>xv controls</I> window,  <I>xv</I> can now perform standard
+image-processing algorithms.  However, I'm not really into the whole image
+-processing  <I>scene</I>, so I've
+only implemented a few algorithms.</P>
+<P>Please!  Feel free to add your own algorithms, it's easy, and if you'd care 
+to donate them, they may find
+their way into future official releases of  <I>xv</I>, and eternal fame and glory 
+will be yours, in the form of a
+credit in the "Hall of Fame" listing..</P>
+<A NAME="adding-an-algorithm"><H2>  Adding an Algorithm</H2></A>
+<P>For the purposes of this example, I'll be adding a new algorithm called 
+'Noise' which will simply add (or
+subtract) a small random amount from each pixel in the image.  I can't see that this would be a very 
+useful
+algorithm (which is why it's not already  <I>in xv</I>
+), but then again, what do I know about such things...</P>
+<P>Edit 
+ <TT>xv.h</TT>
+, and find the block that starts with:</P>
+<PRE>#define ALG_NONE  0
+#define ALG_SEP1  1  /* separator */
+#define ALG_BLUR3 2</PRE>
+<P>and add an additional definition at the end of the list (right before 
+ <TT>ALG_MAX</TT>
+) for your algorithm.  Don't
+forget to increment 
+ <TT>ALG_MAX</TT>
+ to reflect the additional algorithm:</P>
+<PRE>#define ALG_TINF  6
+#define ALG_OIL   7
+#define ALG_NOISE 8
+#define ALG_MAX   9</PRE>
+<P>
+Edit 
+ <TT>xvctrl.c</TT>
+, and find where the array 
+ <TT>algMList[]</TT>
+ is initialized.  Add a string for your new
+algorithm.  The string's position in the list must match the number that 
+you assigned to the 
+ <TT>ALG_*</TT>
+ value
+in 
+ <TT>xv.h</TT>
+:</P>
+<PRE>static char *algMList[] = { "Undo All",
+                            MBSEP,
+                            "Blur (3x3)",
+                            "Blur (7x7)",
+                            "Edge Detection",
+                            "Emboss",
+                            "Oil Painting",
+                            "Add Noise"};</PRE>
+<P>Edit 
+ <TT>xvalg.c</TT>
+, and find the 
+ <TT>DoAlg()</TT>
+ function.  This function is called with an 
+ <TT>ALG_*</TT>
+ value whenever
+something is selected from the 
+ <B>Algorithms</B>
+ menu.  Add a case for the new 
+ <TT>ALG_NOISE</TT>
+ value, and have it
+call your top-level function, with no parameters:</P>
+<PRE>  case ALG_TINF:  EdgeDetect(1);  break;
+  case ALG_OIL:   OilPaint();     break;
+  case ALG_NOISE: Noise();       break;
+   }</PRE>
+
+<P>Write your top-level function:</P>
+<PRE>/************************/
+static void Noise()
+{
+  byte *pic24, *tmpPic;
+  /* turn on flapping fish cursor */
+  WaitCursor();
+  /* mention progress... */
+  SetISTR(ISTR_INFO, "Running Noise algorithm...");
+  /* generates a 24-bit version of </TT> <TT>pic</TT> <TT>, if necessary.
+     also generates a w*h*3 buffer (tmpPic) to hold intermediate results */
+  if (start24bitAlg(&amp;pic24, &amp;tmpPic)) return;
+  /* do the noise algorithm */
+  doNoise(pic24, pWIDE,pHIGH, tmpPic);</P>
+<P>  /* if we're in PIC8 mode, convert pic24 back to PIC8. free pic24 &amp; tmppic */
+  end24bitAlg(pic24, tmpPic);
+}</PRE>
+<P>Now write the function that does the work of your algorithm.  It will be 
+passed a 24-bit RGB source image
+ <I>srcpic</I>, its dimensions  <I>w,h,</I> and a destination 24-bit image  <I>dstpic</I> of the 
+same size.  If your algorithm is
+normally meant to be run on greyscale images (as so many image algorithms 
+are), you should simply run
+it separately for each of the  <I>Red, Green, </I>and  <I>Blue</I> planes, and glue the 
+results back together at the end of
+the algorithm.</P>
+<PRE>/************************/
+static void doNoise(srcpic, w, h, dstpic)
+  byte *srcpic, *dstpic;
+  int   w, h;
+{
+  byte *sp, *dp;
+  int   x,y,newr,newg,newb;
+
+  printUTime("start of doNoise");   /* print timing info */
+
+  for (y=0; y&lt;h; y++) {
+    if ((y &amp; 15) == 0) WaitCursor();
+
+    sp = srcpic + y*w*3;     /* position sp,dp at start of line #y */
+    dp = dstpic + y*w*3;
+    for (x=0; x&lt;w; x++) {
+      newr = sp[0] + (random()&amp;0x3f)-0x20;  /* add noise to red   component */
+      newg = sp[1] + (random()&amp;0x3f)-0x20;  /* add noise to green component */
+      newb = sp[2] + (random()&amp;0x3f)-0x20;  /* add noise to blue  component */
+      RANGE(newr, 0, 255);   /* clip values to range[0..255] inclusive */
+      RANGE(newg, 0, 255);   /* RANGE() is defined in xv.h */
+      RANGE(newb, 0, 255);
+      dp[0] = (byte) newr;   /* store new values in dstpic */
+      dp[1] = (byte) newg;
+      dp[2] = (byte) newb;
+
+      sp += 3;  dp += 3;     /* advance to next 3-byte pixel in images */
+    }
+  }
+  printUTime("end of doConvolv");
+}</PRE>
+<P>Note that this algorithm is written in about as non-optimal a way as possible, for the sake of clarity.</P>
+<P>Also note that if you define 
+ <TT>TIMING_TEST</TT>
+ at the beginning of 
+ <TT>xvalg.c</TT>
+, it will turn on code that will
+let you measure the CPU time your algorithm requires.  Once you have a working algorithm, 
+you may find
+this useful if you wish to try to optimize your algorithm for increased performance.</P>
+<P>And that's all there is to it!
+<HR>
+This document was extracted from the PostScript documentation and
+formatted by <A HREF="mailto:rjohnson@shell.com">Roy Johnson</A>.
+Much of the process was automated, and may therefore have introduced
+errors.  Corrections are appreciated.
+

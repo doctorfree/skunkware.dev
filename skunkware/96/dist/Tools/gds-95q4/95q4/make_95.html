@@ -1,0 +1,200 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Automatic</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_94.html">previous</A>, <A HREF="make_96.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX767"></A>
+<A NAME="IDX768"></A>
+<A NAME="IDX769"></A>
+<H3><A NAME="SEC94" HREF="make_toc.html#TOC94">Automatic Variables</A></H3>
+<P>
+Suppose you are writing a pattern rule to compile a <SAMP>`.c'</SAMP> file into a
+<SAMP>`.o'</SAMP> file: how do you write the <SAMP>`cc'</SAMP> command so that it operates
+on the right source file name?  You cannot write the name in the command,
+because the name is different each time the implicit rule is applied.
+<P>
+What you do is use a special feature of <CODE>make</CODE>, the <DFN>automatic
+variables</DFN>.  These variables have values computed afresh for each rule that
+is executed, based on the target and dependencies of the rule.  In this
+example, you would use <SAMP>`$@'</SAMP> for the object file name and <SAMP>`$&#60;'</SAMP>
+for the source file name.
+<P>
+Here is a table of automatic variables:
+<P>
+<A NAME="IDX770"></A>
+<A NAME="IDX771"></A>
+<DL COMPACT>
+<DT><CODE>$@</CODE>
+<DD>The file name of the target of the rule.  If the target is an archive
+member, then <SAMP>`$@'</SAMP> is the name of the archive file.  In a pattern
+rule that has multiple targets (see section <A HREF="make_93.html#SEC92">Introduction to Pattern Rules</A>), <SAMP>`$@'</SAMP> is the name of whichever target caused the
+rule's commands to be run.
+
+<A NAME="IDX773"></A>
+<A NAME="IDX772"></A>
+<DT><CODE>$%</CODE>
+<DD>The target member name, when the target is an archive member.
+See section <A HREF="make_102.html#SEC101">Using <CODE>make</CODE> to Update Archive Files</A>.  For example, if the target is <TT>`foo.a(bar.o)'</TT> then
+<SAMP>`$%'</SAMP> is <TT>`bar.o'</TT> and <SAMP>`$@'</SAMP> is <TT>`foo.a'</TT>.  <SAMP>`$%'</SAMP> is
+empty when the target is not an archive member.
+
+<A NAME="IDX775"></A>
+<A NAME="IDX774"></A>
+<DT><CODE>$&#60;</CODE>
+<DD>The name of the first dependency.  If the target got its commands from
+an implicit rule, this will be the first dependency added by the
+implicit rule (see section <A HREF="make_87.html#SEC86">Using Implicit Rules</A>).
+
+<A NAME="IDX777"></A>
+<A NAME="IDX776"></A>
+<DT><CODE>$?</CODE>
+<DD>The names of all the dependencies that are newer than the target, with
+spaces between them.  For dependencies which are archive members, only
+the member named is used (see section <A HREF="make_102.html#SEC101">Using <CODE>make</CODE> to Update Archive Files</A>).
+<A NAME="IDX779"></A>
+<A NAME="IDX778"></A>
+
+<A NAME="IDX781"></A>
+<A NAME="IDX780"></A>
+<DT><CODE>$^</CODE>
+<DD>The names of all the dependencies, with spaces between them.  For
+dependencies which are archive members, only the member named is used
+(see section <A HREF="make_102.html#SEC101">Using <CODE>make</CODE> to Update Archive Files</A>).  A target has only one dependency on each other file
+it depends on, no matter how many times each file is listed as a
+dependency.  So if you list a dependency more than once for a target,
+the value of <CODE>$^</CODE> contains just one copy of the name.
+<A NAME="IDX783"></A>
+<A NAME="IDX782"></A>
+
+<A NAME="IDX785"></A>
+<A NAME="IDX784"></A>
+<DT><CODE>$+</CODE>
+<DD>This is like <SAMP>`$^'</SAMP>, but dependencies listed more than once are
+duplicated in the order they were listed in the makefile.  This is
+primarily useful for use in linking commands where it is meaningful to
+repeat library file names in a particular order.
+
+<A NAME="IDX787"></A>
+<A NAME="IDX786"></A>
+<DT><CODE>$*</CODE>
+<DD>The stem with which an implicit rule matches (see section <A HREF="make_96.html#SEC95">How Patterns Match</A>).  If the target is <TT>`dir/a.foo.b'</TT> and the target
+pattern is <TT>`a.%.b'</TT> then the stem is <TT>`dir/foo'</TT>.  The stem is
+useful for constructing names of related files.<A NAME="IDX788"></A>
+
+In a static pattern rule, the stem is part of the file name that matched
+the <SAMP>`%'</SAMP> in the target pattern.
+
+In an explicit rule, there is no stem; so <SAMP>`$*'</SAMP> cannot be determined
+in that way.  Instead, if the target name ends with a recognized suffix
+(see section <A HREF="make_100.html#SEC99">Old-Fashioned Suffix Rules</A>), <SAMP>`$*'</SAMP> is set to
+the target name minus the suffix.  For example, if the target name is
+<SAMP>`foo.c'</SAMP>, then <SAMP>`$*'</SAMP> is set to <SAMP>`foo'</SAMP>, since <SAMP>`.c'</SAMP> is a
+suffix.  GNU <CODE>make</CODE> does this bizarre thing only for compatibility
+with other implementations of <CODE>make</CODE>.  You should generally avoid
+using <SAMP>`$*'</SAMP> except in implicit rules or static pattern rules.
+If the target name in an explicit rule does not end with a recognized
+suffix, <SAMP>`$*'</SAMP> is set to the empty string for that rule.
+</DL>
+<P>
+<SAMP>`$?'</SAMP> is useful even in explicit rules when you wish to operate on only
+the dependencies that have changed.  For example, suppose that an archive
+named <TT>`lib'</TT> is supposed to contain copies of several object files.
+This rule copies just the changed object files into the archive:
+<P>
+<PRE>
+lib: foo.o bar.o lose.o win.o
+        ar r lib $?
+</PRE>
+<P>
+Of the variables listed above, four have values that are single file
+names, and two have values that are lists of file names.  These six have
+variants that get just the file's directory name or just the file name
+within the directory.  The variant variables' names are formed by
+appending <SAMP>`D'</SAMP> or <SAMP>`F'</SAMP>, respectively.  These variants are
+semi-obsolete in GNU <CODE>make</CODE> since the functions <CODE>dir</CODE> and
+<CODE>notdir</CODE> can be used to get a similar effect (see section <A HREF="make_75.html#SEC74">Functions for File Names</A>).  Note, however, that the
+<SAMP>`F'</SAMP> variants all omit the trailing slash which always appears in
+the output of the <CODE>dir</CODE> function.  Here is a table of the variants:
+<P>
+<A NAME="IDX789"></A>
+<A NAME="IDX790"></A>
+<DL COMPACT>
+<DT><SAMP>`$(@D)'</SAMP>
+<DD>The directory part of the file name of the target, with the trailing
+slash removed.  If the value of <SAMP>`$@'</SAMP> is <TT>`dir/foo.o'</TT> then
+<SAMP>`$(@D)'</SAMP> is <TT>`dir'</TT>.  This value is <TT>`.'</TT> if <SAMP>`$@'</SAMP> does
+not contain a slash.
+
+<A NAME="IDX792"></A>
+<A NAME="IDX791"></A>
+<DT><SAMP>`$(@F)'</SAMP>
+<DD>The file-within-directory part of the file name of the target.  If the
+value of <SAMP>`$@'</SAMP> is <TT>`dir/foo.o'</TT> then <SAMP>`$(@F)'</SAMP> is
+<TT>`foo.o'</TT>.  <SAMP>`$(@F)'</SAMP> is equivalent to <SAMP>`$(notdir $@)'</SAMP>.
+
+<A NAME="IDX794"></A>
+<A NAME="IDX795"></A>
+<A NAME="IDX796"></A>
+<A NAME="IDX793"></A>
+<DT><SAMP>`$(*D)'</SAMP>
+<DD><DT><SAMP>`$(*F)'</SAMP>
+<DD>The directory part and the file-within-directory
+part of the stem; <TT>`dir'</TT> and <TT>`foo'</TT> in this example.
+
+<A NAME="IDX798"></A>
+<A NAME="IDX799"></A>
+<A NAME="IDX800"></A>
+<A NAME="IDX797"></A>
+<DT><SAMP>`$(%D)'</SAMP>
+<DD><DT><SAMP>`$(%F)'</SAMP>
+<DD>The directory part and the file-within-directory part of the target
+archive member name.  This makes sense only for archive member targets
+of the form <TT>`<VAR>archive</VAR>(<VAR>member</VAR>)'</TT> and is useful only when
+<VAR>member</VAR> may contain a directory name.  (See section <A HREF="make_103.html#SEC102">Archive Members as Targets</A>.)
+
+<A NAME="IDX802"></A>
+<A NAME="IDX803"></A>
+<A NAME="IDX804"></A>
+<A NAME="IDX801"></A>
+<DT><SAMP>`$(&#60;D)'</SAMP>
+<DD><DT><SAMP>`$(&#60;F)'</SAMP>
+<DD>The directory part and the file-within-directory
+part of the first dependency.
+
+<A NAME="IDX806"></A>
+<A NAME="IDX807"></A>
+<A NAME="IDX808"></A>
+<A NAME="IDX805"></A>
+<DT><SAMP>`$(^D)'</SAMP>
+<DD><DT><SAMP>`$(^F)'</SAMP>
+<DD>Lists of the directory parts and the file-within-directory
+parts of all dependencies.
+
+<A NAME="IDX810"></A>
+<A NAME="IDX811"></A>
+<A NAME="IDX812"></A>
+<A NAME="IDX809"></A>
+<DT><SAMP>`$(?D)'</SAMP>
+<DD><DT><SAMP>`$(?F)'</SAMP>
+<DD>Lists of the directory parts and the file-within-directory parts of
+all dependencies that are newer than the target.
+</DL>
+<P>
+Note that we use a special stylistic convention when we talk about these
+automatic variables; we write "the value of <SAMP>`$&#60;'</SAMP>", rather than
+"the variable <CODE>&#60;</CODE>" as we would write for ordinary variables
+such as <CODE>objects</CODE> and <CODE>CFLAGS</CODE>.  We think this convention
+looks more natural in this special case.  Please do not assume it has a
+deep significance; <SAMP>`$&#60;'</SAMP> refers to the variable named <CODE>&#60;</CODE> just
+as <SAMP>`$(CFLAGS)'</SAMP> refers to the variable named <CODE>CFLAGS</CODE>.
+You could just as well use <SAMP>`$(&#60;)'</SAMP> in place of <SAMP>`$&#60;'</SAMP>.
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_94.html">previous</A>, <A HREF="make_96.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

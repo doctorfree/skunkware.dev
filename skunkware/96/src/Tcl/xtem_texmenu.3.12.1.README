@@ -1,0 +1,1167 @@
+Copyright (C) 1994  G. Lamprecht, W. Lotz, R. Weibezahn; LRW c/o Uni Bremen
+
+The program xtem may be used and copied under the conditions of the
+(added) GNU GENERAL PUBLIC LICENSE,
+the Copyright must not be deleted or modified.
+
+IN NO EVENT SHALL THE LRW BE LIABLE TO ANY PARTY FOR
+DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT
+OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF THE LRW
+HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+THE LRW SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
+ON AN "AS IS" BASIS, AND THE LRW NO OBLIGATION TO
+PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+
+You may get xtem  directly from the authors 
+   (anonymous, password: RFC-conform e-mail address):
+   ftp.lrw.uni-bremen.de  pub/tex/xtem/xtem_texmenu.3.xx.tar.gz
+                          pub/tex/xtem/xtem_texmenu.README
+                          pub/tex/xtem/xtem_texmenu_eng.ps.gz
+                          pub/tex/xtem/xtem_texmenu_ger.ps.gz
+                                                      xx = patch level, e.g. 05
+
+
+For a successfull installation you need:
+ 
+-  Unix
+-  C compiler for the installation of Tcl, Tk, TclX (e.g.  gcc compiler)
+   (version of Tcl/Tk see below!)
+-  X11      R4 or R5
+-  3-button mouse
+ 
+You may get Tcl/Tk/TclX 
+a) directly from:
+ - Tcl      Vers. 7.3   ftp.cs.berkeley.edu   ucb/tcl/tcl7.3.tar.Z    
+ - Tk       Vers. 3.6   ftp.cs.berkeley.edu   ucb/tcl/tk3.6.tar.Z 
+ - TclX     Vers. 7.3a  ftp.neosoft.com       pub/tcl/distrib/tclX7.3a.tar.gz
+ - addinput             ftp.neosoft.com       pub/tcl/distrib/addinput-3.6a.gz
+b) or alternatively e.g. from:
+ -                   harbor.ecn.purdue.edu    pub/tcl/code  pub/tcl/extensions
+ -                   ftp.lrw.uni-bremen.de    pub/tcl
+
+You need
+ - Tcl at least version 7.0, better version 7.3 
+   (this version of xtem does not work with Tcl version 7.4 
+    because of incompatiblities in the corresponding versions 
+    of Tk; look for future releases of xtem or contact us),
+ - corresponding version of Tk and
+ - corresponding version of TclX (extended Tcl),
+ - corresponding version of addinput --- is not absolutely necessary, but
+   recommended for some Unix systems (see below: section IV "mkcommand")
+   for reasons of performance (reduced system overhead, enhanced program 
+   execution).
+
+
+
+The installation of Tcl, Tk, TclX and addinput was without problems
+(Sun SPARC running SOLARIS 2.3) by means of the "Makefile", "Configure" and
+"patch"; patch P1 must be applied to Tk
+(Patch P1 to Tk version 3.6, otherwise see README.SIGSEGV).
+
+We used Gnu gcc, version 2.5.8 as C compiler.
+
+The executable programs produced by this way:
+ tclsh (Tcl), wish (Tcl incl. Tk), tcl (extended Tcl), wishx (ext. Tcl incl. Tk)
+occupied 
+  ca. 600 KB    in the version without "shared libraries",
+  ca.   4 KB    in the version with "shared libraries"
+
+The version "with shared libraries" we could only produce after
+a correction at the makefile. This correction is available from:
+   harbor.ecn.purdue.edu    pub/tcl/extensions/tcltk_shlib0.4.tar.gz
+or from us:
+   ftp.lrw.uni-bremen.de    pub/tcl/patches
+The version "with shared libraries" works excellent at our installation.
+
+
+If on your computer Tcl is installed, but TclX (extended Tcl) is not installed,
+you may test xtem and become acquainted with it:
+all the menus work except the execution of programs, which are started
+by means of mkCmd (TeX, syntax check etc.). 
+Apart from this and except the process administration, the menu
+acts just like the full Tcl/Tk/TclX installation.
+(TclX is used only for the "runs", that means for the execution of programs.)
+
+
+With older versions of Tcl (older than Tcl version 7.3) you may loose
+file descriptors. Yet this is no severe error -- it happens seldom;
+if it happens, then the effect is, that you cannot start any more process
+(e.g. TeX run). Then you have to leave xtem and call xtem once more.
+
+The version of xtem and the version of Tcl you may see by
+left mouse click on the "help button" in the main menu of xtem.
+ 
+
+ 
+Hints for Implementators:
+========================= 
+
+0. Multilingual xtem:
+---------------------
+
+  xtem is multilingual; up to now we have prepared an English and a German
+  version. 
+  Other languages may easily be added, only pure text files (dictionaries)
+  must be translated and the shell script "xtem" must be completed. 
+  For each language there are two directories named 
+    .../xtem/help_xxx/ (with subdirectories)       and 
+    .../xtem/locals_xxx/,
+  where xxx stand for the language.
+  If you want to translate these text files, please let us know, as we would
+  like to include further languages.
+  In this README we use the English texts when we refer to buttons,
+  thus we recommend to call the English version during the first test
+  (call:  xtem -l english [filename] ).
+
+  You will find the language dependent texts in the files
+      .../xtem/help_*/button.texts 
+  each text is assigned to a variable; e.g. in
+      .../xtem/help_english*/button.texts 
+  you will find the following line
+      c2al                file list
+  By this the text "file list" is assigned to variable vv(c2al).
+  In the files mentioned below array vv(...) is used
+  in order to keep the source files language independent.
+
+  We thank Katherine Wipf for the careful proofreading of the English texts
+  (new errors may be introduced by ourselves in the course of updates!)
+
+
+I. Character Set:
+-----------------
+
+   We use "German umlaute" (in the German version of xtem)
+   according to the  8 bit code
+                "DIN 66303-ARV8 (Allgemeine Referenz-Version des 8-Bit-Code)"
+                "ISO 8859-1"
+                if necessary you may recode e.g. ISO2IBM:
+   tr '\304\326\334\337\344\366\374' '\216\231\232\341\204\224\201'
+        Ae  Oe  Ue  ss  ae  oe  ue  
+
+ 
+II. Directories and Files:
+--------------------------
+ 
+                   |---/help_english/*.hlp
+                   |                /button.texts
+                   |                /latex/*
+                   |                /miscellaneous/*
+                   |---/locals_english/*.vst
+                   |
+                   |---/help_german/*.hlp
+                   |               /button.texts
+                   |               /latex/*
+                   |               /miscellaneous/*
+        .../xtem---|---/locals_german/*.vst
+                   |
+                   |
+                   |   (---/help_xxx/*                                   )
+                   |   (---/locals_xxx/*                                 )
+                   |   (        where xxx stands for a language;         )
+                   |   (        eventually further languages may be added)
+                   |
+                   |
+                   |---*.tcl
+                       tclIndex
+                       tclIndex.7.0
+                       mkcommand.*
+                       README
+                       xtem_*
+                       xtem             <-- this is the shell script
+                                            to start xtem execution
+
+                                                 
+   call:  xtem [ -l language ] [ filename[.suffix] ]
+                       |                     |
+                       "german"              ".tex"
+                       "deutsch"             ".ltx"
+                       "english"
+
+   language specific directories may be deleted, if you don't want to use
+   this language.
+   For example delete  .../xtem/locals_german   and   .../xtem/help_german
+   if you don't want to use the german version (this will save about 1.2MB),
+   or delete  .../xtem/locals_english   and   .../xtem/help_english
+   if you don't want to use the english version (this will save about 1.2MB);
+   in any case you should modify the shell script  xtem  (see above)
+
+
+III. Permissions:
+-----------------
+
+        chmod go-w xtem xtem/* xtem/*/* xtem/*/*/*
+        chmod a+r  xtem xtem/* xtem/*/* xtem/*/*/*
+        chmod a+rx xtem
+        chmod a+rx xtem/xtem xtem/xtem.tcl xtem/xtem_* xtem/locals_*
+        chmod a+rx xtem/help_* xtem/help_*/latex xtem/help_*/miscellaneous
+
+
+IV. Install your mkcommand:
+---------------------------
+
+  In the file      .../xtem/locals_*/default.vst
+  there must be a line "mkcommand          mkcommand.?"
+                                                     ^
+                                                     |
+                                                     +--- numeral 0 ... 5
+  (e.g. "mkcommand          mkcommand.5").
+  By this you select and load one of the files mkcommand.?
+  with all the procedures in it. These procedures realize the execution
+  of programs like "tex", "dvips" etc., which normally are called via the
+  command "mkCmd_wait" in xtem shell script (see below).
+
+  We have prepared different versions of these procedures.
+  Not all of them fit to all systems. In the following we give a short
+  description of the versions 0 to 5:
+
+  ******************************************************************************
+  * we have inserted                                                           *
+  *          mkcommand          mkcommand.9                                    *
+  * this means a not existing version. By this we want to force you to look    *
+  * for a version of mkcommand which is convenient for your system as a default*
+  ******************************************************************************
+  ******************************************************************************
+  * we are very interested in getting response from  NetBSD  implementations   *
+  ******************************************************************************
+
+  a) mkcommand.0
+
+     Version for demonstration: when a program call is started, the
+                command is displayed (together with the option string etc.),
+                yet the program call is not executed.
+     needs:     Tcl, Tk
+     runs with: all systems
+     *** please inform us in case of differences to these "release notes"
+      
+      
+  b) mkcommand.1
+
+     Full functionality, reading from Unix is done character by character,
+     output is written into the text message widget of xtem in blocks.
+     Missing functionality of BSD-systems is taken into account,
+     this may lead to performance loss, when the protocol text of the
+     program is very large.
+
+     needs:     Tcl, Tk, TclX    
+     runs with: all systems 
+     tested: SunOS4, SGI INDIGO, SGI Irix 5.3, DEC Ultrix 4.3a, Linux, 
+             Apollo Domain OS/Unix HP9000/400, HP-UX HP9000/700
+     *** please inform us in case of differences to these "release notes"
+      
+
+  c) mkcommand.2
+
+     Full functionality, reading from Unix is done in blocks,
+     output is written into the text message widget of xtem in blocks.
+     Good performance, does not run with BSD based Unix.
+      
+     needs:     Tcl, Tk, TclX    
+     runs with: SYSVR4-Unix 
+     tested: Sun_SOLARIS2.3, AIX3.2.5, Linux, Apollo Domain OS/Unix HP9000/400,
+             SGI Irix 5.3
+     runs not with: HP-UX HP9000/700
+     *** please inform us in case of differences to these "release notes"
+      
+      
+  d) mkcommand.3
+
+     Full functionality, reading from Unix is done in blocks,
+     output is written into the text message widget of xtem in blocks.
+     High performance, does not run with BSD based Unix.
+      
+     needs:     Tcl, Tk, TclX, addinput   
+     runs with: SYSVR4-Unix 
+     tested: Sun_SOLARIS2.3, AIX3.2.5, Linux, Apollo Domain OS/Unix HP9000/400,
+             SGI Irix 5.3
+     runs not with: HP-UX HP9000/700 (not complete SYSV functionality!)
+     *** please inform us in case of differences to these "release notes"
+      
+
+  e) mkcommand.4
+
+     Full functionality, generates an xterm window and Tk-send-commands.
+     Still under development (runs with a maximum of performance with
+     --- at least we hope --- all systems)
+
+     needs:     Tcl, Tk, TclX,
+                X-Server with  a) "xauth-style authorization"
+                         or    b) Tk compiled with "-DNO_SECURITY"
+                         we strictly warn you: don't use version b),
+                         this version is only to be used for testing
+                         purposes in a secure environment.
+                         Version a) conforms with the strict security
+                         concept of X11R5.
+     runs with: most Unix systems 
+     tested: Sun_SOLARIS2.3, Apollo Domain OS/Unix HP9000/400,
+             HP-UX HP9000/700 with minor restrictions,
+             SGI Irix 5.3 with minor restrictions
+     runs not with: Linux
+     *** please inform us in case of differences to these "release notes"
+
+
+  f) mkcommand.5
+
+     Full functionality, generates a new xterm window for each program call.
+     The xterm window is removed by <Return> in the xterm window after 
+     program termination. (This behaviour may easily be changed in the file
+     xtem_prog by the local administrator.)
+
+     needs:     Tcl, Tk, TclX
+     runs with: all systems 
+     tested: Sun_SOLARIS2.3, Apollo Domain HP9000/400, HP-UX HP9000/700,
+             SGI Irix 5.3
+     *** please inform us in case of differences to these "release notes"
+
+
+  This means you first have to test the different versions of mkcommand.?
+  on your system.
+  Then you have to remove all versions which don't work properly with
+  your system from the file /locals_*/mkcommand.vst (see below): remove the 
+  corresponding lines.
+  Put down the default value you want for the mkcommand version in the
+  file /locals_*/default.vst
+  If it works properly with your system, we recommend version 3 (mkcommand.3).
+
+
+
+V. Check and modify all the following Setting Files:
+----------------------------------------------------
+
+  xtem.tcl   a) line 1: the window shell including Tcl/Tk/TclX must be specified
+                        here; e.g.
+                                   #!/usr/local/bin/wishx -f
+             b) up to "end changes by the local administrator":
+                  specify the path to the directory xtem; e.g. 
+                                   set xtem_path "/usr/local/lib/tex/xtem"
+
+  xtem       shell script to call xtem.tcl must be modified:
+             - select your default language (up to now: "english" or "german"):
+               edit file "xtem" and make active one of the settings
+               for the variable "defaultlanguage"
+             - if necessary another window shell and other path names must be
+               specified!
+
+
+  The following files mostly contain selection lists for programs together with
+  specifications like option strings (e.g. preview.vst), suffixes for file 
+  selection (e.g. editor.vst), TeX formats (e.g. texfmt.vst) etc.
+
+  They must be adapted to the local situation by the local Tex administrator.
+
+  If necessary, each institute/department (or every single user)
+  may have its own complete set of setting files and customize it.
+  For this there is the environment variable XTEMVSTDIR:
+  if this environment variable exists, its value must be the qualified path 
+  name to a directory. A .vst file is searched first in this directory,
+  if it is not found, the file contents from the directory /xtem/locals-*/
+  is taken.
+
+
+  First a remark to the structure of the following files (setting of default 
+  values):
+  Most of the files have a "dummy line" as first line: the first non-blank
+  character of this line is taken as the "field separator" for this file,
+  that means the parameters in the following lines must by separated by this
+  character (this character must not be used otherwise in this file).
+  Following lines: in the columns 1 to nnn you set the text, which is used as a 
+  description in the text widgets/select boxes. The number nnn given for each 
+  file needs not strictly to be observed. It means, that the contents of these 
+  columns will be displayed in the selection box. If the text string is longer 
+  than number nnn, the full text will be displayed when you press the 
+  button "display preferences" in the setting  menu. 
+  If the text string is shorter than number nnn, the only effect 
+  will be, that the separator character and eventually parts of the following 
+  parameters will be visible to the user in the select box.
+  In all cases xtem works identically.
+
+  Lines may be split in most of the .vst files
+  (backslash as last non-blank character in the line to be continued).
+  Excepted from this splitting are the files local.vst and install.vst.
+
+
+
+  /locals_*/default.vst  default settings; structure:
+
+    Lines in this file may not be continued (splitted)!
+ 
+    all lines:
+     cols 1-19               keyword = variable name in xtem;
+                             same variable names as in the structure 
+                             descriptions for the other files!
+     cols 20-end             default for the variable
+
+   remark: if you change a variable, you should pay attention to related
+           variables (e.g. if you set variable "editor" to "vi",
+           you should also set "edtext", "edxterm" and "edoptions")
+
+
+  /locals_*/editor.vst  list of editors; structure:
+ 
+    1st line: first non-blank character: field separator for this file
+    all other lines:
+     nnn=30     edtext       text (first nnn characters displayed)
+     1st param. edxterm      name of the xterm window and parameters for call,
+                             if editor needs an xterm window (e.g. vi), 
+                             blank otherwise
+     2nd param. editor       editor (called in background if followed by &)
+     3rd param. edoptions    editor call option string
+
+
+  /locals_*/index.vst  index preparing program; structure:
+ 
+    1st line: first non-blank character: field separator for this file
+    all other lines:
+     nnn=55     intext       text (first nnn characters displayed)
+     1st param. index        index preparing program
+     2nd param. inoptions    option string for the index preparing program
+
+
+
+  /locals_*/install.vst  installation parameters; structure:
+ 
+    Lines in this file may not be continued (splitted)!
+ 
+    all lines:
+     cols 1-19               keyword = variable name in xtem
+     cols 20-end             default for the variable
+
+     the following variables may be set here:
+         versionlerg  text: local appendix to the version string
+         fontdli          font used for selection boxes 
+         fontbl           font used for buttons/labels 
+         fonttt           font used for help texts
+                          and for the stdout output of program runs
+         fonterr          font used for stderr output of program runs
+         fonttsli         font used for TeX syntax helps: selection list 
+         fonttstt         font used for TeX syntax helps: syntax
+         widthl           width of buttons in the left half of main menu
+         widthr           width of buttons in the right half of main menu
+         sizeds           size of printer list in printer settings menu
+         prtselmaxl       maximum number of lines in criteria lists for printer
+                          list reduction (if more entries are found, a scrollbar
+                          is generated)
+         TeX_syntax_lines number of lines in TeX-syntax widgets
+         TeX_syntax_sel   number or lines in TeX-Syntax selection widget
+         maxprintcops     maximum number of print-copies
+
+    These variables in /locals_*/install.vst normally will be set by the
+    local administrator.
+    Yet there may be problems if xtem is installed in a network 
+    of computers/X-terminals, if fonts known to a computer/X-terminal are 
+    not known to another.
+    Thus the user may set his fonts in the following way: set the 
+    environment variable XTEMINSTALL to the name of a file which
+    contains your "install.vst", i.e. your font settings
+    (xtem checks, if an environment variable XTEMINSTALL is set.
+     If so, the font setting is read from the file specified in
+     XTEMINSTALL instead from the file /locals_*/install.vst).
+    The fonts (at least if you use "german" as language setting) should
+    include the German-umlaute.
+
+
+  /locals_*/logform.vst  list of programs/commands for displaying of logfiles;
+                         structure:
+ 
+    1st line: first non-blank character: field separator for this file
+    all other lines:
+     nnn=32     logtext      text (first nnn characters displayed)
+     1st param. logterm      name of the xterm window incl. options, if logform
+                             needs an xterm window (e.g. vi), blank otherwise
+     2nd param. logform      Unix-command/editor
+                             (called in background if followed by &)
+     3rd param. logoptions   option string for this command/editor
+
+
+  /locals_*/logsuffix.vst  list of suffixes of possible logfiles; structure:
+ 
+    all lines:
+     cols 1-... lsuff        suffix of logfile
+     cols ...-45             text describing the logfile
+                       (lsuff and the following text must be separated by one
+                        or more blanks; e.g. ".log   logfile from TeX run")
+
+
+  /locals_*/mkcommand.vst  list of different forms of mkcommand procedures;
+                             structure:
+ 
+    1st line: first non-blank character: field separator for this file
+    all other lines:
+     nnn=65                  text (first nnn characters displayed)
+     1st param. mksel        selected form of mkcommand procedures
+
+
+   /locals_*/preview.vst  list of preview programs; structure:
+ 
+    1st line: first non-blank character: field separator for this file
+    all other lines:
+     nnn=50     prtext       text (first nnn characters displayed), this text
+                             must be unique to identify this line in the file,
+                             commas (",") are not allowed
+     1st param. preview      name of the preview program 
+                             (called in background if followed by &)
+     2nd param. prsuffix     preview suffix: .ps | .dvi
+                             (if suffix = .ps then dvips will be started 
+                              automatically after a TeX run; this is important 
+                              when the preview program is active in background!)
+     3rd param. proptions    option string for this preview program
+     4th param. ---          preview formats and options associated to this
+                             format for the dvips (necessary for postscript
+                             previewer such as ghostview) and for the previewer
+                             in the following form:
+     text1{options_dvips}{options_previewer}[,text2{...}{...}[,...]]
+
+     The format text "text?" is displayed together with "prtext", all format 
+     texts from all lines are the basis for the format list in the preview 
+     setting menu. Use the same format texts as in "/locals_*/printing.vst".
+     "options_previewer" will be added to "proptions".
+     "options_dvips" is used as option string for the dvips run preceding 
+     preview call (in case of a postscript previewer such as ghostview).
+     The number of formats (at least one) is not limited.
+     Examples: a) for ghostview (needs dvips!):
+        A4_portrait{}{-a4},A4_landscape{-t landscape}{-a4 -swap -landscape}
+               b) for xdvi:
+        A4_portrait{}{-paper a4},A4_landscape{}{-paper a4r}
+     both examples use A4 format in portrait and A4 in landscape.
+
+
+  /locals_*/printing.vst  printer driver and printer; structure
+                         (criteria see printer setting menu
+                          and printer list reduction):
+
+    1st line: first non-blank character: field separator for this file
+              (any character with exception of "," or "_")
+              
+              this separator must separate the following parameter:
+     1st param. ---          heading for printer names (1st criterion)
+     2nd param. ---          heading for printer emulations (2nd crit., part a)
+     3rd param. ---          heading for printer drivers (2nd crit., part b)
+     4th-10th param. ---     empty
+    11th param. ---          heading for printing formats (3rd criterion)
+    12th param. ---          heading for 4th criterion
+    13th param. ---          heading for 5th criterion
+      ...  (the number of criteria is not limited!) 
+    the last parameter may be followed by the separator
+    example:  
+       @ printer @ emulation @ driver @     @              @    @                 @@@@  format     @ double-sided     @ resolution     @ department @ colour @
+
+   all other lines:
+     nnn<30     ---          short text for printer,
+                             commas (",") are not allowed
+     1st param. printer      printer name (1st criterion)
+     2nd param. ---          emulation name (2nd crit., part a)
+     3rd param. prtdriver    printer driver (2nd crit., part b)
+     4th param. prtsuf       suffix for the printfile
+     5th param. prtoptions   printer driver option string
+                             (especially:  x-y-offset should be correct,
+                              such as TeX's zero will be 1 inch below and right
+                              to the left upper edge of the paper!)
+     6th param. lpcmd        print command
+     7th param. lpopt        print command option string
+     8-10th param. ---       empty (unused)
+    11th param. ---          format selection specifications (3rd criterion)
+    12th param. ---          value for 4th criterion
+    13th param. ---          value for 5th criterion
+      ...  (the number of values must be the same as headings given above!)  
+
+    All the parameters starting with the 11th parameter must be of the
+    following form:
+       text1{options_prtdriver}{options_lpcmd}[,text2{...}{...}[,...]]
+    The text "text?" is added to prttext and will be displayed in the 
+    "printer selection box" in the "printer selection menu".
+    Use the same format texts (11th parameter) as in "/locals_*/preview.vst".
+    "options_prtdriver" will be added to "prtoptions".
+    "options_lpcmd" will be added to "lpopt".
+     The number of triples "text{...}{...}" (at least one) is not limited.
+     Example:
+       HPLaserjet IV    @ xlw3 @ Postscript @ dvips @ .ps @                 @ lp @ -c -dxlw3 @@@@ A4_portrait{}{},A4_landscape{-t landscape}{} @ single-sided{}{-dsimplex},double-sided{}{}@300dpi{}{},600dpi{-P xlw3}{}@LRW@sw@
+
+
+  /locals_*/prt_dvijep.vst  page selection: same structure as prt_dvips.vst
+  /locals_*/prt_dvi???.vst  page selection: same structure as prt_dvips.vst
+
+  /locals_*/prt_dvips.vst   page selection; structure:
+ 
+    1st line: first non-blank character: field separator for this file
+    all other lines:
+     nnn=85     prmtext      text (first nnn characters are displayed)
+     1st param. prmrelabs    r : the user may select the start and end page to
+                                 be printed as relative page numbers
+                             a : the user may select the start and end page to
+                                 be printed as absolute page numbers
+                             (blank) : all pages must be printed, i.e. page
+                                       selection is forbidden (e.g. a5booklet)
+     2nd param. prmsel       by this parameter the corresponding commands in
+                             procedure prt_dvips will be selected 
+                             (file prt_dvips.tcl, see below)
+
+
+  /locals_*/spellcheck.vst  list of spelling check programs; structure:
+ 
+    1st line: first non-blank character: field separator for this file
+    all other lines:
+     nnn=80     sptext       text (first nnn characters displayed)
+     1. param   spcmd        name of the spelling check program
+     2nd param. splang       language: may be used to select the dictionary
+                             when calling the spelling check program
+     3rd param. spcorr       = "K" if the spelling check program possibly 
+                                   changes the text file
+                             = " " otherwise
+                   if the spell check program may possibly change the text 
+                   files, and an editor is active at the same time, there may be
+                   conflicts. In this case, the user is given a warning
+                   before starting the spelling check program.
+     4th param. spselect     empty (unused!)
+     5th param. spoptions    option string for the spell check program
+
+
+  /locals_*/suffix.vst  list of suffixes in the edit settings menu
+
+    all lines:
+     1-end      esuff         suffix  ( * | .tex | .aux | ... )
+
+
+  /locals_*/syntax.vst  list of syntax check programs; structure:
+ 
+    1st line: first non-blank character: field separator for this file
+    all other lines:
+     nnn=55     sytext       text (first nnn characters displayed)
+     1st param. syntax       name (call) of the syntax check program
+     2nd param. syoptions    option string for the syntax check program
+
+ 
+  /locals_*/texfmt.vst  list of TeX formats; structure:
+ 
+    1st line: first non-blank character: field separator for this file
+    all other lines:
+     nnn=20                  text (first nnn characters displayed)
+     1st param.  texfmt      TeX format (tex | latex | slitex | ...)
+
+
+  /locals_*/texsize.vst  list of prefixes: size of TeX programs;
+                               structure:
+ 
+    1st line: first non-blank character: field separator for this file
+    all other lines:
+     nnn=20     texmtext     text (first nnn characters displayed)
+     1st param. texmem       prefix for tex program 
+                             (normally left blank or "big" otherwise)
+
+
+  /locals_*/texsuffix.vst  list of suffixes for TeX files (TeX settings menu)
+                           also used for "additional programs"
+                               structure:
+    all lines:
+     1-end      texsuffix    suffix  (.tex | .ltx | .doc | ... )
+
+
+  /locals_*/utility.vst  list of additional programs; structure:
+ 
+    1st line: first non-blank character: field separator for this file
+    all other lines:
+     nnn=50     uttext       text (first nnn characters displayed)
+     1st param. utcmd        command name
+     2nd param. utoptions    option string for this command
+
+
+
+  The variable name is added in the preceding list, if it is used in the 
+  setting files "/locals-*/default.vst", $HOME/.xtem.vst and in the .vst-file 
+  associated to the actual .tex-file.
+
+  More variables, which are set in the setting file "default.vst":
+
+     edsyntaxhelp  yes | no
+                     yes: when the editor is called, additionally a window with
+                          the names of the LaTeX commands will be created. 
+                          By clicking one of the commands, a window with the
+                          syntax and a short description plus example to the 
+                          command will be created  (only for those formats 
+                          "xxx", for which a directory
+                                   .../xtem/help_*/xxx_syntax/
+                           is present)
+     prtfilperm    non-permanent | permanent (language dependent, see below)
+                     non-permanent: the file to be printed ($prt_file) will be 
+                                    deleted after printing
+                     permanent: the file to be printed ($prt_file) will not be
+                                    deleted after printing
+                   these values must be identical with the strings given to the
+                   variables vv(dm19)/vv(dm20) in the file 
+                   "/xtem/help_*/button.texts".
+     texmax        maximum number of TeX runs  ( 1 | 2 | 3 | 4 )
+     prpreopt      option string for the dvips run, if such a run is necessary
+                   before a preview start (necessary before ghostview e.g.)
+     prformat      actual selected format for the preview program
+     prtformat     actual selected format for printing
+                   usually "prformat" "prtformat" will automatically have the
+                   same values (if possible, i.e. the selected value for the
+                   one is also available for the other, otherwise the user will
+                   be advised!)
+     prtselstr     string, containing all selection criteria to identify
+                   a printer setting
+     prtpresel     string, containing asterisks "*" or the specified
+                   criteria for printer list reduction.
+     hlp_bmsuppr   0 | 1
+                     0: bitmaps are suppressed by defaault in (La)TeX-syntax
+                     1: bitmaps are diplayed by defaault in (La)TeX-syntax
+     bell_level    1 | 2 | 3 | 4    different levels for the bell 
+                     1: warnings and errors result in a bell signal
+                     2: errors only result in a bell signal
+                     3: severe errors only result in a bell signal
+                     4: no bell signal at all
+
+  All variables set in the file "/locals_*/default.vst" are read when you
+  click on "reset to defaults", the user may save his actual setting by 
+  clicking on "save preferences" in the main menu: they are written identically
+  into 2 files:
+  a) in the actual directory in a .vst-file associated to the actual .tex-file,
+  b) in the "$HOME" directory in file ".xtem_*.vst" (* stands for the language)
+  They have the same structure as the file "/locals_*/default.vst":
+     cols 1-19               keyword = variable name in xtem;
+                             same variable names as in the structure 
+                             descriptions for the other files!
+     cols 20-end             default value for the variable
+
+
+
+VI. Programs needed with the given Setting Files:
+-------------------------------------------------
+
+  The local administrator should install all .vst-files carefully and test them:
+  if a not-existent program is called, Tcl/Tk breaks down with an "X-error"!
+  In this case you get a glance of what should be called by selecting
+  mkcommand.0 as exec mode (this will show you only the calls via "mkCmd_wait",
+  it will not show you the calls via "exec").
+  In this version of xtem we use the following programs/scripts:
+
+    editor:              emacs       vi
+    dvi-driver:          dvidvi      dvijep      dvips
+    TeX:                 tex         latex       latex209
+    previewer:           ghostview   xdvi
+    spelling check:      spell       ispell
+    syntax check:        texchk
+    index preparing:     makeindex
+    bibliography:        bibtex
+    protocol files:      cat         pg          (plus editor list, see above)
+    additional programs: changecode
+    syntax help:         gunzip      xdvi
+
+  Thus we recommend to execute the following Unix commands and look at the
+  results:
+
+    which                emacs       vi
+    which                dvidvi      dvijep      dvips
+    which                tex         latex       latex209
+    which                ghostview   xdvi
+    which                spell       ispell
+    which                texchk
+    which                makeindex
+    which                bibtex
+    which                cat         pg 
+    which                changecode
+    which                gunzip      xdvi
+
+
+
+VII. Help Information 
+---------------------
+
+  To each widget a file with a help text is associated.
+  In this version the filename is displayed at the top of the help text;
+  this makes it easy to the local administrator to modify the help texts.
+  (if you want, remove the following lines:
+     $f insert end "----- $vv(aus5): $dnam -----\n";### this line may be removed
+   in the file "ut.tcl" (procedures "cat_file0" and "cat_file"))
+
+  The right mouse button is used only for getting help.
+  Consequently by clicking the right mouse button, the user will get help
+  to this special button etc., where he actually clicked.
+  
+  /help_*/...           If you modifiy the .vst-files, you probably also have to
+                        modify the helpfiles.
+
+  /help_*/xt_localnews.hlp      By this file the local administrator is
+                                given a pinboard for TeX news,
+                         this file is displayed, when you click on 
+                         "local news" in the main menu.
+
+
+
+VIII. LaTeX Syntax Help:
+------------------------
+
+  There are syntax helps for nearly all LaTeX commands in hypertext, 
+
+    /help_*/miscellaneous/*.htx
+    /help_*/latex/*.htx  
+
+  In these files you will find the syntax  which is used for the 
+  online-help whilst editing.
+  This is an open list of files, i.e. by adding new files new help is added 
+  to the latex syntax help menu.
+  You may also add new directories for other formats 
+  (e.g. /help_english/tex/*.htx).
+  For details see README.htx
+  
+  For most of these files exist examples and dvi-files+bitmaps with 
+  the LaTeX output for these examples.
+  The bitmaps were generated from the dvi files by means of xv 
+  (grabbing from an xdvi or ghostview representation of the dvi file)
+  These bitmaps were saved in the files 
+    .../xtem/help_*/latex/*.xbm
+  and then packed with     gzip -9 ...  (pack option: -9)  into
+    .../xtem/help_*/latex/*.xbm.gz
+  When a bitmap is to be displayed, a copy will be unpacked, displayed,
+  the unpacked file is deleted after this.
+
+  You may unpack all these files, this will take a lot of disk space,
+  but it will save the (small) delay by unpacking when syntax helps are used.
+
+  You may also delete all files 
+     .../xtem/help_*/latex/*.xbm
+     .../xtem/help_*/latex/*.xbm.gz
+  in this case the files 
+     .../xtem/help_*/latex/*.dvi
+  are displayed by means of the program    xdvi
+
+  If neither   gunzip   nor   xdvi   is available at your installation,
+  you have to modify the procedure
+       hlpwin_bitmap
+  in file ts.tcl. In this case, please inform us so that we can extend
+  ts.tcl for future releases.
+
+
+
+IX. Adding a new Printer Driver:
+--------------------------------
+
+  For each printer driver (its name beeing represented by "???") 
+  you have to create two files:
+
+       prt_???.tcl               according to     prt_dvips.tcl
+       /locals_*/prt_???.vst     according to     /locals_*/prt_dvips.vst
+
+  (i.e. here the printer driver  dvips  may serve as a model).
+
+  and you have to add a line to file "tclIndex":
+
+       set auto_index(prt_???) "source $dir/prt_???.tcl"
+
+
+X. Other Files which may be changed by the Local Administrator
+-----------------------------------------------------------------
+
+  In order to make the installation of future releases easier to you,
+  only the following files may be adjusted by the local TeX administrator
+  to the local installation:
+
+     bibliogr.tcl
+     printing.tcl
+     editor.tcl
+     index.tcl
+     logfile.tcl
+     newsfile.tcl
+     preview.tcl
+     spellcheck.tcl
+     syntax.tcl
+     tex.tcl
+     xtem_prog
+    
+  All these files are simple structured and contain only simple 
+  Tcl-Shell-script-commands (i.e. they do not contain the more complicated
+  Tk-widget-commands) and are used as the interface for program calls.
+
+
+  Most of the Tcl commands used in these files are self-explaining.
+  Unusual to the newcomer in Tcl may be:
+    glob -nocomplain -- *       unsorted filelist of the actual directory
+    lsort ...                   sorting of a list
+    unlink -nocomplain ...      delete of a file
+    frename ... ...             renaming a file (same as "mv" in Unix)
+
+
+  If new procedures are added, their names must be added to the file tclIndex 
+  too. This may be done manually or by means of the Tcl commands:
+                          $ wish
+                          wish>auto_mkindex . *.tcl
+                          wish>Ctrl-d
+
+
+  ============================================================================= 
+     All other files except these ones described in sections V. - X.     
+     may only be changed in contact with the authors.
+  ============================================================================= 
+
+
+XI. Executing Programs (Program Calls): mkcommand
+-------------------------------------------------
+
+  Each file mentioned in the preceding section 
+  includes at least one program call, in general with 2 parameters:
+    1. parameter: text widget, into which the output of the program call
+                  and further messages are written.
+    2. parameter: string variable "austext", into which in this procedure text 
+                  may be written by means of variable "a".
+  More text may be written into the text widget by means of the procedures
+  "writescr" and "writescr0" (see below).
+  All other variables may be accessed by means of global commands.
+
+  For program calls (Unix commands) you may select between the following
+  (when editing, previewing or log-listing is called, the variables 
+        edback,  prback     or logback specify, whether the command is to be
+   executed in background or not):
+
+  1)  mkCmd_wait  $f  command [list "list_of_parameters/options"]
+      eval  mkCmd_wait  $f  command [list "list_of_parameters/options"]
+
+         call of dvips as an example:     
+  1a)           mkCmd_wait  $f  dvips [list "$prtoptions $main_file"]
+
+         call of ls as an example:
+  1b)           mkCmd_wait  $f  ls [list ""]
+        
+      mkCmd_wait assumes the 2nd argument as the command to be called,
+      the string following to the keyword list (enclosed in "...")
+      is taken as the parameter list for this command. If the command
+      is to be called without parameters, there must be an empty list
+      as in example 1b).
+      Output of the command is put into the widget  $f
+      (normally passed to the calling procedure as an argument),
+      the normal user-dialog is possible in this widget (e.g. with
+      TeX program in error case).
+      The process-Id of the last generated process (only if generated by
+      mkCmd_wait) is available in a variable, thus killing of a running process
+      is possible: button "cancel" in the xtem main menu.
+      Processes generated by mkCmd_wait may also be terminated as usual:
+                Ctrl-d          EOF
+                Ctrl-c          interrupt
+      Error output of the command (stderr) is put into the same widget, 
+      by choice in another font type ( file "/locals_*/install.vst", 
+      variable "fonterr", see preceding variable description).
+
+      
+  2)  eval catch "exec dvips $main_file.dvi" message
+  3)  eval set res [catch "exec dvips $main_file.dvi" message]
+
+      calls a program (dvips) and gets its output (which may then be passed
+      to the text message widget).
+      By this you may likewise call programs, which generate their own
+      window (such as xdvi, ghostview, emacs).
+
+
+  4)  eval set res [catch "exec xterm -e $editor $edoptions $ed_file $edback" \
+                                                                       message]
+      calls a program (stored in $editor), which must run in an xterm widget;
+      e.g. the vi editor only run in an xterm widget!
+
+  Calling with eval is recommended and is necessary, if an option string
+  may be empty. Otherwise in case of empty option string there would be an
+  additional empty parameter, which causes problems e.g. for emacs, vi,
+  some printer drivers!
+  Program calls using catch give different results in res and message
+  (names of these two variables according to the preceding examples):
+  - call in foreground:
+                res           return code
+                message       standard output (stdout) and error output (stderr)
+  - call in background:
+                message       PID (since Tcl version 7.0, empty string formerly)
+  For more details see the Tcl manual/man pages.
+
+
+  Output may be put into the text message widget by means of the procedures:
+       writescr0  $f "text"
+       writescr   $f "text"
+  $f is the variable name which contains the text message widget name.
+  It is given as the first parameter of the procedure call.
+  Normally the text should be put within double-quotes.
+  If using "writescr0", the text will be put into the widget starting at
+  line 0, (i.e. the former contents will be deleted), otherwise the text
+  will be appended.
+
+
+
+XII. Variables used for Process Administration:
+-----------------------------------------------
+
+   Process administration is done by means of the following variables:
+
+        sub       = 0     no foreground processes are active
+                          (most buttons unlocked except "cancel" and buttons
+                           with active background process(es))
+                  = 1     one or more foreground processes are active
+                          (all buttons locked except "cancel" and "unlock")
+
+        p_mkCmd   = PID   process Id of the process which was last started
+                          by mkCmd_wait (Tcl version >= 7.0) until termination
+                  = 1     otherwise
+
+        edsubback  = 0    no editor (started in background by xtem) is active
+                          (i.e. = 0 until call of an editor in background by 
+                          xtem; will be reset to 0, when xtem notices, that
+                          all editors started by xtem are no longer active;
+                          this check is possible in Tcl version >= 7.0)
+                   = PID  editor was started in background and PID is
+                          known (Tcl version >= 7.0); if more than one editor 
+                          was started this is the PID of the last started
+                          editor call.
+
+       prsubback          same as edsubback, for preview program
+       logsubback         same as edsubback, for "protocol file"
+
+
+
+
+XIII. Installation of the Manual Page:
+--------------------------------------
+
+   Install the manual page xtem.1
+
+
+
+
+XIV. Files in the User's Directories, which are read/written by xtem:
+---------------------------------------------------------------------
+
+   .lastxtem             - is  written when "save preferences" is clicked,
+                         - is read at start of xtem,
+                         - contains the filenames at the moment of last "save".
+
+   ???.vst               - is written when "save preferences" is done.
+
+   $HOME/.xtem.vst       - is written when "save preferences" is done.
+
+  At start of xtem or when "load preferences" is clicked, the file "???.vst"
+  is read --- where ??? stands for the mainfile (.tex-file which will be used 
+  when TeX is called). 
+  If it doesn't exist, the file "$HOME/.xtem.vst" is read instead.
+  If this file doesn't exist likewise, the file 
+  "$XTEMPATH/xtem/locals_*/default.vst" is read.
+ 
+
+
+XV. Program "changecode":
+--------------------
+
+  The added program "changecode" is written in C and compiled with Gnu gcc compiler
+  with system Sun/SOLARIS and makes different code changes:
+        
+        German umlaute   <--->  corresponding TeX- or german-TeX commands
+        8-bit-IBM-DOS    <--->  8-bit-ISO-latin-1
+        Unix file        <--->  DOS-file    (CR/LF!)
+        tabulators        ---> expanded to blanks  (tabulator-stops at 
+                                                    pos. 8,16,24,..)
+
+  This program may be system dependent by blocked read/write.
+  If changes are necessary for some systems, please give us an e-mail!
+
+
+----------------------------------------------------------------------------
+
+If nothing else helps, don't hesitate to contact:
+
+  questions concerning xtem:
+        weibezahn@lrw.uni-bremen.de    phone. +421 - 218 - 3532
+    
+  special questions concerning the installation of Tk, Tcl, TclX:
+             lotz@lrw.uni-bremen.de
+
+
+----------------------------------------------------------------------------
+
+Known problems:
+===============
+
+- message
+     'can't read "tk_priv(relief)": no such element in array ...'
+  (occasionally in certain constellations at left mouse clicks)
+  seems to occur only with Tcl version < 7.0!
+
+- message
+     'selection doesn't exist or form "STRING" not defined'
+  (when 3 or more mouse clicks immediately instead of double click in 
+   select boxes).
+  action to be done: click on "OK"-button
+
+- message
+     '... file10 does not exist ...'
+  (occasionally after program execution)
+  seems to be a synchronization problem after program termination in TclX,
+  seems to be system-dependent (e.g. Linux) and load-dependent
+  action to be done: click on "OK"-button
+
+- Call of a non-existing program results in annoying and confusing situations.
+  This can only happen, if the local administrator has not installed all
+  programs listed in the files   /locals_*/*.vst
+  a) if a "program not found" was called by means of "mkCmd_wait",
+     this results in an X11 error message:
+     '... X Error of failed request ...',
+  b) if a "program not found" was called in background by means of 
+     'catch "exec ..."',
+     the resulting error message may be written to the xterm window.
+  If you click on "exec mode" in the main menu of xtem and then select
+  mkcommand.0, you may see what should be called via "mkCmd_wait"!
+     
+----------------------------------------------------------------------------
+
+During installation of xtem on different systems we heard of the 
+following problems:
+
+AIX version ??? : right mouse button doesn't give help texts, instead of this:
+                     "Restore", "Move", ... "Close" -Widget
+                  error cause: in the file "system.mwmrc"
+                               (in /usr/lib/X11/ or /usr/lpp/X11/lib/X11/ )
+                               exists a binding
+                                   Buttons <Btn3Down> ... window
+
+AIX version ??? : use "aixterm" instead of "xterm" in the files
+                  "/locals_*/*.vst", especially for calling TEN/PLUS editor.
+
+Sun SOLARIS2.x  : be sure, that BSD commands cannot be found during installation
+                  of Tcl/Tk/TclX (PATH must not include "/usr/ucb")!
+
+----------------------------------------------------------------------------
+
+************************************************************************
+************************************************************************
+**                                                                    **
+** In any case after successful installation, please send an e-mail   **
+** to                                                                 **
+**                                                                    **
+**                     weibezahn@lrw.uni-bremen.de                    **
+**                                                                    **
+** with answers to some or all of the following questions:            **
+**                                                                    **
+************************************************************************
+************************************************************************
+
+ institution:
+ address:
+ name:
+ phone:
+ e-mail:
+ 
+ computer:
+ system-version:
+ 
+ xtem-version:
+ mkcommand-version used normally:
+ more mkcommand-versions which run correctly (if tested): 
+ mkcommand-versions which don't run correctly (if tested): 
+
+ Tcl-version:
+ Tk-version:
+ TclX-version:
+ addinput-version (if installed):
+ 
+ problems which happened:
+
+ hints for further improvements:
+
+ if you want to get an e-mail when future versions of xtem will be released,
+ please give e-mail address(es) here:
+
+ 
+**********************************************************************
+**********************************************************************

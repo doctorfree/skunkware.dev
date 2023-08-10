@@ -1,0 +1,72 @@
+Message-ID: <02Nov93.114144@LoVerso.Southborough.MA.US>
+From: John Robert LoVerso <John@LoVerso.Southborough.MA.US>
+Organization: John & Sue's House, Southborough MA
+Newsgroups: comp.lang.tcl
+Subject: text widget wrapper
+
+Below is a module I call "text.constrain.tcl" which wraps around the
+text widget to change some of it's behavior.  Some of the code is
+original to me; most of it I have collected from various sources
+(which credit attributed as it is due).
+
+Once you install this in your auto_path (with an appropriate update
+to tclIndex), an application merely needs to call:
+
+	text:Init
+
+to pull in the new features.  This interposes on the "text" and "scrollbar"
+commands as necessary to implement things.  It does not interpose on the
+widget commands (this implies that changing a text widget's -yscrollcommand
+or a scrollbar's -command will "break" this package).
+
+The features added:
+	- constrained scrolling and scanning
+		This makes the scrollable text constrained ala an xterm.
+		That is, the last line of the text cannot scroll up
+		past bottom edge of the widget.  I find this a feature
+		when I want to scan or scroll to the bottom of the text;
+		I'd prefer not to end up with just one line displayed.
+
+		I originally got this idea from a comp.lang.tcl posting,
+		but I no longer know the author.  If the code in text:oldYview 
+		is vaguely familiar, let me know.  However, Brent Welch
+		took this and improved it, so I know include his version
+		(with my variable names).
+
+	- Paste or Scan via Button-2
+		From Tom Phelps <phelps@ginkgo.CS.Berkeley.EDU>.
+
+	- Use catch around all [selection get] to avoid errors
+
+	- Allow selections to extend past displayed screen
+		From code by Paul E. Raines <raines@cgibm1.SLAC.Stanford.EDU>
+		as modified by Brent Welch <welch@parc.xerox.com>.
+	
+	- Provides binding for Next/Prior keys for scrolling by pages
+		This works whether or not the text widget has a scrollbar.
+
+Also included is a demonstration program, tkpage.  Usage: tkpage files...
+It loads the contents of files into a text widget and then lets you page,
+scan, or scroll over them.  It has a toggle button or two to enable/disable
+some features of the text.constrain.tcl.
+
+All this works with 7.0/3.3.  I make no statements about other Tcl/Tk releases.
+I hope this is useful to someone.
+
+John
+
+
+Thu Mar 03 12:08:04 EST 1994
+
+Addendum:
+
+	The code for Prior/Next & the constrained scrollbar code 
+	was used to "seed" the work that went into lib/widgetText.tcl
+	in "exmh".  THAT version of the code may be more robust.
+
+Also, "tkpage" is a testbed program that I've used for several purposes.
+It is only a "demonstration" program and unworthly by itself.  Two other
+things I've used it for is to aid in development of a set of vi-like
+bindings for the text widget, and a MIME text/enriched decoder.
+text.vi.tcl is still pending; I've abandoned enriched.tcl.  Brent Welch
+has an excellent text/enriched decoder in exmh.

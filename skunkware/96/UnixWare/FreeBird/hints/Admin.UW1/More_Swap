@@ -1,0 +1,59 @@
+After installing SVR4.2/UnixWare you may find that you havn't enough swap space.
+
+A typical symptom is new processes not starting.
+
+To check you setup you need to know the amount of RAM your machine has plus
+the amount of swap space currently installed.
+
+Use the "memsize" command to find out your RAM size and "swap -l" to see
+your swap space.  For example, on my machine :-
+
+# memsize
+16384000
+
+# swap -l
+path                                dev  swaplo blocks   free
+/dev/swap                          47,2       0  34848  12512
+
+Showing I have 16Mb of RAM plus 34846 blocks of swap (17Mb) (34846 / 2 = 17424).
+
+It is nice to have twice the amount of swap space as RAM, although for a desktop
+machine 1 1/2 times should be enough.
+
+In my case, I decide to add another 8Mb of swap.  However, I don't want to
+re-install the whole machine!
+
+It is possible to have a swap file rather than a swap partition (although a
+file is less efficient).  In fact, you can have a swap partition and a swap
+file in use at the same time.
+
+To add an 8Mb swap file do :-
+
+	ulimit 99999
+	dd if=/dev/zero count=8 bs=1000k of=/swapfile
+	swap -a /swapfile
+
+Now the swap -l command reports :-
+
+# swap -l
+path                                dev  swaplo blocks   free
+/dev/swap                          47,2       0  34848  12512
+/usr/swapfile                      47,20      0  16000  11784
+
+
+One problem is that the swap -a command needs to be run on ever boot.  Install
+this script in /etc/rc2.d/S80swap :-
+
+case "$1" in
+'start')
+        /etc/swap -a /swapfile
+        ;;
+'stop')
+        ;;
+esac
+
+
+Note that the swap file can exist on any partition large enough to contain it.
+
+
+

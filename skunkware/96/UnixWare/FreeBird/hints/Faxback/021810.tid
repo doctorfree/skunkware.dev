@@ -1,0 +1,93 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:  FAX
+TITLE:  NVT Issues
+DOCUMENT ID:  TID021810
+DOCUMENT REVISION:  A
+DATE:  01SEP94
+AUTHOR:  SFLETCHE
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.1
+
+CATEGORY:
+
+Networking
+
+ABSTRACT:
+
+NVT Issues
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+ISSUE
+
+To load nvt on the DOS workstation do the following steps:
+
+	1.  Open a DOS Merge session on the UnixWare machine by clicking on
+	      the DOS icon or typing 'dos' at a command line.
+	2.  Copy c:\usr\bin\nvt.exe to a diskette (a:).
+	3.  Take that diskette to the DOS workstation and load it either as simply
+	      nvt and then do a control/t to get a list of UnixWare servers or type 
+	      nvt <server> where <server> is the name of an UnixWare server.
+	4.  Then load a terminal emulator that supports interrupt 14.
+	5.  Press <Enter> to get a login prompt.
+
+The terminal emulator can be products such as CrossTalk, Kermit, Procomm, Double-view etc. Just be certain the version you use has interrupt 14 support.  When the user logs in and tries to run an application, the UnixWare box MUST be able to send the same escape sequences as the terminal emulator expects.
+
+To unload the nvt tsr use 'nvt -y'.
+
+If an nvt user does not have any activity on their session for 20 minutes they are logged off.  The connection is still good and a login prompt is displayed after a carriage return.
+
+To change the value, edit /usr/include/sys/nvt_tune.h and change the item NVT_KEEP_ACTIVE_INTERVAL_TIME from the default of 7200 (ticks, 1/6th of a second) to a new value.  For example 21600 would be 1 hour.  Rebuild the kernel and reboot the machine to have the new value take effect.
+
+Sometimes the environment variable TERM is improperly set for nvt users.  To solve this problem have the user edit their .profile and add the following lines *BEFORE* the .olsetup line:
+
+echo "Enter term type: \c"
+read PTERM
+if [ -z "$PTERM" ]
+then
+     TERM=AT386-ie
+else
+     TERM=$PTERM
+fi
+export TERM
+
+What the user types in when prompted MUST be a supported term type found in the /usr/lib/terminfo/a through Z directories, ie. vt100.  Do not use any with codes after them such as vt100-am, just simply the terminal emulation.
+
+To increase the number of NVT sessions, edit the file /etc/NPSConfig and change the value of nvt_spawns from the default of 15 to an value up to 50.  To go beyond 50, edit the /usr/include/sys/nvt_tune.h file and change the value of NVT_MAX_LOGINS.  It will take effect the next time nvt is restarted.  This happens when the system boots-up or you can use the following scripts:
+
+	#stopnvt
+	#startnvt
+
+NOTE:  When making any changes to files listed in this document  be careful not to use comments that have the string 'nvt' in them.  Some processes look at these files and simple look for that string.  Using capital letters, such as Nvt or NVT will usually not cause any trouble.
+
+Sometimes the error No login ports available 1. will be displayed on the emulator when trying to login indicating there are no available ports.  This sometimes happens because NVT connections do not clear.
+ 
+Killing the ttymon process for the NVT ports allows all current NVT users to still have their connections active, yet it will free up all inactive connections.  To clear them, super-user do the following:
+
+	#sacadm -k -p nwtty1
+	#sacadm -s -p nwtty1
+
+This will free up any of the first 10 connections that are inactive, since nwtty1 in /etc/saf has 10 NVT connections defined.  To free up all connections, repeat the above process for each nwtty# directory you see in /etc/saf, ie. nwtty2, nwtty3, etc.
+
+Remember, this does not kill any NVT sessions currently active so it is safe to do when users are on the system since this process just clears the inactive sessions.
+
+
+_ Verified by customer
+_ Verified by Novell
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------

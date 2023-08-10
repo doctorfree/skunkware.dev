@@ -1,0 +1,68 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from cpp.texi on 6 October 1995 -->
+
+<TITLE>The C Preprocessor - Inheritance</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="cpp_1.html">first</A>, <A HREF="cpp_7.html">previous</A>, <A HREF="cpp_9.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX11"></A>
+<A NAME="IDX12"></A>
+<H3><A NAME="SEC9" HREF="cpp_toc.html#TOC9">Inheritance and Header Files</A></H3>
+<P>
+<DFN>Inheritance</DFN> is what happens when one object or file derives some
+of its contents by virtual copying from another object or file.  In
+the case of C header files, inheritance means that one header file 
+includes another header file and then replaces or adds something.
+<P>
+If the inheriting header file and the base header file have different
+names, then inheritance is straightforward: simply write <SAMP>`#include
+"<VAR>base</VAR>"'</SAMP> in the inheriting file.
+<P>
+Sometimes it is necessary to give the inheriting file the same name as
+the base file.  This is less straightforward.
+<P>
+For example, suppose an application program uses the system header file
+<TT>`sys/signal.h'</TT>, but the version of <TT>`/usr/include/sys/signal.h'</TT>
+on a particular system doesn't do what the application program expects.
+It might be convenient to define a "local" version, perhaps under the
+name <TT>`/usr/local/include/sys/signal.h'</TT>, to override or add to the
+one supplied by the system.
+<P>
+You can do this by using the option <SAMP>`-I.'</SAMP> for compilation, and
+writing a file <TT>`sys/signal.h'</TT> that does what the application
+program expects.  But making this file include the standard
+<TT>`sys/signal.h'</TT> is not so easy--writing <SAMP>`#include
+&#60;sys/signal.h&#62;'</SAMP> in that file doesn't work, because it includes your own
+version of the file, not the standard system version.  Used in that file
+itself, this leads to an infinite recursion and a fatal error in
+compilation.
+<P>
+<SAMP>`#include &#60;/usr/include/sys/signal.h&#62;'</SAMP> would find the proper file,
+but that is not clean, since it makes an assumption about where the
+system header file is found.  This is bad for maintenance, since it
+means that any change in where the system's header files are kept
+requires a change somewhere else.
+<A NAME="IDX13"></A>
+<P>
+The clean way to solve this problem is to use 
+<SAMP>`#include_next'</SAMP>, which means, "Include the <EM>next</EM> file with
+this name."  This directive works like <SAMP>`#include'</SAMP> except in
+searching for the specified file: it starts searching the list of header
+file directories <EM>after</EM> the directory in which the current file
+was found.
+<P>
+Suppose you specify <SAMP>`-I /usr/local/include'</SAMP>, and the list of
+directories to search also includes <TT>`/usr/include'</TT>; and suppose that
+both directories contain a file named <TT>`sys/signal.h'</TT>.  Ordinary
+<SAMP>`#include &#60;sys/signal.h&#62;'</SAMP> finds the file under
+<TT>`/usr/local/include'</TT>.  If that file contains <SAMP>`#include_next
+&#60;sys/signal.h&#62;'</SAMP>, it starts searching after that directory, and finds the
+file in <TT>`/usr/include'</TT>.
+<P>
+<HR>
+Go to the <A HREF="cpp_1.html">first</A>, <A HREF="cpp_7.html">previous</A>, <A HREF="cpp_9.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+</BODY>
+</HTML>

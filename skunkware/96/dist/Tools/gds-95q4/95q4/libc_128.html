@@ -1,0 +1,289 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from libc.texinfo on 9 October 1995 -->
+
+<TITLE>The Cygnus C Support Library - Stubs</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="libc_1.html">first</A>, <A HREF="libc_127.html">previous</A>, <A HREF="libc_129.html">next</A>, <A HREF="libc_140.html">last</A> section, <A HREF="libc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX179"></A>
+<H2><A NAME="SEC128" HREF="libc_toc.html#TOC128">Definitions for OS interface</A></H2>
+<A NAME="IDX180"></A>
+<A NAME="IDX181"></A>
+<P>
+This is the complete set of system definitions (primarily subroutines)
+required; the examples shown implement the minimal functionality
+required to allow <CODE>libc</CODE> to link, and fail gracefully where OS
+services are not available.  
+<P>
+Graceful failure is permitted by returning an error code.  A minor
+complication arises here: the C library must be compatible with
+development environments that supply fully functional versions of these
+subroutines.  Such environments usually return error codes in a global
+<CODE>errno</CODE>.  However, the Cygnus C library provides a <EM>macro</EM>
+definition for <CODE>errno</CODE> in the header file <TT>`errno.h'</TT>, as part
+of its support for reentrant routines (see section <A HREF="libc_126.html#SEC126">Reentrancy</A>).
+<A NAME="IDX182"></A>
+<P>
+The bridge between these two interpretations of <CODE>errno</CODE> is
+straightforward: the C library routines with OS interface calls
+capture the <CODE>errno</CODE> values returned globally, and record them in
+the appropriate field of the reentrancy structure (so that you can query
+them using the <CODE>errno</CODE> macro from <TT>`errno.h'</TT>).
+<P>
+This mechanism becomes visible when you write stub routines for OS
+interfaces.   You must include <TT>`errno.h'</TT>, then disable the macro,
+like this:
+<P>
+<PRE>
+#include &#60;errno.h&#62;
+#undef errno
+extern int errno;
+</PRE>
+<P>
+The examples in this chapter include this treatment of <CODE>errno</CODE>.
+<P>
+<DL COMPACT>
+<A NAME="IDX183"></A>
+<DT><CODE>_exit</CODE>
+<DD>Exit a program without cleaning up files.  If your system doesn't
+provide this, it is best to avoid linking with subroutines that require
+it (<CODE>exit</CODE>, <CODE>system</CODE>).
+
+<A NAME="IDX184"></A>
+<DT><CODE>close</CODE>
+<DD>Close a file.  Minimal implementation:
+
+<PRE>
+int close(int file){
+    return -1;
+}
+</PRE>
+
+<A NAME="IDX185"></A>
+<DT><CODE>environ</CODE>
+<DD>A pointer to a list of environment variables and their values.  For a
+minimal environment, this empty list is adequate:
+
+<PRE>
+char *__env[1] = { 0 };
+char **environ = __env;
+</PRE>
+
+<A NAME="IDX186"></A>
+<DT><CODE>execve</CODE>
+<DD>Transfer control to a new process.  Minimal implementation (for a system
+without processes):
+
+<PRE>
+#include &#60;errno.h&#62;
+#undef errno
+extern int errno;
+int execve(char *name, char **argv, char **env){
+  errno=ENOMEM;
+  return -1;
+}
+</PRE>
+
+<A NAME="IDX187"></A>
+<DT><CODE>fork</CODE>
+<DD>Create a new process.  Minimal implementation (for a system without processes):
+
+<PRE>
+#include &#60;errno.h&#62;
+#undef errno
+extern int errno;
+int fork() {
+  errno=EAGAIN;
+  return -1;
+}
+</PRE>
+
+<A NAME="IDX188"></A>
+<DT><CODE>fstat</CODE>
+<DD>Status of an open file.  For consistency with other minimal
+implementations in these examples, all files are regarded as character
+special devices.  The <TT>`sys/stat.h'</TT> header file required is
+distributed in the <TT>`include'</TT> subdirectory for this C library.
+
+<PRE>
+#include &#60;sys/stat.h&#62;
+int fstat(int file, struct stat *st) {
+  st-&#62;st_mode = S_IFCHR;
+  return 0;
+}
+</PRE>
+
+<A NAME="IDX189"></A>
+<DT><CODE>getpid</CODE>
+<DD>Process-ID; this is sometimes used to generate strings unlikely to
+conflict with other processes.  Minimal implementation, for a system
+without processes:
+
+<PRE>
+int getpid() {
+  return 1;
+}
+</PRE>
+
+<A NAME="IDX190"></A>
+<DT><CODE>isatty</CODE>
+<DD>Query whether output stream is a terminal.   For consistency with the
+other minimal implementations, which only support output to
+<CODE>stdout</CODE>, this minimal implementation is suggested:
+
+<PRE>
+int isatty(int file){
+   return 1;
+}
+</PRE>
+
+<A NAME="IDX191"></A>
+<DT><CODE>kill</CODE>
+<DD>Send a signal.  Minimal implementation:
+
+<PRE>
+#include &#60;errno.h&#62;
+#undef errno
+extern int errno;
+int kill(int pid, int sig){
+  errno=EINVAL;
+  return(-1);
+}
+</PRE>
+
+<A NAME="IDX192"></A>
+<DT><CODE>link</CODE>
+<DD>Establish a new name for an existing file.  Minimal implementation:
+
+<PRE>
+#include &#60;errno.h&#62;
+#undef errno
+extern int errno;
+int link(char *old, char *new){
+  errno=EMLINK;
+  return -1;
+}
+</PRE>
+
+<A NAME="IDX193"></A>
+<DT><CODE>lseek</CODE>
+<DD>Set position in a file.  Minimal implementation:
+
+<PRE>
+int lseek(int file, int ptr, int dir){
+    return 0;
+}
+</PRE>
+
+
+<A NAME="IDX194"></A>
+<DT><CODE>read</CODE>
+<DD>Read from a file.  Minimal implementation:
+
+<PRE>
+int read(int file, char *ptr, int len){
+    return 0;
+}
+</PRE>
+
+<A NAME="IDX195"></A>
+<DT><CODE>sbrk</CODE>
+<DD>Increase program data space.  As <CODE>malloc</CODE> and related functions
+depend on this, it is useful to have a working implementation.  The
+following suffices for a standalone system; it exploits the symbol
+<CODE>end</CODE> automatically defined by the GNU linker.
+
+<PRE>
+caddr_t sbrk(int incr){
+  extern char end;		/* Defined by the linker */
+  static char *heap_end;
+  char *prev_heap_end;
+ 
+  if (heap_end == 0) {
+    heap_end = &#38;end;
+  }
+  prev_heap_end = heap_end;
+  heap_end += incr;
+  return (caddr_t) prev_heap_end;
+}
+</PRE>
+
+<A NAME="IDX196"></A>
+<DT><CODE>stat</CODE>
+<DD>Status of a file (by name).  Minimal implementation:
+
+<PRE>
+int stat(char *file, struct stat *st) {
+  st-&#62;st_mode = S_IFCHR;
+  return 0;
+}
+</PRE>
+
+<A NAME="IDX197"></A>
+<DT><CODE>times</CODE>
+<DD>Timing information for current process.  Minimal implementation:
+
+<PRE>
+int times(struct tms *buf){
+  return -1;
+}
+</PRE>
+
+<A NAME="IDX198"></A>
+<DT><CODE>unlink</CODE>
+<DD>Remove a file's directory entry.  Minimal implementation:
+
+<PRE>
+#include &#60;errno.h&#62;
+#undef errno
+extern int errno;
+int unlink(char *name){
+  errno=ENOENT;
+  return -1; 
+}
+</PRE>
+
+<A NAME="IDX199"></A>
+<DT><CODE>wait</CODE>
+<DD>Wait for a child process.  Minimal implementation:
+<PRE>
+#include &#60;errno.h&#62;
+#undef errno
+extern int errno;
+int wait(int *status) {
+  errno=ECHILD;
+  return -1;
+}
+</PRE>
+
+<A NAME="IDX200"></A>
+<DT><CODE>write</CODE>
+<DD>Write a character to a file.  <TT>`libc'</TT> subroutines will use this
+system routine for output to all files, <EM>including</EM>
+<CODE>stdout</CODE>---so if you need to generate any output, for example to a
+serial port for debugging, you should make your minimal <CODE>write</CODE>
+capable of doing this.  The following minimal implementation is an
+incomplete example; it relies on a <CODE>writechar</CODE> subroutine (not
+shown; typically, you must write this in assembler from examples
+provided by your hardware manufacturer) to actually perform the output.
+
+<PRE>
+int write(int file, char *ptr, int len){
+    int todo;
+  
+    for (todo = 0; todo &#60; len; todo++) {
+        writechar(*ptr++);
+    }
+    return len;
+}
+</PRE>
+
+</DL>
+<P>
+<HR>
+Go to the <A HREF="libc_1.html">first</A>, <A HREF="libc_127.html">previous</A>, <A HREF="libc_129.html">next</A>, <A HREF="libc_140.html">last</A> section, <A HREF="libc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

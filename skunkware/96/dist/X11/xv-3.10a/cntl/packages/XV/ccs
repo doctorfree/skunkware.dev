@@ -1,0 +1,812 @@
+#! /ibin/sh
+#	
+#	Copyright (C) 1986-1995 The Santa Cruz Operation, Inc.  
+#	All Rights Reserved. 
+#	
+#	This Module contains Proprietary Information of	
+#	The Santa Cruz Operation, Inc. and should be	
+#	treated as Confidential. 			
+#	
+
+# DOC Package control script (used with any doc package)
+#
+#       args:
+#               $1 is the name of the step (e.g. PRE_EXPORT, POST_UNEXPORT)
+#               $2 is the keyword list (e.g. UPGRADE)
+#               $3 is the package list (e.g. SCO:ipxrt:IPXGT)
+#
+
+scriptname=$0
+step=$1
+keywords=$2
+pkglist=$3
+
+PATH="/ibin:/bin:/usr/bin:/usr/man/bin/odssi/bin"
+
+# Documentation Global Variables
+# Location of exported doc services files.
+DOC_SERVICE_BIN="/usr/man/bin/odssi/bin"
+
+# SET THE FOLLOWING VARIABLES ON A PER PACKAGE BASIS
+
+# Reference sections are for man page configuration for "man" utility
+# For example (X, ADM, TCL, C, etc.)
+REF_SECTIONS=1
+
+# Reference books are for scohelp library configuration
+# Note that the entries are <BOOKID>'s in the sense that
+# the string being used is the string that fits into the <BOOKID>
+# part of a URL.
+# For example (man/html.X, man/html.ADM, man/html.TCL, man/html.C, etc.)
+REF_BOOKS=
+
+# Online books are for scohelp library configuration
+# For example (OSAdminG, OSTut)
+BOOKS=XVUG
+
+# Home pages to be added to the doc home page
+# For example (asuhome.html)
+HOME_PAGES=xv/index.html
+
+# Name of the book or man section 
+# for example (System Administration Guide, (MERGE - SCO Merge Commands)
+NAME="XV User Guide"
+
+# Warn message
+WARNMSG="Couldn't find $DOC_SERVICE_BIN/setvars.sh. Make sure Unix_doc is installed"
+
+export DOC_SERVICE_BIN REF_SECTIONS BOOKS REF_BOOKS PATH HOME_PAGES
+
+# Source in the standard functions library
+. ccsSetup.sh
+
+
+# DOCUMENTATION SPECIFIC FUNCTIONS
+
+# Link /usr/man to /usr/lib/scohelp/man for full text searching
+link_man () {
+	MANDIR="/usr/man"
+	SCOHELP_MANDIR="/usr/lib/scohelp/man"
+
+	if [ -d "$MANDIR" -a ! -d "$SCOHELP_MANDIR" ]
+	then
+		ex_cmd ln -s $MANDIR $SCOHELP_MANDIR
+	fi
+}
+
+# LOCAL fUNCTIONS
+ 
+doPostExport () {
+	# Source in the man page functions library
+	if [ -f "$DOC_SERVICE_BIN/setvars.sh" ]
+	then
+        . $DOC_SERVICE_BIN/setvars.sh
+	else
+		#ccsWarning "$WARNMSG"
+		exit 0
+	fi
+
+
+# Change the DLW variable to include all the homepages
+
+	# Dynamically set DLW - from setvars.sh
+		DLW=""
+        for i in `ls $DOC_LIBRARY_DIR/*home.html`
+        do
+            i=`basename $i`
+            DLW="$DLW $i"
+        done
+
+        . $DOC_SERVICE_BIN/manSetup.sh
+
+
+	#configure all man page sections
+        for i in $REF_SECTIONS
+        do
+                config_man_pages add $i
+
+####################################################################
+			#$DOC_SERVICE_BIN/add_libstz.sh $i "$NAME" xvgset
+#add_libstz.sh -- begin
+
+	#Variables
+	BOOKID="man.$i"
+	SET_POINTER=xvgset
+	SUFF="$i"
+	FTINDEX="man/html.$SUFF/$BOOKID.ftindex"
+	TOPIC_STANZA="man/html.$SUFF/$BOOKID.stz"
+	CGI_SCRIPT="cgi-bin/man"
+
+	# add book to library.stz if it doesn't already exist
+	if fgrep -x "^${BOOKID}:" $LIBRARY_STZ > /dev/null
+	then
+		#bookid already exists in library.stz
+    	:
+	else
+		BOOK_FORMAT="$BOOKID:
+	name=$NAME
+	index=$FTINDEX
+	set=$SET_POINTER
+	cgi_access=$CGI_SCRIPT
+	topics=$TOPIC_STANZA
+"
+    echo "$BOOK_FORMAT" >> $LIBRARY_STZ
+	fi
+# add_libstz.sh -- end
+
+# add_setmember_libstz.sh
+# Add man section to the refset in library stanza file
+
+SET="refset:"
+MEMBER="$BOOKID"
+# Add set member to library.stz
+awk '
+
+    BEGIN {
+        FS = ","
+        found_set = "FALSE"
+        found_member = "FALSE"
+    }
+
+    # If first field is the set, then set flag
+    $1 == set {
+        found_set = "TRUE"
+    }
+
+    /members=/ {
+        # check to make sure mamber does not already exist
+        if (found_set == "TRUE") {
+            for (x = 1; x <= NF; ++x) {
+                    if ($x == member)
+                        found_member = "TRUE"
+            }
+            # if member is not found, add member to list of members
+            if (found_member == "FALSE")
+                $0 = $0 "," member
+            found_set = "FALSE"
+            found_member = "FALSE"
+        }
+    }
+
+    { print }
+
+' set="$SET" member="$MEMBER" $LIBRARY_STZ > $TMP
+
+# make sure awk worked
+if [ -f "$TMP" ]
+then
+    cp $TMP $LIBRARY_STZ
+    rm -f $TMP
+else
+    :
+fi
+
+##########################################################################
+	
+        done
+
+	#activate links in lib for man page books and other books
+        for i in $REF_BOOKS
+        do
+                $DOC_SERVICE_BIN/add_link.sh $i
+        done
+
+	for i in $BOOKS
+	do
+		$DOC_SERVICE_BIN/add_link.sh $i
+
+####################################################################
+#add_libstz.sh -- begin
+
+BOOKID="$i"
+SET_POINTER=xvgset
+FTINDEX="$BOOKID/$BOOKID.ftindex"
+TOPIC_STANZA="$BOOKID/$BOOKID.stz"
+CGI_SCRIPT=""
+
+# Add book to library.stz if it doesn't already exist
+if fgrep -x "^${BOOKID}:" $LIBRARY_STZ > /dev/null
+then
+    #bookid already exists in library.stz
+    :
+else
+    BOOK_FORMAT="$BOOKID:
+    name=$NAME
+    index=$FTINDEX
+    set=$SET_POINTER
+    cgi_access=$CGI_SCRIPT
+    topics=$TOPIC_STANZA
+"
+    echo "$BOOK_FORMAT" >> $LIBRARY_STZ
+fi
+
+# add_libstz.sh -- end
+##########################################################################
+
+	done
+
+	# add the home page(s) to the doc home page
+	for i in $HOME_PAGES
+	do
+
+###############################################################
+# add_set_libstz.sh -- begin
+	# add set to library.stz if it doesn't already exist
+	if fgrep -x "^xvgset:" $LIBRARY_STZ > /dev/null
+	then
+		# Set already exists in library stanza file
+		:
+	else
+		ADD_SET="xvgset:
+	name=XV User Guide
+	members=XVUG
+"
+		echo "$ADD_SET" >> $LIBRARY_STZ
+fi
+
+# add_set_libstz.sh -- end
+################################################################
+
+$DOC_SERVICE_BIN/add_set_link.sh $i
+
+#########################################################################
+# add_set.sh -- begin
+
+		# List the HOME_PAGES in the doc home page
+		PAGE="$DOC_LIBRARY_DIR/$DOCHOME"
+		awk ' 
+		BEGIN {
+			#flags
+			IN_LIST = 0
+			FOUND_SET = 0
+			UL_PRINTED = 0
+			#elements needed to build a http link with text for the doc library
+			LIST_ITEM = "<LI>"
+			START_ANCHOR = "<A "
+			CLOSE_START_ANCHOR = ">"
+			END_ANCHOR = "</A>"
+			HREF = "HREF="
+			PARA = "<P>"
+		}
+		# Set flag when in bullet list
+		/^<UL>/ {
+			IN_LIST = ++IN_LIST
+		}
+
+		# Make sure set does not already exist
+		/^<.+ HREF=/ {
+			if(IN_LIST == 1 && match($0,NODE))
+        	FOUND_SET = 1
+		}
+
+		# Print new HREF line
+		/^<\/UL>/ {
+		    if ( IN_LIST == 1  &&  FOUND_SET == 0 ) {
+				printf("%s\n%s%s%s%s%s%s%s\n%s\n", LIST_ITEM, START_ANCHOR, HREF, "/", NODE, CLOSE_START_ANCHOR, TEXT, END_ANCHOR, $0)
+        	UL_PRINTED = 1
+    		}
+		}
+
+		# print all other lines
+		{
+    		if (match($0, /<\/UL>/) && UL_PRINTED == 1)
+        		UL_PRINTED = 0
+    		else
+        		print
+		}
+		' NODE="$i" TEXT="XV User Guide" $PAGE > $TMPDIR/doc.home
+		# Move temp file into doc home page
+		if [ -s "$TMPDIR/doc.home" ]
+		then
+			cp -f $TMPDIR/doc.home $PAGE
+			rm -f $TMPDIR/doc.home
+		fi
+
+# add_set.sh -- end
+###########################################################################
+
+	done
+
+
+	###############################################################
+	# Begin - merge library stanza files:
+	#   If FR/GE language products are installed, 
+	#   merge XV books into the <lang>/library.stz file 
+
+        if [ -f getlangs_libstz -o -h getlangs_libstz -a \
+             -f merge_libstz    -o -h merge_libstz ]
+        then
+	    for lang in `getlangs_libstz $DOCROOT`
+            do
+	         merge_libstz $lang $DOCROOT
+	    done
+        fi
+	
+	# End - merge library stanza files
+	###############################################################
+
+
+	#link 2 parts of doc tree so searching will work from docroot
+	link_man
+}
+
+doPreUnExport () {
+	# Source in the man page functions library
+	if [ -f "$DOC_SERVICE_BIN/setvars.sh" ]
+	then
+        . $DOC_SERVICE_BIN/setvars.sh
+	else
+		#ccsWarning "$WARNMSG"
+		exit 0
+	fi
+
+
+# Reset the DWL variable for all the home pages
+
+	# Set DWL to being all the home pages 
+		DLW=""
+        for i in `ls $DOC_LIBRARY_DIR/*home.html`
+        do
+            i=`basename $i`
+            DLW="$DLW $i"
+        done
+
+	. $DOC_SERVICE_BIN/manSetup.sh
+
+	#de-activate links in lib for man page books and other books
+	for i in $REF_BOOKS
+	do
+		$DOC_SERVICE_BIN/remove_link.sh $i
+
+	done
+
+	for i in $BOOKS
+	do
+		$DOC_SERVICE_BIN/remove_link.sh $i
+
+#########################################################################
+# Incorporate the code for removing book libstz.sh and set member
+# remove_libstz.sh -- begin
+
+		BOOKID="${i}:"
+
+	# remove BOOKID entry from the library stanza file 
+	awk '
+		BEGIN   {
+            #set flag when a book id has been found and removed
+            ID_REMOVED = 0
+        }
+
+	/:/ {
+        if ($0 == BOOKID)
+            ID_REMOVED = 1
+         else
+            ID_REMOVED = 0
+	}
+
+	{
+		if (ID_REMOVED == 0)
+        print
+	}
+	' BOOKID="${BOOKID}" $LIBRARY_STZ > $TMPDIR/stz
+
+ 	# Move temp file into doc home page
+        if [ -s "$TMPDIR/stz" ]
+        then
+            cp -f $TMPDIR/stz $LIBRARY_STZ 
+            rm -f $TMPDIR/stz
+	fi
+
+# remove_libstz.sh -- end
+
+# remove book member from xvgset
+# remove_setmember_libstz.sh -- begin
+
+# Remove the man section from the xvgset on the library.stz file
+
+SET="xvgset:"
+MEMBER="${i}"
+
+# remove the set from library.stz
+awk '
+
+    # Flag to indicate member is to be found within set
+    BEGIN { find_member = "FALSE" }
+
+    /:/ {
+        # if the line is the set to be found, set flag
+        if ($0 == set)
+            find_member = "TRUE"
+        else
+            find_member = "FALSE"
+    }
+
+    /members=/ {
+        if (find_member == "TRUE") {
+            # preappend coma to member. If matches, member is not first in list
+            coma_member = "," member
+            if (match ($0, coma_member)) {
+                # delete member from coma-separated list of members
+                gsub (coma_member,"")
+            }
+            # append coma to member. If matches, member is first in list
+            member_coma = member ","
+            if (match ($0, member)) {
+                # member is the first member in list of members
+                sub (member_coma,"")
+            }
+            #reset flag
+            find_member = "FALSE"
+        }
+    }
+
+    { print }
+
+' set="$SET" member="$MEMBER" $LIBRARY_STZ > $TMP
+
+# make sure awk worked
+if [ -f "$TMP" ]
+then
+    cp $TMP $LIBRARY_STZ
+    rm -f $TMP
+else
+    :
+fi
+
+
+# remove_setmember_libstz.sh -- end
+#########################################################################
+
+	# Remove man section from any set in library.stz it may appear
+
+	done
+
+	for i in $HOME_PAGES
+	do
+		# Remove the link of the doctor home page entry from the doc home page
+		#$DOC_SERVICE_BIN/remove_set.sh $i
+
+###########################################################################
+# remove_set_libstz.sh -- begin
+
+# remove the set from library.stz
+SET="xvgset:"
+awk '
+    BEGIN { delete_set = "FALSE" }
+
+    #if section name is the set to be removed; set flag to true
+    /:/ {
+        if ($0 == set)
+            delete_set = "TRUE"
+        else
+            delete_set = "FALSE"
+    }
+
+    #print all other lines
+    { if (delete_set == "FALSE") print }
+
+' set="$SET" $LIBRARY_STZ > $TMP
+
+# make sure awk worked
+if [ -f "$TMP" ]
+then
+    #Should not refer to cp and rm by their full path names
+    cp $TMP $LIBRARY_STZ
+    rm -f $TMP
+else
+    :
+fi
+
+# remove_set_libstz.sh -- end
+##########################################################################
+
+############################################################################
+# remove_set.sh -- begin
+
+		# List the HOME_PAGES in the doc home page
+		PAGE="$DOC_LIBRARY_DIR/$DOCHOME"
+
+		awk '
+            BEGIN {
+                #html tags
+                LIST_ITEM = "<LI>"
+                #flags
+                IN_LIST = 0
+            }
+
+            /^<UL>/ {
+                IN_LIST = 1
+            }
+
+            /^<\/UL>/ {
+                IN_LIST = 0
+            }
+
+            /^<LI>/ {
+                if (IN_LIST == 1)
+                sub($0,"")
+            }
+
+            /<A *HREF/ {
+                # Get any cross reference anchor
+                while ( match($0, /<A *HREF=[^>]*>/ ) ) {
+                    ANCHOR = substr($0, RSTART, RLENGTH)
+                    ANCHOR_TAG = substr($0, RSTART+1, 1)
+
+                    # Get HREF out of anchor
+                    if ( match(ANCHOR, /\=.*>/ ) ) {
+                        HREF = substr( ANCHOR, RSTART+1, RLENGTH-1)
+
+                        # Get SETNAME out of HREF
+                        if ( match(HREF, /\/.*/ ) ) {
+                            SETNAME = substr( HREF, RSTART+1, RLENGTH-2)
+                            if (IN_LIST == 1) {
+                                # If SETNAME is the one we want, remove it
+                                if ( ID == SETNAME ) {
+                                    sub($0, "")
+                                } else {
+                                    printf("%s\n%s\n", LIST_ITEM, $0)
+                                }
+                                LI_PRINTED = 1
+                            }
+                        }
+                    }
+                    break
+                }
+            }
+
+            /^[^.]/ {
+                if (LI_PRINTED != 1 || IN_LIST == 0) print
+            }
+
+        ' ID="$i" $PAGE > $TMPDIR/doc.home
+
+        # Move temp file into doc home page
+        if [ -s "$TMPDIR/doc.home" ]
+        then
+            cp -f $TMPDIR/doc.home $PAGE
+            rm -f $TMPDIR/doc.home
+        fi
+		
+# remove_set.sh -- end
+############################################################################
+
+	done
+}
+	
+doPostUnExport () {
+	# Source in the man page functions library
+	if [ -f "$DOC_SERVICE_BIN/setvars.sh" ]
+	then
+        . $DOC_SERVICE_BIN/setvars.sh
+	else
+		#ccsWarning "$WARNMSG"
+		exit 0
+	fi
+
+
+#######################################################################
+# remove when the new odssi scripts get patched
+
+	# Dynamically set DLW - from setvars.sh
+		DLW=""
+        for i in `ls $DOC_LIBRARY_DIR/*home.html`
+        do
+            i=`basename $i`
+            DLW="$DLW $i"
+        done
+#####################################################################
+
+        . $DOC_SERVICE_BIN/manSetup.sh
+
+	#re-configure for all man page sections
+        for i in $REF_SECTIONS
+        do
+                config_man_pages remove $i
+#################################################################
+# remove_libstz.sh -- begin
+#Incorporate the code for removing man section from libstz and member from set
+
+		BOOKID="man.${i}:"
+
+	# remove BOOKID entry from the library stanza file 
+	awk '
+		BEGIN   {
+            #set flag when a book id has been found and removed
+            ID_REMOVED = 0
+        }
+
+	/:/ {
+        if ($0 == BOOKID)
+            ID_REMOVED = 1
+         else
+            ID_REMOVED = 0
+	}
+
+	{
+		if (ID_REMOVED == 0)
+        print
+	}
+	' BOOKID="${BOOKID}" $LIBRARY_STZ > $TMPDIR/stz
+
+ 	# Move temp file into doc home page
+        if [ -s "$TMPDIR/stz" ]
+        then
+            cp -f $TMPDIR/stz $LIBRARY_STZ 
+            rm -f $TMPDIR/stz
+	fi
+
+# remove_libstz.sh -- end 
+
+	# Remove man section from any set in library.stz it may appear
+
+
+# remove_setmember.sh -- begin
+# Remove the man section from the refset on the library.stz file
+
+SET="refset:"
+MEMBER="man.${i}"
+
+# remove the set from library.stz
+awk '
+
+    # Flag to indicate member is to be found within set
+    BEGIN { find_member = "FALSE" }
+
+    /:/ {
+        # if the line is the set to be found, set flag
+        if ($0 == set)
+            find_member = "TRUE"
+        else
+            find_member = "FALSE"
+    }
+
+    /members=/ {
+        if (find_member == "TRUE") {
+            # preappend coma to member. If matches, member is not first in list
+            coma_member = "," member
+            if (match ($0, coma_member)) {
+                # delete member from coma-separated list of members
+                gsub (coma_member,"")
+            }
+            # append coma to member. If matches, member is first in list
+            member_coma = member ","
+            if (match ($0, member)) {
+                # member is the first member in list of members
+                sub (member_coma,"")
+            }
+            #reset flag
+            find_member = "FALSE"
+        }
+    }
+
+    { print }
+
+' set="$SET" member="$MEMBER" $LIBRARY_STZ > $TMP
+
+# make sure awk worked
+if [ -f "$TMP" ]
+then
+    cp $TMP $LIBRARY_STZ
+    rm -f $TMP
+else
+    :
+fi
+
+
+# Remove the man section from the xvgset on the library.stz file
+
+SET="xvgset:"
+MEMBER="man.${i}"
+
+# remove the set from library.stz
+awk '
+
+    # Flag to indicate member is to be found within set
+    BEGIN { find_member = "FALSE" }
+
+    /:/ {
+        # if the line is the set to be found, set flag
+        if ($0 == set)
+            find_member = "TRUE"
+        else
+            find_member = "FALSE"
+    }
+
+    /members=/ {
+        if (find_member == "TRUE") {
+            # preappend coma to member. If matches, member is not first in list
+            coma_member = "," member
+            if (match ($0, coma_member)) {
+                # delete member from coma-separated list of members
+                gsub (coma_member,"")
+            }
+            # append coma to member. If matches, member is first in list
+            member_coma = member ","
+            if (match ($0, member)) {
+                # member is the first member in list of members
+                sub (member_coma,"")
+            }
+            #reset flag
+            find_member = "FALSE"
+        }
+    }
+
+    { print }
+
+' set="$SET" member="$MEMBER" $LIBRARY_STZ > $TMP
+
+# make sure awk worked
+if [ -f "$TMP" ]
+then
+    cp $TMP $LIBRARY_STZ
+    rm -f $TMP
+else
+    :
+fi
+
+# remove_setmember.sh -- end
+#################################################################
+
+        done
+
+
+#################################################################
+# Begin - merge library stanza files:
+#   If FR/GE language products are installed, 
+#   recreate <lang>/library.stz file after removing XV doc
+
+if [ -f getlangs_libstz -o -h getlangs_libstz -a \
+     -f merge_libstz    -o -h merge_libstz ]
+then
+     for lang in `getlangs_libstz $DOCROOT`
+     do
+         merge_libstz $lang $DOCROOT
+     done
+fi
+
+# End - merge library stanza files
+#################################################################
+
+}
+
+
+# main Main MAIN
+#
+# Invoke the appropriate function based on the installation
+# or removal stepname passed to this program.
+
+case $step
+in
+	PRE_LOAD);; 
+        POST_LOAD);; 
+
+	PRE_UNLOAD);; 
+        POST_UNLOAD);; 
+
+        PRE_ATTACH);; 
+        POST_ATTACH);; 
+
+        PRE_UNATTACH);; 
+        POST_UNATTACH);; 
+
+        PRE_REGISTER);; 
+        POST_REGISTER);; 
+
+        PRE_UNREGISTER);; 
+        POST_UNREGISTER);; 
+
+        PRE_CONFIGURE);;
+        POST_CONFIGURE);;
+
+        PRE_UNCONFIGURE);;
+        POST_UNCONFIGURE);;
+
+        PRE_EXPORT);; 
+        POST_EXPORT) doPostExport ;; 
+
+        PRE_UNEXPORT) doPreUnExport;; 
+        POST_UNEXPORT) doPostUnExport ;; 
+esac
+
+exit $OK

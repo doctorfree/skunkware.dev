@@ -1,0 +1,71 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:
+TITLE:  Backing up UnixWare using the Extended Backup
+DOCUMENT ID:  TID021636
+DOCUMENT REVISION:  A
+DATE:  26JUL94
+AUTHOR:  MDHALL
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Core OS
+
+ABSTRACT:
+
+Backing up UnixWare using the Extended Backup Utility
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+ISSUE
+
+This document is to explain how to configure the Extended Backup Utility that is shipped with UnixWare.  An example will be given here and using it with the "System Administration - Backup and Restore" manual will give enough detail to determine how to use additional options.
+
+Let's say that a user wants to backup a certain file system - /stand.  A backup table needs to be created which will define the tag name, the length of time a backup should be repeated, the day(s) of the week that the backup should occur, the backup method to use, the priority of the backup, the device from which the backup will be made and the device to which the backup will be stored.  An example of creating a backup table would be:
+
+	#  bkreg -t /etc/bkup/standtab -p 1
+
+The -t option specifies the name of the backupfile and it's location.  /etc/bkup is the directory where this file should be kept.  The -p option specifies the Rotation Priority and "1" would refer to backing up again in 1 week.
+
+Now that the table is created, the specifics of how to backup is added to the table using the same bkreg command.  For example:
+
+	#  bkreg -a stand -t /etc/bkup/standtab -c demand \
+	>   -o /stand:/dev/dsk/c0t0d0sa -m ffile -b" -v -o -l -t" \
+	>  -d scsiqtape:ctape1
+
+The first line has a "-a" option that defines "stand" as the backup operation.  The "-t" option again refers to the backup table to use and the "-c demand" option specifies that the backup will only be initiated on demand or when the user manually starts it.  The "\" (backslash) indicates that the command will continue on the next line.
+
+The second line.  The "-o /stand:/dev/dsk/c0t0d0sa" entry would indicate that the orginating file system to be backed up is /stand and that /dev/dsk/c0t0d0sa is the device to be backed up.  The /dev/dsk/c0t0d0sa is the device on the disk that contains the /stand FS.  To determine which File System is on which device, run "prtvtoc /dev/rdsk/c0t0d0s0".  The "-m ffile" option indicates the method to use for the backup, "ffile" indicates to run a full file system backup.  There are other options such as an incremental, full image, full disk, etc.  The" ffile" option will backup all files and directories in that file system to the backup device.  the "-b "specifies the method options to use.  " -v" validates the data is written correctly to the destination device, "-o"  will permit the operator to override label checking on destination device, "-l " will give a long listing of the table of contents and "-t" will create a table of contents.  Again the "\" indicates that there is still more information on the next line.
+
+The third line.  The "-d" option indicates the device that will be used as the destination device to which the data will be backed up.  The entry "scsiqtape:ctape1" is a device that is found in the /etc/dgroup.tab file that corresponds to the device to be used by /usr/sbin/backup.  If other devices are desired, use the appropriate entry in this list.  Notice that there is no backslash since this is the end of the definition.
+
+Now that the backup table is defined, the backup can be initiated using the following command:
+
+	/usr/sbin/backup -iv -t /etc/bkup/standtab -e -o /stand -c demand
+
+This line states to use the backup command from /usr/sbin.  (NOTE:  The /usr/bin/backup command is just the Basic Backup Service, not the Extended Backup).  The "-iv" option allows the backup to be run in interactive mode (user answering questions) and in verbose mode.  The "-t" says to use the /etc/bkup/standtab backup table.  The "-e" option will estimate the number of destination device volumes that will be needed.  The "-o" options will specify where the backup will originate and finally "-c demand" will indicate to start the backup now.
+
+This backup process will work fine unless the user kills the backup process will it is running.  If the backup process is killed, the bkdaemon will lock the device that it was using and the backup process will not work any more since bkdaemon will not start another backup session until the first device is released.  There is currently no work around to this, but an MR has been filled.
+
+X_ Verified by customer
+X_ Verified by Novell
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+

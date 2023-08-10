@@ -1,0 +1,101 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Inline</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_87.html">previous</A>, <A HREF="usegcc_89.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX375"></A>
+<A NAME="IDX376"></A>
+<A NAME="IDX377"></A>
+<A NAME="IDX378"></A>
+<H2><A NAME="SEC91" HREF="usegcc_toc.html#TOC91">An Inline Function is As Fast As a Macro</A></H2>
+<P>
+By declaring a function <CODE>inline</CODE>, you can direct GNU CC to
+integrate that function's code into the code for its callers.  This
+makes execution faster by eliminating the function-call overhead; in
+addition, if any of the actual argument values are constant, their known
+values may permit simplifications at compile time so that not all of the
+inline function's code needs to be included.  The effect on code size is
+less predictable; object code may be larger or smaller with function
+inlining, depending on the particular case.  Inlining of functions is an
+optimization and it really "works" only in optimizing compilation.  If
+you don't use <SAMP>`-O'</SAMP>, no function is really inline.
+<P>
+To declare a function inline, use the <CODE>inline</CODE> keyword in its
+declaration, like this:
+<P>
+<PRE>
+inline int
+inc (int *a)
+{
+  (*a)++;
+}
+</PRE>
+<P>
+(If you are writing a header file to be included in ANSI C programs, write
+<CODE>__inline__</CODE> instead of <CODE>inline</CODE>.  See section <A HREF="usegcc_99.html#SEC102">Alternate Keywords</A>.)
+<P>
+You can also make all "simple enough" functions inline with the option
+<SAMP>`-finline-functions'</SAMP>.  Note that certain usages in a function
+definition can make it unsuitable for inline substitution.
+<P>
+Note that in C and Objective C, unlike C++, the <CODE>inline</CODE> keyword
+does not affect the linkage of the function.
+<A NAME="IDX379"></A>
+<A NAME="IDX380"></A>
+<A NAME="IDX381"></A>
+<A NAME="IDX382"></A>
+<P>
+GNU CC automatically inlines member functions defined within the class
+body of C++ programs even if they are not explicitly declared
+<CODE>inline</CODE>.  (You can override this with <SAMP>`-fno-default-inline'</SAMP>;
+see section <A HREF="usegcc_11.html#SEC14">Options Controlling C++ Dialect</A>.)
+<A NAME="IDX383"></A>
+<P>
+When a function is both inline and <CODE>static</CODE>, if all calls to the
+function are integrated into the caller, and the function's address is
+never used, then the function's own assembler code is never referenced.
+In this case, GNU CC does not actually output assembler code for the
+function, unless you specify the option <SAMP>`-fkeep-inline-functions'</SAMP>.
+Some calls cannot be integrated for various reasons (in particular,
+calls that precede the function's definition cannot be integrated, and
+neither can recursive calls within the definition).  If there is a
+nonintegrated call, then the function is compiled to assembler code as
+usual.  The function must also be compiled as usual if the program
+refers to its address, because that can't be inlined.
+<A NAME="IDX384"></A>
+<P>
+When an inline function is not <CODE>static</CODE>, then the compiler must assume
+that there may be calls from other source files; since a global symbol can
+be defined only once in any program, the function must not be defined in
+the other source files, so the calls therein cannot be integrated.
+Therefore, a non-<CODE>static</CODE> inline function is always compiled on its
+own in the usual fashion.
+<P>
+If you specify both <CODE>inline</CODE> and <CODE>extern</CODE> in the function
+definition, then the definition is used only for inlining.  In no case
+is the function compiled on its own, not even if you refer to its
+address explicitly.  Such an address becomes an external reference, as
+if you had only declared the function, and had not defined it.
+<P>
+This combination of <CODE>inline</CODE> and <CODE>extern</CODE> has almost the
+effect of a macro.  The way to use it is to put a function definition in
+a header file with these keywords, and put another copy of the
+definition (lacking <CODE>inline</CODE> and <CODE>extern</CODE>) in a library file.
+The definition in the header file will cause most calls to the function
+to be inlined.  If any uses of the function remain, they will refer to
+the single copy in the library.
+<P>
+GNU C does not inline any functions when not optimizing.  It is not
+clear whether it is better to inline or not, in this case, but we found
+that a correct implementation when not optimizing was difficult.  So we
+did the easy thing, and turned it off.
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_87.html">previous</A>, <A HREF="usegcc_89.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

@@ -1,0 +1,34 @@
+#!/bin/sh
+# by Nathan 20 December 1995
+ETHERS=/etc/ethers
+DIR=/usr/operator/arpwatch
+DAT=$DIR/arp.dat
+CODES=$DIR/ethercodes.dat
+NOW=`date`
+mv $ETHERS $ETHERS-
+cat << eof > $ETHERS
+# This file was created from the arpwatch data file
+# $DAT by arptoethers
+# at $NOW
+# DO NOT EDIT. 
+eof
+sort -t. +3n -4 < $DAT | while read mac ip time hostname
+do
+# first, look up line in ethercodes.dat
+  echo -n '.'  # activity reporting
+  prefix=`echo $mac | awk -F: '{printf "%s:%s:%s",$1,$2,$3}'`
+  answer=`grep "^$prefix	" $CODES` # tab in pattern eliminates 8:0:9 vs 8:0:90
+  found=$?
+  if [ $found -eq 0 ] ; then
+     name=`echo "$answer" |  # note: lines has some number of tabs in it
+                             # we (hopefully) print more than what line has
+           awk -F\\t '{printf "%s%s%s%s%s%s\n",$2,$3,$4,$5,$6,$7}'`
+     echo "$mac" | awk '{printf "# %-18s = ",$1}'       >> $ETHERS
+     echo "$name" >> $ETHERS
+  else
+     echo "$mac" | awk '{printf "# %-18s = Unknown\n",$1}' >> $ETHERS
+  fi
+  echo "$mac $ip $hostname" |
+  awk '{printf "%-18s\t%-12s\t# %-16s\n",$1,$3,$2}' >> $ETHERS
+done
+exit 0

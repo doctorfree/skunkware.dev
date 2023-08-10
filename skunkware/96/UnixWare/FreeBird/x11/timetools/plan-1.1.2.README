@@ -1,0 +1,67 @@
+
+plan - an X/Motif day planner
+-----------------------------
+
+Plan is a schedule planner based on X/Motif. It displays a month calendar
+similar to xcal, but every day box is large enough to show appointments
+in small print. By pressing on a day box, the appointments for that day
+can be listed and edited. Appointments are entered with the following
+information (everything except the time is optional):
+
+- the date, time, and length of the appointment
+- an optional text message to be printed,
+- an optional script to be executed,
+- early-warn and late-warn triggers that precede the alarm time
+- repetition information: weekdays, days-of-the-month, every n days
+- optional fast command-line appointment entry
+- flexible ways to specify holidays and vacations
+
+The action being taken when a warn or alarm time is reached is programmable;
+by default a window pops up. In addition, a program can be executed, or mail
+can be sent. Other methods of listing appointments (today, this week, next
+week, or a keyword search for regular expressions) are also available. Plan
+can be configured to display times in 12-hour or 24-hour formats, mmddyy and
+ddmmyy date formats, and can show either Monday or Sunday in the leftmost
+column.
+
+You do not need root access to install and run these programs. Edit the
+Makefile to change the installation directories (default /usr/local/bin),
+and run "make <systemname>". To get a list of supported system names, use
+"make" without arguments.
+
+You'll have to copy the nroff manpage plan.[14], or the plain-text manpage
+plan.[14]cat (don't forget to strip the "cat") to your manpage directories
+manually, because that _does_ require root privileges.
+
+
+This distributions creates three binaries:
+
+plan        the schedule program. It displays the calendar and allows
+            entry of appointments. It writes everything to a .dayplan file
+            in the user's home directory. It does not check for alarms,
+            this is done by the pland daemon. plan informs pland when
+            the ~/.dayplan file changed by sending a hangup signal to
+            pland. plan can be used without the other programs, but no
+            alarms will be triggered.
+
+pland       the daemon that waits for alarm events, and pops up windows,
+            sends mail, and/or executes a program when an alarm time is
+            reached. It creates a lockfile /tmp/.planUID, with UID being
+            the user's user ID. The lockfile prevents multiple pland's.
+            It also contains pland's process ID, which is read by plan
+            to find out where the hangup signals should be sent. pland
+            should be started in the user's .sgisession or .xsession file.
+
+notifier    a program that prints a file (or standard input) into a
+            window. Depending on the options, the window is green, yellow,
+            or red. pland uses notifier to display messages; notifier was
+            not integrated into pland to keep the pland executable as
+            small as possible (X/Motif programs tend to be very large).
+
+plan and notifier print usage messages when an unknown option is used;
+pland has only one option, -k, that kills the existing daemon first if
+there is one. In particular, plan -d and notifier -d dump the default X
+resources; you can do "plan -d >>.Xdefaults" and modify the resources.
+
+
+Bug reports to thomas@bitrot.in-berlin.de.

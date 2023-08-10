@@ -1,0 +1,332 @@
+Copyright (c) 1995,96 by the Institute for Information Processing and
+Computer Supported New Media (IICM), Graz University of Technology,
+Austria.
+
+Feb 6, 1996
+
+
+
+VRweb 1.1.2 Unix Source Code
+============================
+
+
+This source tree contains the complete source code for the Unix/X11
+version of VRweb, including the sources of all necessary libraries and
+imake configuration files. See file COPYRIGHT for copyright notices!
+
+VRweb uses a modified version of the Stanford/SGI InterViews 3.1 user
+interface toolkit and the OpenGL and/or Mesa graphics libraries.
+
+We have compiled and run VRweb under SGI Irix, DEC Alpha/OSF1, DEC
+ULTRIX, SUN Solaris, SUN OS, HPUX, IBM AIX and LINUX. It should not be
+too difficult to configure the imake environment for another platform.
+
+Please let us know if you successfully port VRweb to another platform,
+so that we can incorporate any fixes/changes you might have into the
+master code tree. Thanks to Mike Convey <mike@novell.co.uk> who did so
+for Novell UnixWare and to Meredith Whyles <mwhyles@merlyn.galstar.com>
+for a port to SCO UNIX.
+
+
+                    Have fun,
+
+                               Keith Andrews, Michael Pichler
+
+
+Michael Pichler       mpichler@iicm.tu-graz.ac.at      Technical questions
+Keith Andrews         kandrews@iicm.tu-graz.ac.at      General questions
+
+vrweb-info@iicm.tu-graz.ac.at ... General questions
+vrweb-bugs@iicm.tu-graz.ac.at ... bug reports
+
+
+
+Installation Guide
+------------------
+
+0. If you can make use of a precompiled version, do so. It will make
+   your life easier :-)
+
+1. Make sure perl is installed, and a C++ compiler (e.g. CC, g++) is
+   available.
+
+2. gunzip and untar the tar file into some appropriate directory (from
+   now on called "$instdir"), e.g. for current directory
+
+     gzip -cd vrweb.tar.gz | tar xvf -
+
+3. Include $instdir/vrweb/bin/scripts into your path.
+
+4. Machine specific environment settings:
+
+      [csh/tcsh etc.:]  setenv CPU xxx
+   [sh/ksh/bash etc.:]  CPU=xxx ; export CPU
+
+   CPU set to   Machine: compiler
+   ----------   -----------------
+          SGI   SGI: CC
+      SGI_GNU   SGI: gcc
+   ALPHA_OSF1   DEC Alpha: cxx
+    ALPHA_GNU   DEC Alpha: gcc
+         PMAX   DEC Ultix: CC
+         SUN4   SUN OS: CC
+         SUN5   SUN Solaris: gcc
+        HPUX9   HP: CC
+       IBMAIX   IBM/AIX: gcc
+        LINUX   LINUX: gcc
+
+   On other machines you have to modify the configuration
+   files in $instdir/config and $instdir/bin/scripts.
+   For some notes on porting, see the next section.
+
+5. Type "hgmkmf -a" (in $instdir/vrweb): this will make all
+   Makefiles and check the dependencies. Warnings about missing
+   include files in scene/*context.C should not bother you.
+   If you get errors, please read the porting section.
+   To redirect output to a file (csh/tcsh): hgmkmf -a >& hgmkmf.out
+
+  5a For a debugging environment run the following commands:
+     hgmkmf; make Makefiles.debug; make depend
+
+  5b For a simple build of the Makefiles without dependency checking
+     run  hgmkmf; make Makefiles
+
+6. Type "make": this will make all libraries as well as the VRweb
+   binary (in different versions; see Graphic Libraries section)
+   A complete build from scratch (including dependency checking)
+   may take some 20 or 25 minutes (if all goes right).
+   To redirect output to a file (csh/tcsh): make -k >& make.out
+
+  6a In a debugging environment say  make all.debug
+
+7. The binaries can be found in $instdir/vrweb/scene/$CPU (in this
+   directory you will also find the object files; so it is possible to
+   compile in parallel on different platforms).
+
+  7a Debugging objects and binaries are put into .../$CPU.debug
+
+8. Type "make clean" to delete all the object files.
+
+
+WARNING: do *NOT* use "make install" - I have *NOT* changed the imake
+environment accordingly: it would install the header files of the
+libraries, the libraries itself and the binaries to the paths we use
+(probably they don't even exist on your file system).
+
+
+
+Porting to Other Platforms
+--------------------------
+
+If you want to build the VRweb source code on another Unix platform
+than we did, please note the following:
+
+0. Basic knowledge of perl, shells, Makefiles, Imakefiles, and C++
+   will be helpful.
+
+1. Make sure bin/scripts/hgimake recognizes your system environment.
+   It runs uname -s/-r and sets Defines passed to imake accordingly.
+
+2. Look at config/template to understand how Imakefiles work:
+   config/arch.def will determine which configuration file of sort
+   iv-XXX.cf to use and sets MacroIncludeFile accordingly.
+   Copy a similar iv-XXX.cf and edit it as necessary.
+   HasGcc is used to differ between GNU and native compilers.
+
+   The purpose of imake is to pass template to the macro preprocessor,
+   which will include several config files to generate a Makefile:
+
+   template includes:
+
+   - arch.def  # sets MacroIncludeFile to the appropriate iv-XXX.def
+
+   - iv-<yourArchitectureName>.def
+     . defines HasGcc and HasGcc2 if compiling via gcc
+     . includes X11 configuration file from /usr/lib/X11/config (e.g. sun.cf)
+     . makes machine specific settings
+     . includes xparams.cf which cares for different naming schemes
+
+   - local.def
+     . site specific definitions
+     . compilation rules (InterViews)
+
+   - params.def
+     . what to build, special flags
+
+   - rules.def
+     . compilation rules; no changes should be necessary here
+
+   - Imakefile - consists typically of two parts:
+     . a machine independent part: MakeInObjectCodeDir
+       that creates a CPU subdirectory and compiles there
+     . a machine dependent part (InObjectCodeDir)
+       that builds objects, programs, libraries
+
+   - ansic.conf
+     included by the libraries to be compiled with Ansi-C (else C++)
+
+   - gl.conf
+     graphics library and spaceball configuration (see below)
+
+3. iv-XXX.cf should include the X11 imake-configuration file.
+   It is usually present at /usr/lib/X11/config/XXX.cf. If your X11
+   configuration file resides in another directory, change the path
+   in bin/scripts/hgmkmf (and whereever appropriate) or (when you
+   have root access) create a symbolic link from your X11 install-
+   ation directory to /usr/lib/X11.
+
+4. Because of different system header files, the Dispatcher library
+   (iicmviews/lib/Dispatch and iicmviews/include/Dispatch) will
+   probably need some OS-dependent hacks to work. Few Imakefiles
+   may be hard-coded for a specific compiler, we apologize for that.
+
+5. If you run accross problems, and you cannot find an answer
+   in this file, look at the VRweb FAQ
+   http://hyperg.iicm.tu-graz.ac.at/vrweb.FAQ
+   A text-only version (FAQ-Unix.gz) is contained in the distribution.
+   Only if you cannot find an answer there, send a mail to the
+   developers.
+
+
+
+Graphic Libraries
+-----------------
+
+VRweb can use any of three graphics libraries: OpenGL, IrisGL or
+Mesa. You can control which of the above versions are made by editing
+$instdir/config/gl.conf:
+
+If OPEN_GL is defined tries to make the OpenGL version; the same holds
+for IRIS_GL and MESA_GL.
+
+Currently gl.conf makes the following "guesses":
+On any architecture, make the Mesa version.
+On Dec Alpha architectures also the OpenGL version.
+On SGI architectures, build all versions.
+
+To use OpenGL, make sure it is installed (include files
+/usr/include/GL/gl*.h, libraries libGL[u].a for compilation, and
+Xserver with working GLX extension for display). This is always the
+case for (almost all) SGI machines; on DEC Alphas OpenGL is part of
+the Open3D package and has to be installed explicitly by the system
+administrator. If you have access to an OpenGL version on any other
+architecture, just set the #define OPEN_GL in gl.conf to use it.
+
+The Mesa library (by brianp@ssec.wisc.edu) works on all X displays and
+has a programming interface very similar to OpenGL. It is included in
+this tar file (release 1.2.1 with some slight modifications). Mesa
+neither needs nor benefits from 3D graphics hardware accelerators.
+
+IrisGL is available only on Silicon Graphics machines and is now
+obsolete, having been superceded by OpenGL. Source to build an IrisGL
+binary is still included, but it comprises less functionality than the
+OpenGL version.
+
+The included ge3d library is used to encapsulate all graphic library
+dependent code from the main application code. The scene/*context
+source files implement the link between the graphic library and the
+InterViews GUI library.
+
+
+
+Spaceball support
+-----------------
+
+VRweb supports a Spaceball since release 1.1.2 (and prerelease
+1.1s). For more information see the on-line help.
+
+If you have a Spaceball connected to your system, activate the
+#define SPACEBALL
+in gl.conf. You also have to set the appropriate include path
+and compiler flags) in SpaceballCCFlags and library path in
+SpaceballLDFlags.
+
+
+
+The Binaries
+------------
+
+The VRweb viewers are named vrweb-ogl, vrweb-gl, and vrweb-mesa
+according to which graphic library they use. Call the appropriate
+version of VRweb with the name of a VRML file as argument, or use
+argument -h to get a list of possible options.
+
+The Harmony VRweb Scene Viewers are named harscened-ogl, harscened-gl,
+and harscened-mesa. This viewer can be used only in conjunction with
+Harmony, the Hyper-G client for UNIX/X11.
+
+
+
+What's Where in the Directories?
+--------------------------------
+
+Imakefile           global Imakefile
+bin/scripts         imake-scripts
+config              configuration evironment for hgmkmf/hgimake
+data                some test data
+ge3d                sources of 3D graphics interface
+iicmviews           sources of IICMViews library
+include             include files of Hyper-G libraries
+lib                 sources of Hyper-G libraries
+mesa                sources of the Mesa library
+qv                  sources of the VRML parser
+scene               sources of scene viewer
+
+./bin/scripts:
+hgimake             our version of imake
+hgmkmf              our version of ivmkmf/xmkmf
+makedepend.pl       wrapper around makedepend
+
+./ge3d:
+ogl                 mapping of GE3D to OpenGL
+mesa                mapping of GE3D to Mesa
+gl                  mapping of GE3D to IRIS GL (obsolete)
+
+./iicmviews:        IICM version of InterViews GUI toolkit
+include             include files of IICMViews
+lib                 sources of IICMViews
+
+./iicmviews/include:
+Dispatch            dispatcher includes
+IV-X11              X11 dependent includes
+IV-look             includes of "look-and-feel" classes
+InterViews          includes of "main" classes
+OS                  includes of OS dependend classes (String, List, ...)
+TIFF                includes of TIFF library
+
+./iicmviews/lib:
+Dispatch            dispatcher sources
+IV                  directory for object files and the library
+IV-X11              X11 dependent sources
+InterViews          sources of "main" classes
+OS                  sources of OS dependend classes
+TIFF                sources of TIFF library
+
+./include/hyperg:
+WWW                 includes of libWWWTools (tools to parse URLs etc.)
+hyperg              includes of libHyperg (Hyper-G dependend classes)
+utils               includes of libUtilities (common used utilities)
+viewer              includes of libHgViewerStub (communication)
+widgets             includes of libHgWidgets (common widgets not in IICMViews)
+
+./lib:
+WWW                 sources of libHgWWWTools
+hgraster            sources of libHgRaster (class to read GIF, TIFF and JPEG images)
+hyperg              sources of libHyperg
+ipc                 sources of libHgViewerStub
+utils               sources of libHgUtilities
+widgets             sources of libHgWidgets
+
+./mesa:
+include/GL          includes of Mesa library
+src                 sources of libMesaGL
+src-glu             sources of libMesaGLU
+
+./qv:
+include/vrml        includes for QV VRML parser
+src                 sorces of libvrmlQv
+
+./scene:            VRweb core code
+
+
+[end of file INSTALLATION]

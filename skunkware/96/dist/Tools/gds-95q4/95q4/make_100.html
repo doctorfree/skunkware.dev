@@ -1,0 +1,106 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Suffix Rules</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_99.html">previous</A>, <A HREF="make_101.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX819"></A>
+<A NAME="IDX820"></A>
+<H2><A NAME="SEC99" HREF="make_toc.html#TOC99">Old-Fashioned Suffix Rules</A></H2>
+<P>
+<DFN>Suffix rules</DFN> are the old-fashioned way of defining implicit rules for
+<CODE>make</CODE>.  Suffix rules are obsolete because pattern rules are more
+general and clearer.  They are supported in GNU <CODE>make</CODE> for
+compatibility with old makefiles.  They come in two kinds:
+<DFN>double-suffix</DFN> and <DFN>single-suffix</DFN>.<P>
+A double-suffix rule is defined by a pair of suffixes: the target suffix
+and the source suffix.  It matches any file whose name ends with the
+target suffix.  The corresponding implicit dependency is made by
+replacing the target suffix with the source suffix in the file name.  A
+two-suffix rule whose target and source suffixes are <SAMP>`.o'</SAMP> and
+<SAMP>`.c'</SAMP> is equivalent to the pattern rule <SAMP>`%.o : %.c'</SAMP>.
+<P>
+A single-suffix rule is defined by a single suffix, which is the source
+suffix.  It matches any file name, and the corresponding implicit
+dependency name is made by appending the source suffix.  A single-suffix
+rule whose source suffix is <SAMP>`.c'</SAMP> is equivalent to the pattern rule
+<SAMP>`% : %.c'</SAMP>.
+<P>
+Suffix rule definitions are recognized by comparing each rule's target
+against a defined list of known suffixes.  When <CODE>make</CODE> sees a rule
+whose target is a known suffix, this rule is considered a single-suffix
+rule.  When <CODE>make</CODE> sees a rule whose target is two known suffixes
+concatenated, this rule is taken as a double-suffix rule.
+<P>
+For example, <SAMP>`.c'</SAMP> and <SAMP>`.o'</SAMP> are both on the default list of
+known suffixes.  Therefore, if you define a rule whose target is
+<SAMP>`.c.o'</SAMP>, <CODE>make</CODE> takes it to be a double-suffix rule with source
+suffix <SAMP>`.c'</SAMP> and target suffix <SAMP>`.o'</SAMP>.  Here is the old-fashioned
+way to define the rule for compiling a C source file:<P>
+<PRE>
+.c.o:
+        $(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $&#60;
+</PRE>
+<P>
+Suffix rules cannot have any dependencies of their own.  If they have any,
+they are treated as normal files with funny names, not as suffix rules.
+Thus, the rule:
+<P>
+<PRE>
+.c.o: foo.h
+        $(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $&#60;
+</PRE>
+<P>
+tells how to make the file <TT>`.c.o'</TT> from the dependency file
+<TT>`foo.h'</TT>, and is not at all like the pattern rule:
+<P>
+<PRE>
+%.o: %.c foo.h
+        $(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $&#60;
+</PRE>
+<P>
+which tells how to make <SAMP>`.o'</SAMP> files from <SAMP>`.c'</SAMP> files, and makes all
+<SAMP>`.o'</SAMP> files using this pattern rule also depend on <TT>`foo.h'</TT>.
+<P>
+Suffix rules with no commands are also meaningless.  They do not remove
+previous rules as do pattern rules with no commands (see section <A HREF="make_98.html#SEC97">Canceling Implicit Rules</A>).  They simply enter the suffix or pair of suffixes concatenated as
+a target in the data base.<A NAME="IDX821"></A>
+<P>
+The known suffixes are simply the names of the dependencies of the special
+target <CODE>.SUFFIXES</CODE>.  You can add your own suffixes by writing a rule
+for <CODE>.SUFFIXES</CODE> that adds more dependencies, as in:
+<P>
+<PRE>
+.SUFFIXES: .hack .win
+</PRE>
+<P>
+which adds <SAMP>`.hack'</SAMP> and <SAMP>`.win'</SAMP> to the end of the list of suffixes.
+<P>
+If you wish to eliminate the default known suffixes instead of just adding
+to them, write a rule for <CODE>.SUFFIXES</CODE> with no dependencies.  By
+special dispensation, this eliminates all existing dependencies of
+<CODE>.SUFFIXES</CODE>.  You can then write another rule to add the suffixes you
+want.  For example,
+<P>
+<PRE>
+.SUFFIXES:            # Delete the default suffixes
+.SUFFIXES: .c .o .h   # Define our suffix list
+</PRE>
+<P>
+The <SAMP>`-r'</SAMP> or <SAMP>`--no-builtin-rules'</SAMP> flag causes the default
+list of suffixes to be empty.
+<A NAME="IDX822"></A>
+<P>
+The variable <CODE>SUFFIXES</CODE> is defined to the default list of suffixes
+before <CODE>make</CODE> reads any makefiles.  You can change the list of suffixes
+with a rule for the special target <CODE>.SUFFIXES</CODE>, but that does not alter
+this variable.
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_99.html">previous</A>, <A HREF="make_101.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

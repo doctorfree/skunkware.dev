@@ -1,0 +1,154 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:
+TITLE:  uucp over TCP/IP
+DOCUMENT ID:  TID021582
+DOCUMENT REVISION:  A
+DATE:  01JUN94
+AUTHOR:  KMELENDE
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Networking
+
+ABSTRACT:
+
+NA
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+ISSUE
+
+The following instructions are intended to guide a system administrator in setting up "uucp" over TCP/IP between a UnixWare 1.x system and either another UnixWare 1.x system or a non-UnixWare 1.x system.
+
+Perform the following steps on the UnixWare 1.x system:
+
+1) Execute the following command (as a privileged user e.g., "root"):
+
+   pmadm -a -p tcp -s uucp -i nuucp -v `nlsadmin -V` \
+	-m "`nlsadmin -c '/usr/lib/uucp/uucico -r 0 \
+	-u nuucp -i TLIS' -A '\\x0002021Cxxxxxxxx0000000000000000'`"
+
+   NOTE: You must replace the string "xxxxxxxx" with the hexadecimal representation of this system's IP address.  For example, the hex equivalent of the IP address 147.2.106.52 is 93026A34.  This value should be inserted in the line above.
+
+2) Edit the file:
+
+	/etc/uucp/Devices
+
+   and remove the "#" character from the line
+
+	CS - - - CS
+
+   	(this is for non-UnixWare 1.x systems)
+
+   then add the line:
+
+	TCP,eg tcp - - TLIS \D nls.uucico
+
+   	(this is for other UnixWare 1.x systems)
+
+3) Edit the file:
+
+	/etc/uucp/Sysfiles
+
+   and add the following line:
+
+	service=uucico	systems=Systems.tcp:Systems
+
+4) Edit the file:
+
+	/etc/uucp/Systems.tcp
+
+   and add the following lines:
+
+   For non-UnixWare 1.x systems enter:
+
+	NonUW1.x Any CS - NonUW1.x,uucp in:--in: yyyyy word: xxxxx
+
+   NOTE: Replace "NonUW1.x" with the name of your non-UnixWare 1.x system in both places on the preceding line.  Also, replace the login name (yyyyy) and the password (xxxxx) with the correct ones.  On most systems, the login name will be "nuucp".  The password is at the discretion of the system administrator.
+
+   For another UnixWare 1.x system enter:
+
+	1.xsysname Any TCP - \x00020ACExxxxxxxx
+
+   NOTE: Replace "1.xsysname" with the name of your UnixWare System.  Also, replace the "xxxxxxxx" part of the address with the hex representation of that system's IP address.
+
+Perform the following steps on a Sun Solaris system:
+
+1) Edit the file:
+
+	/etc/uucp/Devices
+
+   and add the line (if not already there):
+
+	TCP,eg	tcp	-	- TLIS \D nls
+
+2) Edit the file:
+
+	/etc/uucp/Dialers
+
+   and add the following line after the "Network Listener Service" comment:
+
+	nls	""	""
+
+3) Create/edit the file:
+
+	/etc/uucp/Systems.tcp
+
+   and insert the following information:
+
+	1.xsysname Any TCP - \x0002021Cxxxxxxxx
+
+   NOTE: Replace "1.xsysname" with the name of your UnixWare System.  Also, replace the "xxxxxxxx" part of the address with the hex representation of your IP address.
+
+4) Edit the file:
+
+	/etc/uucp/Sysfiles
+
+   and add the lines (if not already there):
+
+	service=uucico	systems=Systems.tcp:Systems
+
+Perform the following steps on a SunOS (4.1.x) system:
+
+1) Edit the file:
+
+	/etc/uucp/Devices
+
+   and add the line (if not already there):
+
+	TCP,et - - Any TCP -
+
+2) Edit the file:
+
+	/etc/uucp/Systems
+
+   and add the line:
+
+	1.xsysname Any TCP - -
+
+   NOTE: Replace "1.xsysname" with the name of the UnixWare 1.x system.
+
+The system administrator should try variations of the two Sun system examples, above, for any other non-UnixWare 1.x system that supports TCP/IP.
+
+Also note that the "cu" command is not supported in all environments.  Therefore, it is strongly recommended that the "telnet" or "rlogin" commands be used to log on to a remote Unix system.
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+

@@ -1,0 +1,201 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.35
+     from rebuilding.texi on 19 October 1995 -->
+
+<TITLE>Rebuilding From Source - Multiple simultaneous builds</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="rebuilding_1.html">first</A>, <A HREF="rebuilding_25.html">previous</A>, next, last section, <A HREF="rebuilding_toc.html">table of contents</A>.
+<HR>
+
+
+<H3><A NAME="SEC25" HREF="rebuilding_toc.html#SEC25">Multiple simultaneous builds</A></H3>
+
+<P>
+If the source code for your distribution resides on a disk shared by
+other machines in the network, you can build for all host types
+simultaneously by using different <STRONG>build directories</STRONG>.  See section <A HREF="rebuilding_8.html#SEC7">Source and Build Directories</A>, for details on building with
+different source and build directories; also see
+section <A HREF="rebuilding_24.html#SEC23">Example: different <VAR>srcdir</VAR> and <VAR>objdir</VAR></A>,
+for an example.
+
+</P>
+<P>
+Multiple simultaneous builds can be conducted on the same source code
+simply by using different build directories.  For example, assume we
+have source code in <TT>`/usr/local/src'</TT>, and wish to build a
+native toolkit for our Sun SPARCstation running SunOS 4.1.3
+(<CODE>sparky</CODE>) and our DECstation running Ultrix (<CODE>deckard</CODE>), and
+that we also wish to build a cross-development toolkit for each host for
+a <SAMP>`m68k-aout'</SAMP> target.
+
+</P>
+
+<BLOCKQUOTE>
+<P>
+<EM>Note:</EM> this example shows a complete build for all four
+configurations, one native development system and one cross-development
+system for each of two hosts, including installation and links.
+See section <A HREF="rebuilding_13.html#SEC12">The Heterogeneous Updateable Toolkit</A>, for more general
+discussions and examples.
+</BLOCKQUOTE>
+
+<P>
+All of these toolkits are to be installed into
+
+</P>
+
+<PRE>
+/usr/local/progressive-94q4
+</PRE>
+
+<P>
+(The cross-development tools are installed with the native tools;
+however, the cross tools have a prefix of <VAR>target</VAR>, e.g.,
+<TT>`m68k-aout-gcc'</TT>.)  They are to be linked so that
+<TT>`/usr/progressive/bin'</TT> on each host points toward the correct
+binaries for that host:
+
+</P>
+
+<PRE>
+/usr/local/progressive-94q4/H-<VAR>hosttype</VAR>/bin
+</PRE>
+
+<P>
+but the machine-independent files in
+
+</P>
+
+<PRE>
+/usr/local/progressive-94q4
+</PRE>
+
+<P>
+are shared across platforms.  We accomplish this by actually installing
+into a shared disk called <TT>`shared'</TT>, and creating links from
+<TT>`/usr/local'</TT>.
+
+</P>
+
+<PRE>
+
+     <EM>first, set up the shared space in <TT>`/shared'</TT></EM>
+
+$ mkdir /shared/local
+$ su     <EM>(may need root priviledge to put link in <TT>`/usr'</TT>)</EM>
+# ln -s /shared/local /usr/local
+# mkdir /usr/local/progressive-94q4
+# exit
+
+     <EM>now we build the native toolset for the Sun</EM>
+
+$ uname -a
+SunOS sparky 4.1.3_U1 1 sun4m
+$ mkdir /usr/local/obj/sun4native 
+$ cd /usr/local/obj/sun4native
+$ /usr/local/src/configure --prefix=/usr/local/progressive-94q4 \
+    --exec-prefix=/usr/local/progressive-94q4/H-sun4 \
+    --srcdir=/usr/local/src
+Configuring for a sparc-sun-sunos4.1.3_U1 host.
+...<EM>time passes</EM>...
+$ make all info &#62; ./make.log
+...<EM>time passes</EM>...
+$ su        <EM>(may need root priviledge to install in <TT>`/usr'</TT>)</EM>
+# make install install-info &#62;&#62; ./make.log
+# exit
+
+     <EM>(now the cross toolkit)</EM>
+
+$ mkdir /usr/local/obj/sun4-x-m68k
+$ cd /usr/local/obj/sun4-x-m68k
+$ /usr/local/src/configure --prefix=/usr/local/progressive-94q4 \
+    --exec-prefix=/usr/local/progressive-94q4/H-sun4 \
+    --srcdir=/usr/local/src --target=m68k-aout
+Configuring for a sparc-sun-sunos4.1.3_U1 host.
+...<EM>time passes</EM>...
+$ make all info &#62; ./make.log
+...<EM>time passes</EM>...
+$ su        <EM>(may need root priviledge to install in <TT>`/usr'</TT>)</EM>
+# make install install-info &#62;&#62; ./make.log
+
+     <EM>now create the links which bring the toolkit online</EM>
+
+# ln -s /usr/local/progressive-94q4 /usr/local/progressive
+# ln -s /usr/local/progressive/H-sun4 /usr/progressive
+# exit
+
+<EM><TT>`/usr/progressive'</TT> on <CODE>sparky</CODE> now points to the Sun4-specific installation</EM>
+
+<EM>(continued on next page...)</EM>
+</PRE>
+
+
+<PRE>
+     <EM><TT>`/shared'</TT> already exists; now we build</EM>
+     <EM>the native toolset for the DECstation</EM>
+
+$ rlogin deckard
+$ uname -a
+ULTRIX deckard 4.2 0 RISC
+$ mkdir /usr/local/obj/decnative
+$ cd /usr/local/obj/decnative
+$ /usr/local/src/configure --prefix=/usr/local/progressive-94q4 \
+    --exec-prefix=/usr/local/progressive-94q4/H-decstn \
+    --srcdir=/usr/local/src
+Configuring for a mips-dec-ultrix4.2 host.
+...<EM>time passes</EM>...
+$ make all info &#62; ./make.log
+...<EM>time passes</EM>...
+$ su        <EM>(may need root priviledge to install in <TT>`/usr'</TT>)</EM>
+     <EM>remember, <TT>`/usr/local/progressive-94q4'</TT> already exists</EM>
+# make install install-info &#62;&#62; ./make.log
+# exit
+
+     <EM>(now the cross toolkit)</EM>
+
+$ mkdir /usr/local/obj/sun4cross
+$ cd /usr/local/obj/sun4native
+$ /usr/local/src/configure --prefix=/usr/local/progressive-94q4 \
+    --exec-prefix=/usr/local/progressive-94q4/H-decstn \
+    --srcdir=/usr/local/src --target=m68k-aout
+Configuring for a mips-dec-ultrix4.2 host.
+...<EM>time passes</EM>...
+$ make all info &#62; ./make.log
+...<EM>time passes</EM>...
+$ su        <EM>(may need root priviledge to install in <TT>`/usr'</TT>)</EM>
+# make install install-info &#62;&#62; ./make.log
+
+     <EM>now create the link which brings the toolkit online; remember, the other link</EM>
+         /usr/local/progressive -&#62; /usr/local/progressive-94q4
+     <EM>already exists from the Sun build</EM>
+
+# ln -s /usr/local/progressive/H-decstn /usr/progressive
+# exit
+
+<EM><TT>`/usr/progressive'</TT> on <CODE>deckard</CODE> now points to the DEC-specific installation</EM>
+</PRE>
+
+<P>
+(This example shows a Bourne-compatible shell (<CODE>sh</CODE>, <CODE>bash</CODE>,
+<CODE>ksh</CODE>); contact Cygnus if you have any trouble.)
+
+</P>
+<P>
+<TT>`/usr/progressive/bin'</TT> on each host now points toward the binaries
+built for that <VAR>hosttype</VAR>, while the machine-independent files in
+<TT>`/usr/local/progressive'</TT> are shared between the two builds.  In
+addition, each installation contains both a native development toolkit
+and a cross-development toolkit for the <SAMP>`m68k-aout'</SAMP> target.
+
+</P>
+<P>
+Please contact Cygnus Support if any of this is unclear, or if you have
+any questions.
+
+</P>
+<HR>
+Go to the <A HREF="rebuilding_1.html">first</A>, <A HREF="rebuilding_25.html">previous</A>, next, last section, <A HREF="rebuilding_toc.html">table of contents</A>.
+</BODY>
+</HTML>

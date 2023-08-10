@@ -1,0 +1,66 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Temporaries</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_124.html">previous</A>, <A HREF="usegcc_126.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<H3><A NAME="SEC128" HREF="usegcc_toc.html#TOC128">Temporaries May Vanish Before You Expect</A></H3>
+<A NAME="IDX538"></A>
+<A NAME="IDX539"></A>
+<P>
+It is dangerous to use pointers or references to <EM>portions</EM> of a
+temporary object.  The compiler may very well delete the object before
+you expect it to, leaving a pointer to garbage.  The most common place
+where this problem crops up is in classes like the libg++
+<CODE>String</CODE> class, that define a conversion function to type
+<CODE>char *</CODE> or <CODE>const char *</CODE>.  However, any class that returns
+a pointer to some internal structure is potentially subject to this
+problem.
+<P>
+For example, a program may use a function <CODE>strfunc</CODE> that returns
+<CODE>String</CODE> objects, and another function <CODE>charfunc</CODE> that
+operates on pointers to <CODE>char</CODE>:
+<P>
+<PRE>
+String strfunc ();
+void charfunc (const char *);
+</PRE>
+<P>
+In this situation, it may seem natural to write <SAMP>`charfunc
+(strfunc ());'</SAMP> based on the knowledge that class <CODE>String</CODE> has an
+explicit conversion to <CODE>char</CODE> pointers.  However, what really
+happens is akin to <SAMP>`charfunc (strfunc ().convert ());'</SAMP>,
+where the <CODE>convert</CODE> method is a function to do the same data
+conversion normally performed by a cast.  Since the last use of the
+temporary <CODE>String</CODE> object is the call to the conversion function,
+the compiler may delete that object before actually calling
+<CODE>charfunc</CODE>.  The compiler has no way of knowing that deleting the
+<CODE>String</CODE> object will invalidate the pointer.  The pointer then
+points to garbage, so that by the time <CODE>charfunc</CODE> is called, it
+gets an invalid argument.
+<P>
+Code like this may run successfully under some other compilers,
+especially those that delete temporaries relatively late.  However, the
+GNU C++ behavior is also standard-conformant, so if your program depends
+on late destruction of temporaries it is not portable.
+<P>
+If you think this is surprising, you should be aware that the ANSI C++
+committee continues to debate the lifetime-of-temporaries problem.
+<P>
+For now, at least, the safe way to write such code is to give the
+temporary a name, which forces it to remain until the end of the scope of
+the name.  For example:
+<P>
+<PRE>
+String&#38; tmp = strfunc ();
+charfunc (tmp);
+</PRE>
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_124.html">previous</A>, <A HREF="usegcc_126.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

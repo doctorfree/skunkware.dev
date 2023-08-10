@@ -1,0 +1,158 @@
+<HTML><HEAD><TITLE>XV: External Programs</TITLE></HEAD>
+<BODY><H1>External Programs</H1>
+<A NAME="bggen"><H2>  bggen</H2></A>
+<P>Syntax:
+ <B>bggen</B>
+ [-h  <I>high</I>] [-w  <I>wide</I>] [-b  <I>bits</I>] [-g  <I>geom</I>] [-d  <I>disp</I>] [-a] [-r  <I>rot</I>] [-G  <I>rptgeom</I>]
+ <I>color1 </I>[ <I>color2</I> ...  <I>colorN</I>]</P>
+<P> <I>bggen</I> generates background gradients for use with  <I>xv</I>.  It does not directly 
+display anything itself.
+Instead, it generates an appropriately sized PPM file, which  <I>xv</I>
+ can display.  It is also used by the  <I>xv</I>'s 
+ <B>Pad</B>
+command, for a similar purpose.</P>
+<P>By default,  <I>bggen </I>will generate a screen-sized PPM file with a vertical 
+color gradient.  The top of the
+image will be in  <I>color1</I>, the bottom of the image will be in  <I>colorN</I>, and 
+intermediate positions will have
+an appropriate intermediate color.  You can list as many colors as you'd 
+like.  If you only list one color,
+the entire image will be that single color.</P>
+<P>Color specifications can be in one of three formats:</P>
+<UL>
+<LI>
+A color name (e.g. 'lightblue') known to your X server.  Use the  <I>showrgb</I> 
+command to get a
+(gigantic) list of known colors.</LI>
+<LI>
+An X11-style hexadecimal RGB color specification (e.g. '#00ff00'), where the first two hex digits
+specify the red value, the middle two specify the green value, and the last 
+two specify the blue
+value.  Note that the '#' character is treated specially in some shells, 
+and to be on the safe side
+you should either protect it by putting a '\\' character in front of it, or 
+wrap the whole color
+specification in single-quotes.</LI>
+<LI> 
+Three integers, in the 0-255 range, separated by spaces (e.g.  0 255 0).  
+This is mainly for
+backward compatibility, as it was the only format understood by previous versions of 
+ <I>bggen</I>.</LI>
+</UL>
+<P>Options:</P>
+<DL>
+<DT>-d  <I>disp</I></DT>
+<DD>Specifies the name of the X display that the program should talk to. 
+  <I>bggen</I>
+needs to connect to an X display to determine the screen size (which is
+used as the default image size), and to parse color names.  It is not
+ <I>necessary</I> for  <I>bggen</I> to connect to an X display.  If it can't, you will have 
+to
+specify an image size (see below), and you'll have to use the numeric
+format to enter color specifications.</DD>
+<DT>-g  <I>geom</I></DT>
+<DD>Specifies the size of the generated image.   <I>geom</I> should be in the 
+format:
+ <I>wide</I>
+ <B>x</B>
+ <I>high</I> (e.g.  '1024x768').  If you don't specify a size, the image will
+default to the size of your display, assuming it was able to connect to your
+display.</DD>
+<DT>-w  <I>wide</I> -h  <I>high</I></DT>
+<DD>Another way to specify the size of the generated image.  
+Provided for
+backward compatibility.</DD>
+<DT>-G  <I>rptgeom</I></DT>
+<DD>Sets the size of the gradient.  Normally, the gradient will be 
+the size of the
+image.  However, if you wish, you make the gradient smaller than the
+image; the gradient will repeat as often as necessary to fill the image</DD>
+<DT>-r  <I>rot</I></DT>
+<DD>Lets you rotate the gradient.  Normally, the gradient is aligned 
+vertically,
+with the first color at the top, and the last color at the bottom.  Using 
+this
+option, you can rotate the whole mess by an arbitrary amount.   <I>rot</I> should
+be specified in degrees.  Positive values rotate the gradient counter-
+clockwise.
+</DD>
+<DT>-a</DT>
+<DD>If supplied,  <I>bggen</I> will generate a PPM 'ascii' file, rather than the 
+default
+PPM 'raw' format.</DD>
+<DT>-b  <I>bits</I></DT>
+<DD>Specifies the number of significant bits to use in the RGB color
+specifications in the output image.  It must range between 1 and 8,
+inclusive.  Use values less than 8 (the default) to limit color use by
+increasing the color granularity.  Since  <I>xv</I> can do this sort of thing 
+better,
+this is of dubious value.</DD>
+</DL>
+<A NAME="xcmap"><H2>  xcmap</H2></A>
+<P>This is a little X program I wrote years ago to help me debug  <I>xv</I>'s color 
+allocation code.  It displays the
+contents of the default colormap as (typically) a 16x16 grid of colored 
+rectangles.  Run it, and then run
+something that allocates colors (such as  <I>xv</I>), and you'll see the color 
+cells changing color.  It can give you
+an indication of how full your colortable is, and whatnot.  It only works 
+on displays where the default
+visual is a PseudoColor visual, but that's nearly all of them, so it shouldn't be a problem.</P>
+<P>There are two standard X options:  '-d  <I>display</I>' to set the X display, and 
+'-g  <I>geom</I>', to set the default
+window size and position.</P>
+<P>You can click in the window to examine the RGB values of various color 
+cells.  I have not found a useful
+purpose for this feature, but there must have been one at one time...</P>
+<P>Type 'q' in the window to exit the program.</P>
+<A NAME="pictoppm"><H2>  xvpictoppm</H2></A>
+<P>This program is a standard Unix filter that reads the 'thumbnail' files 
+created by the  <I>visual schnauzer</I>
+(from 
+ <TT>stdin</TT>
+) and writes standard PPM versions of same (to 
+ <TT>stdout</TT>
+).  The thumbnail files are small
+(80x60 maximum) 8-bit versions of your image files and are used as the 
+icons in the  <I>visual schnauzer</I>.
+These files are stored in my own weird format (one optimized for my 
+purposes), but many folks have
+asked for a way to turn them into standard image files, for use on their WWW pages, or whatever.</P>
+<P>Anyway, assuming you've done an 
+ <B>Update</B>
+ or 
+ <B>Generate Icons</B>
+ command in the  <I>visual schnauzer</I>, you'll
+find the thumbnail version of an image stored with the same name in the '
+ <TT>.xvpics</TT>
+' subdirectory.  For
+example, if you have a file '
+ <TT>/pics/gif/foobie.gif</TT>
+', you would find the thumbnail version of it in
+the file '
+ <TT>/pics/gif/.xvpics/foobie.gif</TT>
+'.</P>
+<A NAME="cjpeg-djpeg"><H2>  cjpeg and djpeg</H2></A>
+<P>These two programs are distributed as part of the Independent JPEG Group's 
+software, located in the
+ <TT>jpeg</TT>
+ subdirectory of the  <I>xv</I> source.  They perform command-line conversion 
+between JPEG and the
+PPM/PGM, GIF, BMP and Targa formats.  Since  <I>xv</I> has absolutely no 
+command-line or 'batch'
+conversion abilities, you may find these useful if you want to convert a 
+lot of images, or automatically
+convert images from a script.  If this is the case, you should probably get 
+Jef Poskanzer's most-excellent
+ <I>pbmplus</I> package, which you can get via anonymous ftp on 
+ <TT>ftp.x.org</TT>
+ and elsewhere..</P>
+<A NAME="vdcomp"><H2>  vdcomp</H2></A>
+<P>Uncompresses compressed PDS and VICAR images.  Beyond that, I know nothing.</P>
+<HR>
+This document was extracted from the PostScript documentation and
+formatted by <A HREF="mailto:rjohnson@shell.com">Roy Johnson</A>.
+Much of the process was automated, and may therefore have introduced
+errors.  Corrections are appreciated.
+
+</BODY></HTML>

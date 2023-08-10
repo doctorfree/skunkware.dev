@@ -1,0 +1,77 @@
+0. How can I compile X clients without a complete X11 source tree?
+
+	(see Q5)
+
+Pat Campbell of Novell USG writes:
+
+  To compile most if not all X clients WITHOUT a complete X tree
+  use:
+      imake -I/usr/X/lib/config -DUseInstalled
+            ^^^^^^^^^^^^^^^^^^^
+      Not necessary if you have set IMAKEINCLUDE environment variable.
+
+  The "-DUseInstalled" directs imake to use the installed include
+  and library files.
+
+  Special note for motif applications:
+
+  You will need three more libraries, -lXm -lXIM -lgen, during
+  the link stage.  I prepend them to the following variables
+  within the Imakefile like this.
+
+               LOCAL_LIBRARIES = -lXm -lXIM [ whatever was already here ]
+               SYS_LIBRARIES = -lgen [ whatever was already here ]
+
+  This is a working solution, not necessarily the correct/elegant solution
+:-)
+
+1. Many ported programmes omit to include the networking libraries
+on the compile line,
+
+fix: include -lnsl in makefile
+
+
+2. Many bitmap assignments are of the form  char [] = { 0x80, 0xFF...
+The SVR4 compiler will generate a warning as it defaults to signed
+char,
+
+fix: change declarations of char to unsigned char for these arrays
+
+
+3. Many ported X applications have been written for BSD - based
+environments and thus use different header files and differing
+structure names. Look for the -DSYSV declaration in the makefile
+and enable it.
+If code is not knowledgeable of SYSV, changes will be required
+
+Fix:
+For example the portable directory routines:
+
+#ifdef SYSV
+#include <dirent.h>
+#else /* BSD */
+#include <sys/dir.h>
+#endif
+
+and where structure members are declared:
+
+#ifdef SYSV
+        register struct dirent *d;
+#else
+        register struct direct *d;
+#endif
+
+
+4. SVR4.2 has several X libraries, if symbols are not found then define
+   them.
+
+Fix: a typical link line is
+
+      -lXaw -lXext -lXmu -lXt -lX11 -lm -lnsl
+
+        The OpenLook librariy is -lXol
+
+
+5. xmkmf is now included in the UW 1.1 SDK , a useful tip is
+to do the following:
+	ln -s /usr/X/lib/config/xmkmf /usr/X/bin/xmkmf

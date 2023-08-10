@@ -1,0 +1,125 @@
+<HTML>
+<HEAD>
+<TITLE>dbg_malloc</TITLE>
+</HEAD>
+<!--
+Light Blue Background
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+New Midnight Blue Background
+<BODY BGCOLOR=#00009C LINK=#00FFFF VLINK=#00C8C8 TEXT=#23D8FF ALINK=#00FF00>
+White Background
+<BODY BGCOLOR=#FFFFFF TEXT=#000000 LINK=#0000FF VLINK=#00009C ALINK=#00FF00>
+Black Background
+<BODY BGCOLOR=#000000  TEXT=#FFFFFF LINK=#0077FF VLINK=#FF3EE4 ALINK=#00FF00>
+-->
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+<H1>dbg_malloc</H1>
+<HR>
+<PRE>
+<STRONG>NAME</STRONG>
+  malloc - debugging memory allocation routines
+
+<STRONG>SYNOPSIS</STRONG>
+  #include &lt;stdlib.h&gt;
+  void *malloc(size_t size);
+  void *realloc(void *ptr, size_t size);
+  void *calloc(size_t size, size_t nel);
+  void free(void);
+  void *check_malloc(void *ptr);
+
+<STRONG>DESCRIPTION</STRONG>
+  These routines are replacements for the standard memory
+  allocation routines for use in debugging an application that
+  corrupts its memory arena.
+
+  Applications corrupt the memory arena by writing to or
+  reading from memory that has not been allocated, or by
+  scribbling on the internal malloc(3C) data structures that
+  precede and/or follow each allocated buffer.  Typically this
+  corruption occurs before the application unexpectedly
+  terminates. Tracking and locating the errant access at the
+  time of corruption facilitates fixing the application.
+  These routines are designed to return pointers to blocks
+  that are aligned to cause the generation of a fault when
+  accessing a memory location that is beyond the allocated
+  block.  They are based on the virtual memory sub-system's
+  denying  a process access to unmapped pages.
+
+  Memory arena corruption can occur at either end of an
+  allocated block.  The page fault on access behavior can only
+  be enforced towards one end within a process at any one
+  time. By default, these routines will fault on access of
+  data beyond the end of the allocated block. This is the more
+  typical cause of malloc arena corruption. Fault generation
+  can be changed to occur upon access of data in front of the
+  allocated block by setting the DEBUG_MALLOC environment
+  variable, as described below.
+
+  Another example of memory corruption occurs when accessing
+  memory that has already been free'd. This version of free
+  makes freed memory inaccessible.  All freed memory is
+  released when the system can not allocate any new memory
+  resources.  Accessing data within such a block after it has
+  been freed but before it has been made accessible again will
+  generate a fault.  The default behavior can be modified to
+  immediately make freed pages available. See the DEBUG_MALLOC
+  description below.
+
+
+
+
+  <EM>ptr</EM> is NULL, <EM>the</EM> <EM>entire</EM> <EM>allocated</EM> <EM>memory</EM> <EM>arena</EM> <EM>is</EM> <EM>checked</EM>.
+  <EM>check_malloc</EM>  returns 0 if the block pointed to by <EM>ptr</EM>, or
+  in the case of NULL <EM>the</EM> <EM>entire</EM> <EM>arena</EM>, <EM>is</EM> <EM>intact</EM>.  <EM>Otherwise</EM>
+  <EM>it</EM> <EM>returns</EM> <STRONG>a</STRONG> <EM>corruption</EM> <EM>address</EM>. <EM>If</EM> <EM>ptr</EM> <EM>is</EM> <EM>NULL</EM> <EM>and</EM> <EM>there</EM>
+  <EM>are</EM> <EM>multiple</EM> <EM>corrupted</EM> <EM>blocks</EM>, <EM>check_malloc</EM> <EM>returns</EM> <STRONG>a</STRONG>
+  <EM>corrupted</EM> <EM>address</EM>. <EM>This</EM> <EM>function</EM> <EM>is</EM> <EM>useful</EM> <EM>in</EM> <EM>determining</EM> <EM>if</EM>
+  <EM>the</EM> <EM>memory</EM> <EM>arena</EM> <EM>has</EM> <EM>been</EM> <EM>corrupted</EM> <EM>at</EM> <EM>the</EM> <EM>non</EM>-<EM>fault</EM>
+  <EM>generating</EM> <EM>end</EM>.  <EM>The</EM> <EM>environment</EM> <EM>variable</EM> <EM>DEBUG_MALLOC</EM> <EM>can</EM>
+  <EM>then</EM> <EM>be</EM> <EM>reset</EM> <EM>to</EM> <EM>fault</EM> <EM>on</EM> <EM>access</EM> <EM>of</EM> <EM>the</EM> <EM>reverse</EM> <EM>end</EM>, <EM>and</EM> <EM>the</EM>
+  <EM>fault</EM> <EM>generated</EM> <EM>by</EM> <EM>running</EM> <EM>the</EM> <EM>application</EM> <EM>again</EM>.
+
+  f(CWdebug(1) <EM>should</EM> <EM>be</EM> <EM>used</EM> <EM>in</EM> <EM>conjunction</EM> <EM>with</EM> <EM>these</EM>
+  <EM>routines</EM> <EM>to</EM> <EM>facilitate</EM> <EM>tracking</EM> <EM>down</EM> <EM>the</EM> <EM>instruction</EM> <EM>that</EM>
+  <EM>accessed</EM> <EM>unavailable</EM> <EM>memory</EM>.  <EM>Setting</EM> <EM>DEBUG_MALLOC</EM> to show
+  the information from any of the allocation routines includes
+  the return address of the function that is calling the
+  memory routines.  Using this information with debug makes it
+  easier to isolate memory corruption.
+
+  Control over the amount of debugging information presented
+  is provided by setting and exporting the environment
+  variable DEBUG_MALLOC.  The supported options are: M - trace
+  return values from malloc R - trace entry and return values
+  from realloc C - trace entry and return values from calloc F
+  - trace entry to free H - return freed blocks to the memory
+  pool immediately X - provide additional debugging/tracing
+  information B - allocation routines will fault on access of
+  data beyond the block (default) T - allocation routines will
+  fault on access of data before the beginning of a block N -
+  fill allocated space with a non-zero bit pattern
+
+  If both B and T are specified, B will be used.
+
+<STRONG>DIAGNOSTICS</STRONG>
+  The allocation routines return NULL if the allocation can
+  not be satisfied.
+
+<STRONG>SEE</STRONG> <STRONG>ALSO</STRONG>
+  mmap(2), munmap(2), mprotect(2), malloc(3C)
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

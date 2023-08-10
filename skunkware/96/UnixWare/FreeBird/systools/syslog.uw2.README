@@ -1,0 +1,80 @@
+
+syslog version 2.0 - configure syslogd
+
+Copyright 1995 Novell, All Rights Reserved.
+
+This software is provided "as is" and without any expressed or implied
+warranties, including, without limitation, the implied warranties of
+merchantibility and fitness for any particular purpose. 
+
+This version for UnixWare 2.x.
+
+This package contains a default setup for syslogd on UnixWare 2.x
+(Use a separate package for UnixWare 1.x - syslog)
+
+The files installed/overlaid/edited by this package are:
+
+/usr/lib/newsyslog               - a shell script to clean up logfiles nightly
+                                    in /var/adm/log, run from the adm crontab
+
+/etc/syslog.conf                - symlink to /etc/inet/syslog.conf
+/var/spool/cron/crontabs/adm - updated to call newsyslog script to clean logs
+                                                                              
+To install the package the simplest way follows:
+
+1. Extract the tar archive. 
+
+$ cd /tmp
+$ su
+# tar xvf syslog.uw2.tar
+
+2. Installing the package
+
+
+	pkgadd -d `pwd`
+
+
+3. Removing the package
+
+# pkgrm  syslog
+
+
+--------------------------------------------
+
+This is the newsyslog script run by the adm cron nightly
+
+#!/bin/sh
+#
+#
+
+cd /var/adm/log
+
+for LOG in messages osmlog syslog authlog cs.log cs.debug; do
+	if test -s $LOG
+	then
+		test -f $LOG.6 && mv $LOG.6  $LOG.7
+		test -f $LOG.5 && mv $LOG.5  $LOG.6
+		test -f $LOG.4 && mv $LOG.4  $LOG.5
+		test -f $LOG.3 && mv $LOG.3  $LOG.4
+		test -f $LOG.2 && mv $LOG.2  $LOG.3
+		test -f $LOG.1 && mv $LOG.1  $LOG.2
+		test -f $LOG.0 && mv $LOG.0  $LOG.1
+		cp $LOG    $LOG.0
+		cp /dev/null $LOG
+		chmod 644    $LOG
+		sleep 40
+	elif test  ! -f $LOG ; then
+			cp /dev/null $LOG
+			chmod 644 $LOG
+	fi
+done
+----------------
+
+To recap on starting syslog. 
+We have this entry in /etc/inet/config to start syslogd (note that
+only UW1.x uses the file /etc/inet/rc.inet)
+
+8:/usr/sbin/syslogd::y:/etc/syslog.conf:: 
+
+Note that we link /etc/syslog.conf to /etc/inet/syslog.conf (we like
+to keep all the stuff we are running out of the inet directory  handy).

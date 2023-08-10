@@ -1,0 +1,221 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Code Gen Options</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_39.html">previous</A>, <A HREF="usegcc_41.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX207"></A>
+<A NAME="IDX208"></A>
+<A NAME="IDX209"></A>
+<H2><A NAME="SEC43" HREF="usegcc_toc.html#TOC43">Options for Code Generation Conventions</A></H2>
+<P>
+These machine-independent options control the interface conventions
+used in code generation.
+<P>
+Most of them have both positive and negative forms; the negative form
+of <SAMP>`-ffoo'</SAMP> would be <SAMP>`-fno-foo'</SAMP>.  In the table below, only
+one of the forms is listed--the one which is not the default.  You
+can figure out the other form by either removing <SAMP>`no-'</SAMP> or adding
+it.
+<P>
+<DL COMPACT>
+<DT><CODE>-fpcc-struct-return</CODE>
+<DD>Return "short" <CODE>struct</CODE> and <CODE>union</CODE> values in memory like
+longer ones, rather than in registers.  This convention is less
+efficient, but it has the advantage of allowing intercallability between
+GNU CC-compiled files and files compiled with other compilers.
+
+The precise convention for returning structures in memory depends
+on the target configuration macros.
+
+Short structures and unions are those whose size and alignment match
+that of some integer type.
+
+<DT><CODE>-freg-struct-return</CODE>
+<DD>Use the convention that <CODE>struct</CODE> and <CODE>union</CODE> values are
+returned in registers when possible.  This is more efficient for small
+structures than <SAMP>`-fpcc-struct-return'</SAMP>.
+
+If you specify neither <SAMP>`-fpcc-struct-return'</SAMP> nor its contrary
+<SAMP>`-freg-struct-return'</SAMP>, GNU CC defaults to whichever convention is
+standard for the target.  If there is no standard convention, GNU CC
+defaults to <SAMP>`-fpcc-struct-return'</SAMP>, except on targets where GNU CC
+is the principal compiler.  In those cases, we can choose the standard,
+and we chose the more efficient register return alternative.
+
+<DT><CODE>-fshort-enums</CODE>
+<DD>Allocate to an <CODE>enum</CODE> type only as many bytes as it needs for the
+declared range of possible values.  Specifically, the <CODE>enum</CODE> type
+will be equivalent to the smallest integer type which has enough room.
+
+<DT><CODE>-fshort-double</CODE>
+<DD>Use the same size for <CODE>double</CODE> as for <CODE>float</CODE>.
+
+<DT><CODE>-fshared-data</CODE>
+<DD>Requests that the data and non-<CODE>const</CODE> variables of this
+compilation be shared data rather than private data.  The distinction
+makes sense only on certain operating systems, where shared data is
+shared between processes running the same program, while private data
+exists in one copy per process.
+
+<DT><CODE>-fno-common</CODE>
+<DD>Allocate even uninitialized global variables in the bss section of the
+object file, rather than generating them as common blocks.  This has the
+effect that if the same variable is declared (without <CODE>extern</CODE>) in
+two different compilations, you will get an error when you link them.
+The only reason this might be useful is if you wish to verify that the
+program will work on other systems which always work this way.
+
+<DT><CODE>-fno-ident</CODE>
+<DD>Ignore the <SAMP>`#ident'</SAMP> directive.
+
+<DT><CODE>-fno-gnu-linker</CODE>
+<DD>Do not output global initializations (such as C++ constructors and
+destructors) in the form used by the GNU linker (on systems where the GNU
+linker is the standard method of handling them).  Use this option when
+you want to use a non-GNU linker, which also requires using the
+<CODE>collect2</CODE> program to make sure the system linker includes
+constructors and destructors.  (<CODE>collect2</CODE> is included in the GNU CC
+distribution.)  For systems which <EM>must</EM> use <CODE>collect2</CODE>, the
+compiler driver <CODE>gcc</CODE> is configured to do this automatically.
+
+<DT><CODE>-finhibit-size-directive</CODE>
+<DD>Don't output a <CODE>.size</CODE> assembler directive, or anything else that
+would cause trouble if the function is split in the middle, and the 
+two halves are placed at locations far apart in memory.  This option is
+used when compiling <TT>`crtstuff.c'</TT>; you should not need to use it
+for anything else.
+
+<DT><CODE>-fverbose-asm</CODE>
+<DD>Put extra commentary information in the generated assembly code to
+make it more readable.  This option is generally only of use to those
+who actually need to read the generated assembly code (perhaps while
+debugging the compiler itself).
+
+<DT><CODE>-fvolatile</CODE>
+<DD>Consider all memory references through pointers to be volatile.
+
+<DT><CODE>-fvolatile-global</CODE>
+<DD>Consider all memory references to extern and global data items to
+be volatile.
+
+<A NAME="IDX211"></A>
+<A NAME="IDX210"></A>
+<DT><CODE>-fpic</CODE>
+<DD>Generate position-independent code (PIC) suitable for use in a shared
+library, if supported for the target machine.  Such code accesses all
+constant addresses through a global offset table (GOT).  If the GOT size
+for the linked executable exceeds a machine-specific maximum size, you
+get an error message from the linker indicating that <SAMP>`-fpic'</SAMP> does
+not work; in that case, recompile with <SAMP>`-fPIC'</SAMP> instead.  (These
+maximums are 16k on the m88k, 8k on the Sparc, and 32k on the m68k and
+RS/6000.  The 386 has no such limit.)
+
+Position-independent code requires special support, and therefore works
+only on certain machines.  For the 386, GNU CC supports PIC for System V
+but not for the Sun 386i.  Code generated for the IBM RS/6000 is always
+position-independent.
+
+The GNU assembler does not fully support PIC.  Currently, you must use
+some other assembler in order for PIC to work.  We would welcome
+volunteers to upgrade GAS to handle this; the first part of the job is
+to figure out what the assembler must do differently.
+
+<DT><CODE>-fPIC</CODE>
+<DD>If supported for the target machine, emit position-independent code,
+suitable for dynamic linking and avoiding any limit on the size of the
+global offset table.  This option makes a difference on the m68k, m88k
+and the Sparc.
+
+Position-independent code requires special support, and therefore works
+only on certain machines.
+
+<DT><CODE>-ffixed-<VAR>reg</VAR></CODE>
+<DD>Treat the register named <VAR>reg</VAR> as a fixed register; generated code
+should never refer to it (except perhaps as a stack pointer, frame
+pointer or in some other fixed role).
+
+<VAR>reg</VAR> must be the name of a register.  The register names accepted
+are machine-specific and are defined in the <CODE>REGISTER_NAMES</CODE>
+macro in the machine description macro file.
+
+This flag does not have a negative form, because it specifies a
+three-way choice.
+
+<DT><CODE>-fcall-used-<VAR>reg</VAR></CODE>
+<DD>Treat the register named <VAR>reg</VAR> as an allocatable register that is
+clobbered by function calls.  It may be allocated for temporaries or
+variables that do not live across a call.  Functions compiled this way
+will not save and restore the register <VAR>reg</VAR>.
+
+Use of this flag for a register that has a fixed pervasive role in the
+machine's execution model, such as the stack pointer or frame pointer,
+will produce disastrous results.
+
+This flag does not have a negative form, because it specifies a
+three-way choice.
+
+<DT><CODE>-fcall-saved-<VAR>reg</VAR></CODE>
+<DD>Treat the register named <VAR>reg</VAR> as an allocatable register saved by
+functions.  It may be allocated even for temporaries or variables that
+live across a call.  Functions compiled this way will save and restore
+the register <VAR>reg</VAR> if they use it.
+
+Use of this flag for a register that has a fixed pervasive role in the
+machine's execution model, such as the stack pointer or frame pointer,
+will produce disastrous results.
+
+A different sort of disaster will result from the use of this flag for
+a register in which function values may be returned.
+
+This flag does not have a negative form, because it specifies a
+three-way choice.
+
+<DT><CODE>-fpack-struct</CODE>
+<DD>Pack all structure members together without holes.  Usually you would
+not want to use this option, since it makes the code suboptimal, and
+the offsets of structure members won't agree with system libraries.
+
+<DT><CODE>+e0</CODE>
+<DD><DT><CODE>+e1</CODE>
+<DD>Control whether virtual function definitions in classes are used to
+generate code, or only to define interfaces for their callers.  (C++
+only).
+
+These options are provided for compatibility with <CODE>cfront</CODE> 1.x
+usage; the recommended alternative GNU C++ usage is in flux.  See section <A HREF="usegcc_106.html#SEC109">Declarations and Definitions in One Header</A>.
+
+With <SAMP>`+e0'</SAMP>, virtual function definitions in classes are declared
+<CODE>extern</CODE>; the declaration is used only as an interface
+specification, not to generate code for the virtual functions (in this
+compilation).
+
+With <SAMP>`+e1'</SAMP>, G++ actually generates the code implementing virtual
+functions defined in the code, and makes them publicly visible.
+
+<DT><CODE>-funaligned-pointers</CODE>
+<DD>Assume that all pointers contain unaligned addresses.  On machines where
+unaligned memory accesses trap, this will result in much larger and slower
+code for all pointer dereferences, but the code will work even if addresses
+are unaligned.
+
+<DT><CODE>-funaligned-struct-hack</CODE>
+<DD>Always access structure fields using loads and stores of the declared size.
+This option is useful for code that derefences pointers to unaligned
+structures, but only accesses fields that are themselves aligned.  Without
+this option, <CODE>gcc</CODE> may try to use a memory access larger than the field.
+This might give an unaligned access fault on some hardware.
+
+This option makes some invalid code work at the expense of disabling
+some optimizations.  It is strongly recommended that this option not be
+used.  
+</DL>
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_39.html">previous</A>, <A HREF="usegcc_41.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

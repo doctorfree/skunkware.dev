@@ -1,0 +1,362 @@
+The Elsbeth Toolkit
+
+The Problem and Solution
+
+Tk provides many widgets, and provides a few rudimentary functions to perform
+on those widgets (many of them introduced in Tk4.0). But they are very
+rudimentary, and for anything but the most basic problems, one needs various
+extensions. For example, an entry widget provides keys to move the insert, and
+add or delete text, but it provides no innate search capability. Many different
+solutions are attempted to fix this problem.
+
+1. Many programs simply extend the functions on-the-fly for whatever widgets
+they are using. For example, Tknews lets you write a posting to a file,
+(actually it appends to the file, creating it if necessary). This improves
+Tknews's functionality, but no other program can use this feature.
+
+2. Several systems that involve text editing provide simple (or not-so-simple)
+text editors. The jstools library includes jedit, an excellent text editor,
+plus several other programs that use the functions provided by jedit, which
+provide a uniform interface to functions like text searching. However, the
+functions are still unavailable to other programs outside jstools.
+
+3. Some toolkits provide functionality includable in new Tk programs, but
+require the programmer to incorporate the functionality into their application.
+The searchbox tool provides the text-search mechanism used by TkMan, and allows
+you to incorporate it into your program. Thus, you can add TkMan's text-search
+function to another Tk program, but this requires a bit of programming work.
+
+4. Some toolkits provide a large set of simple functions to be included in any
+Tk program without modifying that Tk program. The Emacs-bindings package by
+Paul Raines can be used on any Tk program to give some Emacs functionality to
+Tk text widgets. Toolkits like this add functionality independent of the Tk
+application actually running, so they will (theoretically) work under any
+application. The only disadvantage here is that they don't come with any
+applications of their own (except simple demoing scripts).
+
+5. The Teacher Hypertools package is an example of the latter, a set of
+programs that add code to remote programs to increase their functionality. No
+programming work on the part of the user is required. The main disadvantage of
+the Teacher Hypertools is that the improvements made to remote applications are
+temporary; there is no general mechanism that enables a remote program to
+always run with the features provided by one or more hypertools.
+
+
+The Elsbeth toolkit hopes to unify these five approaches to extending Tk widget
+functionality. It provides a library of bindings to add functions like
+search/replace, interactive window sizing/movement, completion, and many other
+goodies to most of the standard Tk widgets. The user can access them in five
+ways:
+
+1. The widget functions are all provided as an indexed Tcl library (in the /lib
+directory). The programmer can use the functions by adding the library
+directory to his auto_path.
+
+2. The widget functions can be taught to a remote widget using an appropriate
+Teacher Hypertool.
+
+3. This toolkit provides thbind, a program which allows the user to invoke any
+Tk application with the bindings provided by the Elsbeth toolkit. The user
+simply calls thbind with the application's name and arguments as arguments (to
+thbind). 
+
+If you have one program that should always use the Elsbeth bindings, you can
+simply have that program source the file lib/tk.tcl.
+
+If you want every Tcl program to use the Elsbeth bindings, set your TK_LIBRARY
+environment variable to point to elsbeth's lib directory. This loads up the
+Elsbeth bindings, as well as standard Tk initialization upon startup of any
+application.
+
+4. This toolkit also provides Elsbeth, a comprehensive text editor based on the
+bindings provided herein.
+
+5. This toolkit also contains several other programs built on elsbeth, that use
+elsbeth's functionality in their own special ways.
+
+The toolkit comes with online documentation, provided in different ways,
+depending on the approach used to invoke the functions:
+
+1. Comments in library code to aid in linking a program correctly to the
+routines provided by the library.
+
+2. Each hypertool has a 'help' menuoption, describing the functions it teaches,
+and how to use the hypertool itself.
+
+3. Applications started with thbind don't provide documentation on the elsbeth
+bindings per se, but they do bring up a menubar containing all the available
+functions and their associated keybindings on any widget, simply by pressing
+button-3 over the widget. Pressing button-3 again makes the menubar disappear.
+
+4. Elsbeth has a Help command, which brings up a window showing full
+documentation on Elsbeth's functions. You can also press button-3 in any
+Elsbeth widget to get a menubar of available functions.
+
+5. Of the applications that use elsbeth, rmth provides its own documentation.
+The other programs are much smaller and have documentation at the top of their
+source code.
+
+
+Special Features of the Elsbeth Toolkit
+
+Here are some of the features provided in the library. They are available from
+all approaches; you can give them to your remote application using thbind or a
+teacher hypertool, or you can use them in elsbeth:
+
+	- Compatible with Tk versions 4.0 and higher.
+	- Global search/replace, for strings or regular expressions.
+	- Unlimited undo, including undoing replace.
+	- Optional horizontal and vertical grids and scrollbars.
+	- Piped I/O to files or standard shell commands. Piped input is shown
+	  as it gets read, and the widget can be browsed during reading.
+	- Execute wish/exec commands, with I/O with any widget.
+	- Automatic completion of filenames, variable/array names,
+	  Tcl commands and procedures, with optional listbox to display
+	  possible endings to ambiguous completions.
+	- Automatic expansion of file glob patterns, variable/array values,
+	  and Tcl bracketed-command evaluation.
+	- History lists of every entry's contents, can be traversed or brought
+	  up in each entry, using csh-style !-notation.
+	- Execute a function N times.
+	- Execute a function in all widgets of the same class with one key.
+	- Windowing functions for resize, move, raise, iconify.
+	- Parentheses balancing (also brackets, quotes, C comments...).
+	- Text marking and painting, various forms of highlighting.
+	- Periodic auto-saving, file-updating, command-updating, etc.
+
+Here are some special features of Elsbeth:
+
+	- Brings up any number of files, each in its own text window.
+	- Can place all files in one toplevel window, or put each file
+	  in its own toplevel, letting you arrange them to your liking
+	- Switching between multiple Elsbeth windows from the keybaord.
+	- Simple modes for: Text, HTML, C, Lisp, Tcl, Perl, Mail/News
+	- For each file, Elsbeth remembers things like window size &
+	  placement, cursor location, marks, and grids across sessions.
+
+
+Installing and Configuring the Elsbeth Toolkit
+
+This set of tools is completely written in Tcl/Tk. To configure the toolkit to
+run on your system, you can do either the quick 'n dirty approach or the slow &
+sure approach. If you want to change default bindings or behavior of the
+library tools, use the slow&sure approach, otherwise you're better off with the
+Q&D one.
+
+The quick'n dirty approach:
+
+In lib/tk.tcl, you will see:
+
+	set tk_library {/afs/ece/usr/tcl/lib/tk4.0}
+	source $tk_library/tk.tcl
+	set auto_path "/usr/users/svoboda/src/elsbeth/lib $auto_path"
+
+The first line should reflect the directory of the Tk (4.0 or higher) library,
+and the last line should reflect the location of elsbeth's library.
+
+The slow 'n sure approach is useful if you want to change the default
+keybindings, or some of the behavior of the teacher hypertools. You don't need
+to hack around with files in the lib or util directory to do this. Simply start
+up bin/makebeth, and select, first the "Binding Library" menuoption, then the
+"Make Elsbeth" menuoption, and then quit. Both options will take about a minute
+to compile the appropriate files. Before doing either menuoption, you can tweak
+the hypertools around to your liking...select makebeth's Help menuoption for
+details.
+
+NOTE: These tools require that you have wish version 4.0 or greater in your
+$PATH as just 'wish'. You can run any tool by typing '<wish> <tool>' or just
+'elsbeth/bin/<tool>' or just '<tool'> if you add elsbeth/bin to your $PATH. If
+you don't have wish in your PATH, you can change the top line of each program
+in the /bin directory to reflect the location of wish. Makebeth, however, will
+still require that wish be in your path to create elsbeth and the binding
+libraries properly.
+
+ANOTHER NOTE: Don't run makebeth if you've already set TK_LIBRARY to the
+elsbeth/lib directory...that would be bad.
+
+
+What are Teacher Hypertools?
+
+See the file th.background for basic information about Teacher Hypertools.
+
+
+Contents of the Elsbeth Toolkit:
+
+bin: 	All programs; not all are hypertools.
+
+lib:	All code taught by hypertools.
+
+util: 	All code used by hypertools and elsbeth, but not taught to other
+programs.
+
+
+Teacher Hypertools Provided:
+
+Nearly all of these are used by elsbeth, and all of them can teach things to
+other programs.
+
+browseth	Teach traversal, scrolling and selection commands to widgets
+busyth 		Teach an application to indicate when it is busy
+commandeth	Teach remote programs to prompt the user for wish or shell
+		commands.
+completh	Teach many different types of completion to textual widgets
+cth		Teach text widgets to format C comments and functions	
+cycleth		Teaches remote applications to execute a command periodically
+edith		Teach basic text editing commands to widgets	
+filebrowseth	Turn text widgets into simple file/directory browsers	
+fileth		Teach file I/O to widgets	
+focuth		Teach keyboard focus switching between widgets	
+gridth		Add row and column numbers to text, listbox and entry widgets
+historyth	Teach remote entries to remember their previous contents
+htmlth		Teach text widgets to format HTML
+iterath		Teach widgets to iterate commands many times at once.	
+keyhistoryth	Teach entries to remember their contents & traverse them.
+lispth		Teach text widgets to format Lisp comments and functions
+marketh 	Teach text widgets to highlight important regions of text
+makebeth	Create Elsbeth (see above)
+msgth		Teach text widgets to format Mail and News messages
+multh		Teach multiple widgets of same class to work with each other
+painth		Teach text widgets to paint certain regular expressions
+paragrath	Teach text widgets about paragraphs	
+parenth		Teach widgets to help keep parentheses and other delimiters
+		balanced	
+resizeth	Teach widgets to shrink and expand themselves	
+scrolleth	Add and remove scrollbars to scrollable widgets
+searcheth	Teach widgets to search for strings, glob patterns, or
+		regular expressions	
+taggeth		Add a menu of tags to a text widget	
+tclth		Teach text widgets to format Tcl comments and procedures
+windowth	Teach programs to resize, move, and iconify their windows
+
+th 	 	This is a 'catalog' program that lets you run any of the other
+hypertools listed above, the easiest way to access the hypertools is to run
+this program. To run it type "bin/th".
+
+
+Other programs available:
+
+elsbeth 	The editor.
+els 		A bare-bones text viewer. It takes same parameters as elsbeth,
+		and brings up all text widgets, but adds no bindings.
+elsclient	Takes elsbeth parms. Finds an already-running elsbeth process,
+		or starts a new one. Exits when windows given to it are closed.
+		Useful for programs that like to invoke an editor and wait for
+		it to finish.
+rmth 		A wish and shell interpreter that uses Elsbeth's features.
+thbind 		A handy way of using the elsbeth binding library; it sources
+		the library and then calls the program and args in $argv.
+thcolors 	A virtual color displayer, also uses elsbeth
+thfonts 	A virtual font displayer, uses elsbeth
+bsend 		A mail-sending program using elsbeth
+bread 		A mail-reading program using elsbeth
+bith 		A mail-notification program, loads up bread
+These three programs were created to process my mail quickly and easily. (I use
+mh on Dec3100/Ultrix4.4 and RS6000/AIX4.1.) I make no gaurentees regarding
+their portability.
+
+
+Some other noteworthy files:
+
+util/bindings.th/bindings 	This contains all the key and menu bindings 
+taught by hypertools, in a single file for changeability. You can change the
+bindings in this file, or you can change them individually in each hypertool,
+or in makebeth.
+
+util/elsbeth.bindings.tcl 	This file contains the key and menu bindings
+for elsbeth. It is created from util/elsbeth.tmpl by bin/makebeth's 'Make
+Elsbeth' feature. If this file doesn't exist, bin/elsbeth behaves like bin/els.
+
+util/elsbeth.help 		The help file for elsbeth; it is also created
+				by makebeth.
+
+util/rmth.HELP.txt 		Additional help file for rmth
+
+util/elsbeth.rc			My own ~/.th/elsbeth file...shows my preferences
+util/thbind.rc			Same thing for thbind.
+util/rmth.rc			Same thing for rmth.
+
+util/mh_profile			Excerpt of my ~/.mh_profile, which links bread
+				and bsend to some of mh's commands.
+
+lib/bind.Misc.tcl 		Elsbeth's binding libraries. Created
+lib/bind.*.tcl 			by makebeth.
+
+lib/tk.tcl 			Analogous to tk.tcl in Tk's library. Loads up
+				Tk bindings, then elsbeth bindings. Resets
+				tk_library to the Tk library (in case it was
+				set to the elsbeth library).
+
+
+Elsbeth & Teacher Hypertools: Copyright (c) 1994-1996 David Svoboda
+
+Permission to use, copy, modify, and distribute this software is hereby
+granted, provided that the above copyright line appears at least once in source
+code taught by Teacher Hypertools, and in documentation relating to said code.
+However, permission is not granted to modify the copyright insertion code.
+
+This basically means: if a Teacher Hypertool sticks a copyright message in code
+it teaches, and you copy that code to a file, leave the copyright message in.
+And include it in your documentation. If it doesn't stick a copyright in code,
+don't worry about it. Go ahead and fiddle around with the Teacher Hypertool
+source code, and improve it (and drop me a line if you do, I'd be interested),
+but don't change the code that inserts copyright notices.
+
+
+Disclaimer
+
+I don't see how its possible, but if this software crashes your system,
+destroys your hard disk, posts to alt.flame asking for mail-bombs, etc. etc, I
+didn't do it, man. :)
+
+
+Bugs
+
+Doubtless there will be bugs, or rather, 'features' you and I didn't count on.
+The Tk error should complain of any errors that a bug causes. Keep in mind,
+that the Tk error mechanism is also used to report errors from wish or exec
+commands and I/O pipelines. So you could get a Tk error by telling Elseth to
+exec "rm /usr" (unless you happen to be root :), but this is not a bug. Also
+some commands will terminate abnormally, even if they do what you want. A good
+example of this is diff, which will return nonzero status if any differences
+occurred, which Tk will interpret as an error message. So you will get the
+output you want, but there will be a Tk error message saying the process ended
+abnormally. You might also get an error message if you interrupt a gradual
+process. However, these are not bugs in Elsbeth.
+
+If you get a reproduceable Tk error which you suspect is a bug in Elsbeth,
+check the documentation in the hypertools to see if your bug is mentioned in
+its documentation. For example, if you get an error message when pressing a
+close parentheses, you might check the parenth hypertool's documetation (just
+run it and press 'Help'). If your bug is mentioned there, I know about it, and
+either considered it a feature, or too hard to fix. If you know of a fix,
+workaround, or simply a better way of doing things, please tell me.
+
+If you get a bug which is not covered in the hypertools documentation (or its
+simply in the wrong one), please let me know. (If its merely covered by a
+different hypertool, that's still a stylistic bug that I can fix by writing
+better documentation :). Mail  me the contents of Tk's error stack trace, along
+with what you were doing to invoke the error. Include the versions of Tk,Tcl,X
+and your hardware and software platforms. If Tk does not report an error, but
+Elsbeth does not do what you want, it could be a bug, or a feature. If you feel
+strongly that this is a bug (it is not mentioned in the documentation, and you
+cannot work around it, for example), send me a letter describing the problem.
+
+There are many things that can be added to Elsbeth. (a few are mentioned in the
+TODO file)  The best way to extend Elsbeth is by writing a Teacher Hypertool
+teaching your new feature and include it in makebeth (which can be a simple or
+complex job depending on the hypertool). Of course, a quick means of extension
+is to write a script that first calls elsbeth and then adds your feature.
+(Thcolors, thfonts, and rmth all do this), but then only elsbeth can use your
+new feature. Putting it in a hypertool allows any program to use it. If you
+make any popular hypertools or improvements, I would like to hear about them;
+
+
+Elsbeth WWW Page
+
+There is a WWW Page devoted to Elsbeth, located at:
+http://www.ece.cmu.edu/afs/ece/usr/svoboda/www/elsbeth/homepage.html
+
+
+Send questions and comments to David Svoboda <svoboda+@cmu.edu>.
+
+Last modified: February 19, 1996

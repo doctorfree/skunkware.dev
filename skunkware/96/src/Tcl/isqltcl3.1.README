@@ -1,0 +1,409 @@
+Last Updated: 
+Fri Oct 20 14:27:30 EDT 1995
+
+SEE NOTES ON Release 3.1 at bottom
+
+INFORMIX 4.x and 5.x SUPPORT FOR TCL 7.0 and TCL 6.7 (2nd Release)
+------------------------------------------------------------------
+
+    This article describes the Informix support added to TCL (It should work
+    with the new and the old releases of TCL).
+
+    The most significant change has been to make all sql commands as minor
+    commands.
+    A single major commands called sql has been added.
+    Thus,
+        sql_open "select query ..." [?arg] ...
+    would now be written as
+        sql open "select query ..." [?arg]
+    Similarly
+        sql_fetch       is now      sql fetch
+        sql_run         is now      sql run
+    etc.
+    A few other minor changes (will not affect the external TCL or C calls)
+    have also been made. It should now compile cleanly with TCL or TK.
+
+
+    The rest of the article is organized as follows
+            TCL CALLS
+            TCL EXAMPLES
+            C CALLS
+            COMPILING TCL
+            COMPILING TK
+            C EXAMPLES
+            CONCLUSIONS
+
+    TCL CALLS available
+            A single major command called sql has been added. This
+            command takes additional arguments (minors like open, close etc.).
+
+            The minors may be abbreviated (e.g. o for open etc.).
+
+            The following TCL calls are available -
+
+            sql database "database"
+                opens a connection to the database specified by the argument
+                "database". If the argument is "", the the environment
+                variable DATABASE will be used
+                RETURNS integer 0 on success, non-zero on failure
+            sql open    "sql statement" [?arg] [?arg] ..
+                opens the sql query specified and sets the bind variables
+                if specified. To see what bind variables are, look at the
+                description in C CALLS below.
+                This command compiles the query, allocates space for the
+                return values and makes it available for execution using
+                sql fetch.
+                RETURNS an integer (>= 0) on success, < 0 on failure
+                This return values is to be treated like an open file
+                descriptor and should be closed finally to release space.
+                This is used typically to open a select query.
+            sql fetch ?fd [1]
+                fetches a single row of the opened fd. If an optional second
+                argument with value 1 is specified, then the trailing white
+                spaces in the list elements are removed.
+                RETURN value is a TCL list on successful fetch, the NIL list
+                or "" when the end is reached.
+            sql close ?fd
+                closes the compiled query and release all memory associated
+                with it
+                RETURNS 0 on success, non-zero on failure
+            sql reopen ?fd
+                reopens the query specified by fd so that fetches may be done
+                from the start again. Uses the old parameters specified for
+                the open
+            sql run "sql statement" [?arg] [?arg] ..
+                executes the sql query specified immediately after setting
+                the bind variables. Useful for INSERT, UPDATE, DELETE and
+                other sql calls.
+                RETURNS 0 on success, non-zero on failure
+            sql exists table_name column_name column_value ?optional_where
+                check for existence of column_name in table_name with
+                value column_value and optionally a where_clause.
+                RETURNS 0 on success, non-zero on failure
+                This can be used to validate values quickly without using up
+                an fd or setting up a sql open, sql fetch, sql close structure.
+            sql explain ?fd
+                sets debug on for the query fd. This feature may be used
+                for debugging and the implementation may vary from database
+                to database. It may be used to print out queries as they are
+                executed along with the bind variables etc. The database may
+                add other options like cost of the query etc.
+                RETURNS 0 on success, non-zero on failure
+            sql geterror
+                RETURNS a string containing a complete description of the
+                last sql error. This will include the complete text of the
+                SQL error (and ISAM error if the database uses ISAM) and the
+                complete sql statement being processed.
+
+            Advanced functions:
+            sql sqlca
+                RETURNS a TCL list of the sqlca elements
+            sql sqld ?fd ?type
+                RETURNS the number of sqld elements present for the
+                sqlda associated with fd. If ?type is 1, then the sqlda used
+                is the input sqlda and if ?type is 0, then the sqlda used is
+                the output sqlda. This is useful to find out the number of
+                columns fetched from the dynamic query.
+            sql sqlda ?fd ?type ?num
+                RETURNS a TCL list containing all information about the
+                num'th element in the sqlda structure.
+                If ?type is 1, then the input sqlda is used.
+                If ?type is 0, then the output sqlda is used.
+                Information is returned for the ?num'th element.
+                ?num varies from 0 to [sql sqld ?fd ?type]
+            sql finish
+                closes the database opened earlier
+                RETURNS 0 on success, non-zero on failure
+            sql getdatabase
+                returns the database name opened with sql database
+
+    EXAMPLES
+            1)
+                set fd [sql open
+                    "select e.*, d.*
+                    from employee e, department d
+                    where e.dept_num = d.dept_num"]
+                set line [sql fetch $fd]
+                while {$line != ""} {
+                    puts stdout "values are ($line)"
+                    set line [sql fetch $fd]
+                }
+                sql close $fd
+
+            2)
+                set emp_name "FOO'BAR"
+                sql run "delete from employee where emp_name = ?" $emp_name
+
+            3)
+                catch {sql database ""} ret
+                if {$ret != 0} {
+                    puts stdout "Connect Error: [sql geterror]"
+                    exit_action
+                }
+
+    C CALLS
+            The following C calls have been provided (to ensure that the
+            above TCL sql calls are available).
+
+            int sql_database(char *dbname)
+                Connects to the database specified by dbname or uses
+                DATABASE environ variable if dbname is "" or cannot be
+                opened.
+                Return value: 0 on success, < 0 on failure
+            int sql_open (char *stmt, int argc, char **argv)
+                opens the query specified by stmt and set the bind variables
+                from the argv. This compiles the query and allocates space
+                for the return values.
+                BIND VARIABLES:
+                    bind variables may be thought of as parameters which get
+                    substituted (like \1, \2 in regsub etc.) when the
+                    sql query is compiled. The substituted values may contain
+                    any character like ", ', : * , embedded spaces etc..
+                    If we do not use bind variables, then each column
+                    value has to be inspected to ensure that the special
+                    characters are escaped (using \, etc).
+                Return value: fd (>= 0) on success, < 0 on failure
+            int sql_fetch (int fd)
+                fetch a single row into the allocated space
+                Use sql_values() to retrieve it.
+                There is no need to free the sql_values return value.
+                Return value: 0 on success, > 0 on end, < 0 on error
+            char **sql_values(int fd, int *numvalues, int dostrip)
+                Return the values fetched by the previous fetch.
+                Set the number of argv values in numvalues.
+                If dostrip is 1, then trailing blanks are stripped from
+                each value
+                There is no need to free the return value from this function.
+                The function manages it by re-allocating space if needed.
+                Return value: NULL on error, char **argv on success
+            int sql_close(int fd)
+                Closes the compiled query and releases all memory associated
+                with it.
+                Return value: 0 on success, < 0 on failure
+            int sql_run(char *stmt, int argc, char **argv)
+                Calls sql_open, sql_fetch and sql_close returning the
+                status of sql_fetch.
+                Return value: 0 on success, < 0 on failure, > 0 on no such
+                record
+            int sql_exists(char *table, char *field, char *value, char *where)
+                Check for existence of field in table with value value and
+                an optional where clause.
+                Return value: 0 on success, < 0 on error, > 0 on no such record
+            char *sql_geterror()
+                Return a static pointer into the text of the last error
+            int sql_explain(int fd)
+                Sets debug on for the query associated with fd
+            int sql_print(int fd)
+                Prints internal values from fd structure on stdout
+                (the command being executed, bind variables, last return value
+                etc.)
+            char **sql_sqlca(int *num)
+                Returns the sqlca structure as an array of character pointers
+                and sets the number of such pointers in num
+            int sql_sqld(int fd, int type)
+                Returns the number of sqld elements associated with fd
+                If type is 1, then the input sqlda is used.
+                If type is 0, then the output sqlda is used.
+                This number reflects the number of columns fetched from the
+                dynamic query or the number of bind variables specified.
+            char **sql_sqlda(int fd, int type, int elnum, int *numvalues)
+                Returns array of character pointers (the number of such
+                pointers is set in numvalues) for the sqlda element elnum.
+                This contains information like the column name, type,
+                value etc.
+                type is the same as in sql_sqld
+                elnum varies from 0 to sql_sqld(int fd, int type)
+            int sql_finish()
+                Closes the database opened earlier with sql_database
+                Returns 0 on success, < 0 on failure
+            char *sql_getdatabase()
+                Gets the database name opened with sql_database
+
+            All the C calls above should ensure that the fd is valid
+            before it proceeds.
+
+    COMPILING TCL
+            To add support to TCL, two files have been provided
+            1) sqlinf.ec  - code containing C calls to database
+            2) tclsql.c   - code for wrappers around sqlinf.ec calls
+                            which adds SQL support to TCL.
+            Copy these files into the tcl distribution directory
+            Users who want SQL support in TCL should add the call
+                isql_init(interp) in tclAppInit.c (for tcl versions >= 7)
+                or in their main.c 
+            Compile sqlinf.ec with c4gl
+                c4gl -c sqlinf.ec
+            Add the file tclsql.o in the Makefile (to the GENERIC_OBJS define)
+            Do a make with
+                make CC=c4gl
+            Use c4gl if you are using Informix 4 or greater since it does a
+            better job of freeing cursors (in my opinion). Use esql if you
+            do not have c4gl.
+
+    COMPILING TK
+            Users who want SQL support in TK should add the call
+                isql_init(interp) in main.c or tkAppInit.c
+            and link the wish interpreter again with
+                make CC=c4gl.
+
+
+    EXAMPLES
+
+#ifdef TEST
+main() {
+    int fd, ret;
+
+    sql_database("test");
+
+    {
+        char *argv[] = { "A%"};
+        fd = sql_open("select emp_name from employee where emp_name like ?",
+                        1, argv);
+        ret = 0;
+        while (ret == 0) {
+            ret = sql_fetch(fd);
+            if (ret == 0) sql_print(fd);
+        }
+    }
+
+    {
+        char **argv;
+        sql_reopen(fd);
+        sql_fetch(fd);
+        argv = sql_values(fd, &ret, 0);
+        if (!argv) printf("No values for fd%d\n", fd);
+        else {
+            int i;
+            for (i = 0; i < ret; i++)
+                printf("Value %d is (%s)\n", i, argv[i]);
+        }
+    }
+
+    {
+        char *argv[] = { "19"};
+        if (sql_exists("employee", "emp_name", 0, 0)==0)
+            printf("At least 1 employee exists\n");
+        if (sql_exists("employee", "emp_name", "JOLLY'GOOD", 0)==0)
+            printf("Employee JOLLY'GOOD exists\n");
+        if (sql_exists("employee", "emp_name", 0, "emp_name matches 'A*'")==0)
+            printf("Employee matching A* exists\n");
+        if (sql_run("set lock mode to wait", 0, 0) == 0)
+            printf("Successful lock mode\n");
+        if (sql_run("update employee set salary = ?", 1, argv) == 0)
+            printf("Successful update \n");
+    }
+}
+#endif
+
+    CONCLUSIONS
+
+        I have posted the archived file isqltcl.tar.Z to
+        harbor.ecn.purdue.edu. It should be available there soon.
+        The command
+            zcat isqltcl.tar.Z | tar xvf -
+        will create the following files in the current directory
+            sqlinf.ec
+            tclsql.c
+            readme.sql (this document)
+        Follow the instructions provided earlier to compile it.
+
+        If you have any suggestions or comments,
+        please write skumar@netcom.com (It may take some time for me to
+        respond in the next two weeks since I will be relocating).
+
+Informix SQL TCL - Release 2.1 fixed coredumps and new feature
+--------------------------------------------------------------
+
+    The sql close routine was freeing the descriptor which
+    was allocated by describe. Now you may use esql or c4gl
+    to compile the file.
+
+    sql reopen now accepts bind parameters. Thus, the overhead of
+    prepare,describe etc. in sql open is avoided.
+
+    for e.g.
+
+    sql database "db"
+    set fd [sql open "select * from employee where emp_name = ?" "ABC"]
+    puts stdout [sql fetch $fd]
+    sql reopen $fd "XYZ"
+    puts stdout [sql fetch $fd]
+
+    I have uploaded the file isqltcl.tar.Z (containing
+    readme.sql, sqlinf.ec and tclsql.c) to harbor.ecn.pudue.edu.
+    It should be available there soon.
+
+    If you have any suggestions or comments (or any problems),
+    please write skumar@netcom.com
+
+Informix SQL TCL - Release 3.0 - support for BLOBs and Informix 7.X
+---------------------------------------------------------------------
+	
+	This release now supports blob data types - byte and text. It also
+	supports Informix 7.X stored procedure execution in the "sql run"
+	command. 
+	The syntax for running the stored procedures is identical to the
+	one used in ISQL or DBACCESS programs provided by Informix.
+	Text values are stored and retrieved as-is. Byte values are converted
+	to hex on output and the input is assumed to be in hex.
+
+	e.g.
+	sql database db
+	sql run "create table blob1 (x1 text, x2 char(10))"
+	sql run "insert into blob1 values(?,?)" [exec cat /etc/passwd] "END"
+	source sql.tcl 
+	# contains the function sql_one
+	sql_one "select * from blob1"
+		# should return a list with two elements : contents of password 
+		# file and the word END
+	sql run "create table blob2 (x1 byte, x2 char(10))"
+	sql run "insert into blob2 values(?,?)" 6d6d6d6d6d END
+	sql_one "select * from blob2"
+		# should return 6D6D6D6D6D and END in a list
+	sql run "delete from blob1"
+	sql run "insert into blob1 select * from blob2"
+	sql_one "select * from blob1"
+		# should return mmmmm and END in a list (since 6d is m in ascii)
+	sql run "drop table blob1; drop table blob2"
+	# sql_one "execute procedure ins_sel()" 
+
+	A compatibility file called sql.tcl is also provided which allows
+	programs which use sql_ calls to work with the sql command.
+
+	Also using the sql_ calls will provide for easier migration to other
+	database access routines.
+
+	Two TCL functions in sql.tcl will allow for fetching one row
+	from a cursor i.e. open cursor fetch one row and close cursor
+
+	e.g.
+	sql database db
+	sql_one "select * from employee where emp_name = ?" "ABC"
+		will fetch the first row 
+	sql_onetrim "select * from employee"
+		will fetch the first row and strip trailing blanks from the
+		returned columns
+
+	A windowing ISQL (plagiarized from Tom Pointdexter's Sybase 
+	package) is provided. Run it by typing
+	cd uco;wish -f wsql
+	The wish should have ISQL and WISH-X extensions compiled in.
+
+	You will be able to generally form SQL queries on the fly (without
+	having to know SQL), look at different database tables etc. using
+	this small but wonderful package. 
+
+	This release compiles in the same manner as earlier releases
+	(look at the compiling section in this document).
+
+Informix SQL TCL - Release 3.1 - Minor fixes
+---------------------------------------------------------------------
+
+	Some minor fixes to code to workaround Informix bugs
+	(Fixed sql_set_values to initialize sqlda pointer to NULL
+	if sqlda's sqld element is 0; otherwise the pointer sqlvar is
+	pointing to an illegal reference).
+	Also added casts for calloc where appropriate.
+
+	Removed wisql from the distribution since it did not work at all
+	on TK4.1. 

@@ -1,0 +1,103 @@
+		Obeah Version 1.2
+
+Obeah provides a simple interface to the configuration of Makefiles
+(or other systems). When run as a configuration script it sources a
+file called configure.in which contains tcl code that defines what is
+to be done.  When the user has set up the required values and clicks
+on the install button, make is executed, parameterised by the values
+provided, using the file "program".mk as its input file.  Setting the
+"Help" check button will give help information for buttons and fields
+when the mouse enters them.
+
+The buttons on the configuration window act as follows :
+
+Quit  - exit the program. If there are unsaved changes you will be prompted.
+
+Reset - reset *all* the fields to their default values. Typing
+	<Escape> in a field will reset it individually.
+
+Clear - empty *all* the fields. Individual fields can be cleared by
+	typing <Shift-Escape> when the focus is in the field.
+
+Verify - runs tests on the values on the fields to make sure they are
+	OK.
+
+Save   - saves the values you have entered in the configuration input file.
+
+Install - Executes make install.
+
+Help   - enables or disables help information display.
+
+If obeah is started with the -c option it allows you to create the
+configuration input file. It permits the creation of new fields that
+can be modified by the user and allows various verification procedures
+to be called to ensure that the values are correct. Invisible fields
+can also be added - that is values that can be passed to make but
+which are not configurable by the user. In -c mode it is possible to
+add references to other fields into the values of other fields. Simply
+single click on the field whose value you want substituted and a
+reference to it will appear in the field holding the focus. Nested and
+repeated references are allowed, but not recursive ones!! A reference
+looks like ${Label} where Label is the label of the field to be
+substituted. Button 2 held done over the label of a configurable field
+will allow you to re-position it by dragging.
+
+It is also possible to add new buttons to the configuration window to
+reflect any special features you would like to have. Because the
+configuration file is sourced it can be used to contain definitions of
+any of extra procs that are needed. You can also remove the default
+buttons provided if they do not reflect what you wish to happen.
+
+At the moment obeah supports only a small number of verification
+procedures for values :
+
+specifying "ob_dirCheck" will check that the value given is a directory,
+that it exists and if it doesnt that you have write permission to its
+parent.
+
+specifying "ob_interpCheck" will check that the value refers to a valid
+tcl interpreter. interpCheck must have a parameter specified (which
+can be {}) containing pairs of values giving a command to execute in
+the interpreter and a pattern describing the expected result. This
+allows you to test for various features being present or absent in the
+interpreter specified.
+
+In create mode, clicking the program button will create shell script
+that executes wish with a cut down obeah as its input. This allows you
+to create tailored configure programs for particular applications. The
+name of the configuration file is built in to this script so does not
+have to be configure.in (which is the default). The cut down program
+does not contain any of the creation features.
+
+Obeah provides a few procs that you can call as the action associated
+with a button :
+
+ob_runMake : Takes the make option you wish to execute as a parameter
+and executes make using the make input file associated with this
+script (default <program name>.mk). The execution is passed all the
+values that have been set up (both invisible and
+configurable). Example :
+	
+	ob_runMake install
+
+ob_mkdirs : Takes as it parameter the names of directorie sthat you
+wish to be created. Example:
+
+	ob_mkDirs /usr/local/progam /usr/local/progam/bin
+
+ob_run: Takes as its parameters the command you wish to
+execute. Before executing command it sets up environment variables
+using the make variable names associated with the configurable and
+invisible values and initialises them to those values. Example :
+
+	ob_run ls -l
+
+Make sure you get your quoting right here when calling these functions!!
+
+Your help messages may contain the sequence %p which will be
+substituted with the name of the program being configured.
+
+Please send me any bugs or feature requests.
+
+
+Lindsay.Marshall@newcastle.ac.uk

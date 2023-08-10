@@ -1,0 +1,88 @@
+# /etc/inet/bootptab (sample for UW2)
+#  
+# For UW2 ; cd /etc; ln -s /etc/inet/bootptab /etc/bootptab
+#
+# /etc/bootptab: database for bootp server (/etc/bootpd)
+# Blank lines and lines beginning with '#' are ignored.
+#
+# Legend:
+#
+#	first field -- hostname
+#			(may be full domain name and probably should be)
+#
+#	hd -- home directory
+#	bf -- bootfile
+#	cs -- cookie servers
+#	ds -- domain name servers
+#	gw -- gateways
+#	ha -- hardware address
+#	ht -- hardware type
+#	im -- impress servers
+#	ip -- host IP address
+#	lg -- log servers
+#	lp -- LPR servers
+#	ns -- IEN-116 name servers
+#	rl -- resource location protocol servers
+#	sm -- subnet mask
+#	tc -- template host (points to similar host entry)
+#	to -- time offset (seconds)
+#	ts -- time servers
+#	sa -- network install server (UW2 extension)
+
+
+# First, we define a global entry which specifies the 
+# stuff every host uses.
+
+.global.def:\
+	:sm=255.255.255.192:\
+	:hd=/usr/boot:bf=null:\
+	:ts=192.9.11.131:\
+	:sa=192.9.11.168:\
+	:to=auto:ht=ethernet:
+
+# Next, we can define different master entries for each subnet. . .
+# setup gateways for each subnet
+
+.subnet1:tc=.global.def:ds=192.9.11.131:gw=192.9.11.60:
+..subnet1.def:tc=.subnet1:ip=192.9.11.0:
+
+.subnet2:tc=.global.def:ds=192.9.11.131:gw=192.9.11.126:
+..subnet2.def:tc=.subnet2:ip=192.9.11.64:
+
+.subnet3:tc=.global.def:ds=192.9.11.131 192.9.11.132:gw=192.9.11.190:
+..subnet3.def:tc=.subnet3:ip=192.9.11.128:
+
+.subnet4:tc=.global.def:ds=192.9.11.131 192.9.11.132:gw=192.9.11.254:
+..subnet4.def:tc=.subnet4:ip=192.9.11.192:
+
+
+#
+# We should be able to use as many levels of indirection as desired.  Use
+# your imagination. . .
+#
+
+
+# entries have the following format:
+
+#hostname:tc=xxx:ht=xxx:ha=xxx:ip=xxx:
+#for example
+#carnegie:tc=.subnet13.dummy:ha=7FF8100000AF:ip=128.2.11.1:
+
+## --------------Subnet 1
+alpha:tc=.subnet1:ha=0080c7b4737b:ip=192.9.11.24:
+beta:tc=.subnet1:ha=00001b276b17:ip=192.9.11.1:
+gamma:tc=.subnet1:ha=00001b278cd2:ip=192.9.11.2:
+
+## --------------Subnet 2
+epsilon:tc=.subnet2:ha=0080c7113200:ip=192.9.11.66:
+theta:tc=.subnet2:ha=00001b27daa5:ip=192.9.11.69:
+
+
+## --------------Subnet 3
+apollo:tc=.subnet3:ha=00001b27f9ea:ip=192.9.11.182:
+mars:tc=.subnet3:ha=00805FF8EE85:ip=192.9.11.183:
+zeus:tc=.subnet3:ha=00001b19a599:ip=192.9.11.184:
+
+## --------------Subnet 4
+voyager:tc=.subnet4:ha=00001b19a005:ip=192.9.11.184:
+

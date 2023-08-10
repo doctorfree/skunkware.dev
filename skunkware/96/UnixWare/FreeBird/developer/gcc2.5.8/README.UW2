@@ -1,0 +1,88 @@
+gcc-2.5.8 for UnixWare 2
+------------------------
+
+Please observe the GNU Copyright supplied with this package.
+
+This software ported by Gary Jones - g.w.jones@kid0110.wins.icl.co.uk
+This donated to the mail-server archive "as is".
+
+README.UW2		   - This file
+UW2			   - Source changes for porting to UnixWare 2
+gcc-2.5.8.UW2.pkg.tar.gz   - gcc-2.5.8 Binary Package for UnixWare 2
+gcc-2.5.8.tar.gz 	   - gcc-2.5.8 Source
+libg++-2.5.3.tar.gz	   - libg++ Source
+
+
+To install the binary package:
+
+	/opt/bin/tar -z -xvf gcc-2.5.8.UW2.pkg.tar.gz
+	pkgadd -d `pwd`
+
+-----------------------------------------------------------------------
+
+
+This README describes how the package gcc was generated.
+
+Note that I used a previous version of gcc as the initial compiler.
+Additional changes may be necessary for any other compiler.
+
+Check the README and INSTALL files for gcc and libg++ before running any
+of the following commands.
+
+Generating gcc:
+
+1.  Run the following command:
+    ./configure --prefix=/opt --local-prefix=/opt --target=i486-sysv4 --exec-prefix=/opt
+
+2.  Replace the file fix-header.c with the one in the UW2 directory.
+    Do not replace the others as they are only used in the final package.
+
+3.  Run the following commands in sequence:
+
+    a.  nohup make CC="/opt/bin/gcc" CFLAGS="-O" LANGUAGES=c &
+
+	If you don't already have gcc then substitute your cc.
+
+    b.  nohup make stage1 &
+
+    We now have the stage1 compiler. We now need to rebuild the compiler
+    using the compiler we have just generated.
+
+    c.  nohup make CC="stage1/xgcc -Bstage1/" CFLAGS="-O" &
+
+    d.  nohup make stage2 &
+
+    We now have the stage2 compiler. We now need to rebuild the compiler
+    using the one we have just generated. This is the stage3 compiler and
+    should be identical to the stage2 compiler. Checking is optional.
+
+    e.  nohup make CC="stage2/xgcc -Bstage2/" CFLAGS="-O" &
+
+    f.  nohup make objc-runtime CC="stage2/xgcc -Bstage2/" CFLAGS="-O" &
+
+    g.  nohup make install CC="stage2/xgcc -Bstage2/" CFLAGS="-O" &
+
+    h.  nohup make install-libobj CC="stage2/xgcc -Bstage2/" CFLAGS="-O" &
+
+4.  By now gcc has been successfully built and installed under /opt.
+
+Generating libg++.
+
+1.  Run the following command:
+    ./configure i486-sysv4 --prefix=/opt
+
+2.  Run the following commands:
+    a.  nohup make all &
+
+    b.  nohup make install &
+
+Note that by now we have tested the compiler to a fair degree.
+
+Generating the package.
+
+1.  Copy the files fixinc and fixinc.svr4 from the UW2 directory
+    to /opt/lib/gcc-lib/i486-sysv4/2.5.8
+
+2.  cd to the package directory and run the following command:
+    pkgmk -c -d/var/spool/pkg -r/opt -p"VULCAN`date '+%y%m%d%H%M%S'`" -fpkgproto
+

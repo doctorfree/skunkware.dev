@@ -1,0 +1,55 @@
+Notes on building Tcl7.5 for skunkware
+--------------------------------------
+
+Run dir (prefix and exec-prefix) are set to default to /usr/local.
+installation (INSTALL_ROOT) is set to install into 
+    ../dist ( tcl7.5/dist)
+
+
+To build
+--------
+    I wanted to build both static and shared libraries and interpreters but I
+didn't want to change from the std config files so we do two configure and 
+builds (one each). 
+    shared lib interp will be tclsh
+    static interp will be     tclsh75s
+
+Note that there IS a patch that supports this (and many other things from the 
+look of it - its the file tcl7.5plus.patch.gz in tcl7.5. 
+This has NOT been applied to this src tree ).
+
+
+
+
+cd into ./unix.
+
+    run script ./skunkMake
+
+which does :
+
+configure as ./configure 
+    make to make a static interpreter and library
+    rename the static interpreter 
+    remove the .o files
+
+configure again ./configure --enable-shared
+    make to make shared libs and interpreter that uses them
+
+Copy the static interp and lib to dist by hand
+
+make install
+
+
+tests
+-----
+
+tests socket-2.9 socket conflict
+      socket-3.1 socket conflict
+      socket-9.8 socket conflict
+    'Fail' in that they expect a command to fail where a socket/port is
+        already in use and it doesn't ... 
+    I haven't done anything about tracking this down, mark surmises that its
+    something screwed up with SCO sockets....
+
+
+

@@ -1,0 +1,259 @@
+README file for artts (anal retentive time tracking software)
+
+This file documents artts version 1.0 and arpt 1.0.
+
+Please send comments, suggestions, bug-reports, etc. to
+
+	pcoad@crl.com
+
+Any feedback is welcome.
+
+Legal Stuff:
+
+Copyright 1994, 1995, Paul E Coad
+The author disclaims all warranties with regard to this software, including
+all implied warranties of merchantability and fitness.  In no event
+shall the author be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use, data or
+profits, whether in an action of contract, negligence or other
+tortuous action, arising out of or in connection with the use or
+performance of this software.
+
+This package is being released under the terms of Larry Wall's
+"Artistic license".  A copy of the license is in this distribution 
+in a file with the name Artistic.
+
+Files:
+
+README		this file
+artts		the time tracker
+arpt		the time reporter
+Artistic	Larry Wall's "Artistic license"
+arttsrc		sample configuration file
+arttsdb		sample database file
+
+General:
+
+Are you anal retentive?  Is your boss?  Do you wonder how your time is being
+spent?  artts might be the answer to your problems.  artts helps to track
+the amount of time spent on various tasks.  artts is useful for tracking
+billable hours, actual project time, etc.  A simple command line report 
+generator is included.
+
+Requirements:
+artts requires tcl 7.3 and tk 3.6 or tcl 7.4 and tk 4.0.  arpt requires tcl 
+7.3 or tcl 7.4.  Both artts and arpt run correctly under both sets of 
+versions.  The date(1) command is also required.  artts and arpt have been 
+tested on: 
+	SVR3.2 (ISC 3.0) 
+	SVR4.2 (UnixWare 1.1) 
+	linux 1.1.88 
+	BSD 4.3? (SunOS 4.1.3_U1)  
+They should work on any real operating system that has a working 
+(unix-compatible) date(1) command.
+
+WARNING:
+
+(1)
+I am releasing this software in the hope that INDIVIDUALS will find it useful.
+If you can use it to track the hours you work on contracts, I will be 
+happy.  I do not want artts to be forced upon anyone.  If you think that 
+your boss might force you or someone else to use it, SAVE YOURSELF, and
+delete all of the associated files. 
+
+(2)
+artts uses the unix date(1) command for obtaining the current date(1) and
+time.  The date(1) command is run at semi-regular intervals.  The amount of 
+time between executions of the date(1) command depends on the settings in your 
+.arttsrc file.  Running the date(1) command puts some load on your system.  If 
+date(1) is putting too much load on your system, try decreasing the frequency 
+at which the command is run.  See artts(update_rate) in The .arttsrc File 
+section below.
+
+Installation:
+
+Make sure the first line of the artts and arpt files contains a correct path.
+Copy the artts and arpt files into a directory in your path.  
+Copy the file arttsrc into your home directory and rename it .arttsrc  
+Copy the file arttsdb into your home directory and rename it .arttsdb  
+
+Use:
+
+The goal of artts is to help track time.  artts tracks the amount of time 
+spent on various tasks.  Switching tasks is done by selecting an option
+from a menu.  Simple reports can be generated via the command line using
+the arpt program.  One of the design goals for artts was to minimize the
+amount of screen real estate needed.  On small screens the artts window may 
+still take up too much room.  Specifying a smaller font for the artts(fixed)
+and artts(prop) values will result in a smaller window.
+
+Skip the following description for a while.  Try out artts.  The only 
+tricky parts are: until a task is switched no output is written to the
+.arttsdb file, the "+" button shows an additional row of buttons, and arpt
+needs a minimum of one flag, try arpt -s -d.
+
+Window Description:
+
+The artts window consists of three areas: display of the current task time,
+display of the current task, and a button area.
+
+	XX:XX:XX
+The top area in the artts window is a display of the current amount time of
+time on the current task.  The display is in hours, minutes and seconds.
+The rate at which the time is updated is determined by the artts(update_time)
+option in the .arttsrc file.  See below for an explanation of the .arttsrc
+file.  artts is initially set up to get the current time every 10 seconds.
+
+	ABCDEFG
+The middle area in the artts window is a display of the current task.
+
+	Buttons
+The bottom of the artts window consists of two rows of buttons.  When artts
+is first started, a single row of buttons is displayed.  The buttons are:
+Tasks, Stop, New, and +.  An additional row of buttons is displayed when 
+the + button is selected.  The second row of buttons consists of: Delete,
+Report, Quit, and -.
+
+	Tasks
+The Tasks button is a menu button which when selected, displays a list of
+the currently available tasks.  Selecting one of the tasks causes the selected
+task to become the current task.  The new task is displayed in the Task: area
+in the middle of the artts window and the Current: task time to be reset to
+00:00:00.  The old task is recorded along with its elapsed, start and stop
+times.
+
+	Stop
+Selecting the Stop button sets the current task to NONE, stops the 
+accumulation of time on the current task and the old task to be recorded
+along with its elapsed, start and stop times.
+
+	New
+Selecting the New button will open the New Task window. The New Task window
+can be used for adding a new task to those that appear in the Tasks button
+menu.  Once a new task has been added, it will be available for selection on
+the Tasks button menu even if artts is quit and restarted.
+
+	+
+Selecting the + button causes the Artts window to expand to display an 
+additional row of buttons.  These buttons include Delete, Report, Quit, and -.
+
+	Delete
+Selecting the Delete button causes a menu of the currently available tasks
+to be displayed.  Selecting one of the tasks will remove the task from the
+Delete button menu and from the Tasks button menu.  Once a task is deleted
+it is no longer available for selection, even if artts is quit and restarted.
+(If a task is accidentally deleted, it can be added to the available list of
+tasks by selecting the New button and adding the task as a new task.)
+
+	Report
+Selecting the Report button causes the Artts report window to be displayed.
+The Artts Report window displays a graph consisting of bars which represent
+the relative amounts of time spent on each task today.  Above each bar
+is the name of a task, the elapsed time for the task in hours, minutes,
+and seconds, and the percent of time spend on the task.  The graph is updated
+at the same rate as the current task time.
+
+	Quit
+Selecting the Quit button quits artts.  If a task is currently accumulating
+time, it will be recorded with the elapsed, start, and stop times.
+
+	-
+Selecting the - button causes the artts window to shrink and hide the second
+row of buttons.  The second row of buttons can be displayed again by selecting
+the + button.
+
+This all sounds much harder than it really is.  Try it.  It's simple.
+
+Report Generator: arpt
+
+arpt can be used to generate simple reports.  arpt can take any of the
+following command line options: -h, -l, -d, -s, and -t.
+-h	displays a short usage message.
+-l	displays a long usage message.
+-d	displays a report of daily totals (each task is totaled for each day.)
+-s	displays a report of all totals (all tasks are totaled over the span 
+	  of days in the .arttsdb file.
+-t	displays a report of time spent on tasks today.
+
+The options can be specified in any order, but cannot be smashed together. This
+means that -s -b is not the same as -sb.
+
+The .arttsrc File
+
+The .arttsrc file is the obligatory .rc file which holds configuration and
+customization information for artts and arpt.
+
+artts(update_rate)	This option can be used to specify the rate at which
+			the date command is run.  The value specified indicates
+			the number of mili-seconds between runs of the date
+			command.  (10000 = 10 seconds)  Setting the value to 
+			larger values effects the amount of time between
+			refreshes of the current task time display area and 
+			the report window.  Switching tasks causes the date 
+			command to be run to determine the time spend on the 
+			current task.
+
+artts(tasks)		This option can be used to specify the tasks which
+			should be available for selection in the Tasks and
+			Delete button menus.  artts appends a new option to
+			the .arttsrc file when it exits if one or more tasks
+			are added or deleted during its run.
+
+artts(start_task)	This option can be used to specify the task which
+			begins accumulating time when artts is started.  If
+			no task is specified or "NONE" is specified, NONE
+			will be displayed and no task will accumulate time
+			until a task is selected.
+
+artts(x_pos)		The initial x position of the artts window measured
+			in pixels from the upper left corner of the screen.
+
+artts(y_pos)		The initial y position of the artts window measured
+			in pixels from the upper left corner of the screen.
+
+artts(rpt_x)		The x position of the artts report window measured
+			in pixels from the upper left corner of the screen.
+
+artts(rpt_y)		The y position of the artts report window measured
+			in pixels from the upper left corner of the screen.
+
+artts(fixed)		This option sets the font to be used for the current
+			task time display.  The format matches the standard
+			X font specification.
+
+artts(prop)		This option sets the font to be used for all text
+			other than the current task time display.  The format
+			matches the standard X font specification.
+
+arpt(separator)		This option can be used to specify a string to separate
+			days when daily reports are generated by arpt.
+
+arpt(tot_line)		This option can be used to specify a string to separate
+			the task listings from the total lines in all reports.
+
+arpt(exclude)		This option can be used to specify a list of tasks 
+			which should not contribute to the total time in all 
+			reports.  
+
+The .arttsdb File
+The .arttsdb file is used to record information about tasks.  The information
+includes: task name, elapsed time, start date/time, and stop date/time.  Each
+entry in the .arttsdb file has the format:
+
+yy mm dd hh mm ss yy mm dd hh mm ss secs task_name
+
+The first yy mm dd hh mm ss is the start date/time, the second is the stop
+date/time, secs is the elapsed time, and task name is the name of the task.
+
+It is suggested that the .arttsdb file be renamed once a week.  This will have
+the benefit that running arpt with the -s option will display the accumulated
+time on tasks for the current week.
+
+THANKS
+
+Jay Brownfield for being the first real user of artts.  Erik Sincoff for 
+doing the Spanish Inquisition thing and stress testing. The Teknowledge 
+Corporation bigwigs for not invoking the "intellectual property" clause on 
+this freeware package.  (Great guys even if they do wear ties.) Tess for her 
+infinite patience. 
+

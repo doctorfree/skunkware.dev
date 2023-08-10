@@ -1,0 +1,34 @@
+(this was called dodirectory in the FAQ lists.)
+
+this is a very short and simple tclsh script for unix.  it changes the
+permissions on files and subdirectories so that group and other
+are denied write, but have the same read and execute permissions
+as the owner.
+
+i've often installed some largish piece of software (e.g. xf or cmucl),
+or made a collection of man, bin, and lib stuff,
+and wanted to set the permissions on all the files so that others could
+use it but not tamper with it.  what i once did was brutish:
+	chmod -R a+rx .
+when i tried this on xf, though, it broke several things, because xf
+was using  ls -F  to distinguish files, and suddenly everything ended
+in an *.  so it was important to not put execute where it didn't belong.
+(besides the obvious concerns of the OS :-)
+
+so i created schmod (s for "smarter").  it's simple to install - change
+the tclsh path in the first line.  it was written on a SunOS 4.1.3
+system, so you may want to check that your chmod works the same way.
+i assume this command line:
+	chmod <octal> <filename> <filename> ...
+where <octal> is the permission to set to all the files listed.
+
+the commandline for schmod is
+	schmod file ...
+	schmod -help
+
+things that could be done:
+- take an expression for computing new mode
+  e.g.  -expr '($ & ~066) | ((($ & 0500) >> 6) * 011)' is what's done now -
+  replacing $ with current mode
+- a verbose switch (list files changed)
+- a test switch (list changes that would be made without making them)

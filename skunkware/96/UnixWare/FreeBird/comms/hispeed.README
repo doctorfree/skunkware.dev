@@ -1,0 +1,157 @@
+Subject: T17) Howto update the default modem speed from 38.4 to 115.2
+
+Bob Stewart has written a piece of code called hispeed.c included
+here.  The source is attached (with permission).
+
+This program changes the asycspdtab table in the running kernel
+to support higher speeds than 38400 baud.  It changes the speed
+of the B50 entry to 112500, and the B75 entry 50 57600.
+
+There is a restrictions:
+
+It only works on a 16550 UART PC serial port, ie: COM1-4
+
+A binary version in uuencode format is available from
+the same directory you could this file
+
+===========================================================================
+
+/*
+ * SCCSID @(#)hispeed.c	1.5 9/27/95
+ *
+ * file: hispeed.c
+ *
+ * Copyright 1995, Bob Stewart
+ * This program may be used freely with no limitations on distribution,
+ * except that changes MUST be noted.
+ *
+ * You may not charge another person any fee for a copy of this program.
+ *
+ * Bob Stewart will not be responsible for any errors or problems caused
+ * by this program whether through its proper use, misuse, or abuse.
+ * It is your responsibility to examine this program, and decide whether
+ * you wish to compile and run it on your system.  By doing so, you
+ * accept full responsibility for any damage that may occur to your system.
+ *
+ * This program is not not warranteed to perform any function, including
+ * the service it was designed to perform.  :-)
+ *
+ * NOTICE: This program modifies your running kernel!
+ *
+ * On Unixware 1.1.x systems, you MUST be using the asyhp driver.
+ * On Unixware 2.x systems, you MUST be using the asyc driver.
+ *
+ * You MUST be using a 16550 uart for hispeed to be effective.  If you
+ * are not using a 16550, you will probably experience data over-runs
+ * and data loss at 115.2, and probably at 57.6, as well.
+ *
+ * This program changes the asycspdtab table in the running kernel
+ * to support higher speeds than 38400 baud.  It changes the speed
+ * of the B50 entry to 115,200, and the B75 entry to 57,600.
+ *
+ * These changes are NOT permanent.  The old speeds will return on reboot.
+ * This program MUST be run by root.
+ *
+ * Change your /etc/uucp/Systems file to enable the higher speed, e.g.:
+ *
+ * dial-earth Any ACU 50 1235678 "" \d "" \d in:--in: login word: password
+ * dial-sun   Any ACU 75 3193856 "" \d "" \d in:--in: login word: password
+ *
+ * Make this program by typing "make hispeed", then run it by typing
+ * "./hispeed".  For 1.1.x systems, use "./hispeed -h".
+ *
+ * For a printout of the before and after table values, use "./hispeed -v",
+ * or ./hispeed -v -h".
+ */
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/ksym.h>
+#include <stdio.h>
+
+
+void main(int argc, char *argv[])
+{
+   int i;
+   int verbose=0;
+   char fileid[]="/dev/kmem";
+   char symname[15];
+   short speed[16];
+   int  kmemfd;
+   struct mioc_rksym rks;
+
+   strcpy(symname,"asycspdtab");
+
+   for(i=1; i<argc; i++)
+   {
+      if(argv[i][0] != '-')
+         continue;
+
+      switch(argv[i][1])
+      {
+         case('v'):
+            verbose=1;
+            break;
+         case('h'):
+            strcpy(symname,"asyhpspdtab");
+            break;
+         default:
+            break;
+      }
+   }
+
+   if((kmemfd = open(fileid, O_RDWR)) == -1)
+   {
+      perror("open /dev/kmem:");
+      exit(-1);
+   }
+
+   rks.mirk_symname = symname;
+   rks.mirk_buf = &speed;
+   rks.mirk_buflen = sizeof(speed);
+
+   if(ioctl(kmemfd, MIOC_READKSYM, &rks) == -1)
+   {
+      perror("ioctl /dev/kmem:");
+      exit(-1);
+   }
+
+   if(verbose)
+   {
+      printf("Original %s\n",symname);
+      for(i=0; i<16; i++)
+      {
+         printf("%4.4X ",speed[i]);
+         if(i%4 == 3)
+            printf("\n");
+      }
+      printf("\n");
+   }
+
+   speed[1] = 1;		/* change B50 to 115,200 baud */
+   speed[2] = 2;		/* change B75 to  57,600 baud */
+
+   if(verbose)
+   {
+      printf("Updated %s\n",symname);
+      for(i=0; i<16; i++)
+      {
+         printf("%4.4X ",speed[i]);
+         if(i%4 == 3)
+            printf("\n");
+      }
+      printf("\n");
+   }
+
+   if(ioctl(kmemfd, MIOC_WRITEKSYM, &rks) == -1)
+   {
+      perror("ioctl /dev/kmem:");
+      exit(-1);
+   }
+
+   close(kmemfd);
+
+   fprintf(stderr, "hispeed installed\n");
+}
+

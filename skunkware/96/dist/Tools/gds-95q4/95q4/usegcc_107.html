@@ -1,0 +1,145 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Template Instantiation</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_106.html">previous</A>, <A HREF="usegcc_108.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC110" HREF="usegcc_toc.html#TOC110">Where's the Template?</A></H2>
+<A NAME="IDX486"></A>
+<P>
+C++ templates are the first language feature to require more
+intelligence from the environment than one usually finds on a UNIX
+system.  Somehow the compiler and linker have to make sure that each
+template instance occurs exactly once in the executable if it is needed,
+and not at all otherwise.  There are two basic approaches to this
+problem, which I will refer to as the Borland model and the Cfront model.
+<P>
+<DL COMPACT>
+<DT>Borland model
+<DD>Borland C++ solved the template instantiation problem by adding the code
+equivalent of common blocks to their linker; template instances
+are emitted in each translation unit that uses them, and they are
+collapsed together at run time.  The advantage of this model is that the
+linker only has to consider the object files themselves; there is no
+external complexity to worry about.  This disadvantage is that
+compilation time is increased because the template code is being
+compiled repeatedly.  Code written for this model tends to include
+definitions of all member templates in the header file, since they must
+be seen to be compiled.
+
+<DT>Cfront model
+<DD>The AT&#38;T C++ translator, Cfront, solved the template instantiation
+problem by creating the notion of a template repository, an
+automatically maintained place where template instances are stored.  As
+individual object files are built, notes are placed in the repository to
+record where templates and potential type arguments were seen so that
+the subsequent instantiation step knows where to find them.  At link
+time, any needed instances are generated and linked in.  The advantages
+of this model are more optimal compilation speed and the ability to use
+the system linker; to implement the Borland model a compiler vendor also
+needs to replace the linker.  The disadvantages are vastly increased
+complexity, and thus potential for error; theoretically, this should be
+just as transparent, but in practice it has been very difficult to build
+multiple programs in one directory and one program in multiple
+directories using Cfront.  Code written for this model tends to separate
+definitions of non-inline member templates into a separate file, which
+is magically found by the link preprocessor when a template needs to be
+instantiated.
+</DL>
+<P>
+Currently, you have four options for dealing with template instantiations:
+<P>
+<OL>
+<LI>
+Compile your template-using code with <SAMP>`-frepo'</SAMP>.  The compiler will
+generate files with the extension <SAMP>`.rpo'</SAMP> listing all of the
+template instantiations used in the corresponding object files which
+could be instantiated there; the link wrapper, <SAMP>`collect2'</SAMP>, will
+then update the <SAMP>`.rpo'</SAMP> files to tell the compiler where to place
+those instantiations and rebuild any affected object files.  The
+link-time overhead is negligible after the first pass, as the compiler
+will continue to place the instantiations in the same files.
+
+This is your best option for application code written for the Borland
+model, as it will just work.  Code written for the Cfront model will
+need to be modified so that the template definitions are available at
+one or more points of instantiation; usually this is as simple as adding
+<CODE>#include &#60;tmethods.cc&#62;</CODE> to the end of each template header.
+
+For library code, if you want the library to provide all of the template
+instantiations it needs, just try to link all of its object files
+together; the link will fail, but cause the instantiations to be
+generated as a side effect.  Be warned, however, that this may cause
+conflicts if multiple libraries try to provide the same instantiations.
+For greater control, use explicit instantiation as described in the next
+option.
+
+<LI>
+Explicitly instantiate all the template instances you use, and compile
+with -fno-implicit-templates.  This requires more knowledge of exactly
+which templates you are using, but it's less mysterious than the
+previous approach, and offers greater control.  You can scatter the
+instantiations throughout your program, you can create one big file to
+do all the instantiations, or you can create tiny files like
+
+<PRE>
+#include "Foo.h"
+#include "Foo.cc"
+
+template class Foo&#60;int&#62;;
+template ostream&#38; operator &#60;&#60;
+                (ostream&#38;, const Foo&#60;int&#62;&#38;);
+</PRE>
+
+for each instance you need, and create a template instantiation library
+from those.  If you are using Cfront-model code, you can probably get
+away with not using -fno-implicit-templates when compiling files that
+don't <SAMP>`#include'</SAMP> the member template definitions.
+
+<LI>
+Do nothing.  Pretend g++ does implement automatic instantiation
+management.  Code written for the Borland model will work fine, but
+each translation unit will contain instances of each of the templates it
+uses.  In a large program, this can lead to an unacceptable amount of code
+duplication; you should probably just use <SAMP>`-frepo'</SAMP>.
+
+<LI>
+Add <SAMP>`#pragma interface'</SAMP> to all files containing template
+definitions.  For each of these files, add <SAMP>`#pragma implementation
+"<VAR>filename</VAR>"'</SAMP> to the top of some <SAMP>`.C'</SAMP> file which
+<SAMP>`#include'</SAMP>s it.  Then compile everything with -fexternal-templates.
+The templates will then only be expanded in the translation unit which
+implements them (i.e. has a <SAMP>`#pragma implementation'</SAMP> line for the
+file where they live); all other files will use external references.  If
+you're lucky, everything should work properly.  If you get undefined
+symbol errors, you need to make sure that each template instance which
+is used in the program is used in the file which implements that
+template.  If you don't have any use for a particular instance in that
+file, you can just instantiate it explicitly.
+
+This strategy will work with code written for either model.  If you are
+using code written for the Cfront model, the file containing a class
+template and the file containing its member templates should be
+implemented in the same translation unit.
+
+A slight variation on this approach is to use the option
+<SAMP>`-falt-external-templates'</SAMP> instead.  This option causes template
+instances to be emitted in the translation unit that implements the
+header where they are first instantiated, rather than the one which
+implements the file where the templates are defined.  This header must
+be the same in all translation units, or things are likely to break.
+
+See section <A HREF="usegcc_106.html#SEC109">Declarations and Definitions in One Header</A>, for
+more discussion of these pragmas.  Better yet, don't use this approach;
+it is obsolete and only supported for backward compatibility.
+
+</OL>
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_106.html">previous</A>, <A HREF="usegcc_108.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

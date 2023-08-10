@@ -1,0 +1,250 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Text Functions</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_73.html">previous</A>, <A HREF="make_75.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX446"></A>
+<H2><A NAME="SEC73" HREF="make_toc.html#TOC73">Functions for String Substitution and Analysis</A></H2>
+<P>
+Here are some functions that operate on strings:
+<P>
+<A NAME="IDX447"></A>
+<DL COMPACT>
+<DT><CODE>$(subst <VAR>from</VAR>,<VAR>to</VAR>,<VAR>text</VAR>)</CODE>
+<DD>Performs a textual replacement on the text <VAR>text</VAR>: each occurrence
+of <VAR>from</VAR> is replaced by <VAR>to</VAR>.  The result is substituted for
+the function call.  For example,
+
+<PRE>
+$(subst ee,EE,feet on the street)
+</PRE>
+
+substitutes the string <SAMP>`fEEt on the strEEt'</SAMP>.
+
+<A NAME="IDX448"></A>
+<DT><CODE>$(patsubst <VAR>pattern</VAR>,<VAR>replacement</VAR>,<VAR>text</VAR>)</CODE>
+<DD>Finds whitespace-separated words in <VAR>text</VAR> that match
+<VAR>pattern</VAR> and replaces them with <VAR>replacement</VAR>.  Here
+<VAR>pattern</VAR> may contain a <SAMP>`%'</SAMP> which acts as a wildcard,
+matching any number of any characters within a word.  If
+<VAR>replacement</VAR> also contains a <SAMP>`%'</SAMP>, the <SAMP>`%'</SAMP> is replaced
+by the text that matched the <SAMP>`%'</SAMP> in <VAR>pattern</VAR>.
+<A NAME="IDX450"></A>
+<A NAME="IDX451"></A>
+<A NAME="IDX452"></A>
+<A NAME="IDX453"></A>
+<A NAME="IDX449"></A>
+<SAMP>`%'</SAMP> characters in <CODE>patsubst</CODE> function invocations can be
+quoted with preceding backslashes (<SAMP>`\'</SAMP>).  Backslashes that would
+otherwise quote <SAMP>`%'</SAMP> characters can be quoted with more backslashes.
+Backslashes that quote <SAMP>`%'</SAMP> characters or other backslashes are
+removed from the pattern before it is compared file names or has a stem
+substituted into it.  Backslashes that are not in danger of quoting
+<SAMP>`%'</SAMP> characters go unmolested.  For example, the pattern
+<TT>`the\%weird\\%pattern\\'</TT> has <SAMP>`the%weird\'</SAMP> preceding the
+operative <SAMP>`%'</SAMP> character, and <SAMP>`pattern\\'</SAMP> following it.  The
+final two backslashes are left alone because they cannot affect any
+<SAMP>`%'</SAMP> character.
+Whitespace between words is folded into single space characters;
+leading and trailing whitespace is discarded.
+
+For example,
+
+<PRE>
+$(patsubst %.c,%.o,x.c.c bar.c)
+</PRE>
+
+produces the value <SAMP>`x.c.o bar.o'</SAMP>.
+
+Substitution references (see section <A HREF="make_60.html#SEC59">Substitution References</A>) are a simpler way to get the effect of the <CODE>patsubst</CODE>
+function:
+
+<PRE>
+$(<VAR>var</VAR>:<VAR>pattern</VAR>=<VAR>replacement</VAR>)  
+</PRE>
+
+is equivalent to 
+
+<PRE>
+$(patsubst <VAR>pattern</VAR>,<VAR>replacement</VAR>,$(<VAR>var</VAR>))
+</PRE>
+
+The second shorthand simplifies one of the most common uses of
+<CODE>patsubst</CODE>: replacing the suffix at the end of file names.
+
+<PRE>
+$(<VAR>var</VAR>:<VAR>suffix</VAR>=<VAR>replacement</VAR>) 
+</PRE>
+
+is equivalent to 
+
+<PRE>
+$(patsubst %<VAR>suffix</VAR>,%<VAR>replacement</VAR>,$(<VAR>var</VAR>))
+</PRE>
+
+For example, you might have a list of object files:
+
+<PRE>
+objects = foo.o bar.o baz.o
+</PRE>
+
+To get the list of corresponding source files, you could simply write:
+
+<PRE>
+$(objects:.o=.c)
+</PRE>
+
+instead of using the general form:
+
+<PRE>
+$(patsubst %.o,%.c,$(objects))
+</PRE>
+
+<A NAME="IDX455"></A>
+<A NAME="IDX456"></A>
+<A NAME="IDX457"></A>
+<A NAME="IDX454"></A>
+<DT><CODE>$(strip <VAR>string</VAR>)</CODE>
+<DD>Removes leading and trailing whitespace from <VAR>string</VAR> and replaces
+each internal sequence of one or more whitespace characters with a
+single space.  Thus, <SAMP>`$(strip a b  c )'</SAMP> results in <SAMP>`a b c'</SAMP>.
+
+The function <CODE>strip</CODE> can be very useful when used in conjunction
+with conditionals.  When comparing something with the empty string
+<SAMP>`'</SAMP> using <CODE>ifeq</CODE> or <CODE>ifneq</CODE>, you usually want a string of
+just whitespace to match the empty string (see section <A HREF="make_68.html#SEC67">Conditional Parts of Makefiles</A>).
+
+Thus, the following may fail to have the desired results:
+
+<PRE>
+.PHONY: all
+ifneq   "$(needs_made)" ""
+all: $(needs_made)
+else
+all:;@echo 'Nothing to make!'
+endif
+</PRE>
+
+Replacing the variable reference <SAMP>`$(needs_made)'</SAMP> with the
+function call <SAMP>`$(strip $(needs_made))'</SAMP> in the <CODE>ifneq</CODE>
+directive would make it more robust.
+<A NAME="IDX459"></A>
+<A NAME="IDX460"></A>
+<A NAME="IDX461"></A>
+<A NAME="IDX458"></A>
+<DT><CODE>$(findstring <VAR>find</VAR>,<VAR>in</VAR>)</CODE>
+<DD>Searches <VAR>in</VAR> for an occurrence of <VAR>find</VAR>.  If it occurs, the
+value is <VAR>find</VAR>; otherwise, the value is empty.  You can use this
+function in a conditional to test for the presence of a specific
+substring in a given string.  Thus, the two examples,
+
+<PRE>
+$(findstring a,a b c)
+$(findstring a,b c)
+</PRE>
+
+produce the values <SAMP>`a'</SAMP> and <SAMP>`'</SAMP> (the empty string),
+respectively.  See section <A HREF="make_71.html#SEC70">Conditionals that Test Flags</A>, for a practical application of
+<CODE>findstring</CODE>.
+<A NAME="IDX463"></A>
+<A NAME="IDX464"></A>
+<A NAME="IDX462"></A>
+<DT><CODE>$(filter <VAR>pattern</VAR>...,<VAR>text</VAR>)</CODE>
+<DD>Removes all whitespace-separated words in <VAR>text</VAR> that do
+<EM>not</EM> match any of the <VAR>pattern</VAR> words, returning only
+matching words.  The patterns are written using <SAMP>`%'</SAMP>, just like
+the patterns used in the <CODE>patsubst</CODE> function above.
+The <CODE>filter</CODE> function can be used to separate out different types
+of strings (such as file names) in a variable.  For example:
+
+<PRE>
+sources := foo.c bar.c baz.s ugh.h
+foo: $(sources)
+        cc $(filter %.c %.s,$(sources)) -o foo
+</PRE>
+
+says that <TT>`foo'</TT> depends of <TT>`foo.c'</TT>, <TT>`bar.c'</TT>,
+<TT>`baz.s'</TT> and <TT>`ugh.h'</TT> but only <TT>`foo.c'</TT>, <TT>`bar.c'</TT> and
+<TT>`baz.s'</TT> should be specified in the command to the
+compiler.
+<A NAME="IDX466"></A>
+<A NAME="IDX467"></A>
+<A NAME="IDX465"></A>
+<DT><CODE>$(filter-out <VAR>pattern</VAR>...,<VAR>text</VAR>)</CODE>
+<DD>Removes all whitespace-separated words in <VAR>text</VAR> that <EM>do</EM>
+match the <VAR>pattern</VAR> words, returning only the words that <EM>do
+not</EM> match.  This is the exact opposite of the <CODE>filter</CODE>
+function.
+For example, given:
+
+<PRE>
+objects=main1.o foo.o main2.o bar.o
+mains=main1.o main2.o
+</PRE>
+
+the following generates a list which contains all the object files not
+in <SAMP>`mains'</SAMP>:
+
+<PRE>
+$(filter-out $(mains),$(objects))
+</PRE>
+
+<A NAME="IDX469"></A>
+<A NAME="IDX468"></A>
+<DT><CODE>$(sort <VAR>list</VAR>)</CODE>
+<DD>Sorts the words of <VAR>list</VAR> in lexical order, removing duplicate
+words.  The output is a list of words separated by single spaces.
+Thus,
+
+<PRE>
+$(sort foo bar lose)
+</PRE>
+
+returns the value <SAMP>`bar foo lose'</SAMP>.
+
+<A NAME="IDX471"></A>
+<A NAME="IDX472"></A>
+<A NAME="IDX470"></A>
+Incidentally, since <CODE>sort</CODE> removes duplicate words, you can use
+it for this purpose even if you don't care about the sort order.
+</DL>
+<P>
+Here is a realistic example of the use of <CODE>subst</CODE> and
+<CODE>patsubst</CODE>.  Suppose that a makefile uses the <CODE>VPATH</CODE> variable
+to specify a list of directories that <CODE>make</CODE> should search for
+dependency files 
+(see section <A HREF="make_27.html#SEC26"><CODE>VPATH</CODE>: Search Path for All Dependencies</A>).  
+This example shows how to
+tell the C compiler to search for header files in the same list of
+directories.<P>
+The value of <CODE>VPATH</CODE> is a list of directories separated by colons,
+such as <SAMP>`src:../headers'</SAMP>.  First, the <CODE>subst</CODE> function is used to
+change the colons to spaces:
+<P>
+<PRE>
+$(subst :, ,$(VPATH))
+</PRE>
+<P>
+This produces <SAMP>`src ../headers'</SAMP>.  Then <CODE>patsubst</CODE> is used to turn
+each directory name into a <SAMP>`-I'</SAMP> flag.  These can be added to the
+value of the variable <CODE>CFLAGS</CODE>, which is passed automatically to the C
+compiler, like this:
+<P>
+<PRE>
+override CFLAGS += $(patsubst %,-I%,$(subst :, ,$(VPATH)))
+</PRE>
+<P>
+The effect is to append the text <SAMP>`-Isrc -I../headers'</SAMP> to the
+previously given value of <CODE>CFLAGS</CODE>.  The <CODE>override</CODE> directive is
+used so that the new value is assigned even if the previous value of
+<CODE>CFLAGS</CODE> was specified with a command argument (see section <A HREF="make_65.html#SEC64">The <CODE>override</CODE> Directive</A>).
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_73.html">previous</A>, <A HREF="make_75.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

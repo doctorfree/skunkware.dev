@@ -1,0 +1,299 @@
+XPostitPlus 2.2 - formerly known as Xpostit 2.2 
+by Michael J. Hammel
+
+
+Naming Convention
+-----------------
+
+Throughout this document and all other files in this distribution, the
+terms "XPostitPlus", "xpostit+", and "xpostit" all refer to the same
+program.  "XPostitPlus" is the generic name, "xpostit+" is the binary created,
+and "xpostit" is the historic name.
+
+
+History
+-------
+
+This version of xpostit is based on David A. Curry's original version.  
+When I was getting ready to release this version I went and checked out the
+R5Contrib tree at ftp.x.org and found a version "3.3.1" from David dated
+1991.  Thats sometime after I got hold of a copy.  The version that I'm
+releasing is based on his 1.2 version from 1990.  Since the trees have
+diverged a bit I guess I should give this another name.  From now on, my
+tree will be called "XPostitPlus".  The version numbering will stay the same
+(2.2) from here on, though.  For practicality sake, I'm not going to bother
+to change every reference of "xpostit" in the README, docs, or source to
+"XPostitPlus".  I'll just name the distribution differently so as not to
+confuse the two trees.  I checked with David on this and he agreed that
+changing the name was sufficient as long as I made the following
+disclaimer:
+
+   XPostitPlus is not supported by David Curry in any way.  All bug reports,
+   patches, etc, should be sent to me, Michael J. Hammel (mjhammel@csn.net)
+   and not to David!
+
+
+About XPostitPlus
+-----------------
+
+And you thought there was no real way to clutter your desktop.
+BWahahahaha!  Welcome to XPostit 2.2!
+
+I tried to follow the principle of "KISS" - Keep It Simple, Stupid - so
+many of XPostitPlus's features make use of features already available on the
+system, such as "mail" or "lpr".
+
+It was built on Slackware 2.1 with a 1.1.78 Linux kernel but has been built
+and tested on a number of systems (see below).  A few new features
+have been added since David's version and some have been modified:
+
+Version 2.1 (released to tsx11.mit.edu, but not many other places):
+1. Hidden notes
+	Instead of having lots of notes scattered all over the screen you can
+	hide notes and bring them up only when you need them.
+2. Names for notes
+	This is useful for identifying hidden notes as well as providing 
+	visible notes with a title.
+3. Note Options menu instead of buttons
+	This was necessary since the buttons got bigger than the width
+	of the smaller notes.
+4. The notes now set the sensitivy of the Save option when the note has
+	been changed
+ 
+
+Version 2.2 (a much wider release)
+1. Relative positioning of notes was added.  This permits XPostitPlus to 
+   determine when the screen size has changed on consecutive invokations.  
+   If the screen size is smaller than the previous invokation, the location of
+   a note is scaled to fit the new screen size. 
+   From Hal DeVore @ BMC Software, Houston (hdevore@erehwon.bmc.com).
+2. Jim Spath (jspath@mail.bcpl.lib.md.us) suggested that the magic cookie be 
+   changed from %! to %%!! since the original cookie is the one used by 
+   Postscript.  I added code to handle this and added the -c flag which will 
+   allow you to read in old notes.  If you use this flag once, then use "Save 
+   All Notes" all your old notes will have the new cookie.  Or you can just 
+   let the auto-save feature do that for you.  The -c option will only allow 
+   you to read the old format, it will always write the new format.
+
+   Note: if you add the following line to your magic file you wil now
+   be able to recognize XPositPlus files using the "file" command:
+   0       string          %%!!            X-Post-It-Note text
+
+	NOTE: compatibility in this version refers to compatibility with notes
+   created with my previous release of xpostit 2.1, not with any of David's
+   releases after 1.2!  In other words, his 3.3.1 notes may not work with
+   this versions compatibility flag.
+
+3. "Unhide All Notes" option added - all notes that have been hidden can
+   be brought up all at once now.
+4. Auto Save feature implemented.  I just needed to learn a little about
+   timers, which with X is suprisingly simple (the code worked the first
+   time!).  This can be disabled with the -ns command line option.
+   Feature suggested by Terry Brown.
+5. Added -help and -? command line options which provide a usage statement.
+6. Changed Name dialog popup to display current note name.
+7. Changed Name dialog to resize to a reasonable size, allowing room to
+   insert more text.  This is a big hack, because the Athena widgets don't
+   allow you to determine the width, in pixels, of the font being used.
+   I had to add the -nw command line option (or .nameWidth resource) 
+   to allow the user to specify the number of pixels.  It defaults to
+   10, which is pretty reasonable given the fonts being used.
+8. Added Cascade feature.  Each note can be "anchored".  If one or more 
+   notes are anchored and the "Cascade" option is chosen from the plaid
+   menu, then all the visible notes are cascaded onto the anchored notes.  An
+   attempt is made to distribute all visible notes evenly amongst all the
+   anchored notes.  Each note also has an "unanchor" option as well.  Only
+   one of "anchor" or "unanchor" is sensitive for any given note.
+   Hidden notes are not affected by the cascade feature.  The default
+   offset for cascaded notes (from the anchor) is 15 pixels.  This can be 
+   changed with the -ao option or the .anchorOffset resource.
+9. Fixed the message about a null child being managed, I think.
+10. Added a Print option.  The command to use for printing is system
+   dependent and can be specified with either the .printCmd resource or
+   with the -printcmd command line option.  By default, "lpr %s" is used.
+   Note that the command uses the varargs format used by printf.  "%s"
+   is necessary because this will be the name of a temporary file for a
+   given note.  Notes with no text in them will not be printed (an error
+   message will be popped up stating so).
+11. Rearranged the Options menu a little, so it makes a little more sense.
+   Added divider lines to the plaid menu as well.
+12. Error dialog box wasn't being created even though it was possible for
+   it to be requested to be popped up.  This was fixed, and the Error
+   dialog box was cleaned up for general use.
+13. Alarms have been added.  By selecting "Set Alarm" from a notes Options
+   menu, the user can set an alarm for that note.  When the alarm goes off
+   a beep is heard (via XBell()) and a window pops up stating which
+   notes alarm just went off.  Only the title of the note is given, so you
+   should make sure your notes have proper names (using the Name option).
+   Alarms can be disabled completely with the -na option or .noAlarm 
+   resource.  Since the timer for checking alarms runs once a minute, if
+   a user has alot of notes or a slow machine it might be advantagous to
+   turn off this feature (I guess).
+14. Added the ability to insert the current calendar month into a note
+   at the current cursor location.  This is done via a notes "Insert
+   Calendar" menu option.
+15. If you "lose" a note and want to bring it up at the cursor, select
+   "Find A Note" from the plaid menu.  A pop up window of all notes will
+   be presented.  Select the note you want and if its not hidden it will
+   pop up at the cursor.  If it is hidden it will pop up in the appropriate
+   spot.
+16. Notes can now be emailed.  The "Email" option from the notes menu will
+   pop up a window prompting for an email address.  The -emailcmd command
+   line option or .emailCmd resource can be set to your systems mailer
+   command.  The mailer must accept the text of the mail via standard
+   input (actually as a pipe from "cat tmpfile").  The Unix "mail" command
+   is the default value for this.  See the man page for details.
+17. Added a rule for converting the Xpostit.ad into an include file so it
+   could be used as fallback resources (via th ad2c script, which has been
+   included in the source package).  In this way the Xpostit.ad does not
+   have to be installed into the app-defaults directory.  
+18. Changed the Hidden Notes pop up menu to be a pop up shell widget, so
+   it can be moved around the screen.  This is consistant with the new
+   "Find A Note" pop up window, too.
+19. Added better error handling, so if you try to do a function that can't
+   be done XPostitPlus should tell you now.
+   
+
+
+Systems XPostitPlus is known to build and function on:
+------------------------------------------------------
+
+  Linux 1.1.78 (Slackware 2.1) or later
+  linux-1.3.64, XFree-3.1.2, gcc-2.7.2 ELF
+  SunOS 4.1.3
+  SunOS 4.3.1
+  Solaris 2.4
+  FreeBSD 2.0.5  (it will probably work just fine on 2.1.0 as well)
+  NetBSD 1.1
+  BSDI BSD/OS (version unknown) - I ran xpostit 2.1 on one of these, but
+    don't have access to it anymore.  I don't suspect 2.2 broke any
+    compatibility.
+
+Xpostit should work with any R5 or R6 release of X11.  It may work on R4,
+since it was originally written for R4, but I haven't tried it on one of
+those systems in a few years.  Of course, if you're still using R4 you
+probably also have a large collection of BetaMax and 8-Track tapes.  To
+each his own.
+
+I'd be interested in hearing from anyone who tries this on a different OS.
+See my email address at the end of this README file.
+
+
+Support issues
+--------------
+
+I'll support this as long as you provide a list of what you did in order to
+reproduce a particular problem.  Read the man page first, though.  The code 
+is fairly simple.  If you're not familiar with X, this probably 
+isn't a bad way to get started.
+
+I don't particularly like the style of the code, but I didn't clean it up,
+I just added the features (along the style of the original source).  Its
+not bad, its just not how I would have done it.  :-)
+
+
+To Build:
+---------
+
+1. If you 
+   a. don't use a window manager (who are you and what planet did you 
+      come from?)
+   b. you don't have an ICCCM compliant window manager (get one)
+   c. you use a feature of your window manager which causes transients to
+      not use the window managers title bar for a window.
+   Then
+   edit Imakefile and uncomment the DEFINE statement:
+      DEFINE = -DNOWM
+   If you define this then a title bar is created in the individual
+   note windows.
+
+   If you don't do this (which is what most people will choose to do) then
+   the titles for individual notes will be placed (if possible) in the title
+   bar of the window manager frame for that note.  This is handy for things
+   like the fvwm window list, since the names of the windows are taken from
+   their title bars.
+
+2. If you still use <sys/dir.h>, then edit Imakefile and uncomment the
+   DEFINE statement:
+      DEFINE = -DUSE_DIR
+	I think this is mostly outdated, but there may be some systems that
+   still use it.  Linux just points sys/dir.h to dirent.h.
+3. run "xmkmf" - this creates the Makefile
+4. run "make depend" - this will force the recreatation of app_defaults.h
+   if you change Xpostit.ad, so you don't have to install the Xpostit.ad
+   file if you don't want to.  If you want to ensure that this gets done
+   properly, make sure app_defaults.h does not exist before doing either
+   this or the next step.
+5. run "make"
+
+If app_defaults.h doesn't get built automatically you should be able to 
+run "make app_defaults.h" before you run "make".  
+
+If you don't have xmkmf you can try hacking the Makefile.Linux, but I
+haven't a clue how much work this involves.  If your willing to do this
+you're probably better off trying to find xmkmf, imake and the config files
+necessary for your particular flavor of Unix.  Or maybe you could hack up a
+GNU autoconf configuration.  Good luck.  :-)
+
+Note:  Makefile.Linux is a Makefile built on my Linux box and should run on
+any Linux box built after Linux 1.1.78.  And probably lots that were built
+before that, too.  :-)
+
+
+Things to do:
+------------------
+
+1. File Open
+2. File Save
+	I could have done these, but I got anxious to get this release out of the way
+   so I could get back to other projects I'm working on.  These will be in
+   the next release of XPostitPlus, whenever that might be.
+3. save "backup" notes, in case a write to a note fails during system crash
+4. rubber banding placement:  make sure windows are completely in view on 
+   visible screen.
+5. change SaveNote() to only save the note if the notes status has changed in 
+   any way.
+6. change save on exit:  if "on", save changed notes silently;  if "off", 
+   prompt for saving.
+
+
+
+Legal Mumbo Jumbo
+------------------
+
+From David's Version 3.3.1 version of xpostit (which is not the version
+from which my version has evolved, BTW):
+
+Copyright 1991 by David A. Curry
+
+Permission to use, copy, modify, distribute, and sell this software and its
+documentation for any purpose is hereby granted without fee, provided that
+the above copyright notice appear in all copies and that both that copyright
+notice and this permission notice appear in supporting documentation.  The
+author makes no representations about the suitability of this software for
+any purpose.  It is provided "as is" without express or implied warranty.
+ 
+I've never contacted David about this software, so I can't say exactly what
+the copyright is.  Since David released the code for general use, I'll just
+say that you can use the software for non-commercial use in any way you see
+fit as long as any modification you make are not redistributed without first
+contacting me about them.  I only make this provision so I don't get
+swamped with email about someone else's version for which I have no
+knowledge or control over.  If you'd like to make a commercial version of
+this software, contact me.  I just want to make sure I get a copy of any
+future releases (and that I get a little credit for having done some work
+on this).  :-)
+
+If you wish to include it on a CD-ROM (or in any other media) of 
+freely-available software you may do so as long as the source is also 
+distributed in its original form and any compiled versions you make are clearly 
+marked as yours.  Again, I just do this to make sure I don't end up
+supporting someone elses work.
+
+I think this is basically what the GNU CopyLeft says, isn't it?  Dammit
+Jim! I'm an engineer, not a lawyer!
+
+
+Michael J. Hammel
+mjhammel@csn.net
+Last updated: 04/03/96

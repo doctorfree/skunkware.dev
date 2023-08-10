@@ -1,0 +1,74 @@
+#ident	"@(#)/etc/init.d/smtpinit.sl 1.1 UW2.01 02/07/95 13441 NOVELL"
+if [ ! -d /usr/bin ]
+then			# /usr not mounted
+	exit
+fi
+
+if [ -z "$LC_ALL" -a -z "$LC_MESSAGES" ]
+then
+	if [ -z "$LANG" ]
+	then
+		LNG=`defadm locale LANG 2>/dev/null`
+		if [ "$?" != 0 ]
+		then LANG=C
+		else eval $LNG
+		fi
+	fi
+	export LANG
+fi
+LABEL="UX:$0"
+CAT=uxrc
+
+mldmode > /dev/null 2>&1
+if [ "$?" = "0" ]
+then			# Enhanced Security running
+	exit
+fi
+
+case "$1" in
+'start')
+
+if  [ ! -x /opt/etc/smap ]
+then
+	pid=`ps -e | grep smtpd$ | awk '{print $1}'`
+	kill $pid 2>/dev/null
+fi
+	pid=`ps -e | grep smtp$ | awk '{print $1}'`
+	kill $pid 2>/dev/null
+	/usr/lib/mail/surrcmd/createSurr -l on
+	rm -f /etc/mail/smtpd.pid
+	rm -f /etc/mail/smtp.pid
+if [ ! -x /opt/etc/smap ]
+then
+	/usr/lib/mail/surrcmd/smtpd 
+else
+	/opt/etc/smapd
+fi
+	/usr/lib/mail/surrcmd/smtp 
+	sleep 1
+	chown smtp /var/spool/mailq/*
+	chgrp mail /var/spool/mailq/*
+	chown smtp /var/spool/mailq/Logs/*
+	chgrp mail /var/spool/mailq/Logs/*
+# just in case
+	rm -f /var/spool/mailq/core.[0-9]* 2>&1 >/dev/null
+	rm -f /var/spool/mailq/Logs/core.[0-9]* 2>&1 >/dev/null
+	;;
+'stop')
+if  [  -x /opt/etc/smap ]
+then
+	pid=`ps -e | grep smapd$ | awk '{print $1}'`
+	kill $pid 2>/dev/null
+fi
+	pid=`ps -e | grep smtpd$ | awk '{print $1}'`
+	kill $pid 2>/dev/null
+	rm -f /etc/mail/smtpd.pid
+	pid=`ps -e | grep smtp$ | awk '{print $1}'`
+	kill $pid 2>/dev/null
+	rm -f /etc/mail/smtp.pid
+	;;
+*)
+	USAGE="$0 { start | stop }"
+	pfmt -l $LABEL -s action -g $CAT:4 "Usage: %s\n" "$USAGE"
+	;;
+esac

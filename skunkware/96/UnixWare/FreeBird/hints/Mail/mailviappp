@@ -1,0 +1,267 @@
+Subject: Re: Mail via PPP
+
+Back to the various configuration issues:
+
+Let's assume firstly that you have a PPP link up and working
+and that tcp/ip services between your host and your ISP have
+been established.
+
+Lets also assume that you can obtain the Email FAQ  from
+ftp.novell.co.uk:/pub/unixware/usle/hints/FAQ/comp.unix.unixware.FAQ.m
+since that explains the email subsystem in greater depth than here.
+
+: 	(1) You have your own domain name, for example
+: 	tamarix.demon.co.uk and your ISP initiates an smtp
+: 	transfer to your host when you start a ppp session
+: 	(this is how demon work in the UK)
+
+You need to establish your DOMAIN name for email. This can be
+done by using the Mail_setup GUI tool or by editing(or creating)
+the file: /etc/mail/mailcnfg
+
+The mailcnfg file I use at home is
+
+DOMAIN=demon.co.uk
+FORCE_7BIT_HEADERS=1
+FORCE_7BIT_MIME=1
+ADD_TO=1
+ADD_MESSAGE_ID=1
+SMARTERHOST=post.demon.co.uk  
+
+By setting DOMAIN=demon.co.uk outbound mail from my home machine tamarix
+has the From: line set to tamarix.demon.co.uk.
+
+Since you are at home you  want to try and do all mail processing
+while offline - hence the use of a SMARTERHOST, whose IP address
+should be added to your /etc/hosts file so as not to require
+an MX lookup when sending mail (see smtpqer line later)
+
+You also want to edit the file /usr/lib/mail/lookupLibs.proto
+and comment out some lines in there so as to reduce DNS lookups.
+
+/usr/lib/mail/libalias/home.so
+/usr/lib/mail/libalias/file.so
+/usr/lib/mail/libalias/passwd.so
+<DNS>   #/usr/lib/mail/libalias/dns.so
+<NIS>   #/usr/lib/mail/libalias/nis.so
+<MHS>   #/usr/lib/mail/libalias/extract.so
+
+This proto file ends up creating the file /etc/mail/lookupLibs ,
+(after running the /usr/lib/mail/surrcmd/createSurr command - ran
+out of /etc/rc2.d/S81smtp).
+
+The /etc/mail/mailsurr file is the key file for determining how
+mail gets delivered, I customize this file and then make it permanent -
+after all once you've set it up why let createSurr keep rewriting it!
+
+Attached is the /etc/mail/mailsurr file that I use
+
+
+#comment - /etc/mail/mailsurr suitable for ppp use
+# make this file permanent by setting owner:group to root:root
+# and chmod 444 /etc/mail/mailsurr
+####
+#### Part 1
+####
+#### Accepts and Denies should go here
+####
+
+# Prevent all shell meta-characters
+#
+'.+'	'.*[`;&|^<>()].*'	'Deny No Shell Metacharacters'
+'.+'	'!*#.*'			'Deny No Shell Metacharacters'
+
+####
+#### Part 2
+####
+#### Address translations should go here.
+#### Do the appropriate mapping between various addressing schemes.
+#### All remote mail should leave this section in RFC822 format
+####
+
+# Collapse bang address loops that go through two or more hops
+#
+'.+'	'[^!@%]+![^@%]+![^@%]+'	'Translate T=1;B=*; R=|/usr/lib/mail/surrcmd/uucollapse' '%n'
+
+# PPP These lines added
+'.+'	'@(%U.%D)[:,](.+)'	'Translate R=\\2'
+'.+'	'@(%U)[:,](.+)'	'Translate R=\\2'
+
+# Map domain-routed domain addresses. That is, map all names of
+# the form domain1!... -> @domain1[,@domain2]*:user@domain3 
+#
+'.+'	'(.+)!([^!:]+)!([^!:]+)'	'Translate R=!\\1:\\3@\\2'
+'.+'	'(.*)!([^!:]+):(.+)'	'Translate R=\\1,@\\2:\\3'
+'.+'	',@(.+)'	'Translate R=@\\1'
+
+# Map all names of the form host!user -> user@host
+# The default is to give @ precedence over anything else.
+# ! and @ may not be present in the same address
+#
+'.+'	'([^!]*)!([^!]+)'	'Translate R=\\2@\\1'
+
+# Map all names of the form user%host (without any other @) -> user@host
+#
+'.+'	'([^@]*)%%([^@%]+)'	'Translate R=\\1@\\2'
+
+# Map all names of the form host.local-domain!user -> host!user
+#	(host must not have a . in it)
+#
+'.+'	'([^@]+)@([^.]+)'	'Translate R=\\1@\\2%D'
+'.+'	'@([^.,:]+)([,:].+)'	'Translate R=@\\1%D\\2'
+
+# Map all names of the form user@local-machine -> user
+# Map all names of the form user@uname -> user
+# Then loop back through from the top.
+#
+'.+'	'([^@]+)@%L%D'		'Translate R=\\1'
+'.+'	'([^@]+)@%U%D'		'Translate R=\\1'
+'.+'	'([^@]+)@(%U)%D'		'Translate R=\\1'
+
+# Run all (apparently) local names through the mail alias processor.
+#
+'.+'	'.+'			'Translate T=1;B=*; R=|/usr/lib/mail/surrcmd/mailalias -P%L! -P%U! -P%L\%D! -P%U\%D! -S@%U\%D -S@%L\%D -S@%L -S@%U -r -p' '%n'
+
+####
+#### Part 3
+####
+#### Delivery commands should go here.
+####
+
+# Check for binary mail. Uncomment this if you want to use it.
+#
+#'.+'	'!([^!]+)!.+'		'< F=*;C=0; /usr/lib/mail/surrcmd/ckbinarsys -t %C -s \\1'
+
+# If you have a flat name space across multiple machines, but user-names only
+# exist on disjoint machines, this entry will forward any name not known
+# locally off to the given host.
+#
+'.+'	'[^@]+'			'Translate T=1;B=*; R=|/usr/lib/mail/surrcmd/localmail -p -S @%X' '%n'
+
+# The mail transports go here.
+#
+# Uncomment to send mail directly and not via SMARTERHOST.. uses a DNS lookup
+#
+#'.+'	'([^@,:]+)@(.+)'	'< B=4096; /usr/lib/mail/surrcmd/smtpqer -f %R -s \\2' '\\1'
+
+# Occasionally you want to send internet mail directly, use i:user@domain
+# this requires a DNS lookup
+# match i: for direct internet mail
+'.+'	'(i:)([^@,:]+)@(.+)'	'< B=4096; /usr/lib/mail/surrcmd/smtpqer -f %R -s \\3' '\\2'
+#
+# These delivery lines use smtp to relay mail via the SMARTERHOST
+# The -N flag to smtpqer is used to avoid using DNS. This needs
+# the IP address of the SMARTERHOST to be in your /etc/hosts file
+#
+'.+'	'([^@,:]+)@(.+)'	'< B=4096; /usr/lib/mail/surrcmd/smtpqer -N -f %R -s %X' '\\1@\\2'
+'.+'	'(@[^@,:]+[,:].+)'	'< B=4096; /usr/lib/mail/surrcmd/smtpqer -N -f %R -s %X' '\\1'
+
+# If you also have uucp links uncomment these
+#'.+'	'([^@,:]+)@(.+)%D'	'< H=add_from_header;B=1024; uux -a %R -p -- \\2!rmail' '(\\1)'
+#'.+'	'@([^@,:]+)%D[,:](.+)'	'< H=add_from_header;B=1024; uux -a %R -p -- \\1!rmail' '(\\2)'
+
+####
+#### Part 4
+####
+#### Postprocessing commands should go here.
+####
+# Log mail delivery
+#
+'.+'	'.+'	'> W=1;B=*; /usr/lib/mail/surrcmd/maillog -o /var/mail/:log' '-O %O %R %n %H %l --'
+'.+'	'.+'	'Errors W=1;B=*; /usr/lib/mail/surrcmd/maillog -o /var/mail/:errors' '-O %O %R %n %H %l --'
+#comment - end of /etc/mail/mailsurr suitable for ppp use
+
+: 	(2) You have a POP mailbox on the ISP server, and your
+: 	mail account is username@your_isp_address.dom. You'll need
+: 	to use a POP client or equivalent to get the mail onto
+: 	your local machine. You'll then need to reply using mail on
+: 	the local machine and want to ensure that the mail headers
+: 	look like mail is being sent from the ISP machine.
+
+In this case your mailbox is held on the ISP's machine and they
+have a POP server.  You need a popclient to retrieve the mail from
+the server onto your local machine. A version of the Mail Users Shell
+(Mush) is available on ftp.novell.co.uk:/pub/unixware/usle/mailtools/popclient
+that can be used. There has also been a tool posted in this group
+that will retrieve the mailbox from your ISP into the local machine,
+in which case you can then use your favourite mail user agent to read it
+(i don't have a copy off-hand).
+
+POP allows you to retrieve mail but most servers don't allow you
+to send mail. You can use smtp to send mail from your local machine
+using the above configuration with one exception, you need to
+rewrite the From: line for outbound mail to hide your nodename
+(so in my case, mail would appear to come from demon.co.uk and
+not tamarix.demon.co.uk).
+
+This can be done by editing the file /etc/mail/rewrite
+and adding the routine (this will need editing for your
+configuration)
+
+function check_headers()
+{
+var hdr;
+# loop through ALL headers
+for (hdr from headers_pattern("From:"))
+   # if we match a header that has something like foo.xyz.com in it
+   if (hdr ~ "[a-zA-Z]\\.demon\\.co\\.uk")
+     # then substitute the shorter version in its place
+     hdr=gsubstitute(hdr, "[a-zA-Z0-9.]+\\.demon\\.co\\.\\uk", "demon.co.uk");
+}    
+
+Add a call to this in the function main() in /etc/mail/rewrite, so this
+looks like:
+
+function main()
+{
+    add_missing_headers();
+    check_headers();
+}   
+
+: 	(3) When sending mail you'll want to consider whether you
+: 	want to relay mail via a SMARTERHOST (recommended), usually
+: 	your ISP or whether you want to send the mail directly 
+: 	across the internet to the remote recipient
+
+In the mailsurr example above, I've assumed that this is what you'd
+want to do. And in most cases this makes sense, since that way
+you can let your ISP handle the routing and delivery issues.
+For those odd occasions when you want to get mail somewhere quickly
+or directly i use an i: prefix to say internet directly which you
+may or may not find particularly useful. 
+
+: 	(4) Perhaps you have two PPP links in different domains (like
+: 	my home box), and can switch between them. You want to receive mail
+: 	to both domain addresses - this requires some level of customization
+
+I have some scripts (written by Mike Convey) to swap between my ISP
+and my work PPP links.  At home my machine is known as tamarix, at work
+its known as voyager (now if i'd kept the names the same i would
+not need this!).
+
+When I send email i keep the tamarix.demon.co.uk
+domain in there, but occasionally i want to forward mail over the work
+link to my machine. In this case I have to add a line to the mailsurr
+file so that it recognises the mail as local, otherwise it sends
+it off to the SMARTERHOST
+
+The trick is to add another delivery line to translate the mail
+for local delivery, and add your alternate nodename in there
+
+'.+'	'([^@]+)@(voyager)%D'		'Translate R=\\1'
+
+The %D is needed since the inbound smtp adds the Domain info.
+
+: 	(5) Perhaps your ISP relays mail to you over uucp over TCP/IP,
+: 	perhaps by a mail forward? What then?
+
+For incoming mail this is not a problem, and you can still send
+mail outwards using smtp.
+
+I'm sure there are other configurations not covered here, hopefully
+this will be useful to some folks!
+--
+Andrew Josey, 	#include <std/disclaimer.h>
+Email (until Jan 30 1996): andrew@novell.co.uk 	
+Email (Jan 31 1996 and later): andrew@tamarix.demon.co.uk
+

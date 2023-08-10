@@ -1,0 +1,161 @@
+*** gopher2_2/./Makefile.config	Tue Nov 21 21:04:41 1995
+--- gopher2_2.uw/./Makefile.config	Sat Dec 30 15:05:58 1995
+***************
+*** 134,140 ****
+  # note that if you use gcc, you'll also need -lintl in SCOLIBS
+  #
+  
+! CC = cc
+  
+  #------------------------------------------------
+  # Optimization level.
+--- 134,140 ----
+  # note that if you use gcc, you'll also need -lintl in SCOLIBS
+  #
+  
+! CC = cc  -D__svr4__
+  
+  #------------------------------------------------
+  # Optimization level.
+***************
+*** 189,195 ****
+  #------------------------------------------------
+  # The ranlib command on your system.  Systems without it should still survive
+  
+! RANLIB = ranlib
+  
+  #------------------------------------------------
+  # The install command on your system.  cp works in most cases...
+--- 189,195 ----
+  #------------------------------------------------
+  # The ranlib command on your system.  Systems without it should still survive
+  
+! RANLIB = touch
+  
+  #------------------------------------------------
+  # The install command on your system.  cp works in most cases...
+***************
+*** 199,208 ****
+  #-------------------------------------------------
+  # Where shall we install stuff?
+  #
+! PREFIX          = /usr/local
+  CLIENTDIR	= $(PREFIX)/bin
+! CLIENTLIB       = $(PREFIX)/lib
+! SERVERDIR	= $(PREFIX)/etc
+  # On SCO manuals are in /usr/man but its easiest to do a 
+  # symbolic link from /usr/local/man to /usr/man for this and other packages
+  MAN1DIR		= $(PREFIX)/man/man1
+--- 199,208 ----
+  #-------------------------------------------------
+  # Where shall we install stuff?
+  #
+! PREFIX          = /opt
+  CLIENTDIR	= $(PREFIX)/bin
+! CLIENTLIB       = $(PREFIX)/lib/gopher
+! SERVERDIR	= $(PREFIX)/lib/gopher
+  # On SCO manuals are in /usr/man but its easiest to do a 
+  # symbolic link from /usr/local/man to /usr/man for this and other packages
+  MAN1DIR		= $(PREFIX)/man/man1
+***************
+*** 317,323 ****
+  #SEQLIBS        = -lseq
+  #PTXLIBS        = -lseq -lsocket -linet -lnsl
+  #SCOLIBS        = -lsocket -lintl -los -lcrypt_i
+! #SVR4LIBS	= -lsocket -lnsl
+  #AUXLIBS	= -lmalloc
+  #INTERACTIVELIBS= -linet
+  #DGUXLIBS       = -lnsl
+--- 317,323 ----
+  #SEQLIBS        = -lseq
+  #PTXLIBS        = -lseq -lsocket -linet -lnsl
+  #SCOLIBS        = -lsocket -lintl -los -lcrypt_i
+! SVR4LIBS	= -lsocket -lnsl  -lgen -lc -L/usr/ucblib -lucb 
+  #AUXLIBS	= -lmalloc
+  #INTERACTIVELIBS= -linet
+  #DGUXLIBS       = -lnsl
+***************
+*** 342,348 ****
+  # your domain name that `hostname` doesn't return.
+  # Set to Null on SCO3.2.4
+  
+! DOMAIN		= .micro.umn.edu
+  
+  
+  #-----------------------------------------------------------------
+--- 342,348 ----
+  # your domain name that `hostname` doesn't return.
+  # Set to Null on SCO3.2.4
+  
+! DOMAIN		= 
+  
+  
+  #-----------------------------------------------------------------
+***************
+*** 353,359 ****
+  # overridden on the command line.
+  # 
+  
+! SERVERDATA	= /gopher-data
+  SERVERPORT	= 70
+  
+  
+--- 353,359 ----
+  # overridden on the command line.
+  # 
+  
+! SERVERDATA	= /home/ftp
+  SERVERPORT	= 70
+  
+  
+*** gopher2_2/./gopherd/index.c	Thu Sep 28 22:11:31 1995
+--- gopher2_2.uw/./gopherd/index.c	Sat Dec 30 15:20:10 1995
+***************
+*** 149,154 ****
+--- 149,156 ----
+         void NeXTIndexQuery(int, char *, char *, char *, char *, int, char*,
+  			   boolean, char*);
+  static int  Find_index_type(char *gopherpath);
++ static void WaisIndexQuery( int , char *, char *,
++   char *, char *, int  , char *, boolean , char *);
+  
+  void 
+  Do_IndexTrans(int sockfd, char *IndexDirectory, CMDobj *cmd, boolean SendEOF)
+*** gopher2_2/./object/compatible.h	Wed Oct  4 23:31:54 1995
+--- gopher2_2.uw/./object/compatible.h	Sat Dec 30 15:09:37 1995
+***************
+*** 245,251 ****
+  #  undef NO_STRCASECMP
+  #  define NO_STRCASECMP
+  int strcasecmp(const char *, const char *);
+! int strcasecmp(const char *, const char *, size_t);
+  #endif
+  
+  /******************** For geteuid() */
+--- 245,251 ----
+  #  undef NO_STRCASECMP
+  #  define NO_STRCASECMP
+  int strcasecmp(const char *, const char *);
+! int strncasecmp(const char *, const char *, size_t);
+  #endif
+  
+  /******************** For geteuid() */
+*** gopher2_2/./object/fileio.c	Fri Nov  3 18:01:28 1995
+--- gopher2_2.uw/./object/fileio.c	Sat Dec 30 15:27:18 1995
+***************
+*** 517,523 ****
+  	       bytes = mmap(0, buf.st_size, PROT_READ,
+  			    MAP_SHARED | MAP_FILE,
+  			    FIOgetfd(fio), 0);
+! 	       madvise(bytes, buf.st_size, MADV_SEQUENTIAL);
+  
+  	       if (bytes == (caddr_t) -1)
+  		    return(-1);
+--- 517,523 ----
+  	       bytes = mmap(0, buf.st_size, PROT_READ,
+  			    MAP_SHARED | MAP_FILE,
+  			    FIOgetfd(fio), 0);
+! 	       /*madvise(bytes, buf.st_size, MADV_SEQUENTIAL);*/
+  
+  	       if (bytes == (caddr_t) -1)
+  		    return(-1);

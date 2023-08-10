@@ -1,0 +1,91 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:
+TITLE:  Adding Swap Space Dynamically
+DOCUMENT ID:  TID021206
+DOCUMENT REVISION:  A
+DATE:  31MAY94
+AUTHOR:  SFLETCHE
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Symptom Solution
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Drivers
+
+ABSTRACT:
+
+
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+SYMPTOM
+
+Error messages such as:
+
+	newproc - fork failed [or] newproc - no procs
+
+	or
+
+	When bringing up a Merge session and running \usr\bin\ipxtli and \usr\bin\netx, netx will return the message:
+
+	MESSAGE
+
+		A File Server could not be found.
+
+SOLUTION
+
+During the installation, by default, the system sets aside double the system's memory for swap space.  If there was limited amount of disk space at the time of the install or if more memory is added to the system or due to applications that require additional swap space more needs to be added.
+
+To create more swap space:
+
+1.	Create a file to use by typing the following command:
+
+		dd if=/dev/zero of=/tmp/swapfile bs=1024k count=8
+
+	This will create an eight megabyte file.
+
+	To create a different size file change the count value.
+
+	To create a file larger than 8 MB, check your ulimit (system  default is 16384 blocks).
+
+	To increase the ulimit, type ulimit nnnnn where nnnnn is the number of blocks, that is, 32 mgs is 65536 blocks or the word 'unlimited'.
+
+2.	Add it to swap space with the following command:
+
+		swap -a /tmp/swapfile
+
+3.	If you want this to be permanent:
+
+	a)	Move swapfile to a more permanent location.
+
+	b)	Create a file called S99swap in the /etc/rc2.d directory that contains the line (<file name> is the full path to the file):
+
+			swap -a <file name>
+
+4.	If you ever want to free up the disk space, you can type the following command:
+
+		swap -d <file name>
+
+	To free it up permanently, delete /etc/rc2.d/S99swap.
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+
+
+
+

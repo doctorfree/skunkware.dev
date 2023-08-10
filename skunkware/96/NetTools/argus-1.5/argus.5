@@ -1,0 +1,128 @@
+.\" $Header: /usr/users/poepping/src/argus/argus-1.5/man/man5/RCS/argus.5,v 1.1 1995/02/08 20:55:21 poepping Exp $
+.\" Copyright (c) 1994 Software Engineering Institute (SEI),
+.\" and Carnegie Mellon University.
+.\" All rights reserved.  The CMU, and SEI specifies the
+.\" terms and conditions for redistribution.
+.\"
+.TH ARGUS 5 "5 December 1994"
+.SH NAME
+argus \- IP Network Auditing Facility
+.SH SYNOPSIS
+.B #include <[argus_dir]/include/cons_def.h>
+.SH DESCRIPTION
+The format of the 
+.BR argus (8)
+data stream is most succinctly described through the structures defined
+in the header file, but the general format is as follows:
+.LP
+.RS
+.ft B
+Argus File Format:
+   Argus_ID_Str
+   Argus_Datum
+        .
+        .
+        .
+   Argus_Datum
+.ft
+.fi
+.RE
+.sp
+where the individual data fields are defined as follows:
+.LP
+.RS
+.fi
+char
+.B Argus_ID_Str
+[];
+
+sprintf (
+.B Argus_ID_Str,
+.nf
+     "Argus Version %d.%d\\n", MAJOR_VERSION, MINOR_VERSION);
+.fi
+
+.nf
+struct \fBArgusDatum\fP {
+   u_int \fBstatus\fP;                     /*  4bytes; connection status */
+   struct \fBtimeWriteStruct\fP time;      /* 16bytes; start/end times */
+   struct \fBlinkWriteStruct\fP link;      /* 12bytes; src/dst MAC addr */
+   struct \fBinetWriteStruct\fP inet;      /*  8bytes; src/dst IP addr */
+   union {
+      struct  \fBtcpWriteStruct\fP  tcp;
+      struct  \fBudpWriteStruct\fP  udp;
+      struct \fBicmpWriteStruct\fP icmp;
+   } ipws_trans_union;               /* 20bytes */
+};
+.fi
+.RE
+.ce 2
+
+\fBArgus Status Field\fP
+Note: one tick mark represents one bit position.
+.nf
+.ft B
+.cs B 30 4
+.ss 4
+.ce 8
+0                   1                   2                   3   
+0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|0|  Protocol   |   |  IP Opt   |  Exp  |         State         |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|1|  Operation  |                   Data                        |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+.ss 12
+.cs B
+.ft
+.bp
+.nf
+struct \fBtimeWriteStruct\fP {
+   struct timeval startime;       /* 8 bytes */
+   struct timeval lasttime;       /* 8 bytes */
+};
+
+struct \fBlinkWriteStruct\fP {
+   struct ether_addr ethersrc;    /* 6 bytes */
+   struct ether_addr etherdst;    /* 6 bytes */
+};
+
+struct \fBinetWriteStruct\fP {
+   struct in_addr src;            /* 4 bytes */
+   struct in_addr dst;            /* 4 bytes */
+};
+
+struct \fBtcpWriteStruct\fP {
+   u_short srcport, dstport;      /* 4 bytes */
+   int src_count, dst_count;      /* 8 bytes */
+   int src_bytes, dst_bytes;      /* 8 bytes */
+};
+
+struct \fBudpWriteStruct\fP {
+   u_short srcport, dstport;      /* 4 bytes */
+   int src_count, dst_count;      /* 8 bytes */
+   int src_bytes, dst_bytes;      /* 8 bytes */
+};
+
+struct \fBipWriteStruct\fP {
+   u_int protocol;                /* 4 bytes */
+   int src_count, dst_count;      /* 8 bytes */
+   int src_bytes, dst_bytes;      /* 8 bytes */
+};
+
+struct \fBicmpWriteStruct\fP {
+   int unused;                    /* 4 bytes */
+   unsigned char type, code;      /* 2 bytes */
+   unsigned short data;           /* 2 bytes */
+   struct in_addr srcaddr;        /* 4 bytes */
+   struct in_addr dstaddr;        /* 4 bytes */
+   struct in_addr gwaddr;         /* 4 bytes */
+};
+
+.fi
+.RE
+.SH SEE ALSO
+.BR argus (8),
+.BR policy (1),

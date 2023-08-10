@@ -1,0 +1,56 @@
+Port of the Qualcomm popper version 2.1.4-r3 to UnixWare2
+----------------------------------------------------------
+
+The source was obtained from ftp.qualcomm.com:/quest/unix/servers
+
+For documentation please consult the source archive.
+
+To build the popper
+
+	make -f make.unixware2
+
+Note that the pop_dropcopy.c module was changed for UnixWare2, since
+UnixWare's fdopen() call does additional checking to check that the
+underlying file descriptor was opened with the right permissions
+(this is required by POSIX).
+
+You have to edit /etc/inetd.conf and insert the line for the popper 
+and edit the file /etc/services  and insert the line with popper.
+
+Add to /etc/services:
+
+pop3            110/tcp                         # Post Office   
+
+Add the following entry to /etc/inetd.conf:
+
+pop3   stream  tcp     nowait  root    /usr/lib/mail/surrcmd/qpopper qpopper -T 120 
+
+If you have the tcp-wrappers installed, add the following entry and
+edit the /etc/hosts.allow file
+
+pop3   stream  tcp     nowait  root    /usr/sbin/wrapd /usr/lib/mail/surrcmd/qpopper -T 120 
+
+If wrappers are installed add to /etc/hosts.allow:
+
+qpopper: .my.domain
+
+
+This assumes installing popper.unixware as /usr/lib/mail/surrcmd/qpopper
+
+(note that UnixWare2 has a popper supplied which is similar to the
+Qualcomm version but does not support all the options).
+
+make sure the permissions are owner bin group  mail, with the setgid bit set.
+
+Restart the inetd daemon
+
+	ps -ef|grep inetd
+	kill -HUP {the pid returned for inetd}
+
+
+For debugging purposes you can add -d and -t arguments.
+
+pop3   stream  tcp     nowait  root    /usr/sbin/wrapd /usr/lib/mail/surrcmd/qpopper -T 120 -d -t/tmp/log   
+
+
+

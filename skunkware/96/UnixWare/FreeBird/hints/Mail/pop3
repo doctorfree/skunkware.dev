@@ -1,0 +1,136 @@
+POP3 on UnixWare
+
+ISSUE
+
+POP3 is a public domain, Berkeley-based mail server - it 
+is based on the Post Office Protocol.  POP3
+ 
+A sample is on the mail-server ~/mailtools/pop3-2.0*
+
+
+POP3 Version 2.0	the Post Office Protocol (version 3)
+(port to UNIX SVR4.2)
+
+This server was written at the University of California at Davis.
+The server implements the minimal POP3 command list, plus two
+extension commands.
+
+At UC Davis, POP is used to deliver mail to microcomputers using
+a 4.3BSD system as a mail gateway.  This is an addition to the normal
+model of using the 4.3BSD system as the mailbox and letting the
+microcomputer merely read the mail from there.  If you ever look
+at the source code, you may see that this server supports two extra
+commands, "HOST", to allow clients to specify hostnames for gateway
+service, and "MBOX" to allow clients to specify an alternate mailbox
+file.  Be assured that you can ignore these extra commands, since
+the server is completely upwards compatible and standard POP3
+client programs will not use this command.
+
+This package is copyrighted under the
+ 
+Copyright (c) 1989,1990 Regents of the University of California.
+All rights reserved.  The Berkeley software License Agreement
+specifies the terms and conditions for redistribution.
+
+If you discover bugs or problems with this software, please feel
+free to contact me.
+
+        Katie Stevens
+        Compuing Services
+        University of California
+        Davis, CA 95616
+
+        (916)752-3426
+        dkstevens@ucdavis.edu
+
+
+To install:
+	1. Unwind the tar archive in the current directory
+	2. tar xvf pop3-2.0.pkg.tar
+	3. su
+	4. pkgadd -d `pwd`	
+
+POSTINSTALLATION instructions:
+
+To make operational, you need to do the following:
+
+ (i) edit /etc/services, ensure there is an entry
+
+pop3            110/tcp                         # Post Office
+
+ (ii) edit /etc/inetd.conf, add an entry
+
+ pop3   stream  tcp     nowait  root    /etc/popper             popper
+
+ (iii) Restart inetd, by sending a kill -HUP to the inetd PID.
+
+These instructions are in /tmp/pop3.ins (removed on the next reboot)
+The formatted manual page follows:
+--------------------------------------------------------------------------
+
+P3D (8C)             UNIX Programmer's Manual            POP3D (8C)
+
+
+NAME
+        pop3d  --  remote maildrop access server
+
+SYNOPSIS
+        /etc/pop3d
+
+DESCRIPTION
+        Pop3d is a mailbox server based on the Internet RFC1081,
+        Post Office Protocol Version 3. The program allows remote
+        access to UNIX maildrops found in /usr/spool/mail. The
+        server requires user and password verification before a
+        maildrop can be opened. The server can retrieve and delete
+        messages from the maildrop on a per-message basis.
+
+        Pop3d listens for TCP requests on port 110. Once connected
+        it expects single line commands terminated by a <CR-LF>.
+
+        Pop3d currently supports the following POP3 commands; the
+        commands are case independent. In addition, the server
+        supports one extension command, HOST, which allows access
+      to BSMTP formatted maildrops in the directory /usr/spool/pop.
+        The syntax for the HOST command is:   HOST <hostname>
+        Example:        HOST fennario.ucdavis.edu
+        this will open the file at /usr/spool/pop/fennario.ucdavis.edu
+
+        Command                 Description
+        USER                    specify user for maildrop access
+        PASS                    specify password for maildrop access
+        STAT                    give message count and size of maildrop
+        LIST                    list size of individual messages
+        RETR                    retrieve a message
+        DELE                    delete a message
+        NOOP                    do nothing, return a positive response
+        LAST                    give highest message number accessed
+        RSET                    unmark messages marked for deletion
+        TOP                     retrieve part of a message
+        QUIT                    terminate session
+
+        The remaining optional command specified in RFC1081 (RPOP)
+        is not implemented.
+
+FILES
+        /usr/spool/mail/*       UNIX FromSPACE delimited maildrops
+      /usr/spool/pop/*        BSMTP formatted maildrops
+
+SEE ALSO
+        pop2d(8C)
+
+AUTHOR
+        Katie Stevens, dkstevens@ucdavis.edu
+        Computing Services
+        University of California, Davis
+
+NOTES
+        The POP3 standard supersedes Post Office Protocol Version 2
+        (POP2), described in RFC937.
+
+
+                        August 29, 1990
+
+
+
+

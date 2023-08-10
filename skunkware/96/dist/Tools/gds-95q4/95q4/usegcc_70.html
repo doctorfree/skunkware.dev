@@ -1,0 +1,91 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Variable Length</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_69.html">previous</A>, <A HREF="usegcc_71.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX295"></A>
+<A NAME="IDX296"></A>
+<H2><A NAME="SEC73" HREF="usegcc_toc.html#TOC73">Arrays of Variable Length</A></H2>
+<P>
+Variable-length automatic arrays are allowed in GNU C.  These arrays are
+declared like any other automatic arrays, but with a length that is not
+a constant expression.  The storage is allocated at the point of
+declaration and deallocated when the brace-level is exited.  For
+example:
+<P>
+<PRE>
+FILE *
+concat_fopen (char *s1, char *s2, char *mode)
+{
+  char str[strlen (s1) + strlen (s2) + 1];
+  strcpy (str, s1);
+  strcat (str, s2);
+  return fopen (str, mode);
+}
+</PRE>
+<A NAME="IDX297"></A>
+<A NAME="IDX298"></A>
+<A NAME="IDX299"></A>
+<P>
+Jumping or breaking out of the scope of the array name deallocates the
+storage.  Jumping into the scope is not allowed; you get an error
+message for it.
+<A NAME="IDX300"></A>
+<P>
+You can use the function <CODE>alloca</CODE> to get an effect much like
+variable-length arrays.  The function <CODE>alloca</CODE> is available in
+many other C implementations (but not in all).  On the other hand,
+variable-length arrays are more elegant.
+<P>
+There are other differences between these two methods.  Space allocated
+with <CODE>alloca</CODE> exists until the containing <EM>function</EM> returns.
+The space for a variable-length array is deallocated as soon as the array
+name's scope ends.  (If you use both variable-length arrays and
+<CODE>alloca</CODE> in the same function, deallocation of a variable-length array
+will also deallocate anything more recently allocated with <CODE>alloca</CODE>.)
+<P>
+You can also use variable-length arrays as arguments to functions:
+<P>
+<PRE>
+struct entry
+tester (int len, char data[len][len])
+{
+  ...
+}
+</PRE>
+<P>
+The length of an array is computed once when the storage is allocated
+and is remembered for the scope of the array in case you access it with
+<CODE>sizeof</CODE>.
+<P>
+If you want to pass the array first and the length afterward, you can
+use a forward declaration in the parameter list--another GNU extension.
+<P>
+<PRE>
+struct entry
+tester (int len; char data[len][len], int len)
+{
+  ...
+}
+</PRE>
+<A NAME="IDX301"></A>
+<P>
+The <SAMP>`int len'</SAMP> before the semicolon is a <DFN>parameter forward
+declaration</DFN>, and it serves the purpose of making the name <CODE>len</CODE>
+known when the declaration of <CODE>data</CODE> is parsed.
+<P>
+You can write any number of such parameter forward declarations in the
+parameter list.  They can be separated by commas or semicolons, but the
+last one must end with a semicolon, which is followed by the "real"
+parameter declarations.  Each forward declaration must match a "real"
+declaration in parameter name and data type.
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_69.html">previous</A>, <A HREF="usegcc_71.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

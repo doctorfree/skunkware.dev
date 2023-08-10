@@ -1,0 +1,128 @@
+Applicable to UnixWare 1.x and UnixWare 2
+
+ABSTRACT:
+When receiving UUCP mail from a uucp mail service, the mail is downloaded 
+to the destination machine, but is never delivered to any users. This 
+document discusses troubleshooting this problem.
+
+
+SYMPTOM:
+
+When using UUCP for your mail transport, you setup your 
+system to dial into the mail provider, pick up the mail 
+file and deliver it to the appropriate users on your 
+system. However in some instances, the mail gets 
+downloaded from the provider, but never gets delivered 
+to the appropriate users.
+ 
+SOLUTION:
+
+A good way to troubleshoot this type of problem is to 
+copy the mail files after they get downloaded, into a 
+temporary directory, before the system removes them.  
+With the mail files in a safe place, you can execute the 
+rmail command manually to see why the mail is being 
+bounced.
+ 
+Saving the Mail Files
+     The downloaded mail files are placed in the directory:
+          /var/spool/uucp//Z
+
+During the download, a script should be executed to copy 
+all files that appear in this directory to some other 
+directory where these files can be saved.
+      A script that could do this is:
+          mkdir /tmp/mail
+          while true
+          do
+             cp /var/spool/uucp//Z/* /tmp/mail
+           done
+
+This script constantly copies any files in the download 
+directory, into the /tmp/mail directory. A few seconds 
+after the download has completed, the script can be 
+terminated.
+ 
+Recreating the Disappearing Mail Problem
+One of the files in the /tmp/mail directory will contain 
+the 'rmail' command that was initiated after the mail 
+was downloaded.  rmail was the process that attempted 
+delivery of the mail and failed, and deleted your mail 
+files.
+ 
+     Find the file with the 'rmail' command in it:
+          grep rmail *
+     Now cat this file to determine the mail file it was attempting
+      to deliver.
+     You will see a line that looks like:
+          F filename
+     make a note of the file - this file should also be in the
+     /tmp/mail directory.
+
+     Now we've got the rmail command and the file it was attempting
+      to mail, let's run rmail to see what errors (if any) are generated.
+          rmail -d address < filename
+     where address is the address specified in the rmail command
+     above, and filename is the filename noted above.
+
+     Example:
+
+          File: D.taco0034a4
+          contains, in part, the following two lines,
+               F D.taco0045a3
+               C rmail don@novell.com
+
+          The command to execute would be:
+               rmail -d don@novell.com < D.taco0045a3
+
+     Make a note of any errors that rmail generates to get a clue
+      as to why the mail is being rejected.
+
+      Likely Problems
+       1 - One likely problem is that the user it is being sent to does 
+           not exist on your system.
+ 
+       2 - Another problem may be that the system name the mail was sent 
+           to, is different from your system name.  If this is the case, 
+           no errors would be returned by rmail,
+           the mail would just be returned to the mail service.
+
+     Example:
+          Your system name is:
+               riker
+          The system name the mail was sent to is:
+               novell.com
+
+          rmail would reject this message because 'novell.com' is not 
+          the same as 'riker', even though riker may be in  the novell.com 
+          domain.
+
+          In this case, you may really want all novell.com messages 
+          delivered to your machine, especially if you are picking up mail 
+          for your domain.  To get this to occur, you will need to modify your 
+          mailsurr.proto file to let rmail know to deliver
+          the mail to you, instead of sending it back because it doesn't 
+          know who novell.com is.
+
+          Accepting Domain Mail
+           To get your system to accept mail sent to 
+			your domain, do the following:
+                     1 - Edit the mail config file:
+                         vi /etc/mail/mailcnfg
+                    2 - Place your domain name in the file:
+                         %d=novell.com
+                    3 - Edit the mailsurr prototype file:
+                         vi /usr/lib/mail/mailsurr.proto
+                    4 - Locate a line that looks like:
+                         # Map domain-routed domain addresses
+                    5 - Place the following line after that commented header:
+                          '.+'   '(.+)@%d'     'Translate R=\\1'
+                    6 - Run the command:
+                         /usr/lib/mail/surrcmd/createSurr
+                    to build the /etc/mail/mailsurr file from the prototype 
+				    file.
+ 
+            Your system will now accept all 'novell.com' mail given to 
+			you by your provider.
+ 
+

@@ -11,4 +11,10 @@ No actual packages are downloadable here, this is just
 the website, what it looked like, info on the packages,
 and fun stuff.
 
-## [Skunkware 2000](https://skunkware.dev/2000/index.html)
+## [Skunkware 2.0](https://skunkware.dev/skunkware/94/index.html) (SCO OpenDesktop)
+
+## [Skunkware 5](https://skunkware.dev/skunkware/95/index.html) (SCO OpenServer 5)
+
+## [Skunkware 96](https://skunkware.dev/skunkware/96/index.html) (SCO OpenServer 5)
+
+## [Skunkware 2000](https://skunkware.dev/skunkware/2000/index.html) (SCO OpenServer 5)

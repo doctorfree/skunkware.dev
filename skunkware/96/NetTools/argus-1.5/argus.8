@@ -1,0 +1,270 @@
+.\" $Header: /tmp_mnt/us/wcb/research/src/argus/argus-1.5/man/man8/RCS/argus.8,v 1.4 1995/04/25 22:28:51 wcb Exp $
+.\" Copyright (c) 1994 Software Engineering Institute (SEI),
+.\" and Carnegie Mellon University. 
+.\" All rights reserved.  The CMU, and SEI specifies the 
+.\" terms and conditions for redistribution.
+.\"
+.TH ARGUS 8 "10 October 1994"
+.SH NAME
+argus \- IP network auditing facility
+.SH SYNOPSIS
+.B argus
+[
+.B \-bhOp
+] [
+.B \-d
+.I detail-interval
+] [ 
+.B \-F
+.I file
+]
+.br
+.ti +6
+[
+.B \-r
+.I tcpdump-file
+] [
+.B \-w
+.I output-file
+]
+.br
+.ti +6
+[
+.B \-D
+.I debug-interval
+]
+[
+.B \-I
+.I ip-timeout
+] [
+.B \-P
+.I port
+]
+.br
+.ti +6
+[
+.B \-U
+.I udp-timeout
+] [
+.B \-T
+.I tcp-timeout
+]
+.br
+.ti +6
+[
+.B \-S
+.I services-file
+]
+[
+.B \-i
+.I interface
+] expression
+.SH DESCRIPTION
+.IX  "argus command"  ""  "\fLargus\fP \(em Internet audit facility"
+.IX  servers  argus  ""  "\fLargus\fP \(em Internet audit facility"
+.LP
+.B Argus
+is an IP transaction auditing tool that categorizes
+IP packets which match the boolean
+.I expression
+into a protocol-specific network transaction model.
+.B Argus
+reports on the transactions that it discovers, as they occur.
+.LP
+Designed to run as a daemon,
+.B argus
+generally pulls packets directly from a network interface, and writes the
+transaction status information to a log file or open socket connected to an
+.B argus
+client (such as
+.BR policy(1) .
+.B Argus
+can also read packet information from
+.B tcpdump(1)
+raw packet files and/or write the transaction logs to stdout.
+.LP
+.B Argus
+provides access control for its socket connection facility using
+.B tcp_wrapper
+technology.  Please refer to the \fBtcp_wrapper\fP distribution
+for a complete description.
+.LP
+\fBArgus\fP catches a number of \fBsignal(3)\fP events.
+The three signals \fBSIGHUP\fP, \fBSIGINT\fP, and \fBSIGTERM\fP
+cause \fBargus\fP to exit, writing TIMEDOUT status records for
+all currently active transactions.  The signal \fBSIGUSR1\fP
+will turn on \fBdebug\fP reporting, and subsequent \fBSIGUSR1\fP
+signals, will increment the \fBdebug-level\fP. The signal \fBSIGUSR2\fP
+will cause \fBargus\fP to turn off all \fBdebug\fP reporting.
+.SH OPTIONS
+.TP 5 5
+.B \-b
+Dump the compiled packet-matching code to stdout and stop.
+.TP 5 5
+.BI \-d
+Place
+.B argus
+in detail mode, and set the reporting \fIdetail-interval\fP, in seconds.
+When in detail mode,
+.B argus
+sends reports at all transaction state changes, and sends interim transaction
+status reports every
+\fIdetail-interval\fP seconds.
+.TP 5 5
+.BI \-D
+Turn on internal \fBargus\fP table structure reporting.
+\fIDebug-interval\fP is specified in seconds.
+An example \fBdebug\fP output is:
+.nf
+.ft B
+.cs B 30 4
+.ss 4
+
+ % argus -D 5 
+ 12:03:02 pkts  48r 0d  tcp  1a 0t 0d   udp  8a 0d   ip  1a 0d
+ 12:03:07 pkts 227r 0d  tcp  3a 1t 1d   udp 33a 0d   ip  1a 0d
+ 12:03:12 pkts 311r 0d  tcp  5a 0t 3d   udp 33a 0d   ip  2a 0d
+
+.ss 12
+.cs B
+.fi
+.ft
+.br
+     Total pkts received (r) and dropped (d).
+     TCP active (a), time waiting (t) and deleted (d).
+     UDP active (a), and deleted (d).
+     IP active (a), and deleted (d).
+.TP 5 5
+.B \-F
+Use \fIfile\fP as input for the filter expression.
+An additional expression given on the command line is ignored.
+.TP 5 5
+.B \-h
+Print an explanation of all the arguments.
+.TP 5 5
+.BI \-i\ 
+Specify the physical network \fIinterface\fP to be audited.
+The default is le0.
+.TP 5 5
+.BI \-I
+Specify the \fIip-timeout\fP in seconds.
+The default is 900 seconds.
+.TP 5 5
+.B \-O
+Turn off Berkeley Packet Filter optimizer.
+.TP 5 5
+.B \-p
+Do not set the physical network interface in promiscuous mode.
+.TP 5 5
+.BI \-P
+Specifies an alternate \fIport\fP for remote client connection.
+The default is port 561/tcp.  Setting the \fIport\fP to 0, completely
+disables remote client access.
+.TP 5 5
+.B \-r
+Read from
+.B tcpdump(1)
+raw packet file.
+If the
+.B \-r
+option is specified,
+.B argus
+will not put down a
+.B listen(2)
+to support remote access.
+.TP 5 5
+.BI \-T
+Specify the \fItcp-timeout\fP in seconds.
+The default is 120 seconds, and corresponds to the standard TCP FIN-WAIT state timeout.
+.TP 5 5
+.BI \-U
+Specify the \fIudp-timeout\fP in seconds.
+The default is 900 seconds.
+.TP 5 5
+.B \-w
+Write transaction status records to \fIoutput-file\fP.  An \fIoutput-file\fP
+of '-' directs \fBargus\fP to write the resulting \fIargus-file\fP output
+to \fIstdout\fP.
+.TP 5 5
+.B \-S
+Read UDP services port definitions from \fIservices-file\fP.  This allows
+\fBargus\fP to "wildcard" the source port number for UDP transactions that
+are directed to this service.  This should be used for high volume
+request/response protocols, such as DNS, to prevent \fBargus\fP from
+generating too many status records for these \fIservices\fP.  The format of
+the \fIservices-file\fP uses \fBservices(5)\fP file format.  Only entries
+listed for udp will be recognized.
+.TP 5 5
+.B \fIexpression\fP
+This
+.B tcpdump(1)
+expression
+specifies which transactions will be selected.  If no \fIexpression\fP
+is given, all transactions are selected.  Otherwise,
+only transactions for which \fIexpression\fP is `true' will be dumped.
+For a complete \fIexpression\fP format description, please refer to the
+.B tcpdump(1)
+man page.
+.SH EXAMPLES
+.LP
+Run \fBargus\fP as a daemon, writing all its transaction status reports to
+\fIoutput-file\fP.  This is the typical mode.
+.RS
+.nf
+\fBargus -w \fIoutput-file\fP &
+.fi
+.RE
+.LP
+If your ICMP traffic is very high and your \fBargus\fP transaction status
+\fIoutput-file\fP gets too big, you may want to not audit icmp.
+.RS
+.nf
+\fBargus -w \fIoutput-file\fP ip and not icmp &
+.fi
+.RE
+.LP
+If you are seriously concerned about telnet connections to one host on
+your network, you can audit the network activity involving just that host.
+Here is a complex example where we will be auditing destingation traffic for
+host \fBcrashtest\fP in \fBdetail\fP mode, with the reporting interval
+set to 30 seconds, and writing the transaction status reports to \fIstdout\fP, but
+piping its output to the \fBargus\fP client, \fBpolicy\fP.  \fBPolicy\fP 
+is configured to report the telnet traffic.  Each qualifying status
+report will be written to stdout.
+.RS
+.nf
+\fBargus -d 30 -w - dst host crashtest |  policy -cn port telnet\fP
+.fi
+.RE
+.LP
+Audit the network activity that is flowing between the two
+gateway routers, whose ethernet addresses are 00:08:03:2D:42:01 and
+00:00:0C:18:29:F1.  Without specifying an \fIoutput-file\fP, it is
+assumed that the transaction status reports will be written to a 
+remote client.  In this case we have changed the port that the
+remote client will use to port 430/tcp.
+.RS
+.nf
+\fBargus -P 430 ether host (0:8:3:2d:42:1 and 0:0:c:18:29:f1)\fP &
+.fi
+.RE
+.LP
+Audit all NFS transactions invovling the server \fIfileserver\fP
+and increase the UDP timeout to 3600 seconds (to provide high
+data reduction), and write the output to \fIoutput-file\fP.
+.RS
+.nf
+\fBargus -U 3600 -w \fIoutput-file\fP udp and port 2049\fP &
+.fi
+.RE
+.SH AUTHORS
+.nf
+Carter Bullard (wcb@fore.com)
+Chas DiFatta (cd@sei.cmu.edu)
+Special thanks to Mark Poepping (poepping@sei.cmu.edu).
+.SH SEE ALSO
+.BR policy (1),
+.BR hosts_access (5),
+.BR hosts_options (5),
+.BR tcpd (8),
+.BR tcpdump (1)

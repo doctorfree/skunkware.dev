@@ -1,0 +1,89 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Match-Anything Rules</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_96.html">previous</A>, <A HREF="make_98.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<H3><A NAME="SEC96" HREF="make_toc.html#TOC96">Match-Anything Pattern Rules</A></H3>
+<A NAME="IDX814"></A>
+<A NAME="IDX815"></A>
+<P>
+When a pattern rule's target is just <SAMP>`%'</SAMP>, it matches any file name
+whatever.  We call these rules <DFN>match-anything</DFN> rules.  They are very
+useful, but it can take a lot of time for <CODE>make</CODE> to think about them,
+because it must consider every such rule for each file name listed either
+as a target or as a dependency.
+<P>
+Suppose the makefile mentions <TT>`foo.c'</TT>.  For this target, <CODE>make</CODE>
+would have to consider making it by linking an object file <TT>`foo.c.o'</TT>,
+or by C compilation-and-linking in one step from <TT>`foo.c.c'</TT>, or by
+Pascal compilation-and-linking from <TT>`foo.c.p'</TT>, and many other
+possibilities.
+<P>
+We know these possibilities are ridiculous since <TT>`foo.c'</TT> is a C source
+file, not an executable.  If <CODE>make</CODE> did consider these possibilities,
+it would ultimately reject them, because files such as <TT>`foo.c.o'</TT> and
+<TT>`foo.c.p'</TT> would not exist.  But these possibilities are so
+numerous that <CODE>make</CODE> would run very slowly if it had to consider
+them.<P>
+To gain speed, we have put various constraints on the way <CODE>make</CODE>
+considers match-anything rules.  There are two different constraints that
+can be applied, and each time you define a match-anything rule you must
+choose one or the other for that rule.
+<P>
+One choice is to mark the match-anything rule as <DFN>terminal</DFN> by defining
+it with a double colon.  When a rule is terminal, it does not apply unless
+its dependencies actually exist.  Dependencies that could be made with
+other implicit rules are not good enough.  In other words, no further
+chaining is allowed beyond a terminal rule.
+<P>
+For example, the built-in implicit rules for extracting sources from RCS
+and SCCS files are terminal; as a result, if the file <TT>`foo.c,v'</TT> does
+not exist, <CODE>make</CODE> will not even consider trying to make it as an
+intermediate file from <TT>`foo.c,v.o'</TT> or from <TT>`RCS/SCCS/s.foo.c,v'</TT>.
+RCS and SCCS files are generally ultimate source files, which should not be
+remade from any other files; therefore, <CODE>make</CODE> can save time by not
+looking for ways to remake them.<P>
+If you do not mark the match-anything rule as terminal, then it is
+nonterminal.  A nonterminal match-anything rule cannot apply to a file name
+that indicates a specific type of data.  A file name indicates a specific
+type of data if some non-match-anything implicit rule target matches it.
+<P>
+For example, the file name <TT>`foo.c'</TT> matches the target for the pattern
+rule <SAMP>`%.c : %.y'</SAMP> (the rule to run Yacc).  Regardless of whether this
+rule is actually applicable (which happens only if there is a file
+<TT>`foo.y'</TT>), the fact that its target matches is enough to prevent
+consideration of any nonterminal match-anything rules for the file
+<TT>`foo.c'</TT>.  Thus, <CODE>make</CODE> will not even consider trying to make
+<TT>`foo.c'</TT> as an executable file from <TT>`foo.c.o'</TT>, <TT>`foo.c.c'</TT>,
+<TT>`foo.c.p'</TT>, etc.<P>
+The motivation for this constraint is that nonterminal match-anything
+rules are used for making files containing specific types of data (such as
+executable files) and a file name with a recognized suffix indicates some
+other specific type of data (such as a C source file).
+<P>
+Special built-in dummy pattern rules are provided solely to recognize
+certain file names so that nonterminal match-anything rules will not be
+considered.  These dummy rules have no dependencies and no commands, and
+they are ignored for all other purposes.  For example, the built-in
+implicit rule
+<P>
+<PRE>
+%.p :
+</PRE>
+<P>
+exists to make sure that Pascal source files such as <TT>`foo.p'</TT> match a
+specific target pattern and thereby prevent time from being wasted looking
+for <TT>`foo.p.o'</TT> or <TT>`foo.p.c'</TT>.
+<P>
+Dummy pattern rules such as the one for <SAMP>`%.p'</SAMP> are made for every
+suffix listed as valid for use in suffix rules (see section <A HREF="make_100.html#SEC99">Old-Fashioned Suffix Rules</A>).
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_96.html">previous</A>, <A HREF="make_98.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

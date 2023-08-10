@@ -1,0 +1,1029 @@
+Serial Troubleshooting in UnixWare 2 
+
+This document assists the user in the setup and troubleshooting
+of serial communications in UnixWare 2.
+
+Determine whether the problem is with the communications line
+itself, the hardware configuration, or the      software
+configuration.  Repair line and/or modify configuration
+appropriately.
+
+If you have problems setting up connections either to or from a
+remote serial port, or (once a connection is made) if cu(1) or
+uucp(1) appear to hang once a connection is established, your
+problem may be:
+
+1. the communications line itself
+
+2. modem or line configuration
+
+3. the configuration of the daemons on UnixWare that manage
+serial communications
+
+The procedures given in this technical note will help you
+determine the source of your serial communications problem and
+correct it.
+
+This document has the following major sections:
+
+   A.  GENERAL RECOMMENDATIONS FOR SERIAL SETUP
+   B.  TESTING BASIC MODEM CONNECTIVITY
+   C.  TESTING BASIC DIRECT LINE CONNECTIVITY
+   D.  TESTING OUTGOING CU/UUCP FUNCTIONALITY
+   E.  TESTING INCOMING FUNCTIONALITY
+   F.  EXPECTED RETURN STRINGS
+   G.  SPEED, BITS/CHAR, AND PARITY SETTINGS
+   H.  USING PPP OVER SERIAL LINES
+   I.  DATA TRANSFER AND FLOW CONTROL.
+   J.  HINTS AND TRICKS
+   K.  KNOWN PROBLEMS AND WORKAROUNDS
+
+
+A.  GENERAL RECOMMENDATIONS FOR SERIAL SETUP
+
+A.1 USE THE GUI FOR SERIAL SETUP
+
+We recommend that you use the Dialup Setup GUI for all your
+incoming and outgoing serial line set up.
+This is because the GUI will take care of many of the details of
+device setup that you would have to specify manually were you
+setting devices up from the command line.
+
+This makes setting up much easier and much less error prone.
+
+For example, if you use the GUI to set up a serial port
+connected to a modem device as bidirectional, the GUI will (among
+other things):
+
+   - configure a ttymon(1M) port monitor for your modem that
+automatically sets up the modem to accept incoming connections
+(assuming that you have a Hayes(R)-compatible modem)
+
+   - add special "reset entries" to the port monitor's _pmtab
+file for incoming calls
+
+   - add an entry in /etc/uucp/Devices so the port can also be
+used for outgoing connections
+
+
+To open the Device Setup window:
+   1.  From the main desktop window, click on the Admin_Tools
+icon.
+   2.  Click on the Networking icon.
+   3.  Click on the Dialup_Setup icon.
+   4.  Click on the Actions menu item and select Setup Devices
+from the pull-down menu.  The Device Setup screen is displayed.
+
+
+The GUI method of administering modem and direct line
+connections is explained in the UnixWare "System Owner Handbook".
+
+This document provide additions, clarifications, and corrections
+for that material.
+
+The "Administering the Basic Networking Utilities" chapter of
+the "Network Administration" book in the UnixWare online documentation
+explains the admin files and software used by the GUI to manage
+your modem and direct line connections.
+
+A.2 WHEN YOU DON'T USE THE GUI
+
+If you choose not to use the GUI to setup incoming lines, you
+should make sure you turn on the 'o' option in the ttymon pmtab
+entries to ensure proper setup of the modem for incoming lines
+
+[see ttyadm(1M)].  You will also need to manually add 'reset
+entries' for your incoming modem lines.  UnixWare provides an
+/etc/uucp/Dialers entry, 'atcmd_auto', which you can use in
+adding your 'reset entries'.
+
+See "Administering the Basic Networking Utilities" in the
+"Network Administration" book in the UnixWare online documentation for
+more information on setting up incoming and outgoing modem and
+direct line connections from the command line (including a review
+of the administrative files and their formats).
+
+
+A.3 UTILITY FOR TESTING BASIC OUTGOING CONNECTIVITY
+
+There is a new 'modem' utility in UnixWare 2.0 that allows you
+to issue commands to your modem in much the same way as you can
+using PC terminal emulators.
+
+This utility connects your terminal window 'directly' to the
+modem allowing you to detect and correct problems on your line
+and in your modem.
+
+You can also use this tool to establish basic 'direct connect'
+sanity, as well as for troubleshooting any other type of serial
+line problems.
+
+To use the modem utility, you must be logged into the system as
+root and running a shell in some sort of terminal window (like a
+Desktop xterm window) or at the console.  The command syntax is:
+
+   /usr/lib/uucp/modem  
+
+where  can be com1, etc. (or /dev/tty00, etc.) and where
+ can be the normal set from 300 baud to 38400 baud.
+
+
+This tool uses 7 data bits/character and even parity by default.
+You can edit /etc/uucp/Config if you need to change either the
+number of data bits or the parity.
+
+CAUTION:  When you are using this command all other cu/uucp
+activity on the system will be disabled.  The modem command saves
+the old Devices file and writes a single-line-entry
+/etc/uucp/Devices file.
+
+Be sure to exit the command by entering "~." (the tilde
+character followed by a period and ); this allows the
+modem command to copy the old Devices file back into
+/etc/uucp/Devices before exiting.
+
+If you exit the modem command in any other way (by, for example,
+killing the window or rebooting) you will not get the original
+/etc/uucp/Devices copied back from /etc/uucp/Devices.bak.  You
+will need to copy the file manually to restore previous Device
+entries
+
+(e.g., cp /etc/uucp/Devices.bak /etc/uucp/Devices).
+
+
+A.4 USING THE CONNECTION SERVER DEBUG MODE
+
+Outgoing calls are managed by the connection server [cs(1M)].
+Both cu(1), uucp(1), and ppp(1) use the connection server to
+dial.
+
+When you click on either 'dial' from the GUI device setup window
+or double click on a system icon, you are running 'cu' and can
+use this technique to debug your problem.
+
+Many every day problems (such as the remote line being busy) can
+be debugged using the connection server debug mode.
+
+To activate cs debug mode, enter the following at the command
+line as root:
+
+   # ps -eaf | grep cs
+   # kill -9 (the process id of the /usr/sbin/cs process)
+   # /usr/sbin/cs -d
+
+This will start a log in /var/adm/log/cs.debug.
+
+A good debugging technique is to have the 'cs -d' running and in
+a separate terminal window, enter 'tail -f /var/adm/log/cs.debug'.  
+Then, in a separate window do your cu or uucp request.
+
+You'll see what is being sent (e.g. atdt5551212) and what is
+being expected (e.g.  CONNECT) as well as some technical details
+about which line is being selected and so forth.
+
+At some point you may want to turn cs debug mode off to save
+space.
+
+To do this, kill the currently running cs process as shown above
+and restart cs using '/usr/sbin/cs' without the -d option.
+Alternatively, you could continue to run cs in debug mode and
+write a cron(1M) daemon that keeps the size of the
+/var/adm/log/cs.debug file reasonable.
+
+
+B.  TESTING BASIC MODEM CONNECTIVITY
+
+To see if a modem connection is functioning properly with a
+basic level of functionality, see if you can issue modem commands
+from the UnixWare command line to your modem directly by
+following these instructions:
+
+1.  Connect the modem to the Com1 (/dev/tty00) port using
+appropriate cabling.
+
+2.  Execute the 'modem' command described in section A.3.
+
+   /usr/lib/uucp/modem com1 9600
+
+In our example we use com1 (/dev/tty00h) at 9600 baud.
+
+(We use the tty01h, rather than tty01, because tty01h lets us
+use hardware flow control.)
+
+You should see a 'connected' message.  If you are having trouble
+doing this, (i.e. getting the connected message) try running cs
+in debug mode as described in section A.4, and examine the log
+for errors.
+
+3.  Once you can talk to the modem (i.e., you get the
+'connected' message from the modem command), try giving the
+command out of your modem's owners guide to dial the phone.  If
+it is a Hayes-compatible modem, try
+
+`atdt5551212' (replacing `5551212' with the number to dial).
+Listen to the call progress, watch for any errors the modem may
+report, and respond accordingly.
+
+If the remote modem does not answer, then there may be a problem
+with the remote modem's configuration (e.g., the remote modem is
+not configured for auto-answer).  Check the remote modem using
+these steps before proceeding.
+
+4.  To check out incoming connectivity. set the modem to
+auto-answer.
+
+You can do this while the modem command is running by entering
+
+'ats0=2' (assuming a Hayes-compatible modem);  the modem should
+respond with 'OK'.  While still running the modem command, have a
+remote system call in.
+
+On a Hayes-compatible you should see 'RING' and then after 2
+rings hear the phone being picked up.  Again listen to call
+progress.  At some point the 'pings and whistles' should stop and
+you should see the
+
+'CONNECT' message from the modem.
+
+5.  If you still cannot get a 'CONNECT' message from the cu
+command, check your cable, or buy an 'rs232 mini tester' or
+'breakout box' and make sure that the 'CD' light on the side
+connected to your machine is high.
+
+If it is not, then there may be a problem with your cable or
+modem.
+
+Modem types generally wait for 'CONNECT XXX' to come from the
+modem before responding 'connected'.  All connection types look
+for 'carrier detect', this is a line that must be 'high' for cu or
+uucp to continue.
+
+6.  Once you have the modems talking you should be able to
+communicate.
+
+If you've 'placed' the call (rather than received an incoming
+one), you should be able to proceed with your login process.
+
+If, once you are connected, you see apparently random characters
+displayed when you type something, you may have a bits/char or a
+parity setting problem.  This may also be seen as the remote
+system not quite responding to you (e.g. the 'login' comes out
+fine but it just doesn't want to respond to your login id.)  See
+"SPEED, BITS/CHAR, AND PARITY SETTINGS", below, for more information.
+
+7.  Do a '~.' to exit 'modem' gracefully.  (It is important to
+exit the modem command gracefully;  see section A.3.)
+
+If you've successfully gone through these steps and either cu or
+uucp still don't work, see the section entitled "TESTING OUTGOING
+CU/UUCP FUNCTIONALITY".  If you still have 'incoming' problems. see the
+section entitled 'TESTING INCOMING FUNCTIONALITY"
+
+
+C.  TESTING BASIC DIRECT LINE CONNECTIVITY
+
+For direct lines you can try the same low level connection
+tested in the previous procedure for modems by using the modem
+command.
+
+1.  Connect the Com1 port (or another appropriate port) to the
+remote terminal or computer using appropriate cabling (which
+usually includes a 'null modem').
+
+The easiest way to test a direct line is with a dumb terminal
+(i.e., you only need to configure the terminal settings
+correctly).  If you use another UnixWare system to test the line,
+be sure to use these instructions to set up a bidirectional port
+on the remote system.
+
+2.  Be sure that bits/char, parity, and speed match on both
+sides of the connection.  The modem command uses 7 data
+bits/character, even parity, and the speed that you specify on
+the command line.
+
+3.  Enter the modem command, as in:
+
+   /usr/lib/uucp/modem Com1 9600
+
+Once you get the 'connected' message from the modem command, any
+characters you type should appear on the terminal, as well as
+system responses.
+
+If you do not get a 'connected' message, then the problem is
+probably due to the failure of the modem to receive the Carrier
+Detect signal over the cable (which is the only thing cu and the
+modem command look for before returning the 'connected' message).
+
+All connection types look for 'Carrier Detect' (CD);  this is a
+cable signal that must be 'high' for cu or uucp to continue.  In
+a direct connection, this usually occurs because the 'other side'
+raises the 'Data Terminal Ready' signal.  (These two signals are 'swapped'
+in a 'null' modem.)
+
+  Check your cable, or buy an 'rs232 mini tester' or 'breakout
+box' and see that the 'CD' light on the side right before it goes
+into your machine is high.  If the cable is all right, then there
+may be a problem with your hardware.
+
+5.  If, once you are connected, you see apparently random
+characters displayed when you type something, you may have a
+bits/char or a parity setting problem.  This may also be seen as
+the remote system not quite responding to you (e.g. the 'login'
+comes out fine but it just doesn't want to respond to your login
+id).  See "SPEED, BITS/CHAR, AND PARITY SETTINGS", below, for more information.
+
+
+6.  Do a '~.' to exit 'modem' gracefully.  (It is important to
+exit the modem command gracefully;  see section A.3.)
+
+If you've successfully gone through these steps and either cu or
+uucp still doesn't work, see the section entitled "TESTING
+OUTGOING CU/UUCP FUNCTIONALITY".  If you still have incoming problems, 
+see the section entitled 'TESTING INCOMING FUNCTIONALITY".
+
+
+D.  TESTING OUTGOING CU/UUCP FUNCTIONALITY
+
+If once you've established basic connectivity on your Modem or
+Direct line and cu(1) or uucp(1) still don't work, you probably
+have set the device up incorrectly.  [Remember that the following
+GUI facilities also use cu/uucp:  the 'dial' screen,
+double-clicking on a system icon (both cu) or dropping a file
+into a system icon (uucp).]
+
+In order to understand how to set up cu/uucp devices, you must
+understand a little of how cu and uucp work.
+
+D.1 CU/UUCP BACKGROUND
+
+The cu and uucp commands are part of the Basic Networking
+Utilities (BNU).
+
+Both cu and uucp (as well as ppp) request connections through
+cs(1M), which performs the tasks necessary to make the connection
+(like dialing a phone number through a modem or connecting cu or
+uucp to a direct line).
+
+After the connection is made (e.g., the 'connect' message is
+received), uucp only has the capability of sending login requests
+and passwords.  The GUI refers to this later set as the 'login
+sequence'
+
+The first thing that cs does on a dialup or direct-connect
+request is to select a line:
+
+- If you specified a line via the command line (as in 'cu
+-l') or the GUI, then cs will attempt to use that line.
+
+- If you specify a telephone number instead (without a line),
+then cs searches /etc/uucp/Devices for an appropriate device
+(based on the speed specified, etc.).
+
+- If you instead specify a system name (and not a telephone
+number or a line), then cs looks in the /etc/uucp/Systems file,
+and then the /etc/uucp/Devices file, for an appropriate device.
+
+Devices are defined in /etc/uucp/Devices, and are organized into
+groups.
+
+There is one for each real physical serial port on the system;
+these are setup using the 'Device Setup' window through the GUI,
+or by editing the file from the command line.
+
+Many groups can be defined, their purpose being to limit the
+number of entries that are searched through in the Devices file
+for a particular call (and to identify the type of the entry).
+
+You can use group or type names on the command line (as in 'cu
+-t') to search only entries of that type.  The GUI uses
+two of these groups, ACU (called 'modem' in the GUI) and Direct
+to establish dialup connections.
+
+Once a line is selected, the connection server sends characters
+out on the selected line and waits for a response.
+
+The cs process looks in the /etc/uucp/Dialers file for an entry
+that matches the type (or group) of the system being called.
+
+The Dialers entries are arranged by modem type (or direct
+connect type) names.  There is a 'hayes' entry, for example, and
+a 'direct_modem' entry (which is used by the 'modem' command described 
+above).  The 'Connects to:' field in the Dialup Setup: Device Properties
+window lists these Dialer types.
+
+Each entry in the Dialers file starts with a type (which equated
+to the device type) and a 'chat script' for that particular
+device type.
+
+It may say, for example, to use 'ATDT' when dialing the
+telephone, and to then wait for the string 'CONNECT' before
+returning a 'connect' message to the user.
+
+D.1.1 SUMMARY
+
+To summarize, there are 2 or 3 files you go through when you
+make a dialup request.
+
+If you directly specify a line, or just specify a phone number,
+the connection server gets an entry from /etc/uucp/Devices.  On
+each device entry there is a type or group name that points to an
+entry in /etc/uucp/Dialers for the chat script.
+
+If you specify a system name, the connection server first
+searches /etc/uucp/Systems for the connection type (modem or
+direct-connect) and then goes to the /etc/uucp/Devices file to
+search through the appropriate group(s) of entries for an
+available line.  Once a line is opened, cs consults the
+/etc/uucp/Dialers file for the chat script for the selected
+device.
+
+In this way you get a line and a Dialer type for all calls you
+make.
+
+
+If you use uucp or PPP to transfer files, the connection
+sequence involves one more step.  After the connection server has
+worked its way through the Dialers entry chat script, it uses the
+'login sequence' in the
+
+/etc/uucp/Systems file to attempt to log in to the remote
+system.
+
+
+
+[NOTE:  Using 'cu ' does not invoke a login
+sequence specified for  in /etc/uucp/Systems.  See
+the section below entitled "EXPECTED RETURN STRINGS" for more
+information.]
+
+D.1.2 SETTING UP BNU FILES
+
+These Systems, Devices, and Dialers files can be set up from the
+command line, but we strongly recommend you use the GUI.
+
+The contents of the /etc/uucp/Systems file is displayed when you
+double-click on the Dialup_Setup icon in the Networking folder
+(open the Networking folder by double-clicking on Admin_Tools on
+the Desktop, and then double-clicking on the Networking icon).  You
+can add and modify systems (and the login sequences to be used by
+uucp when dialing these system) from this window, the System
+Setup window.
+
+To add and modify devices on your system, click on the Actions
+menu item in the System Setup window and then select the Setup
+Devices menu entry from the drop-down menu.  From the the Dialup
+Setup window, selecting the Device-New command sets up a new
+device in /etc/uucp/Devices.
+
+D.2 DEBUGGING OUTGOING CONNECTIONS
+
+You can see all the steps described above in this section using
+the 'CS debug mode' (described in section A.4).
+
+Should you be able to 'talk to your modem' using either section
+'A' or 'B', but cu or uucp is still not working, put cs into 'debug'
+mode and observe the cs log.  Symptoms of many things that can go
+wrong will be seen in the log.
+
+The log will report basic problems like incorrect modem type,
+bad chats, locked lines, and (for uucp only) an incorrect login
+sequence.
+
+Additional problems, such as speed mismatches between the remote
+and local modem/lines, similar mismatches in bits/char, parity,
+and other line settings, can be inferred from the log entries in
+the file.  For more information on these types of problems, see
+"SPEED, BITS/CHAR, AND PARITY SETTINGS and EXPECTED RETURN STRINGS", below.
+
+Also check the section "KNOWN PROBLEMS AND WORKAROUNDS" for
+additional help in identifying problems in cs debug output.
+
+Another useful utility that aids uucp debugging is a program
+called Uutry(1M).  If cu is working, but uucp isn't, try the following
+command:
+
+
+   /usr/lib/uucp/Uutry 
+
+
+where  is the name of a system in the Systems file.
+
+(You should use this program after setting up a system, and
+before committing any transfer to uucp, to see that the setup is
+OK.)
+
+Uutry will connect to the remote system, and then use the login
+sequence in the /etc/uucp/Systems file to attempt to log in.
+
+Uutry displays quite a bit of output and usually sees some
+errors along the way (most are not serious, as in the
+unavailability of a particular line -- in this case, for example,
+uucp just tries to get the next available appropriate device).
+
+You are interested in the last line printed out by Uutry.  It
+should say 'SUCCEEDED'.  If this message appears, then a uucp transfer to
+the system specified will work.
+
+If you want to look at a log of Uutry activity, make sure the
+connection server is running in debug mode (i.e., cs -d);  see
+section A.4 for a description of the connection server debug
+mode.
+
+
+
+E.  TESTING INCOMING FUNCTIONALITY
+
+E.1 INCOMING UUCP CONNECTIVITY
+
+In order to establish incoming uucp connectivity, make sure that
+an 'nuucp' login exists and you have set a password for 'nuucp'
+using the passwd(1M) command.  The remote system must specify the
+login and password in the login sequence for that system's entry
+in the
+
+/etc/uucp/Systems file.
+
+E.2 REMOTE LOGIN AND TTYMON
+
+Once you've established basic connectivity coming into your
+system and you still can't log in, you most probably have set up
+your incoming daemon incorrectly.
+
+A program called 'ttymon' monitors all lines in your system
+waiting for an indication that you've called, either by Carrier
+detect being raised or by counting carriage returns (the 'r'
+count).  Once it recognizes a connection, it attempts to figure
+out the speed at which you are calling.
+
+Once it knows the line speed, ttymon sends out a login prompt on
+the line.
+
+The ttymon daemon reads a setup file in /etc/saf/ttymon?/_pmtab,
+where the '?' is a 1 if you use the GUI.  ttymon is actually run
+by something called the sac(1M) (Service Access Controller) and
+administered from the command line by pmadm(1M) and ttyadm(1M).
+
+These details are done for you by the GUI if you use it.  If
+not, it can be quite complicated to get a port monitor (i.e.,
+ttymon process) going.
+
+(The "Managing Ports" chapter of the "System Administration"
+book in the UnixWare on-line documentation contains a description of
+manually starting a port monitor.)
+
+In the GUI when you click on 'incoming' or 'bidirectional' for a
+device, it sets up a _pmtab file and tells the service access
+controller to start a ttymon process.
+
+The ttymon process's main function is figuring your speed.  It
+does so with either the autobaud method, or the rotary method.
+
+With autobaud speed matching, if the incoming call is 8 data
+bits and no parity, ttymon is pretty good at figuring your speed.
+This is activated by choosing 'auto select' when setting up a
+ttymon.  Otherwise, the rotary method is used, starting at the
+speed you specified when setting up ttymon for the line.
+
+When a call comes in that uses the rotary method, and the
+starting baud rate is not correct for the line, hitting the
+'break' key on the remote terminal moves ttymon to the next speed
+in the sequence.  Once the correct speed is reached, the login
+prompt is displayed on the remote.
+
+Rotary sequences are defined in the file /etc/ttydefs.  Each
+entry in the file specifies a baud rate in the sequence, and
+points to the next entry in the sequence (the final entry
+pointing back to the first entry in that sequence).  Any number
+of sequences may be defined;  the baud rate at which you start in
+the sequence (and, therefore, the sequence itself) for any
+particular dial-in attempt is the baud rate specified when you
+started the ttymon process for the line on which the call is
+coming in.
+
+There are 3 important sequences in /etc/ttydefs.
+
+- The '9600' sequence is for 7 bit, even parity communication.
+
+- The NP sequences (where  can be any baud rate, as
+in 9600NP) are 8 bit, no parity; but the 8th bit is stripped, so
+there are really only 7 data bits.
+
+- The _8bit sequences (where  can be any baud rate,
+such as 9600_8bit) is 8 bit, no parity (with no 8th-bit stripping
+as in the NP entries).  This series gives you true 8-bit
+communication.
+
+To use these from the GUI Device Setup window, you would use the
+'other' speed settings and then type, for example, '9600_8bit' in
+the text box.
+
+Most of today's modems should use the highest speed setting that
+the modem supports and not the 'auto-select' setting.  This is
+because the modem usually maintains a constant speed at the
+serial line interface and just changes the modem-modem speed on
+slower speeds.
+
+There is a log kept in /var/saf/ttymon/log of ttymon's
+activities.
+
+It tends to be terse and not that helpful to the general user.
+
+If for some reason ttymon seems to no longer accept incoming
+calls you might try to stop it and restart it.  To do this, log
+in a root and enter:
+
+   /usr/sbin/sacadm -k -p ttymon1
+
+   /usr/sbin/sacadm -s -p ttymon1
+
+Use the appropriate ttymon identifier for ttymon instances other
+than 'ttymon1'.
+
+
+F.  EXPECTED RETURN STRINGS
+
+When uucp is attempting to contact another system, it generally
+waits on certain events.  As set up by the GUI, uucp is expecting
+particular response from the remote system and can appear to
+'hang' waiting for these (uucp will generally wait five minutes
+or longer for a response; some processes can appear to wait
+endlessly).
+
+The return strings expected by uucp (and when you double-click
+on a system icon) are used on both direct lines and modem lines.
+This info is seen on the Dialup Setup Systems property screen and
+in the /etc/uucp/Systems file.
+
+[NOTE:  The return strings are not used by cu, since it
+considers itself 'connected' as soon as the remote system
+acknowledges the call.]
+
+The return strings that uucp expects the remote system to send,
+and the responses that uucp sends to the remote system, form a
+prompt/response 'chat script' for connecting to the remote system.  
+For normal uucp use, they should be:
+
+        prompt  response
+
+        ------  --------
+
+        in:     nuucp
+
+        word:   
+
+where  is the nuucp password you obtain from the
+administrator of the remote system.
+
+In this default case, uucp would wait for 'in:' (the ending of
+the word 'Login:') and respond by sending 'nuucp'.  After that it would
+wait for 'word:' (the ending of the word 'password:' and then send the
+password.
+
+Before using uucp for the first time with a new remote system,
+you should see that a 'cu ' with the system name (or
+double clicking on the RAC) will show a connected message (in
+this case 'connected' only appears after a successful uucp log
+in).
+
+In addition to providing for the uucp log in, the
+prompt/response chat script can be used to get you past various
+terminal controllers and modem switches, should you need to pass
+through such devices to reach a remote system.
+
+You should usually go through the procedure manually (i.e.,
+using cu), and see what prompts are sent from the computer/switch
+before it expects you to enter something.
+
+Enter this as a 'prompt' in the Systems file.  Then enter what
+you would type to this prompt in the 'response' field.  Repeat
+this process for all 'prompts' and responses you must enter.
+
+In general, the 'nuucp' login and password prompts/responses
+shown above would occur only after you got through all terminal
+controllers or modem switches and the like, and is usually the
+last thing in the 'chat script'.
+
+This script, as described above in the 'TESTING OUTGOING CU/UUCP
+FUNCTIONALITY' section, goes in the /etc/uucp/Systems file. Also
+noted there was the fact that this is the second 'chat' script,
+this one occurring after 'connected' would occur on 'cu'. The
+first 'chat' is in /etc/uucp/Dialers. Under normal circumstances 
+you would only use the /etc/uucp/Systems script.
+
+However, at times you might put some of the total 'chat' into
+the Dialers file instead.  This is because the 'language'
+supported by the Dialers file is more robust than that allowed in
+the Systems file, allowing such things as delays, insertion of
+system name, special characters, and so on.
+
+This allows you to include 'chats' for terminal or line
+switches, etc., that you may need to pass through before you get
+a login prompt from the destination system.
+
+An example of a script you might add to the dialers file that
+would get you logged into a switch, then through the switch to a
+destination machine follows (it is shown on two lines, but is
+actually one line in the file):
+
+   intel14.4MP =,-,        ""\M\dATS0=0\r\c OK\r ATDT\T\r\c CONNECT
+
+   \r\c ID:--ID: < use_id> word:  login. \r\c TION: sapphire
+
+
+
+You'll need to write a 'chat script' for all the systems you
+want to talk to via uucp or PPP.  It may take some
+experimentation to develop the correct prompt/response sequence
+for some systems.  The keys to getting it right are observing the
+prompt/response sequence when logging in manually (using cu) and
+looking at the connection server log (described in section A.4)
+for some help once you develop a 'chat script' and start to test
+it.
+
+
+G.  SPEED, BITS/CHAR, AND PARITY SETTINGS
+
+Once the system doing the dialing gets the 'CONNECT xxx' message
+(or 'connected' from cu), you may still have baud rate problems,
+character size problems, or parity setting problems.  That is,
+these values must match exactly on the remote and local systems
+for communication to proceed intelligibly.
+
+Primarily, check the settings on the lines you are using on both
+machines, and make sure they are set up with matching baud rates,
+character size, and parity settings.
+
+On incoming calls, the ttymon daemon handling the call does its
+best to figure your incoming speed.  If you set up 'auto-select'
+it is pretty good at figuring your speed as long as you come in
+with 8 bits/character and no parity.  If you don't use
+'auto-select', hitting the 'break' key should cycle you through
+the speeds (if you come in via cu, ~%b does the same
+thing).
+
+The GUI, for (outgoing) modems, defaults to 9600 baud.  It is
+recommended you set the baud rate for a modem through the GUI
+(i.e., through the 'Dial Action' or 'System' screens) to the
+highest speed at which the modem can transmit and receive, rather
+than selecting 'auto-select' (auto-select is provided for direct
+lines and some older modems).
+
+This is because the speed that a modem talks to you at the
+serial port is usually a constant speed.  If the remote wants to
+talk slower than this, that occurred on the 'modem-to-modem'
+connection and the modem will slow down the bytes coming in as
+needed. (e.g. the modem-serial speed is 9600, but the remote
+wants to talk at 1200.  The modem-to-modem speed will be 1200,
+but the modem-to-serial port will be 9600).  Note a problem in
+this feature, described below, can make it look from the remote
+side that you have a speed problem and sometimes doing 'breaks'
+will fix it (see "KNOWN PROBLEMS AND WORKAROUNDS").
+
+The /etc/uucp/Config file contains default character size and
+parity information.  It defaults to 71E.  To make it 81N, simply
+comment out the PARITY line, and change the CHARSIZE to 8.
+
+H.  USING PPP OVER SERIAL LINES
+
+PPP requests that a connection be made to a remote system by
+asking the connection server to make the connection (just as cu
+and uucp do).
+
+Therefore, you need to have:
+
+   - a Devices file entry
+
+   - a Systems file entry
+
+The Systems file entry is tagged with either the system name, or
+the system name with 'ppp' appended, depending on whether you use
+the link for both cu and ppp or just ppp.
+
+You should follow all the instructions in this document for
+setting up devices and testing basic connectivity, since the
+information in the PPP documents are out of date on these topics.
+
+You could even use the 'cu system' type tests except you enter
+the ppp login and password manually to see that you can get that
+far.  (Of course you'll get junk on the line once you log in
+since ppp is sending binary information.
+
+One thing to note is that on incoming you should use the
+9600_8bit series in /etc/ttydefs if you are expecting incoming
+calls from non-Unix boxes.  The 8bit series provides true 8-bit
+communication.
+
+The NP series is similar, but strips the eighth bit, so there
+really are only seven data bits in the NP series.
+
+When two UnixWare systems talk they can adjust character size,
+but not a UnixWare PPP system to a non-UnixWare PPP system.
+
+
+I.  DATA TRANSFER AND FLOW CONTROL
+
+If you are seeing lost data (that is, file sizes on the
+receiving end do not match files sizes on the sending end), you
+may be experiencing a 'flow control' problem.
+
+Flow control occurs when the receiving system says to the
+sending system
+
+'slow down' (actually 'stop!') because I have no where to put
+the data you are sending right now.  Hopefully, the flow of data
+can be slowed by the sender and no data loss occurs.
+
+Flow control, however, sometimes causes chain reactions.
+Imagine computer A is receiving data from computer B via modem (2
+modems, one on each end).  Computer A says 'stop' to its modem.
+This modem might have some space to save data still coming from
+the other side, but when that space is full it will have to tell
+the other modem to stop as well.  Of course this modem may at
+some point have to tell Computer B to stop.  This is end-to-end
+flow control.
+
+If end-to-end flow control isn't working properly, the result is
+usually the loss of data since you expect the other side to obey
+your request to stop and you would discard any data sent shortly
+after the stop request.
+
+There are 2 types of flow control supported by both modems and
+UnixWare.
+
+The first, hardware flow control, uses two of the wires that are
+connected between your machine and the modem to tell the other
+side to stop.
+
+These wires are called CTS and RTS (Clear To Send and Request To
+Send).
+
+The other type is software flow control where some set of bytes
+are exchanged to tell the other side to stop.
+
+UnixWare uses the device name to pick between these.  The
+/dev/ttyxx and
+
+/dev/ttyxxs series are the software flow control devices, and
+/dev/ttyxxh are the hardware ones (as well as the /dev/term/xxh
+series).
+
+Since most modems come up with hardware flow control, if you
+select 'com1' or 'com2' in the GUI, you will get /dev/tty00h and
+/dev/tty01h respectively.
+
+When you need com3 and com4, etc, you would click on 'other' to
+manually enter a device.  When you do you should most likely use
+the /dev/ttyxxh device.
+
+If you know that you need to use software flow control on a
+particular line, you should not select 'com1' and 'com2', but
+rather 'other' and enter '/dev/tty00s' or '/dev/tty01s' instead.
+
+It is best if both sides use the same flow control model.
+
+
+J.  HINTS AND TRICKS
+
+J.1 'Device Busy' Errors
+
+When using cu (or dialing from the GUI), you may see 'Device
+Busy' error messages.  This means that some other process is
+using the device you wish to use. This frequently occurs when you
+change device characteristics and quickly dial. This is because
+ttymon 'owns' the device for a short period and the device is
+'busy' while ttymon owns it.
+
+Just retry in 30 seconds.
+
+The 'Device Busy' message may also indicate that the device is
+truly being used to dial out of or in to your system. In this
+case you should just retry after a longer period.
+
+J.2 No Answer
+
+If you have a known working setup, you find that sometimes you
+get no answer when dialing in. The most common cause for this is
+that someone just finished dialing out and it takes ttymon up to
+1 minute to reset the line and modem.  In this interval you would
+get no answer.
+
+J.3 Going Out Over TCP/IP Instead.
+
+Sometimes you'll be able to reach a system over both TCP/IP and
+serial lines.  This happens when the system is in
+/etc/uucp/Systems and
+
+/etc/uucp/Systems.tcp.  The system usually chooses the TCP/IP
+connection.
+
+You can edit the /etc/uucp/Sysfiles file to force the system to
+use the serial connection.  See "Administering the Basic
+Networking Utilities" in the "Network Administration" book in the
+UnixWare online documentation for more information.
+
+K.  KNOWN PROBLEMS AND WORKAROUNDS
+
+K.1 You always get 'Device busy'.
+
+Sometimes you'll find that you always get a device busy, even
+though you know no one is using the system. You can stop/start
+the connection server (using the procedure given in section A.4)
+and stop/start ttymon
+
+(using the procedure in 'TESTING INCOMING FUNCTIONALITY').
+
+K.2 Don't say 'modem' for direct line.
+
+Do not make the mistake of defining as a 'modem' a line that is
+'direct' (or in any way not a modem).
+
+In this case, the 'o' option, that tries to reset modem values
+will hang the line forever waiting for responses to modem-setting
+commands.
+
+K.3 Use 8-bit, no parity for Autobaud.
+
+Always use 8 data bits and no-parity when you call into an
+'autobaud' line.  If you don't, the line speed will never be
+recognized on the autobauding side.
+
+Both the 8bit and NP series in /etc/ttydefs user 8data bits and
+no parity.  The 8bit series, however, provides true 8-bit
+communication.
+
+The NP series is similar, but strips the eighth bit, so there
+really are only seven data bits in the NP series.
+
+K.4 Use 8 bits/char for PPP.
+
+Always set up incoming PPP lines for 8 data bits/character
+(using the _8bit series -- see the "TESTING INCOMING
+FUNCTIONALITY" section for instructions).
+
+Using 7 bits/character is all right if the other side is another
+
+UnixWare PPP, but other PPP implementations, like some on DOS,
+expect 8 bits/character.
+
+K.5 Can't assign a system on a particular direct line.
+
+You can't specify, using the GUI, that a system use a particular
+direct line.  What will happen is that if you select 'direct'
+under system setup, it will go out on the first available direct
+line, which may not be where the system you want is.  The same
+goes for 'datakit' lines.
+
+You'll need to set up a new 'class' in the /etc/uucp/Devices
+file for each new device you have and then refer to that class in
+the /etc/uucp/Systems file. Lets say you entered two direct lines
+and 2 systems. for the second line and system, edit
+/etc/uucp/Devices by hand and change the 'Direct' to say
+'Direct1' and then on the system that uses this line in
+
+/etc/uucp/Systems do the same.  Note when you do this the second
+line will no longer appear in the GUI, since the GUI is looking
+for 'Direct'.
+
+CAUTION:  Any entry in the Devices file that is not ACU, Direct,
+or the new autoconfig entry will be removed from the Devices file
+next time you run Dialup Setup.  You must keep a backup copy of
+this file should you define additional classes.
+
+K.6  is not BREAK
+
+In doing the speed 'rotary', only 'Breaks' are guaranteed to
+work. It may appear that pressing the  or  keys,
+or for that matter any other character, makes the 'rotary' move.
+
+In fact what is occurring is that given certain baud rates
+combined with certain rates at which you are sending characters,
+a sequence of data on the line may just be interpreted
+coincidentally as a 'break' by UnixWare.
+
+So always use 'break's to move to new baud rates when logging
+in.
+
+K.7 Connections seem to hang.
+
+At times cu's seem to take a very long time.  You should note
+that the connection server waits 45 seconds for each 'chat'
+timeout, that constructs such as 'in:--in:--in:' in 'chat
+scripts' wait for three
+
+45-second timeouts, and that the connection server generally
+retries the whole thing on failure.
+
+In this way you could easily see 5 minutes go by before a cu
+reports an error. You can use the connection server in debug mode
+(as shown in section A.4) so you see where the timeouts are going
+and why it is taking so long.  Using 'cu -v' can also provide an
+indication of what is happening.
+
+K.8 File transfers via uucp can take a long time.
+
+If you send something with uucp and there is line trouble or
+some other configuration error, it may take up to 24 hours before
+uucp reports an error. (uucp will try to place the call at 5
+minute intervals.)  This is why we suggest attempting to log in
+to a remote system via cu before attempting a file transfer via
+uucp.

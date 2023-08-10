@@ -1,0 +1,1314 @@
+
+
+       menu(4)                                                      menu(4)
+
+
+       NAME
+             menu - form description file for the menu command
+
+       DESCRIPTION
+             menu(1) is a menu and form generator that creates full-screen
+             forms and menus for accepting user input and displaying
+             information.  The form or menu to be displayed is specified in
+             a form description file that allows text, lists, input fields,
+             contents of files, and output from commands to be displayed.
+
+             The form description file consists of a number of keywords,
+             each denoting the start of a new section of the form.  For
+             example, there is a keyword .top which specifies that the text
+             that follows will be placed at the top of the screen.  The
+             text in each section of the form description file can be
+             hard-coded in the form description file, or it may be
+             redirected from a file or command.
+
+          I/O Redirection
+             In the form description file, text may be included from
+             another file.  This is handled by specifying a less than (<)
+             character in the first column of the form description file,
+             followed by the name of a file to include.  The text included
+             from the file will be included verbatim; that is, if the file
+             contains keywords, they will not be processed, and no I/O
+             redirection or command substitution will be performed on the
+             input redirected from a file.
+
+          Command Substitution
+             In the form description file, text may be the output from a
+             shell command.  This is handled by enclosing a command to be
+             executed in backquotes.  Note that no more than one command
+             will be parsed per input line of the form description file,
+             and no command may span more than one line of the form
+             description file.  Again, the text included from the output of
+             the command will be included verbatim; that is, no keywords
+             will be processed, and no I/O redirection or command
+             substitution will be performed on the input given by the
+             output of a command.
+
+          Comments
+             The form description file may contain comments, which will be
+             ignored.  Lines with a pound sign (#) in the first column are
+             considered comments.
+
+
+
+
+                           Copyright 1994 Novell, Inc.               Page 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      menu(4)                                                      menu(4)
+
+
+         Keywords
+            This section describes all the keywords you can use in a form
+            description file.  The menu command is context-based: that is,
+            it uses the set of keywords you have defined in the form
+            description file (primarily the text following the .form
+            keyword) to decide whether you have defined a form, a menu, or
+            an information screen. There are no required keywords and
+            there is no required order for keywords in a form description
+            file.  No keyword has a default value: if you do not define a
+            keyword in a form description file, the element the keyword
+            defines will not appear on the form, menu, or information
+            screen.
+
+            .ul   specifies the contents of the banner at the upper left
+                  corner of the screen, in the title area.  Used to
+                  display general information about the current menu (for
+                  example: System Installation).
+
+            .ur   specifies the contents of the banner at the upper right
+                  corner of the screen, in the title area.  Used to
+                  display specific information about the current menu (for
+                  example: Load Floppy Disk).
+
+            .ll   specifies the contents of the banner at the lower left
+                  corner of the screen, in the help bar.  Used to display
+                  specific information about the task at hand (for
+                  example: Enter A Value).
+
+            .lr   specifies the contents of the banner at the lower right
+                  corner of the screen in the help bar.  Used to display
+                  special key information for the menu being displayed
+                  (for example: Del=Cancel  F1=Help).
+
+            .top  specifies a block of text displayed above the form or
+                  menu area that describes the information being presented
+                  on the menu or form, or the information for an
+                  information screen.
+
+            .form The menu, form, or information screen specification,
+                  used as described in the USAGE section.
+
+            .bottom
+                  specifies a block of text displayed below the form or
+                  menu area that describes the actions to be taken on the
+                  menu or form, or more information for an information
+                  screen.
+
+
+                          Copyright 1994 Novell, Inc.               Page 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       menu(4)                                                      menu(4)
+
+
+             .help specifies the help text that is presented when a user
+                   presses the 'F1' or '?'  key [as described on the
+                   menu(1) manual page].
+
+             .helpinst
+                   specifies the contents of the banner at the lower right
+                   corner of the screen in the help bar for a help screen.
+                   Used to display special key information for the help
+                   screen being displayed (for example: Esc=Quit help
+                   Del=Cancel  F1=Instructions  1=Page down  2=Page up).
+
+             .hhelpinst
+                   specifies the contents of the banner at the lower right
+                   corner of the screen in the help bar for the second-
+                   level help screen.  Used to display special key
+                   information for the help screen being displayed (for
+                   example: Esc=Quit instructions  Del=Cancel  1=Page down
+                   2=Page up).
+
+             .working
+                   specifies the text for the flashing message that is
+                   displayed in the help bar after a menu invoked with the
+                   -r option exits.  For example, it can be used to display
+                   the word Working....
+
+             .helpbanner
+                   this keyword is analogous to the .ul keyword, but for
+                   the help screen.
+
+             .hhelp_ban
+                   this keyword is analogous to the .ul keyword, but for
+                   the second level help screen.
+
+             .pageno
+                   specifies a format string for an sprintf() statement,
+                   which is printed with two arguments, the current page
+                   number and the total number of pages.  This string is
+                   displayed at the top of a help screen:  the
+                   specification would look like Page %d of %d.  See
+                   printf(3BSD) for details.
+
+             .optstring
+                   specifies the string displayed just above the items in a
+                   numbered menu.  It is usually an introductory sentence
+                   or phrase, like Your options are:.
+
+
+
+                           Copyright 1994 Novell, Inc.               Page 3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      menu(4)                                                      menu(4)
+
+
+            .selection
+                  This is a format string for an sprintf() statement,
+                  which is printed with two arguments, the first number
+                  choice for a numbered menu, and the total number of
+                  choices.  This string is displayed below the last
+                  numbered item on the menu; the specification would look
+                  like Enter a number between %d and %d:.  See
+                  printf(3BSD) for details.
+
+            .button
+                  This section contains two strings; the first is the
+                  label for a radio button that applies the choices or
+                  changes the user has made in the menu or form (often the
+                  word Apply is used for this button), and the second is
+                  the label for a radio button that cancels the choices or
+                  changes the user has made in the menu or form (often the
+                  word Reset is used for this button).  This keyword only
+                  defines the name that appears on the button, the
+                  function performed by each button is pre-defined and
+                  cannot be changed.  This keyword is only useful on a
+                  form.
+
+            .end  This keyword is a null operator, and can be used to
+                  signal the end of a menu.
+
+      USAGE
+            This section describes each of the three menu types, and what
+            they are used for, what they look like, how to specify them in
+            a form description file, and how a user navigates in and among
+            them.
+
+         Numbered Menus
+            A numbered menu is used to present a user with several choices
+            in a situation where only one choice may be made.  This is an
+            example of a typical numbered menu:
+
+                        What type of mouse is attached to your system?
+                        1. Serial mouse
+                        2. Bus mouse
+                        3. PS/2-Compatible mouse
+                        4. No mouse
+                        Type a number between 1 and 4 followed by ENTER (or RETURN):_____
+
+            More can be defined in a numbered menu than is shown  in  this
+            example,   (see   the   complete   list   of   keywords  under
+            ``Keywords'') but the following lines in  a  form  description
+
+
+                          Copyright 1994 Novell, Inc.               Page 4
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       menu(4)                                                      menu(4)
+
+
+             file would be sufficient to produce this menu:
+
+                         .optstring
+                         What type of mouse is attached to your system?
+                         .form
+                         Serial mouse
+                         Bus mouse
+                         PS/2-Compatible mouse
+                         No mouse
+                         .selection
+                         Type a number between %d and %d followed by ENTER (or RETURN):
+
+             The keyword .optstring causes the following line of text to be
+             displayed one space above the numbered choices in the numbered
+             menu.  This is useful for  an  introduction  to  the  list  of
+             choices,  such  as  What  type  of  mouse  is attached to your
+             system?.
+
+             The keyword .form, when  followed  by  lines  of  plain  text,
+             causes  each  line  following the keyword to be displayed as a
+             numbered  choice  in  the  menu.    The   complete   list   is
+             automatically followed by an input field.
+
+             The keyword .selection specifies a string  that  is  displayed
+             just  below the last entry in a numbered menu, and just to the
+             left of  the  input  field  that  is  displayed  automatically
+             following   a   numbered   menu.   The  string  following  the
+             .selection keyword is a  format  statement  for  an  sprintf()
+             statement,  and  will  accept  two  integers as arguments; the
+             first number (always 1) and the last number of  the  items  on
+             the menu.
+
+             The user can exit a numbered  menu  in  either  of  two  ways;
+             first,  by  interrupting  the  execution  with  a SIGINTR (for
+             example, by pressing the DELETE key); and second, by  entering
+             a  valid  number  in  the  input field.  If the user enters an
+             invalid number, or makes some other typing mistake,  an  error
+             bar  is  displayed on the screen.  The user can then erase the
+             field with the backspace key and retype the value.
+
+             At exit from a numbered menu, the output file looks like this:
+
+                         RETURN_VALUE="n"
+
+             where n is the number entered by the user.
+
+
+
+                           Copyright 1994 Novell, Inc.               Page 5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      menu(4)                                                      menu(4)
+
+
+         Forms
+            A form is used for entering several pieces of related
+            information on one screen or in situations requiring multiple
+            decisions.  For example, if menu were used to create a form to
+            add a user to a system, it might look something like this:
+
+                        First and last name:  ______________________________
+                                 Login name:  _________
+                                  ID number:  _____
+                             Home directory:  ______________________________
+                                          +-------+      +-------+
+                                          | Apply |      | Reset |
+                                          +-------+      +-------+
+
+            More can be defined in a form than is shown in  this  example,
+            (see the complete list of keywords under ``Keywords'') but the
+            following lines in a form description file would be sufficient
+            to produce this form:
+
+                        .form
+                        5 0 30//[A-z0-9 ]*//First and last name://USERNAME//
+                        //Enter the first and last name of the user being added//
+
+                        5 0 8//[A-z0-9 ]*//Login name://LOGNAME//
+                        //Enter the login name of the user being added (max 8 chars)//
+
+                        1 3 100 1024//ID number://USERID//
+                        //Enter the user ID of the user being added (100-1024)//
+
+                        5 0 30//[A-z0-9/]*//Home directory://HOMEDIR//
+                        //Enter the home directory of the user being added//
+
+                        .button
+                        Apply
+                        Reset
+
+            Specifying a form is more complex than specifying  a  numbered
+            menu.  Each form field takes two lines in the form description
+            file, in the format:
+
+                        field_type arg [arg ...]//string/string//...//ENVIRONMENT_VARIABLE//
+                        //More detailed instruction for field//
+
+            where field_type can be one of  six  types.   The  format  for
+            specifying each follows.
+
+
+
+                          Copyright 1994 Novell, Inc.               Page 6
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       menu(4)                                                      menu(4)
+
+
+             TYPE_ALPHA
+                   This type of field is used to specify alphabetic  input.
+                   The  specification of this field would look like this in
+                   the form description file:
+
+                               0 min max//ENVIRONMENT_VARIABLE
+                               //Detailed description of what to enter//
+
+                   Where min is the minimum length string to be accepted as
+                   input  from  the  user,  and  max  is the maximum length
+                   string to be accepted, and ENVIRONMENT_VARIABLE  is  the
+                   environment  variable  that will, in the output file, be
+                   assigned the value entered in this field.
+
+             TYPE_ALNUM
+                   This type of  field  is  used  to  specify  alphanumeric
+                   input.   The specification of this field would look like
+                   this in the form description file:
+
+                               1 min max//ENVIRONMENT_VARIABLE
+                               //Detailed description of what to enter//
+
+                   Where min is the minimum length string to be accepted as
+                   input  from  the  user,  and  max  is the maximum length
+                   string to be accepted, and ENVIRONMENT_VARIABLE  is  the
+                   environment  variable  that will, in the output file, be
+                   assigned the value entered in this field.
+
+             TYPE_ENUM
+                   This type of field is used to present an enumerated list
+                   of  selections  to  the user which can be selected using
+                   the arrow keys.  The specification of this  field  would
+                   look like this in the form description file:
+
+                               2 num//TAG::string1//...//TAG::stringnum
+                               //Field label//ENVIRONMENT_VARIABLE
+                               //Right/Left arrow keys for new choice (num choices)//
+
+                   Where num is the number of choices to be enumerated  for
+                   user  selection  in  this  field.   For  each of the num
+                   choices, there is a TAG::string pair,  where  the  field
+                   will    display    string    on    the    screen,    and
+                   ENVIRONMENT_VARIABLE is the  environment  variable  that
+                   will, in the output file, be assigned the TAG associated
+                   with the string selected in this field.  TAG is a  label
+                   associated  with  a string in a form that a shell script
+
+
+                           Copyright 1994 Novell, Inc.               Page 7
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      menu(4)                                                      menu(4)
+
+
+                  displaying a menu can use to make its  decision.   Thus,
+                  the  shell  script does not need to change if the string
+                  is translated to another language.
+
+            TYPE_INTEGER
+                  This type of field is used  to  specify  integer  input.
+                  The  specification of this field would look like this in
+                  the form description file:
+
+                              3 precision min max//ENVIRONMENT_VARIABLE
+                              //Detailed description of what to enter//
+
+                  Where min is the minimum length string to be accepted as
+                  input  from  the  user,  and  max  is the maximum length
+                  string to be accepted, precision is the width  for  left
+                  padding  with  zeros,  and  ENVIRONMENT_VARIABLE  is the
+                  environment variable that will, in the output  file,  be
+                  assigned the value entered in this field.
+
+            TYPE_NUMERIC
+                  This type of field is used  to  specify  numeric  input.
+                  The  specification of this field would look like this in
+                  the form description file:
+
+                              4 min max precision//ENVIRONMENT_VARIABLE
+                              //Detailed description of what to enter//
+
+                  Where min is the minimum length string to be accepted as
+                  input  from  the  user,  and  max  is the maximum length
+                  string to be accepted, precision is the number of digits
+                  to    the    right    of    the   decimal   point,   and
+                  ENVIRONMENT_VARIABLE is the  environment  variable  that
+                  will,  in the output file, be assigned the value entered
+                  in this field.
+
+            TYPE_REGEXP
+                  This type  of  field  is  used  to  specify  input  that
+                  conforms  to a regular expression.  The specification of
+                  this field would look like this in the form  description
+                  file:
+
+                              5 min max//regexp//ENVIRONMENT_VARIABLE
+                              //Detailed description of what to enter//
+
+                  Where min is the minimum length string to be accepted as
+                  input  from  the  user,  and  max  is the maximum length
+
+
+                          Copyright 1994 Novell, Inc.               Page 8
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       menu(4)                                                      menu(4)
+
+
+                   string to be accepted, regexp is the ed(1)style  regular
+                   expression   to   validate   the   input   against,  and
+                   ENVIRONMENT_VARIABLE is the  environment  variable  that
+                   will,  in the output file, be assigned the value entered
+                   in this field.
+
+             The keyword .button specifies the labels for the Radio Buttons
+             at  the  bottom  of the form.  The text following this keyword
+             should generally be the same as is shown the example,  as  the
+             actions  these  buttons  generate  are  to  apply  the current
+             selection and move on, or to reset the form's fields to  their
+             values at invocation.
+
+             To navigate in a form, the user presses the TAB key to move to
+             the next field or the BACKTAB (shifted TAB) key to move to the
+             previous field.  For all types of fields except the  TYPE_ENUM
+             type,  the  input  field  is  shown in inverse-video, When the
+             cursor is positioned in a field, the user can type a value  in
+             the inverse-video area.  In TYPE_ENUM fields, the first choice
+             is already displayed in the field, in bright video.  The  user
+             can  cause  the  next choice to be displayed in the field.  by
+             pressing the left or right arrow key (or the '-' or '+' keys).
+             The  user  can select the choice currently displayed, and move
+             on to the next field, by pressing ENTER or TAB.
+
+             When the form is filled out to the  user's  satisfaction,  the
+             user  then  presses  the  TAB  key  to move to the Apply Radio
+             Button, and presses ENTER to apply the choices filled  out  in
+             the  form fields.  A user cannot exit from a form screen until
+             the Apply button is ``pressed'' (or menu is interrupted).
+
+             After the form has been filled out, a user can reset the  form
+             to  its  state when first displayed by pressing the TAB key to
+             move to the Reset Radio Button, and then pressing ENTER.
+
+          Information Screens
+             An information screen is used to display copyright notices,
+             warning messages, or other information.  In an information
+             screen the user does not need to enter any data, but does need
+             to acknowledge seeing the screen before moving on.  After the
+             information that is displayed, the rest of the form may look
+             like this:
+
+             Press ENTER (or RETURN) to continue: _
+
+             More can be defined in an information screen than is shown  in
+
+
+                           Copyright 1994 Novell, Inc.               Page 9
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      menu(4)                                                      menu(4)
+
+
+            this  example,  (see  the  complete  list  of  keywords  under
+            ``Keywords'') but the following lines in  a  form  description
+            file would be sufficient to produce this information screen:
+
+             .selection
+             Press ENTER (or RETURN) to continue:
+
+             .form
+             ENTER
+
+            If a .form section is specified and just contains  the  string
+            ENTER,  then the string specified in the section delineated by
+            the .selection keyword is displayed near  the  bottom  of  the
+            screen, and the cursor is placed to the right of that string.
+
+            If no .form section is specified, then the  behavior  will  be
+            similar,  that is, the user must press ENTER or RETURN to exit
+            the  menu  tool  (or  interrupt  its  execution).   The   only
+            difference is that if no .form section is specified and the -r
+            command-line option is specified, then menu exits (it does not
+            wait  for  input  from  the  user),  the  "Working..." message
+            flashes at the bottom of the screen, and  the  screen  is  not
+            cleared.   This  would  typically  be  used,  for instance, to
+            announce something that is going to take some processing  time
+            (such  as  a  kernel rebuild), where the user does not need to
+            press any key to start the processing.
+
+      EXAMPLES
+         Numbered Menus
+            The following is an example of a numbered menu and its Help
+            Screen, followed by the contents of the form description file
+            that generated it.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          Copyright 1994 Novell, Inc.              Page 10
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       menu(4)                                                      menu(4)
+
+
+                         |----------------------------------------------------------|
+                         |Operating System Installation    Foundation Set Media Type|
+                         |----------------------------------------------------------|
+                         |                                                          |
+                         |Software for this operating system is packaged in sets.   |
+                         |The Foundation Set is the required software all users     |
+                         |must install.  Read the help screen for more information. |
+                         |Select the distribution format and drive you will be      |
+                         |using to install the Foundation Set.                      |
+                         |                                                          |
+                         |                                                          |
+                         |Your choices are:                                         |
+                         |       1.  Floppy Drive 1                                 |
+                         |       2.  Floppy Drive 2                                 |
+                         |       3.  Cartridge Tape                                 |
+                         |                                                          |
+                         |Type a number from '1' to '3' followed by ENTER/RETURN: __|
+                         |                                                          |
+                         |----------------------------------------------------------|
+                         |Please make a selection        |Del=Cancel  F1=Help       |
+                         |----------------------------------------------------------|
+
+             The following help screen  would  be  displayed  when  a  user
+             presses F1.
+
+                         |----------------------------------------------------------|
+                         |Help on Foundation Set Media Type       Page 1 of 1       |
+                         |----------------------------------------------------------|
+                         |                                                          |
+                         |For further instructions on using this help facility and  |
+                         |on using the installation program, press the 'F1' key (or |
+                         |the '?' key) at any time while you are reading help.      |
+                         |                                                          |
+                         |If you need more information than is available through    |
+                         |this help facility, refer to the "Installation Guide".    |
+                         |                                                          |
+                         |The Installation Process needs to know where to look for  |
+                         |the software that needs to be installed.                  |
+                         |----------------------------------------------------------|
+                         | | Del=Cancel  F1=Help  ESC=Exit help  1=Forward  2=Back  |
+                         |----------------------------------------------------------|
+
+             The following listing is the source file for this menu and its
+             help screen.
+
+             .pageno
+
+
+                           Copyright 1994 Novell, Inc.              Page 11
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      menu(4)                                                      menu(4)
+
+
+            Page %d of %d
+            .ul
+            Operating System Installation
+            .hhelp_ban
+            Help on the Help facility and the Installation program
+            .helpbanner
+            Help on Foundation Set Media Type
+            .ur
+            Foundation Set Media Type
+            .ll
+            Please make a selection.
+            .lr
+            Del=Cancel  F1=Help
+            .top
+            Software for the Operating System is packaged in sets. The
+            Foundation Set is the required software all users must install.
+
+            Select the distribution format and drive you will be using to
+            install the Foundation Set.
+            .optstring
+            Your choices are:
+            .form
+            `[ "${NF1}" = "1" ] && echo "Floppy Drive 1"`
+            `[ "${NF2}" = "1" ] && echo "Floppy Drive 2"`
+            `[ "${NC1}" = "1" ] && echo "Cartridge Tape"`
+            .selection
+            Press a number between %d and %d followed by ENTER/RETURN:
+            .help
+            For further instructions on using this help facility and on using the
+            installation program, press the 'F1' key (or the '?' key) at any
+            time while you are reading help.
+
+            If you need more information than is available through this help facility,
+            refer to the "Installation Guide".
+
+            The Installation Process needs to know where to look for the software
+            that needs to be installed.
+            .helpinst
+            Del=Cancel  F1=Help  ESC=Exit help  1=Forward  2=Back
+            .working
+            Working...
+            .end
+
+         Forms
+            The following is an example of a multiple-field form followed
+            by the contents of the form description file that generated
+
+
+                          Copyright 1994 Novell, Inc.              Page 12
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       menu(4)                                                      menu(4)
+
+
+             it.  (The help portion of a form is specified in the same way
+             as it is for a menu; it is not repeated in this example.)
+
+                         |----------------------------------------------------------|
+                         |Operating System Installation     Owner's Account         |
+                         |----------------------------------------------------------|
+                         |                                                          |
+                         |Create a login account for your use in accessing the      |
+                         |computer.  Read the Help screen for information about     |
+                         |each field.                                               |
+                         |                                                          |
+                         |               Owner's name:  _________________________   |
+                         |         Owner's login name:  ________                    |
+                         |        Owner's user number:  _____                       |
+                         |Owner's desktop environment:  _________                   |
+                         |                                                          |
+                         |                            +-----+       +-----+         |
+                         |                            |Apply|       |Reset|         |
+                         |                            +-----+       +-----+         |
+                         |                                                          |
+                         |Press 'TAB' to move the cursor between fields.  When      |
+                         |finished, move the cursor to "Apply" and then press       |
+                         |'ENTER' (or 'RETURN') to continue.                        |
+                         |----------------------------------------------------------|
+                         |Type the owner's first and last name  |Del=Cancel  F1=Help|
+                         |----------------------------------------------------------|
+
+             The following listing is the source file for this form.
+
+             .pageno
+             Page %d of %d
+             .ul
+             Operating System Installation
+             .hhelp_ban
+             Help on Help and How to Use the Menu Tool
+             .helpbanner
+             Help on Owner's Account
+             .ur
+             Owner's Account
+             .ll
+             .lr
+             Del=Cancel  F1=Help
+             .top
+             < /tmp/err.login
+
+             Create a login account for your use in accessing the computer.  Read the
+
+
+                           Copyright 1994 Novell, Inc.              Page 13
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      menu(4)                                                      menu(4)
+
+
+            Help screen for information about each field.
+
+            .form
+            5 3 25//[^:]+//Owner's name://USERNAME//
+            //Type the owner's first and last name//
+            1 2 8 //Owner's login name://USERID//
+            //Type the owner's login name//
+            5 1 5//[0-9]+//Owner's user number://USERNUM//
+            //Type the owner's user number (must be 101 or higher)//
+            `[ "${DESKTOP_PRESENT}" = "Yes" ] && echo "2 3//OLOOK::OPEN_LOOK (tm)//MOTIF:\
+            :Motif//NONE::None//Owner's desktop environment://DESKTOP// "`
+            `[ "${DESKTOP_PRESENT}" = "Yes" ] && echo "//Right/Left arrow keys for\
+            more choices// "`
+            .button
+            Apply
+            Reset
+            .bottom
+            Press 'TAB' to move the cursor between fields.  When finished, move the
+            cursor to "Apply" and then press 'ENTER' (or 'RETURN') to continue.
+
+            .
+            .  help screens could be defined here
+            .
+
+            .working
+            Working...
+            .end
+
+         Information Screens
+            The following is an example of a "Press Enter to Continue"
+            menu followed by the contents of the form description file
+            that generated it.  (The help portion of an information screen
+            is specified in the same way as it is for a menu, thus it is
+            indicated here by ellipses.)
+
+                        |----------------------------------------------------------|
+                        |Foundation Set Installation        Installation Complete  |
+                        |----------------------------------------------------------|
+                        |                                                          |
+                        |The Foundation Set installation is complete.  Applications|
+                        |and other software sets can be installed using the tools  |
+                        |available with the Foundation Set.                        |
+                        |                                                          |
+                        |After the computer reboots you will see a login prompt.   |
+                        |Type a login, either "root" to do system maintenance,     |
+                        |or the user account login created in the previous step.   |
+
+
+                          Copyright 1994 Novell, Inc.              Page 14
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       menu(4)                                                      menu(4)
+
+
+                         |                                                          |
+                         |Please refer to the "Getting Started Manual" for more     |
+                         |information.                                              |
+                         |                                                          |
+                         |                                                          |
+                         |Press 'Enter' (or 'RETURN') to continue: _____            |
+                         |----------------------------------------------------------|
+                         |                                     |Del=Cancel  F1=Help |
+                         |----------------------------------------------------------|
+
+             The following listing is the source file for this  information
+             screen.
+
+             .pageno
+             Page %d of %d
+             .ul
+             Foundation Set Installation
+             .hhelp_ban
+             Help on the Help facility and the Installation program
+             .helpbanner
+             Help on Installation Complete
+             .ur
+             Installation Complete
+             .ll
+             .lr
+             Del=Cancel  F1=Help
+             .top
+             The Foundation Set installation is complete.  Applications
+             and other software sets can be installed using the tools available with
+             the Foundation Set.
+
+             After the computer reboots you will see a login prompt. Type a login,
+             either "root" to do system maintenance, or the user account login you
+             created in the previous step.
+
+             Please refer to the "Getting Started Manual" for more
+             information.
+             .form
+             ENTER
+             .selection
+             Press 'ENTER' (or 'RETURN') to continue:
+
+             .
+             .  help screens could be defined here
+             .
+
+
+
+                           Copyright 1994 Novell, Inc.              Page 15
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      menu(4)                                                      menu(4)
+
+
+            .working
+            Working...
+            .end
+
+      REFERENCES
+            menu(1), menu_colors.sh(1)
+
+      NOTICES
+            menu(4) will be made obsolete and be replaced with other tools
+            in future releases.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          Copyright 1994 Novell, Inc.              Page 16
+
+
+
+
+
+
+
+
+
+
+
+       menu(1)                                                      menu(1)
+
+
+       NAME
+             menu - menu/form interface generator
+
+       SYNOPSIS
+             menu [-r] [-c] -f form-description-file -o output-file
+
+       DESCRIPTION
+             The menu command is a menu and form interface generator that
+             creates full-screen forms and menus for accepting user input
+             and for displaying information.  The form or menu to be
+             displayed is specified in a form description file containing
+             all the text the user will see.  By keeping all displayed text
+             in a file external to the menu binary, menus and forms can be
+             translated to other languages without changing the scripts
+             that invoke menu.  The output of the menu command is a file of
+             shell variable assignment statements that can be used by a
+             shell script.
+
+             The form description file consists of keywords, each denoting
+             the start of a new section of text, and corresponding to a
+             different part of the display.  The text that follows a
+             keyword can be hard-coded or it can be redirected from a file
+             or a command.
+
+             The menu tool uses curses and the Extended Terminal Interface
+             (ETI) to handle display and input.  It is compiled with the
+             libraries libform and libcurses.  Most of the work of the tool
+             is done by routines in these libraries; the bulk of the code
+             in menu consists of parsing the form description file and
+             creating the forms for these library routines.
+
+             There are three types of menus available with menu.  The first
+             type is the numbered menu, where the user is presented with a
+             numbered list and is asked to select a number.  The second is
+             the form, where the user is presented with a multiple field
+             form to fill out, and the third is an information screen,
+             where the user may be required only to press the ENTER (or
+             RETURN) key to continue.  See menu(4) for a complete
+             explanation of these menu types.
+
+          The Help Facility
+             The menu command is equipped with a two-level help facility,
+             with help for the menu or form specified in the form
+             description file, and help on how to use a menu interface
+             itself provided in a support file installed with the operating
+             system.
+
+
+                           Copyright 1994 Novell, Inc.               Page 1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      menu(1)                                                      menu(1)
+
+
+         Navigation
+            The menu command pre-defines the navigation keys for you and
+            they cannot be redefined.  In menus, a user can exit a
+            numbered menu in either of two ways; first, by interrupting
+            the execution with a SIGINTR (for example, by pressing the
+            DELETE key); and second, by entering a valid number in the
+            input field.  If the user enters an invalid number, or makes
+            some other typing mistake, an error bar is displayed on the
+            screen.  The user can then erase the field with the backspace
+            key and retype the value.
+
+            In forms, a user presses the TAB key to move to the next field
+            or the BACKTAB (shifted TAB) key to move to the previous
+            field.  For all types of fields except the TYPE_ENUM type, the
+            input field is shown in inverse-video, When the cursor is
+            positioned in a field, the user can type a value in the
+            inverse-video area.  In TYPE_ENUM fields, the first choice is
+            already displayed in the field, in bright video.  The user can
+            cause the next choice to be displayed in the field.  by
+            pressing the left or right arrow key (or the '-' or '+' keys).
+            The user can select the choice currently displayed, and move
+            on to the next field, by pressing ENTER or TAB.
+
+            When the form is filled out to the user's satisfaction, the
+            user then presses the TAB key to move to the Apply Radio
+            Button, and presses ENTER to apply the choices filled out in
+            the form fields.  A user cannot exit from a form screen until
+            the Apply button is ``pressed'' (or menu is interrupted).
+
+            After the form has been filled out, a user can reset the form
+            to its state when first displayed by pressing the TAB key to
+            move to the Reset Radio Button, and then pressing ENTER.
+
+            In information screens, a user acknowledges having seen the
+            screen and exits by pressing the ENTER (or RETURN) key.
+
+         Structure of Form Description Files
+            Any menu, form, or information screen produced with the menu
+            tool is an ETI form (see Character User Interface Programming
+            for details).  Each form is three pages (terminal screens)
+            long.  The first page is the menu, form, or information screen
+            as specified in the form description file.  It may contain
+            titles, labels for other fields, help instructions, a form or
+            menu, and many other fields.
+
+
+
+
+                          Copyright 1994 Novell, Inc.               Page 2
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+       menu(1)                                                      menu(1)
+
+
+             The second page is the help screen for the form, as specified
+             in the .help section of the form description file.  Help
+             screens simply display text-additional information about the
+             task at hand.  It is entered by pressing either the ``F1'' key
+             or the ``?'' key, and is exited by pressing the ``Esc'' key.
+             A help screen may display more than one page of text; the
+             following page can be viewed by pressing the ``Page Down'' or
+             ``1'' key, and the previous page can be displayed by pressing
+             the "Page Up" or ``2'' key.  Thus, accessing help is really
+             paging down on the form, and exiting help is really paging up
+             on the form.  The help pages are each a single field that may
+             contain more text than can fit on the screen, and so each help
+             screen, while one logical page of the form, may contain
+             multiple pages of text to be displayed.
+
+             The third and last page is the help screen for the menu tool
+             itself.  This second level of help is built-in to the menu
+             help facility, and provides additional information about
+             navigating in and among the screens of a menu interface.
+             Pressing the ``Esc'' key from the second level help facility
+             puts the user back in the primary help screen.
+
+          Color
+             The curses library provides the colors for the menu tool.
+             Given a color monitor the default colors are: regular menus,
+             forms, and information screens are white text on a blue
+             background; help screens appear in the default colors of black
+             text on a cyan background; and error messages appear in the
+             default colors of white text on a red background.  Default
+             colors can be overridden using environment variables, as
+             described on the menu_colors.sh(1) manual page.
+
+          Operands
+             The options available are:
+
+             -c        This option clears the screen.  No other option is
+                       read if -c is specified on the command line.  It is
+                       useful if a form created with the -r option is
+                       displayed on the screen (see -r below).
+
+             -r        This option retains the form on the screen after
+                       input processing is complete, and displays a
+                       flashing Working... flag at the bottom of the
+                       screen.  If no input is required (that is, the
+                       screen is simply displaying information), the form
+                       is displayed initially with a flashing Working...
+
+
+                           Copyright 1994 Novell, Inc.               Page 3
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      menu(1)                                                      menu(1)
+
+
+                      flag at the bottom of the screen.
+
+            -f form-description-file
+                      This file contains the description of the form to be
+                      displayed by menu.  It contains all the text that
+                      will appear on the screen.  With the exception of
+                      error messages sent to stdout, no text is generated
+                      from within menu.  This is for ease of
+                      internationalization.  This option is required
+                      unless the -c option is specified.  menu will fail
+                      if form-description-file is not readable.
+
+            -o output-file
+                      This file contains the output from the menu, which
+                      consists of shell statements of the form
+                      VARIABLE="value", reflecting the input entered in
+                      the menu by the user.  This output file can be later
+                      read in by the shell script that called menu.  This
+                      option is required unless the -c option is
+                      specified.  menu will fail if output-file is not
+                      writable.
+
+         Files
+            /etc/inst/locale/C/menus/menu.errs   error strings produced by menu(1)
+
+      REFERENCES
+            Character User Interface Programming,
+            menu(4), menu_colors.sh(1).
+
+      NOTICES
+            menu(1) will be made obsolete and be replaced with other tools
+            in a future release.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                          Copyright 1994 Novell, Inc.               Page 4
+
+
+
+
+
+
+
+
+

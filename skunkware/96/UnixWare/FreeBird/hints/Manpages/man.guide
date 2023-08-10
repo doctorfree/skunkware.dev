@@ -1,0 +1,536 @@
+(From Kevin Brannen)
+++++++++++++++++++++++
+
+Like many others I read about here, I too am used to man pages.
+However, they have not worked to my satisfaction; :( but in
+talking with Tech Support, and some work on my own, things are
+much better now.  Thought I'd share... (my turn to give something
+to the group)  My apologies to all you csh users, you'll need to
+do a little translating for problem 1.
+
+[Note:  While this has been tested on my system and works there (a
+        PE + SDK), the usual caveats apply:  I make no warranties,
+	you're responsible, etc.; though I will *try* to help you
+	if you should get stuck.  Also, you should be "familiar" with
+	Unix and be able to be "root" on the system you'll be working
+	on.  My advice is to READ THRU THIS ENTIRE DOCUMENT *BEFORE*
+	DOING ANY WORK.]you'l
+[New note:  Part 1 has been revised after consultation with, and much
+            hard work by Martin Sohnius of Novell UK Labs, out the
+	    goodness of his heart (which we all deeply appreciate).
+	    I haven't tried this script personally, as my man pages
+	    work very nicely, but as it was based on my original work,
+	    which was based on Martin original Tech Flash, and it
+	    appears to cover all the bases, it should work.  (Martin
+	    has tested it on his system.)]y
+Problem 1:  Can't find find all the man pages you think are there?you'l
+There are 2 simple but important things to do.  First, are you using
+correct "man" program?  This is one place where the BSD version *is*
+the correct one to use.  So be sure you're getting correct one.  Make
+an alias, a symbolic link, whatever it takes for you to see the one
+in /usr/ucb before the one /usr/bin.
+
+Second, you need to set your MANPATH environmental variable.
+Unfortunately, the Tech Flash I was faxed has an error in it :( .
+The correct thing to do is:you'l
+# add any of your dirs here too, I added /usr/local/man
+MANPATH="/usr/share/man /opt/man /usr/local/man `echo /usr/flib/books/*/man`"
+MANPATH=`echo $MANPATH | tr " " :`
+export MANPATHyou'l
+They suggested adding it your /etc/profile.  The script below will do
+this automatically.  If you don't want this, remove that part.
+
+
+Problem 2:  Still can't find some man pages (though now you can see more).you'l
+Man only recognizes man pages of the form "*.# or *.#?" (where # is a
+number 1-8 and the ? is a short list of letters).  To fix this, they
+suggest running a small script to create hard links so man will *see*
+these files.  [Now fixed in the script in the script below problem 3.]you'l
+Problem 3:  You have the SDK and you still can't find the Motif man pages.you'l
+That's because Novell didn't expand the filenames.  By default OSF
+ships them with short names so they can work on systems with the old
+14 char filename limit.  The files exist, they're just named wrong.
+[I'm sending this to a guy in the Development group too, so hopefully
+we won't have to do this next time.]  Try doing the following (I just
+put the scripts in /tmp as I only had to do them once):y
+[Notes from Martin:y	Anyway, I'll end this with a copy of my current manfix script,
+	which incorporates all your ideas.  Unfortunately, the MANPATHy	is now so long that it breaks the rules of ed(1) and ex(1), so
+	I had to fiddle again.  I also added a lot of progress report
+	output to keep the users happy, and checks for man/man? pages
+	as well (you'll have to put /usr/ucb/nroff into your PATH to
+	get these).]y
+============================== cut here ========================
+#!/bin/sh
+
+# First establish the complete MANPATH 
+MANPATH="/usr/share/man"
+localman="/opt/man"	## add your own here (space-separated)
+for dir in $localman
+do
+	[ -d $dir ] && MANPATH="$MANPATH $dir"
+doneyou'l
+refman=`echo /usr/flib/books/*/man`
+	# get rid of those which don't have cat? or man? subdirectories:yfor dir in $refman
+do
+	[ -d $dir ] &&
+		ls $dir | egrep '^man[1-8]$|^cat[1-8]$' >/dev/null 2>&1 && 
+		MANPATH="$MANPATH $dir"
+doneyou'l
+MANPATH=`echo $MANPATH | tr " " :`
+export MANPATHyou'l
+# Now edit /etc/profile accordingly
+# (this is tricky, because replacement strings for ed and ex must be < 256)
+# (also: csh users must do this for themselves!)
+[ -w /etc/profile ] && {
+	if grep "^# MANPATH " /etc/profile >/dev/null 2>&1
+	then
+		# remove what's there
+		ex  -s /etc/profile <<-!!
+			/# MANPATH /-1
+			.,+4d
+			w
+			q
+		!!
+	fi
+	echo >> /etc/profile "\n# MANPATH added on `date`:\n"
+	echo MANPATH="$MANPATH\nexport MANPATH" >> /etc/profile
+	echo New MANPATH written to /etc/profile\\n
+	}you'l
+# Create extra links for files with "bad" extensions
+list="1[!bcgmprsvw] 2[!bvw] 3[!bcfjklmnprsvwx] 4[!bfmnpsv] 5[!bv] 6? 7[!bv] 8[!bcsv]"
+
+echo Looking for bad extensions...
+for area in `echo $MANPATH | tr : " "`	# watch those quotes
+do
+	cd $area
+	echo in $area
+	for section in $list
+	do
+		for src in cat[1-8]/*.$section man[1-8]/*.$section
+		do
+			target=`expr $src : "\(.*\)."`
+			[ -f $src -a ! -f $target ] && {
+				echo $src "->" $target
+				ln $src $target
+				}y		done
+	doneydone
+
+# Then expand the motifref stuff
+[ -d /usr/flib/books/motifref/man/cat3 ] || exit 0you'l
+echo \\nExpanding motif ref file names...
+cd /usr/flib/books/motifref/man/cat3
+list=`echo *.3`
+for src in $list
+do
+	target=`col -b < $src | nawk 'you'l
+		BEGIN { split(filename, ext, ".") }y		/X/   { split($1, name, "(");
+			printf "%s.%s\n", name[1], ext[2];
+			exit;
+			}y
+	' filename=$src `
+
+	[ "$target" ] &&
+		if [ -f "$src" -a ! -f "$target" ] 
+		then
+			echo $src "->" $target
+			ln $src $target
+		elsey			printf "%-40s--- OK\n"  $target
+		fi
+done
+============================== cut here ========================you'l
+
+While you're running this, if you see some errors like:  "Error: can't
+move Core.3 to Core.3", this is because it already has the correct name.
+It's an error you can ignore.you'l
+This is a use once and throw away script; no need to save it. (I hope! :-)
+you'l
+Problem 4:  While using man, you notice that some of the lines are cut.
+
+This is because you're using the PAGER "more".  If you change PAGER to "pg"
+this problem will be fixed; but now you'll lose the the text attributes likeyhighlighting, underlining, etc.  It has been reported (though I haven't
+checked) that "less" will work properly in both areas.yyou'l
+In a future installment, I'll give a script/program for creating the
+whatis database (I really miss apropos or man -k).  I'll try to makeyit a script as I realize some folks don't have a compiler.
+
+Kevin
+
+===============================you'l
+This is part 2 of "Tips to make man pages better to use..."
+
+I had said part 2 would be how to create the whatis database, but that
+will be postponed for a short time.  In this installment, I'll discuss
+putting the Xt and Xlib man pages in place (so these can be included in
+the whatis file).y
+These man pages are not supplied, that I could find.  If they are, would
+someone please tell me where (I could not find them anywhere under
+/usr/flib.)you'l
+This fix assumes you have an X11R5 build tree; if not sorry, you have to
+get it first before you do the stuff below (see ftp.x.org or any of its
+mirrors).  If you've done a build, you'll find a man dir (with the bin,
+lib, include, ...) at the same level as src (or at least it is for me :-).yIf you just have the source, you'll need to "build" the man pages.  In this
+man dir, you'll find 2 dirs:  man3, mann.  Then I did the command below.
+Note:  the XSRC below is the dir where that contains the man dir mentioned
+in this paragraph.  Note:  you need to be root to do this.
+
+=============================== cut here ==============================
+# I chose to add these in a dir called xintrinsics
+cd /usr/flib/books
+mkdir -p xintrinsics/man
+cd xintrinsics/man
+cp -r $XSRC/man .
+# You should now have the dirs like: /usr/flib/books/xintrinsics/man/man3
+# and /usr/flib/books/xintrinsics/man/mann
+# But man doesn't recognize category n, which are really section 1 commands...
+mv mann man1
+# make the cat dirs for later
+mkdir cat1 cat3
+# yes, 777, this is a temporary "cache" type of dir
+chmod 777 cat?
+cd man1
+# fix a couple of files...
+vi atobm.n bmtoa.n	# or you favorite editor :-)
+	# do this for both files
+	change "mann" to "man1"
+	change ".n" to ".1"
+# change their names so man can find them
+for f in *
+do
+	m=`echo $f | sed -e 's/\.n//'`
+	mv $f $m.1
+	# and force the expansion of the man pages to create the
+	#   whatis database later
+	man $m > /dev/null
+doney# force the expansion here too
+cd ../man3
+for f in *
+do
+	k=`echo $f | sed -e 's/\.3//'`
+	man $k > /dev/null
+done
+=============================== cut here ==============================you'l
+
+And you're done...add this dir to your MANPATH, or rerun the script from
+part 1, and you should now be able to do "man XCreateSimpleWindow", or
+"man XtSetValues".you'l
+Part 3 to come shortly, will describe creating the whatis database file
+for apropos or ``man -k''.  As before, feel free to pass this along to
+whomever, or post in other places.
+
+Kevinyou'l
+===============================you'l
+This is part 3 of "Tips to make man pages better to use..."you'l
+This installment describes how to create the whatis database, so that you
+can use the "apropos" and "man -k" commands.yyIdeally, UW would have the nroff source for the man pages which would
+allow us to run the /usr/lib/mkwhatis script (or something like that,
+maybe it's in /usr/ucb, I'm too lazy to go look just now).  However, weydon't have that so here's a program to parse the "cat" files (the nroff
+output) and create the whatis database files from that.you'l
+I started off trying to create a set of scripts to do this, but alas, the
+nroff'ed output file parsing was beyond my awk ability.  I believe perl
+could handle it too, but I don't know perl at all.  [If someone would like
+to convert this, I'll be glad to always keep a copy and send it to whomever.]yI ended up with a ~200 line C file (source below).  For those without a
+compiler, but who have man pages and want to do this, write me and I'll
+send you the uuencoded, compressed, executable (I could post it if people
+prefer, it's only 102 lines long in that form).y
+I tested the program several times (in order to work out the formatting
+oddities); but did make 1 last change that had only partial testing.  You
+can remove this if you like, but a few man pages will not be included ifget"you do (the change is on line 35, I changed a strchr() to a strrchr(),
+see note there).  The output is not perfect, but pretty close (FWIW, the
+Sun file I modeled mine after had the same type of formatting problems I
+did, so I don't feel so bad. :-)
+
+There is no makefile, the default rules suffice.  There is no Imakefile, I
+only expect it to run on UnixWare, and the program is too simple.
+
+There is a controlling script again.  Notes for it are in the first few
+lines.  Unlike the scripts from part 1 that only ever need to be run once,
+you may want to keep this script and program for when you add new man pages
+later.you'l
+[Note:  I periodically rerun this.  I set my MANPATH to be just
+"/usr/local/man" to skip all the system stuff that hasn't changed and get
+just the new stuff that has (because /usr/local is where *I* put all the
+software I download, your dirs may vary).]you'l
+=============cut==============cut===============cut==============cut=========
+#!/bin/ksh
+# mymkwhatis scriptyou'l
+# Notes:y# ------
+# you need to be root
+#
+# you need your MANPATH to be as complete as possible
+#
+# any man page that has a "type" of more than 5 letters will be ignored
+# (e.g. 1m is 2 letters)
+#
+# any man page that doesn't have a description will be ignored (e.g. xsysstats
+# does not; the proper format (to add) would be:y#	NAME
+#		xsysstats - show system statistics as a set of line graphs
+
+###you'l
+list=`echo $MANPATH | tr : " "`
+for d in $list
+do
+	echo $d
+	out=`dirname $d`
+	out=`basename $out`
+
+	# if you want to inspect a local copy of the output
+	#mkwhatis $d 2> e.$out | sort -u > i.$out
+	#cp i.$out $d/whatis
+	mkwhatis $d 2> e.$out | sort -u > $d/whatis
+done
+=============cut==============cut===============cut==============cut=========you'l
+
+The important part of the above script is the mkwhatis program.  It reads a
+man dir, which should contain some cat? dirs, and creats the man/whatis file
+for each area from all the files in the cat? dirs.  [I'm not sure why UW
+wants a bunch of whatis files instead of 1 big one, but that's what it wants;
+maybe that's the new SYSV4.2 way--I don't know.  I'd love enlightenment :-]y
+The program usage is "mkwhatis man-dir", with error messages and info messages
+coming to stderr, and the output going to stdout.  Note:  the "sort -u" is
+important, especially if you've fixed the Motif man dir from part 1, though
+other dirs have this problem too.
+
+There are 2 basic types of errors:  "Broken pipe" is harmless and should be
+ignored (I do 'fgrep -v "Broken pipe" error_file' to see the real errors--sorry
+I couldn't get rid of them); and "couldn't process FFFLE".  The program can't
+process reference files (like the lex[1-5] files) as they aren't man pages.
+It's also possible the man page has a syntax that it wasn't expecting, so it
+just throws it out and tries to go on.  The important parts of the syntax
+that I look for are:y
+command(type)               command(type)
+yNAME
+    command_name [, more names] - description
+
+The program looks for the 2nd type (this last change did this as some of the X
+commands have very long names and overwrite the 1st); the "NAME" header for a
+location identifier; command_name(s), the first "-" (to separate the 2 pieces);
+the description; and a blank line afterwards.  The command_name(s) and the
+description may span multiple lines.you'l
+The program is "documented in ANSI-C" as a friend of mine would say...mandidn't
+bother too much as it's pretty straight forward.
+
+There is a second usage:  mkwhatis cat-dir man-page-file ; to check the output
+of a single file (or debugging :-).
+
+=============cut==============cut===============cut==============cut=========
+/* mkwhatis.c */
+/* cc -o mkwhatis -O mkwhatis.c */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <sys/param.h>
+#include <ctype.h>
+
+#define MAX_LINE_LEN		1000	/* max length of an input line */
+#define MAX_EXT			5	/* max size of a man type extension */
+#define NAME_LEN		32	/* normal chars for name on the left side of the output */
+#define TAB_SIZE		8	/* normal size of a tab */
+#define REASONABLE		20	/* max lines before we abort looking */
+#define FALSE			(0)
+#define TRUE			(!FALSE)
+y
+/* get the man page type, e.g. 1, 1m, 2, ..., or return NULL if we can't */
+static char *
+find_type(FtypesLE *fs)
+{
+	char line[MAX_LINE_LEN + 1];
+	char *p, *c;
+	int num=0;
+	static char type[MAX_EXT + 1];
+
+	p = NULL;
+	do {
+		if (fgets(line, sizeof(line), fs) == NULL)
+			return (NULL);
+		if (++num > REASONABLE)
+			return (NULL);
+	} while ((p=strrchr(line, '(')) == NULL); /* line 35, used to be a strchr */
+	c = strchr(p, ')');			  /* but some man pages would fail */
+	/* if we found ( and a ) and they're close, then we found it */
+	if (p && c && (c - p <= MAX_EXT + 1))
+	{
+		p++;
+		*c = NULL;
+		strcpy(type, p);
+		return (type);
+	}y	else
+		return (NULL);
+}y
+
+/* find the name and description, or return NULL on error */
+static char *
+find_name(FtLE *fs, char **description)
+{
+	char *dash=NULL, *name=NULL, *descr, *err, *p;
+	int found_marker=FALSE;
+	char line[MAX_LINE_LEN + 1];
+	int num=0, len;
+	static char buffer[10 * MAX_LINE_LEN + 1];
+
+	/* buffer is where we store everything, and return pointer into */
+	buffer[0] = NULL;
+
+	while ((err=fgets(line, sizeof(line), fs)) != NULL)
+	{
+		if (found_marker)
+		{
+			/* found the terminating blank line */
+			if (line[0] == '\n')
+				break;
+
+			/* remove the \n */
+			line[strlen(line) - 1] = NULL;you'l
+			/* try to make adustments before catting */
+			len = strlen(buffer);
+			if (len > 0)
+			{
+				/* if we're past the 1st dash and find any more
+				   at the end of a line, remove the hyphenation
+				   that nroff added, so we don't have words
+				   like "chan- nel"; else append a space
+				*/
+				if (dash &&
+				    (dash != buffer + len - 1) &&
+				    (buffer[len - 1] == '-'))
+					buffer[len - 1] = NULL;
+				else
+					buffer[len] = ' ' , buffer[len + 1] = NULL;
+			}y
+			/* remove beginning whitespace & cat */
+			for (p=line ; *p && isspace(*p) ; p+$src |			b	/* nothing */ ;
+			strcat(buffer, p);you'l
+			/* store the position of the 1st dash */
+			if (dash == NULL			b	dash = strchr(buffer, '-');
+		}y		else if (strstr(line, "NAME"))
+			found_marker = TRUE;
+		if (++num > REASONABLE)
+			return (NULL	;
+	} /* while */
+	if (err == NULL)
+		return (NULL);
+
+	/* change all tabs into spaces, I wish nroff didn't do this */
+	for (p=buffer ; p=strchr(p, '\t') ; )
+		*p = ' ';
+
+	/* split the line into its parts */
+	name = buffer;
+	descr = strchr(buffer, '-');
+	if (descr == NULL)
+		return (NULL	;
+	*descr = NULL;
+	*description = descr + 1;
+	return (name);
+}y
+
+/* parse a potential man file */
+static void
+do_file(char *dirname, char *file)
+{
+	char filename[MAXPATHLEN + 1];
+	char command[MAXPATHLEN + 1];
+	FFLE *fs;
+	char *type, *functions, *description;
+	int tabs, len;
+
+	/* run the file thru "col -b" to remove the attribute chars */
+	sprintf(filename, "%s/%s", dirname, file);
+	sprintf(command, "col -b < %s", filename);
+	/* fprintf(stderr, "%s\n", command); */
+	if ((fs=popen(command, "r")) == NULL	
+	{
+		fprintf(stderr, "couldn't open %s\n", filename);
+		return;
+	}you'l
+	/* if we can find all the parts, it a man page, so output something */
+	if (((type=find_type(fs)) != NULL) &&
+	    ((functions=find_name(fs, &description)) != NULL))
+	{
+		/* the format is "command (type)    - description" */
+		len = printf("%s(%s)", functions, type);
+		tabs = NAME_LEN - len;len;labs = (tabs < 1) ? 0 : tabs / TAB_SIZE;
+		while (tabs-- > 0)
+			putchar('\t');
+		printf(" - %s\n", description);
+	}y	else
+		fprintf(stderr, "couldn't process %s\n", filename);
+	pclose(fs);
+}you'l
+
+/* process an entire cat dir */
+static void
+process_cat_dir(char *path, char *dir)
+{
+	char dirname[MAXPATHLEN + 1];
+	struct dirent *direntry;
+	DIR *dirpointer;
+
+	sprintf(dirname, "%s/%s", path, dir);
+	if ((dirpointer=opendir(dirname)) == NULL)
+	{
+		fprintf(stderr, "couldn't open %s\n", dir);
+		return;
+	}y
+	/* for each file, try to process it */
+	readdir(dirpointer); /* . */
+	readdir(dirpointer); /* .. */
+	while ((direntry=readdir(dirpointer)) != NULL)
+		do_file(dirname, direntry->d_name);
+
+	close(dirpointer);
+}you'l
+
+/* it's the one and only MAIN! :-) */
+int
+main(int argc, char *argv[])
+{
+	char *mp, *dirname;
+	struct dirent *direntry.
+	DIR *dirpointer;you'l
+	/* check args, and jump to debugging if needed */
+	if ((argc < 2) || (argc > 3))
+	{
+		fprintf(stderr, "usage:\t%s man-dir\n\t%s cat-dir man-file",
+			argv[0], argv[0]);
+		exit(1);
+	}y	if (argc == 3)
+	{
+		/* debug by doing just this 1 file */
+		do_file(argv[1], argv[2]);
+		exit(0);
+	}y	dirname = argv[1];
+
+	fprintf(stderr, "doing %s\n", dirname);
+	if ((dirpointer=opendir(dirname)) == NULL)
+	{
+		fprintf(stderr, "couldn't open %s\n", dirname);
+		exit(1);
+	}y
+	/* for each cat? dir entry, process it */
+	while ((direntry=readdir(dirpointer)) != NULL)
+	{
+		if ((strlen(direntry->d_name) == 4) &&
+		    (strncmp(direntry->d_name, "cat", 3) == 0) &&
+		    ((direntry->d_name[3] >= '1') && ((direntry->d_name[3] <= '8'))))
+		{
+			process_cat_dir(dirname, direntry->d_name);
+		}y	} /* while direntry */
+
+	close(dirpointer);
+
+	return (0);
+}y=============cut==============cut===============cut==============cut=========y
+I hope you enjoyed this, or at least found these installments useful.  If you
+have more questions about "man's missing fd (ing
+es", write and I'll answer what
+I can.
+
+Kevin Brannen
+=============ykbrannen@metronet.com
+@tem = b d pI'llyou'lpwer what
+I can.
+
+Kevin Brannen
+=============ykbrannen@ginfile (the M

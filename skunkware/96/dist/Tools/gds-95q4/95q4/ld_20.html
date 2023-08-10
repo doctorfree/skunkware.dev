@@ -1,0 +1,146 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from ld.texinfo on 9 October 1995 -->
+
+<TITLE>Using ld - Section Options</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="ld_1.html">first</A>, <A HREF="ld_19.html">previous</A>, <A HREF="ld_21.html">next</A>, <A HREF="ld_31.html">last</A> section, <A HREF="ld_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX230"></A>
+<H3><A NAME="SEC20" HREF="ld_toc.html#TOC20">Optional Section Attributes</A></H3>
+Here is the full syntax of a section definition, including all the
+optional portions:
+<P>
+<PRE>
+SECTIONS {
+...
+<VAR>secname</VAR> <VAR>start</VAR> BLOCK(<VAR>align</VAR>) (NOLOAD) : AT ( <VAR>ldadr</VAR> )
+  { <VAR>contents</VAR> } &#62;<VAR>region</VAR> =<VAR>fill</VAR>
+...
+}
+</PRE>
+<P>
+<VAR>secname</VAR> and <VAR>contents</VAR> are required.  See section <A HREF="ld_17.html#SEC17">Section Definitions</A>, and see section <A HREF="ld_18.html#SEC18">Section Placement</A> for details on
+<VAR>contents</VAR>.  The remaining elements---<VAR>start</VAR>,
+<CODE>BLOCK(<VAR>align)</VAR></CODE>, <CODE>(NOLOAD)</CODE>, <CODE>AT ( <VAR>ldadr</VAR> )</CODE>,
+<CODE>&#62;<VAR>region</VAR></CODE>, and <CODE>=<VAR>fill</VAR></CODE>---are all optional.
+<P>
+<A NAME="IDX231"></A>
+<A NAME="IDX232"></A>
+<A NAME="IDX233"></A>
+<DL COMPACT>
+<DT><CODE><VAR>start</VAR></CODE>
+<DD>You can force the output section to be loaded at a specified address by
+specifying <VAR>start</VAR> immediately following the section name.
+<VAR>start</VAR> can be represented as any expression. The following
+example generates section <VAR>output</VAR> at location
+<CODE>0x40000000</CODE>:
+
+<PRE>
+SECTIONS {
+  ...
+  output 0x40000000: {
+    ...
+    }
+  ...
+}
+</PRE>
+
+<A NAME="IDX235"></A>
+<A NAME="IDX236"></A>
+<A NAME="IDX234"></A>
+<DT><CODE>BLOCK(<VAR>align</VAR>)</CODE>
+<DD>You can include <CODE>BLOCK()</CODE> specification to advance
+the location counter <CODE>.</CODE> prior to the beginning of the section, so
+that the section will begin at the specified alignment.  <VAR>align</VAR> is
+an expression.
+
+<A NAME="IDX238"></A>
+<A NAME="IDX239"></A>
+<A NAME="IDX237"></A>
+<DT><CODE>(NOLOAD)</CODE>
+<DD>Use <SAMP>`(NOLOAD)'</SAMP> to prevent a section from being loaded into memory
+each time it is accessed.  For example, in the script sample below, the
+<CODE>ROM</CODE> segment is addressed at memory location <SAMP>`0'</SAMP> and does not
+need to be loaded into each object file:
+
+<PRE>
+SECTIONS {
+  ROM  0  (NOLOAD)  : { ... }
+  ...
+}
+</PRE>
+
+<A NAME="IDX241"></A>
+<A NAME="IDX242"></A>
+<A NAME="IDX240"></A>
+<DT><CODE>AT ( <VAR>ldadr</VAR> )</CODE>
+<DD>The expression <VAR>ldadr</VAR> that follows the <CODE>AT</CODE> keyword specifies
+the load address of the section.  The default (if you do not use the
+<CODE>AT</CODE> keyword) is to make the load address the same as the
+relocation address.  This feature is designed to make it easy to build a
+ROM image.  For example, this <CODE>SECTIONS</CODE> definition creates two
+output sections: one called <SAMP>`.text'</SAMP>, which starts at <CODE>0x1000</CODE>,
+and one called <SAMP>`.mdata'</SAMP>, which is loaded at the end of the
+<SAMP>`.text'</SAMP> section even though its relocation address is
+<CODE>0x2000</CODE>.  The symbol <CODE>_data</CODE> is defined with the value
+<CODE>0x2000</CODE>:
+
+<PRE>
+SECTIONS
+  {
+  .text 0x1000 : { *(.text) _etext = . ; }
+  .mdata 0x2000 : 
+    AT ( ADDR(.text) + SIZEOF ( .text ) )
+    { _data = . ; *(.data); _edata = . ;  }
+  .bss 0x3000 :
+    { _bstart = . ;  *(.bss) *(COMMON) ; _bend = . ;}
+}
+</PRE>
+
+The run-time initialization code (for C programs, usually <CODE>crt0</CODE>)
+for use with a ROM generated this way has to include something like
+the following, to copy the initialized data from the ROM image to its runtime
+address:
+
+<PRE>
+char *src = _etext;
+char *dst = _data;
+
+/* ROM has data at end of text; copy it. */
+while (dst &#60; _edata) {
+  *dst++ = *src++;
+}
+
+/* Zero bss */
+for (dst = _bstart; dst&#60; _bend; dst++)
+  *dst = 0;
+</PRE>
+
+<A NAME="IDX244"></A>
+<A NAME="IDX245"></A>
+<A NAME="IDX243"></A>
+<DT><CODE>&#62;<VAR>region</VAR></CODE>
+<DD>Assign this section to a previously defined region of memory.  
+See section <A HREF="ld_15.html#SEC15">Memory Layout</A>.
+
+<A NAME="IDX247"></A>
+<A NAME="IDX248"></A>
+<A NAME="IDX246"></A>
+<DT><CODE>=<VAR>fill</VAR></CODE>
+<DD>Including <CODE>=<VAR>fill</VAR></CODE> in a section definition specifies the
+initial fill value for that section.  You may use any expression to
+specify <VAR>fill</VAR>.  Any unallocated holes in the current output section
+when written to the output file will be filled with the two least
+significant bytes of the value, repeated as necessary.  You can also
+change the fill value with a <CODE>FILL</CODE> statement in the <VAR>contents</VAR>
+of a section definition.
+
+</DL>
+<P>
+<HR>
+Go to the <A HREF="ld_1.html">first</A>, <A HREF="ld_19.html">previous</A>, <A HREF="ld_21.html">next</A>, <A HREF="ld_31.html">last</A> section, <A HREF="ld_toc.html">table of contents</A>.
+</BODY>
+</HTML>

@@ -1,0 +1,107 @@
+#!/bin/sh
+
+ #############################################################################
+ #
+ #       @(#) ccs 1.1 96/03/17 
+ #
+ #       Copyright (C) The Santa Cruz Operation, 1996.
+ #       This Module contains Proprietary Information of
+ #       The Santa Cruz Operation, and should be treated as Confidential.
+ #
+ #  Module:   ccs
+ #
+ #  Modifications:
+ #	
+ ############################################################################
+
+#
+#******************************************************************************
+#                      XV ccs script
+#-----------------------------------------------------------------------------
+#  The top-level component control script (ccs)
+#-----------------------------------------------------------------------------
+#
+#       input:
+#           $1 is the name of the step
+#           $2 is the keyword list (e.g., UPGRADE)
+#           $3 is the package list
+#=============================================================================
+#
+# Set the appropriate NLSPATH to enable the 'dspmsg' utility to work later
+# in this script.
+#
+# All messages specific to this component which could be referenced during
+# a load should come out of a message catalog located under the directory
+# ${SSO_SHARED_ROOT}/cntl/msg/<locale>
+#
+NLSPATH="${SSO_SHARED_ROOT}/cntl/msg/%L/%N.cat:${SSO_SHARED_ROOT}/cntl/msg/%l_%t/%N.cat:${SSO_SHARED_ROOT}/cntl/msg/%l/%N.cat:${NLSPATH}"
+export NLSPATH
+#
+# Set a variable to point at the file used to communicate between
+# the various phases of cqs and ccs.
+#
+XV_CQS_FILE=${CCS_PERSISTENT_STORAGE}/cqs.save.file
+export XV_CQS_FILE
+
+#====================================================================== INT ===
+#  main --
+#   
+#    Based on step specified, perform actions of the general form:
+#       Global initialization
+#       Loop to call each package script for package-specific actions
+#       Global cleanup
+#
+#    NOTE: Currently, a number of steps exist for which no action needs to
+#    be specified in this product.  This will probably be true for most
+#    products in the near future.
+#------------------------------------------------------------------------------
+#
+# Source in the standard functions library, ccsSetup.sh
+#
+. ccsSetup.sh
+#
+# Set exit value from this script
+ccs_return_value=0
+
+
+#
+# Read arguments into variables
+#
+scriptname="$0"
+step="$1"
+keywords="$2"
+pkglist="$3"
+
+# the directory containing whatever package scripts we've got
+pkgscripts=${SSO_SHARED_ROOT}/cntl/packages
+pkgList=
+# Strip off the leading <prd>:<cmpnt>:* to get (sub)package name.
+for pkg in $pkglist
+do
+	pack=`expr $pkg : '.*:\(.*\)'`
+	pkgList="$pkgList $pack"
+done
+#
+# For each package, run that package's package script with the same args as
+# we rcv'd.  Record any exit values from the package scripts.
+#
+for pkg in $pkgList
+do
+     [ -f ${pkgscripts}/${pkg}/ccs ] && {
+         ${pkgscripts}/${pkg}/ccs $step "$keywords" "$pkgList"
+
+         # This script will exit with the most severe of exit code of any of
+         # its package scripts.  Since an exit of 1 means 'fail', it's more
+         # severe than an exit of 2, which means 'warning'.  An exit of 0
+         # (success) is the least severe.
+         case "$?" in
+             1)  ccs_return_value=1
+                 ;;
+             2)  [ "$ccs_return_value" -eq 0 ] && ccs_return_value=2
+         esac
+     }
+done
+
+# No global cleanup identified yet. When identified, place it here
+ 
+exit $ccs_return_value

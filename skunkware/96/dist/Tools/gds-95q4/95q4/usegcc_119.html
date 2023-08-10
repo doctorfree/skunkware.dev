@@ -1,0 +1,251 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Incompatibilities</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_118.html">previous</A>, <A HREF="usegcc_120.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX507"></A>
+<H2><A NAME="SEC122" HREF="usegcc_toc.html#TOC122">Incompatibilities of GNU CC</A></H2>
+<P>
+There are several noteworthy incompatibilities between GNU C and most
+existing (non-ANSI) versions of C.  The <SAMP>`-traditional'</SAMP> option
+eliminates many of these incompatibilities, <EM>but not all</EM>, by
+telling GNU C to behave like the other C compilers.
+<P>
+<A NAME="IDX508"></A>
+<A NAME="IDX509"></A>
+<A NAME="IDX510"></A>
+<UL>
+<LI>
+GNU CC normally makes string constants read-only.  If several
+identical-looking string constants are used, GNU CC stores only one
+copy of the string.
+
+<A NAME="IDX511"></A>
+One consequence is that you cannot call <CODE>mktemp</CODE> with a string
+constant argument.  The function <CODE>mktemp</CODE> always alters the
+string its argument points to.
+
+<A NAME="IDX513"></A>
+<A NAME="IDX514"></A>
+<A NAME="IDX512"></A>
+Another consequence is that <CODE>sscanf</CODE> does not work on some systems
+when passed a string constant as its format control string or input.
+This is because <CODE>sscanf</CODE> incorrectly tries to write into the string
+constant.  Likewise <CODE>fscanf</CODE> and <CODE>scanf</CODE>.
+
+The best solution to these problems is to change the program to use
+<CODE>char</CODE>-array variables with initialization strings for these
+purposes instead of string constants.  But if this is not possible,
+you can use the <SAMP>`-fwritable-strings'</SAMP> flag, which directs GNU CC
+to handle string constants the same way most C compilers do.
+<SAMP>`-traditional'</SAMP> also has this effect, among others.
+
+<LI>
+<CODE>-2147483648</CODE> is positive.
+
+This is because 2147483648 cannot fit in the type <CODE>int</CODE>, so
+(following the ANSI C rules) its data type is <CODE>unsigned long int</CODE>.
+Negating this value yields 2147483648 again.
+
+<LI>
+GNU CC does not substitute macro arguments when they appear inside of
+string constants.  For example, the following macro in GNU CC
+
+<PRE>
+#define foo(a) "a"
+</PRE>
+
+will produce output <CODE>"a"</CODE> regardless of what the argument <VAR>a</VAR> is.
+
+The <SAMP>`-traditional'</SAMP> option directs GNU CC to handle such cases
+(among others) in the old-fashioned (non-ANSI) fashion.
+
+<A NAME="IDX516"></A>
+<A NAME="IDX515"></A>
+<LI>
+When you use <CODE>setjmp</CODE> and <CODE>longjmp</CODE>, the only automatic
+variables guaranteed to remain valid are those declared
+<CODE>volatile</CODE>.  This is a consequence of automatic register
+allocation.  Consider this function:
+
+<PRE>
+jmp_buf j;
+
+foo ()
+{
+  int a, b;
+
+  a = fun1 ();
+  if (setjmp (j))
+    return a;
+
+  a = fun2 ();
+  /* <CODE>longjmp (j)</CODE> may occur in <CODE>fun3</CODE>. */
+  return a + fun3 ();
+}
+</PRE>
+
+Here <CODE>a</CODE> may or may not be restored to its first value when the
+<CODE>longjmp</CODE> occurs.  If <CODE>a</CODE> is allocated in a register, then
+its first value is restored; otherwise, it keeps the last value stored
+in it.
+
+If you use the <SAMP>`-W'</SAMP> option with the <SAMP>`-O'</SAMP> option, you will
+get a warning when GNU CC thinks such a problem might be possible.
+
+The <SAMP>`-traditional'</SAMP> option directs GNU C to put variables in
+the stack by default, rather than in registers, in functions that
+call <CODE>setjmp</CODE>.  This results in the behavior found in
+traditional C compilers.
+
+<LI>
+Programs that use preprocessing directives in the middle of macro
+arguments do not work with GNU CC.  For example, a program like this
+will not work:
+
+<PRE>
+foobar (
+#define luser
+        hack)
+</PRE>
+
+ANSI C does not permit such a construct.  It would make sense to support
+it when <SAMP>`-traditional'</SAMP> is used, but it is too much work to
+implement.
+
+<A NAME="IDX518"></A>
+<A NAME="IDX519"></A>
+<A NAME="IDX517"></A>
+<LI>
+Declarations of external variables and functions within a block apply
+only to the block containing the declaration.  In other words, they
+have the same scope as any other declaration in the same place.
+
+In some other C compilers, a <CODE>extern</CODE> declaration affects all the
+rest of the file even if it happens within a block.
+
+The <SAMP>`-traditional'</SAMP> option directs GNU C to treat all <CODE>extern</CODE>
+declarations as global, like traditional compilers.
+
+<LI>
+In traditional C, you can combine <CODE>long</CODE>, etc., with a typedef name,
+as shown here:
+
+<PRE>
+typedef int foo;
+typedef long foo bar;
+</PRE>
+
+In ANSI C, this is not allowed: <CODE>long</CODE> and other type modifiers
+require an explicit <CODE>int</CODE>.  Because this criterion is expressed
+by Bison grammar rules rather than C code, the <SAMP>`-traditional'</SAMP>
+flag cannot alter it.
+
+<A NAME="IDX520"></A>
+<LI>
+PCC allows typedef names to be used as function parameters.  The
+difficulty described immediately above applies here too.
+
+<A NAME="IDX521"></A>
+<LI>
+PCC allows whitespace in the middle of compound assignment operators
+such as <SAMP>`+='</SAMP>.  GNU CC, following the ANSI standard, does not
+allow this.  The difficulty described immediately above applies here
+too.
+
+<A NAME="IDX523"></A>
+<A NAME="IDX522"></A>
+<LI>
+GNU CC complains about unterminated character constants inside of
+preprocessing conditionals that fail.  Some programs have English
+comments enclosed in conditionals that are guaranteed to fail; if these
+comments contain apostrophes, GNU CC will probably report an error.  For
+example, this code would produce an error:
+
+<PRE>
+#if 0
+You can't expect this to work.
+#endif
+</PRE>
+
+The best solution to such a problem is to put the text into an actual
+C comment delimited by <SAMP>`/*...*/'</SAMP>.  However,
+<SAMP>`-traditional'</SAMP> suppresses these error messages.
+
+<LI>
+Many user programs contain the declaration <SAMP>`long time ();'</SAMP>.  In the
+past, the system header files on many systems did not actually declare
+<CODE>time</CODE>, so it did not matter what type your program declared it to
+return.  But in systems with ANSI C headers, <CODE>time</CODE> is declared to
+return <CODE>time_t</CODE>, and if that is not the same as <CODE>long</CODE>, then
+<SAMP>`long time ();'</SAMP> is erroneous.
+
+The solution is to change your program to use <CODE>time_t</CODE> as the return
+type of <CODE>time</CODE>.
+
+<A NAME="IDX524"></A>
+<LI>
+When compiling functions that return <CODE>float</CODE>, PCC converts it to
+a double.  GNU CC actually returns a <CODE>float</CODE>.  If you are concerned
+with PCC compatibility, you should declare your functions to return
+<CODE>double</CODE>; you might as well say what you mean.
+
+<A NAME="IDX526"></A>
+<A NAME="IDX525"></A>
+<LI>
+When compiling functions that return structures or unions, GNU CC
+output code normally uses a method different from that used on most
+versions of Unix.  As a result, code compiled with GNU CC cannot call
+a structure-returning function compiled with PCC, and vice versa.
+
+The method used by GNU CC is as follows: a structure or union which is
+1, 2, 4 or 8 bytes long is returned like a scalar.  A structure or union
+with any other size is stored into an address supplied by the caller
+(usually in a special, fixed register, but on some machines it is passed
+on the stack).  The machine-description macros <CODE>STRUCT_VALUE</CODE> and
+<CODE>STRUCT_INCOMING_VALUE</CODE> tell GNU CC where to pass this address.
+
+By contrast, PCC on most target machines returns structures and unions
+of any size by copying the data into an area of static storage, and then
+returning the address of that storage as if it were a pointer value.
+The caller must copy the data from that memory area to the place where
+the value is wanted.  GNU CC does not use this method because it is
+slower and nonreentrant.
+
+On some newer machines, PCC uses a reentrant convention for all
+structure and union returning.  GNU CC on most of these machines uses a
+compatible convention when returning structures and unions in memory,
+but still returns small structures and unions in registers.
+
+You can tell GNU CC to use a compatible convention for all structure and
+union returning with the option <SAMP>`-fpcc-struct-return'</SAMP>.
+
+<A NAME="IDX528"></A>
+<A NAME="IDX527"></A>
+<LI>
+GNU C complains about program fragments such as <SAMP>`0x74ae-0x4000'</SAMP>,
+which appear to be two hexadecimal constants separated by the minus
+operator.  Actually, this string is a single <DFN>preprocessing token</DFN>.
+Each such token must correspond to one token in C.  Since this does not,
+GNU C prints an error message.  Although it may appear obvious that what
+is meant is an operator and two values, the ANSI C standard specifically
+requires that this be treated as erroneous. 
+
+A <DFN>preprocessing token</DFN> is a <DFN>preprocessing number</DFN> if it
+begins with a digit and is followed by letters, underscores, digits,
+periods and <SAMP>`e+'</SAMP>, <SAMP>`e-'</SAMP>, <SAMP>`E+'</SAMP>, or <SAMP>`E-'</SAMP> character
+sequences.
+
+To make the above program fragment valid, place whitespace in front of
+the minus sign.  This whitespace will end the preprocessing number.
+</UL>
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_118.html">previous</A>, <A HREF="usegcc_120.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

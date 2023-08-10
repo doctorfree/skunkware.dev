@@ -1,0 +1,119 @@
+Author:     Johan Vromans 
+Cmpny:      SQS 
+Company:    Squirrel Software 
+Dept.:      Public Domain 
+Project:    Squirrel Mail Server 
+Title:      Squirrel Mail Server
+            User Guide 
+Version:    V3.01 
+----------------------------------------
+
+This version of the Squirrel mail-server is a binary installation
+for use with UnixWare 1 or UnixWare 2.
+
+
+PREREQUISITES:
+==============
+
+Create an account mserv, with the home directory rooted in 
+/opt/lib/mserv.  We assume the mail-server archive tree is in
+/home/mserv-archive, if its elsewhere make a symlink.
+
+	useradd -s /usr/bin/ksh -d /opt/lib/mserv mserv
+	(mkdir /opt/lib if it does not exist)
+	cd /opt/lib
+	zcat mserv.tar.Z|tar xvf -
+	chown -R mserv mserv
+	chown root mserv/listener
+
+To run the mail-server, you need to install ALL the following packages:
+utils/perl-4.0pl36.pkg.tar, archivers/gzip-1.2.4.pkg.tar,
+utils/gnufind-3.7.pkg.tar.  All these packages are on the
+Freebird archive.
+
+You also need to allow  the mserv account to use cron, 
+edit  /usr/lib/cron/cron.allow and add the mserv user.
+
+To test prior to running out of cron, login as user mserv
+
+	./listener -noqueue
+
+You can then type interactive requests
+
+
+Once you are happy, edit the file
+
+	mserv.hints
+
+
+Place the files you want to serve in /home/mserv-archive,
+run some of the indexing commands by hand
+
+	./makeindex
+	./makels
+	./changes
+
+Then enable the crons
+
+	crontab ctab
+
+
+Next stage, enable in the mailsubsystem. This can be done
+by editing /usr/lib/mail/mailsurr.proto and editing the following in
+section 3 of the file after the ckbinarsys entry.
+
+# mail-server, mailing lists and information distribution handling section
+'.+'    'mail-server'   '<      /opt/lib/mserv/listener'
+
+
+Then run /usr/lib/mail/surrcmd/createSurr -l on. 
+
+
+#	/etc/mail/extaliases
+
+
+Then run /usr/lib/mail/surrcmd/createSurr -l on. 
+
+
+On the system that the mail-server runs I have a mailbox called
+bit-bucket, which as long as it exists in /var/mail/bit-bucket
+and is mode 660 owner mserv, group mail is used to catch
+all admin mail.
+
+System aliases are added a file in /etc/mail, /etc/mail/names
+
+### Mailserver ###
+# if you want mail to go to real people
+#mserv		plord andrew
+# else put it in a mailbox
+mserv		bit-bucket
+
+# various typos on mail-server
+mailserv	mail-server
+mailserver	mail-server
+mail_server	mail-server
+mail-serverl	mail-server
+mail-serv	mail-server
+mail-serve	mail-server
+mail-sarver	mail-server
+mailx-server	mail-server
+mailer-server	mail-server
+ftpmail		mail-server
+
+
+# various strange things that requestors send, best to dump them in the
+# bit-bucket mailbox
+
+reply-address	bit-bucket
+your-address-here	bit-bucket
+your-mail-address-goes-here	bit-bucket
+address-to-reply-to	bit-bucket
+your-email-address	bit-bucket
+
+
+
+File Permissions:
+
+All files except listener can be owned by user mserv.
+listener has to be owned by root and setuid.
+

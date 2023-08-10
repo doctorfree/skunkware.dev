@@ -1,0 +1,130 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Appending</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_63.html">previous</A>, <A HREF="make_65.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX421"></A>
+<A NAME="IDX422"></A>
+<A NAME="IDX423"></A>
+<H2><A NAME="SEC63" HREF="make_toc.html#TOC63">Appending More Text to Variables</A></H2>
+<P>
+Often it is useful to add more text to the value of a variable already defined.
+You do this with a line containing <SAMP>`+='</SAMP>, like this:
+<P>
+<PRE>
+objects += another.o
+</PRE>
+<P>
+This takes the value of the variable <CODE>objects</CODE>, and adds the text
+<SAMP>`another.o'</SAMP> to it (preceded by a single space).  Thus:
+<P>
+<PRE>
+objects = main.o foo.o bar.o utils.o
+objects += another.o
+</PRE>
+<P>
+sets <CODE>objects</CODE> to <SAMP>`main.o foo.o bar.o utils.o another.o'</SAMP>.
+<P>
+Using <SAMP>`+='</SAMP> is similar to:
+<P>
+<PRE>
+objects = main.o foo.o bar.o utils.o
+objects := $(objects) another.o
+</PRE>
+<P>
+but differs in ways that become important when you use more complex values.
+<P>
+When the variable in question has not been defined before, <SAMP>`+='</SAMP>
+acts just like normal <SAMP>`='</SAMP>: it defines a recursively-expanded
+variable.  However, when there <EM>is</EM> a previous definition, exactly
+what <SAMP>`+='</SAMP> does depends on what flavor of variable you defined
+originally.  See section <A HREF="make_58.html#SEC57">The Two Flavors of Variables</A>, for an
+explanation of the two flavors of variables.
+<P>
+When you add to a variable's value with <SAMP>`+='</SAMP>, <CODE>make</CODE> acts
+essentially as if you had included the extra text in the initial
+definition of the variable.  If you defined it first with <SAMP>`:='</SAMP>,
+making it a simply-expanded variable, <SAMP>`+='</SAMP> adds to that
+simply-expanded definition, and expands the new text before appending it
+to the old value just as <SAMP>`:='</SAMP> does
+(see section <A HREF="make_63.html#SEC62">Setting Variables</A>, for a full explanation of <SAMP>`:='</SAMP>).
+In fact,
+<P>
+<PRE>
+variable := value
+variable += more
+</PRE>
+<P>
+is exactly equivalent to:
+<P>
+<PRE>
+variable := value
+variable := $(variable) more
+</PRE>
+<P>
+On the other hand, when you use <SAMP>`+='</SAMP> with a variable that you defined
+first to be recursively-expanded using plain <SAMP>`='</SAMP>, <CODE>make</CODE> does
+something a bit different.  Recall that when you define a
+recursively-expanded variable, <CODE>make</CODE> does not expand the value you set
+for variable and function references immediately.  Instead it stores the text
+verbatim, and saves these variable and function references to be expanded
+later, when you refer to the new variable (see section <A HREF="make_58.html#SEC57">The Two Flavors of Variables</A>).  When you use <SAMP>`+='</SAMP> on a recursively-expanded variable,
+it is this unexpanded text to which <CODE>make</CODE> appends the new text you
+specify.
+<P>
+<PRE>
+variable = value
+variable += more
+</PRE>
+<P>
+is roughly equivalent to:
+<P>
+<PRE>
+temp = value
+variable = $(temp) more
+</PRE>
+<P>
+except that of course it never defines a variable called <CODE>temp</CODE>.
+The importance of this comes when the variable's old value contains
+variable references.  Take this common example:
+<P>
+<PRE>
+CFLAGS = $(includes) -O
+...
+CFLAGS += -pg # enable profiling
+</PRE>
+<P>
+The first line defines the <CODE>CFLAGS</CODE> variable with a reference to another
+variable, <CODE>includes</CODE>.  (<CODE>CFLAGS</CODE> is used by the rules for C
+compilation; see section <A HREF="make_89.html#SEC88">Catalogue of Implicit Rules</A>.)
+Using <SAMP>`='</SAMP> for the definition makes <CODE>CFLAGS</CODE> a recursively-expanded
+variable, meaning <SAMP>`$(includes) -O'</SAMP> is <EM>not</EM> expanded when
+<CODE>make</CODE> processes the definition of <CODE>CFLAGS</CODE>.  Thus, <CODE>includes</CODE>
+need not be defined yet for its value to take effect.  It only has to be
+defined before any reference to <CODE>CFLAGS</CODE>.  If we tried to append to the
+value of <CODE>CFLAGS</CODE> without using <SAMP>`+='</SAMP>, we might do it like this:
+<P>
+<PRE>
+CFLAGS := $(CFLAGS) -pg # enable profiling
+</PRE>
+<P>
+This is pretty close, but not quite what we want.  Using <SAMP>`:='</SAMP>
+redefines <CODE>CFLAGS</CODE> as a simply-expanded variable; this means
+<CODE>make</CODE> expands the text <SAMP>`$(CFLAGS) -pg'</SAMP> before setting the
+variable.  If <CODE>includes</CODE> is not yet defined, we get <SAMP>` -O
+-pg'</SAMP>, and a later definition of <CODE>includes</CODE> will have no effect.
+Conversely, by using <SAMP>`+='</SAMP> we set <CODE>CFLAGS</CODE> to the
+<EM>unexpanded</EM> value <SAMP>`$(includes) -O -pg'</SAMP>.  Thus we preserve
+the reference to <CODE>includes</CODE>, so if that variable gets defined at
+any later point, a reference like <SAMP>`$(CFLAGS)'</SAMP> still uses its
+value.
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_63.html">previous</A>, <A HREF="make_65.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

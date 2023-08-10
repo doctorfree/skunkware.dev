@@ -1,0 +1,143 @@
+$Id: README,v 1.1 1994/12/15 08:03:31 pzi Exp $
+
+ Yet Another Argument Parsing utility (YAAP).
+
+ This template based argument parsing utility was originally inspired
+ by the X11 Intrinsics XtGetApplicationResources() function.
+
+ (There already is a tcl utility of this sort: topgetopt.tcl used in tkinfo.
+ I found it a bit short in functionality for my projects and copied
+ the algorithm that I had written long time ago in C for my personal toolbox.)
+
+ The idea is to use a single template consisting of a structured list to:
+
+ - Parse command line arguments.
+ - Do necessary conversions (or in Tcl case verification) into the
+   user variables.
+ - Produce a usage/help message describing command line structure and
+   detailed description for all options.
+
+ Since all this is done based on a single data structure (template) all
+ changes to the structure of the options are automatically reflected
+ in the usage/help information.
+
+ The conversion of the argument values is done by a set of 'converter'
+ functions. YAAP provides a standard set of converter functions for the 
+ basic set of data types like: integer, string, boolean.
+ Users can provide their own converters/parsers for a specialized data types
+ like: date, time, float, lists, etc.
+
+ YAAP consists of two public functions: AParse() and AUsage().
+ The AParse{argTmpl argvs} takes as its arguments the options template
+ 'argTmpl' and 'argvs' the list of command line arguments.
+ It returns a list of unparsed/unused arguments.
+ During the argument parsing AParse() will set indicated user variables
+ in the stack frame of the caller (by means of 'upvar').
+
+ The argument template is in the form a list of octets with the following
+ items:
+
+ 1. Flag string like: -help, --help, -x ; or '-' which indicates
+    a "positional" argument not preceded by the flag string.
+    Flagged arguments can be provided as a separate words as in '-i 99'
+    or in a "sticky" form where argument immediately follows the flag string
+    like '-i99'.
+    Grouping of flags is not supported in favor of multi character flags.
+    (Grouping is meant that '-i -v' can be provided as '-iv')
+
+ 2. Indicator of the type or existence of the arguments to follow.
+	At present 'y' indicates that the option has an argument; 'n' for
+    flags without arguments; 'p' to indicate that the previous template
+    octet should be used for all specifications except the flag string. 
+    (This is used to provide multiple flag strings for the same options)
+
+ 3. Name of the argument converter function.
+    Converter must be written according to the standard calling convention:
+    The converter takes two arguments: variable name to set, argument string.
+    It's duty is to parse the argument string and set the given variable.
+    If parsing is ok it should return 1 if not 0. The variable to set must
+    be "up-shifted" by two stack frames (upvar 2).
+    See bellow _Aint{}, _Abool{},... as examples. The 'ap' test has an
+    example of converting a file into the list.
+
+ 4. Indicator of whether the flag is required or optional: 'y' means optional
+    and 'n' means required.
+
+ 5. Name of the user variable that will be used to deposit converted
+    flag argument. If the flag does not provide arguments it must be of
+    the boolean type (if present the 'true' is assumed).
+
+ 6. Default value of the option. If the argument is optional and not provided
+    on command line this default value is treated as argument and converted
+    using specified converter function. 
+
+ 7. Argument name. This string is used in the 'usage' message.
+    It is needed only when the option has argument.
+
+ 8. Description of the option. It is used in the 'usage' message. 
+
+ The AUsage{} function is used mainly internally to display usage message
+ in case of the parsing or conversion error.
+ Users can still call it after the AParse{} was called.
+ The usage information can also be produced by using of a _Axlp{} converter
+ function in one of the template items. For example:
+
+     {-?     n _Axpl y - - - "to see this message"}
+     {-h     p - - - - - -}
+     {-help  p - - - - - -}
+     {--help p - - - - - -}
+
+ will produce help message for a number of styles.
+
+ Also to provide a complete usage message the first element of the template
+ list must be in the form of a single line description of the command. 
+
+ An example template for a provided test case follows:
+    #!/bin/tclsh
+
+    #Flag   Args Type   Opt  Variable Default Name   Description
+    #------------------------------------------------------------------
+    set tmpl {
+    
+	    "Yet another argument parsing (YAAP) utility:"
+
+    { -x    n   _Axpl   y   -       -       -       "to see this message"}
+    { --x   p - - - - - - }
+    { --h   p - - - - - - }
+    { --help   p - - - - - - }
+
+    { -f    y   _Astr   y   fName   file1   file    "a string argument" }
+    { --f   p - - - - - - }
+
+    { -v    n   _Abool  y   verb    0       -       "a boolean argument" }
+    { --v   p - - - - - - }
+
+    { -i    y   _Aint   n   count   -       count   "an integer argument" }
+
+    { -     n   _Aint   y   count2  0       count2  "a positional argument" }
+    { -     n   _Astr   y   fName2  file2   file    "a positional argument" }
+
+    { -     l   _Astr   n   sList   -       list    "required list" }
+
+    }
+
+    set argv [AParse tepl argv]
+
+ The follwing help message will be produced if command is given -x flag:
+
+    usage: ap  [-x] [-f <file>] [-v] -i <count> [<count2>] [<file>] <list>...
+
+    Yet another argument parsing (YAAP) utility:
+
+    -x               - to see this message
+     also: --x|--h|--help
+    -f <file>        - a string argument (file1)
+     also: --f
+    -v               - a boolean argument (0)
+     also: --v
+    -i <count>       - an integer argument
+    <count2>         - a positional argument (0)
+    <file>           - a positional argument (file2)
+    <list>...        - required list
+
+Peter Ziobrzynski, pzi@interlog.com

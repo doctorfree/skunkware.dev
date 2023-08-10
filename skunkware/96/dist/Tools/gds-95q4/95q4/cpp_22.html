@@ -1,0 +1,73 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from cpp.texi on 6 October 1995 -->
+
+<TITLE>The C Preprocessor - Swallow Semicolon</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="cpp_1.html">first</A>, <A HREF="cpp_21.html">previous</A>, <A HREF="cpp_23.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+<HR>
+<H4><A NAME="SEC23" HREF="cpp_toc.html#TOC23">Swallowing the Semicolon</A></H4>
+<A NAME="IDX62"></A>
+<P>
+Often it is desirable to define a macro that expands into a compound
+statement.  Consider, for example, the following macro, that advances a
+pointer (the argument <SAMP>`p'</SAMP> says where to find it) across whitespace
+characters:
+<P>
+<PRE>
+#define SKIP_SPACES (p, limit)  \
+{ register char *lim = (limit); \
+  while (p != lim) {            \
+    if (*p++ != ' ') {          \
+      p--; break; }}}
+</PRE>
+<P>
+Here Backslash-Newline is used to split the macro definition, which must
+be a single line, so that it resembles the way such C code would be
+laid out if not part of a macro definition.
+<P>
+A call to this macro might be <SAMP>`SKIP_SPACES (p, lim)'</SAMP>.  Strictly
+speaking, the call expands to a compound statement, which is a complete
+statement with no need for a semicolon to end it.  But it looks like a
+function call.  So it minimizes confusion if you can use it like a function
+call, writing a semicolon afterward, as in <SAMP>`SKIP_SPACES (p, lim);'</SAMP>
+<P>
+But this can cause trouble before <SAMP>`else'</SAMP> statements, because the
+semicolon is actually a null statement.  Suppose you write
+<P>
+<PRE>
+if (*p != 0)
+  SKIP_SPACES (p, lim);
+else ...
+</PRE>
+<P>
+The presence of two statements--the compound statement and a null
+statement--in between the <SAMP>`if'</SAMP> condition and the <SAMP>`else'</SAMP>
+makes invalid C code.
+<P>
+The definition of the macro <SAMP>`SKIP_SPACES'</SAMP> can be altered to solve
+this problem, using a <SAMP>`do ... while'</SAMP> statement.  Here is how:
+<P>
+<PRE>
+#define SKIP_SPACES (p, limit)     \
+do { register char *lim = (limit); \
+     while (p != lim) {            \
+       if (*p++ != ' ') {          \
+         p--; break; }}}           \
+while (0)
+</PRE>
+<P>
+Now <SAMP>`SKIP_SPACES (p, lim);'</SAMP> expands into
+<P>
+<PRE>
+do {...} while (0);
+</PRE>
+<P>
+which is one statement.
+<P>
+<HR>
+Go to the <A HREF="cpp_1.html">first</A>, <A HREF="cpp_21.html">previous</A>, <A HREF="cpp_23.html">next</A>, <A HREF="cpp_43.html">last</A> section, <A HREF="cpp_toc.html">table of contents</A>.
+</BODY>
+</HTML>

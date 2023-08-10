@@ -1,0 +1,88 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:  FAX (replacement)
+TITLE:  Increasing the Number of Pseudo Terminals
+DOCUMENT ID:  TID021317
+DOCUMENT REVISION:  B
+DATE:  30AUG94
+AUTHOR:  SFLETCHE
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Drivers
+
+ABSTRACT:
+
+When UnixWare is installed 16 pseudo tty terminals are set up.  These are used for windows on the desktop and for telnet sessions.
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+SYMPTOM
+
+When attempting to open an xterm window, the following message is returned:
+
+MESSAGE
+
+	Reason:  Invalid Argument
+
+SYMPTOM
+
+When telneting in, the following message is returned:
+
+MESSAGE
+
+	telnetd:open /dev/ptmx: No such device
+
+CAUSE
+
+You need more than the default 16 pseudo terminals.
+
+SOLUTION
+
+Increase Pseudo Terminals to 32, 64, 128, etc.
+
+Do the following as super-user (you can replace 32 with one of the values listed above):
+
+1.	Edit /etc/conf/sdevice.d/ptm and change 16 to 32
+2.	Edit /etc/conf/sdevice.d/ptem and change 16 to 32
+3.	Edit /etc/conf/sdevice.d/consem and change 16 to 32
+4.	Edit /etc/conf/sdevice.d/pts and change 16 to 32
+5.	Create a script that contain the following:
+	A=0
+	while [ $A -lt 32 ]
+	do
+	echo "pts pts/$A    c   $A" >> /tmp/devicefile
+	A='expr $A + 1'
+	done
+
+Where 32 is the number of pseudo terminals.  On the line with the echo there is one space between pts pts and there is one tab before and after c.
+
+6.	Make the script executable (chmod 755 <scriptfilename>)
+7.	Execute the script (sh <scriptfilename>)
+8.	Copy /tmp/devicefile to /etc/conf/node.d/pts 
+	(cp  /tmp/devicefile to /etc/conf/node.d/pts)
+9.	Change the kernel parameters NSTREAM and NUMTRW to double
+	the number of pseudo terminals, ie 64 for 32 psuedo terminals
+	(/etc/conf/bin/idtune -f NSTREAM 64 and /etc/conf/bin/idtune -f NUMTRW 64)
+10.	Rebuild the kernel (/etc/conf/bin/idbuild -B) and reboot the system (init 6)
+
+Caution:  The number of pseudo terminals can be increased to a power of 2, that is, 32, 64, 128 and so forth, and the values of NSTREAM and NUMTRW are each double that number.
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------

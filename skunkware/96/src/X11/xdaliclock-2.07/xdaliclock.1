@@ -1,0 +1,462 @@
+
+
+
+     XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))        XXXX VVVVeeeerrrrssssiiiioooonnnn 11111111 ((((8888----JJJJaaaannnn----99995555))))        XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))
+
+
+
+     NNNNAAAAMMMMEEEE
+          xdaliclock - melting digital clock
+
+     SSSSYYYYNNNNOOOOPPPPSSSSIIIISSSS
+          xxxxddddaaaalllliiiicccclllloooocccckkkk [-_t_o_o_l_k_i_t_o_p_t_i_o_n ...] [-_o_p_t_i_o_n ...]
+
+     DDDDEEEESSSSCCCCRRRRIIIIPPPPTTTTIIIIOOOONNNN
+          The _x_d_a_l_i_c_l_o_c_k program displays a digital clock; when a
+          digit changes, it ``melts'' into its new shape.
+
+          This program was inspired by the Alto and Macintosh programs
+          of the same name, written by Steve Capps in 1983 or 1984.
+
+     OOOOPPPPTTTTIIIIOOOONNNNSSSS
+          _x_d_a_l_i_c_l_o_c_k accepts all of the standard toolkit options, and
+          also accepts the following options:
+
+          ----hhhheeeellllpppp   Print a brief summary of the allowed options on the
+                  standard error output.
+
+          ----11112222     Use a twelve hour clock.
+
+          ----22224444     Use a twenty-four hour clock.
+
+          ----sssseeeeccccoooonnnnddddssss
+                  Update every second.
+
+          ----nnnnoooosssseeeeccccoooonnnnddddssss
+                  Update once per minute; don't display seconds at
+                  all.
+
+          ----ccccyyyycccclllleeee  Do color-cycling.
+
+          ----nnnnooooccccyyyycccclllleeee
+                  Don't do color-cycling.
+
+          ----vvvviiiissssuuuuaaaallll _v_i_s_u_a_l
+                  Specify which visual to use.  Legal values are:
+
+                  bbbbeeeesssstttt    Use the visual which supports the most
+                          writable color cells; this is the default.
+
+                  ddddeeeeffffaaaauuuulllltttt Use the screen's default visual (the visual
+                          of the root window.)  This is not
+                          necessarily the most colorful visual, which
+                          is why it is not the default.
+
+                  _c_l_a_s_s   One of SSSSttttaaaattttiiiiccccGGGGrrrraaaayyyy, SSSSttttaaaattttiiiiccccCCCCoooolllloooorrrr, TTTTrrrruuuueeeeCCCCoooolllloooorrrr,
+                          GGGGrrrraaaayyyySSSSccccaaaalllleeee, PPPPsssseeeeuuuuddddooooCCCCoooolllloooorrrr, or DDDDiiiirrrreeeeccccttttCCCCoooolllloooorrrr.
+                          Selects the deepest visual of the given
+                          class.
+
+
+
+
+     Page 1                                           (printed 6/5/96)
+
+
+
+
+
+
+     XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))        XXXX VVVVeeeerrrrssssiiiioooonnnn 11111111 ((((8888----JJJJaaaannnn----99995555))))        XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))
+
+
+
+                  _n_u_m_b_e_r  A number (decimal or hex) is interpreted as
+                          a visual id number, as reported by the
+                          xxxxddddppppyyyyiiiinnnnffffoooo(1) program; in this way you can
+                          select a shallower visual if desired.
+
+          ----sssshhhhaaaappppeeee  Use the Shape Extension, if it's available, to make
+                  the window background be transparent.
+
+                  This doesn't interact terribly well with the _t_w_m or
+                  _t_v_t_w_m window managers, unless they have been
+                  configured to not put a titlebar on the _x_d_a_l_i_c_l_o_c_k
+                  window.  If this isn't specified in your ._t_w_m_r_c or
+                  ._t_v_t_w_m_r_c file, then the window will flicker
+                  constantly, as the window manager tries to add and
+                  remove the titlebar ten times each second.
+
+                  Also, this turns most X servers into huge cycle
+                  hogs.  This is probably because of inefficient
+                  implementations of the Shape extension.
+
+          ----nnnnoooosssshhhhaaaappppeeee
+                  Don't use the Shape Extension.
+
+          ----mmmmeeeemmmmoooorrrryyyy lllloooowwww
+                  Use high-bandwidth, low-memory mode.  If you have a
+                  very fast connection between the machine this
+                  program is running on and the X server it is
+                  displaying on, then _x_d_a_l_i_c_l_o_c_k can work correctly by
+                  simply making the drawing requests it needs when it
+                  needs them.  This is _t_h_e _e_l_e_g_a_n_t _m_e_t_h_o_d.  However,
+                  the amount of data necessary to animate the display
+                  ends up being a bit over 10 kilobytes worth of X
+                  Protocol per second.  On a fast machine with a local
+                  display, or over a fast network, that's almost
+                  negligible, but (for example) an NCD X Terminal at
+                  38.4 kilobaud can't keep up.  That is the reason
+                  for:
+
+          ----mmmmeeeemmmmoooorrrryyyy mmmmeeeeddddiiiiuuuummmm
+                  Use high-memory, low-bandwidth mode.  In this mode,
+                  _x_d_a_l_i_c_l_o_c_k precomputes most of the frames that it
+                  will ever need.  This is _t_h_e _s_l_e_a_z_y _c_o_p_o_u_t _m_e_t_h_o_d.
+                  The bandwidth requirements are drastically reduced,
+                  because instead of telling the server what bits to
+                  draw where, it merely tells it what pixmaps to copy
+                  into the window.  Aside from the fact that I
+                  consider this to be _c_h_e_a_t_i_n_g, the only downside of
+                  this method is that those pixmaps (about 170 of
+                  them, each the size of one character) are consuming
+                  server-memory.  This probably isn't a very big deal,
+                  unless you're using an exceptionally large font.
+
+
+
+
+     Page 2                                           (printed 6/5/96)
+
+
+
+
+
+
+     XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))        XXXX VVVVeeeerrrrssssiiiioooonnnn 11111111 ((((8888----JJJJaaaannnn----99995555))))        XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))
+
+
+
+          ----mmmmeeeemmmmoooorrrryyyy hhhhiiiigggghhhh
+                  With _m_e_m_o_r_y set to _h_i_g_h, the cache is twice as large
+                  (the _n -> _n+_2 transitions are cached as well as the
+                  _n -> _n+_1 ones).  Even with memory set to _m_e_d_i_u_m,
+                  this program can seem sluggish when using the
+                  builtin font over a very slow connection to the
+                  display server.
+
+          ----ffffoooonnnntttt _f_o_n_t_n_a_m_e
+                  Specifies the X font to use; _x_d_a_l_i_c_l_o_c_k can
+                  correctly animate any font that contains all the
+                  digits plus colon and slash, and in which the
+                  letters aren't excessively curly.
+
+                  The _x_d_a_l_i_c_l_o_c_k program contains a pair of builtin
+                  bitmapped fonts, which are larger and more
+                  attractive than the standard X fonts.  One of these
+                  fonts will be used if the -_f_o_n_t option is given one
+                  of the fontnames BBBBUUUUIIIILLLLTTTTIIIINNNN or BBBBUUUUIIIILLLLTTTTIIIINNNN2222.
+
+          ----bbbbuuuuiiiillllttttiiiinnnn
+                  This is the same as specifying -_f_o_n_t _B_U_I_L_T_I_N.
+
+          ----bbbbuuuuiiiillllttttiiiinnnn2222
+                  This is the same as specifying -_f_o_n_t _B_U_I_L_T_I_N_2.
+
+          ----ffffuuuullllllllssssccccrrrreeeeeeeennnn
+                  Make the window take up the whole screen.  When
+                  -_f_u_l_l_s_c_r_e_e_n is specified, the displayed time will
+                  wander around a little, to prevent any pixels from
+                  being on continuously and causing phosphor burn-in.
+
+          ----rrrrooooooootttt   Display the clock on the root window instead of in
+                  its own window.  This makes the digits wander around
+                  too.
+
+          The following standard X Toolkit command line arguments are
+          commonly used with _x_d_a_l_i_c_l_o_c_k:
+
+          ----ddddiiiissssppppllllaaaayyyy _h_o_s_t:_d_p_y
+                  This option specifies the X server to contact.
+
+          ----ggggeeeeoooommmmeeeettttrrrryyyy _g_e_o_m_e_t_r_y
+                  This option specifies the prefered size and position
+                  of the clock window.
+
+          ----bbbbgggg _c_o_l_o_r
+                  This option specifies the color to use for the
+                  background of the window.  The default is ``white.''
+
+          ----ffffgggg _c_o_l_o_r
+                  This option specifies the color to use for the
+
+
+
+     Page 3                                           (printed 6/5/96)
+
+
+
+
+
+
+     XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))        XXXX VVVVeeeerrrrssssiiiioooonnnn 11111111 ((((8888----JJJJaaaannnn----99995555))))        XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))
+
+
+
+                  foreground of the window.  The default is ``black.''
+
+          ----bbbbdddd _c_o_l_o_r
+                  This option specifies the color to use for the
+                  border of the window.  The default is the same as
+                  the foreground color.
+
+          ----rrrrvvvv     This option indicates that reverse video should be
+                  simulated by swapping the foreground and background
+                  colors.
+
+          ----bbbbwwww _n_u_m_b_e_r
+                  This option specifies the width in pixels of the
+                  border surrounding the window.
+
+          ----xxxxrrrrmmmm _r_e_s_o_u_r_c_e_s_t_r_i_n_g
+                  This option specifies a resource string to be used.
+
+     CCCCOOOOMMMMMMMMAAAANNNNDDDDSSSS
+          Clicking and holding any mouse button in the _x_d_a_l_i_c_l_o_c_k
+          window will cause it to display the date while the button is
+          held.
+
+          Typing ``space'' at the _x_d_a_l_i_c_l_o_c_k window will toggle
+          between a twelve hour and twenty-four hour display.
+
+          Typing ``q'' or ``C-c'' at the window quits.
+
+          If the _x_d_a_l_i_c_l_o_c_k window is iconified or otherwise unmapped,
+          it will go to sleep until it is mapped again.
+
+     XXXX DDDDEEEEFFFFAAAAUUUULLLLTTTTSSSS
+          _x_d_a_l_i_c_l_o_c_k understands all of the core resource names and
+          classes as well as:
+
+          sssseeeeccccoooonnnnddddssss ((((class SSSSeeeeccccoooonnnnddddssss))))
+                  Whether to display seconds.  If true, this is the
+                  same as the -_s_e_c_o_n_d_s command line argument; if
+                  false, this is the same as -_n_o_s_e_c_o_n_d_s.
+
+          ccccyyyycccclllleeee ((((class CCCCyyyycccclllleeee))))
+                  Whether to do color cycling.  If true, this is the
+                  same as the -_c_y_c_l_e command line argument; if false,
+                  this is the same as -_n_o_c_y_c_l_e.
+
+          sssshhhhaaaappppeeee ((((class SSSShhhhaaaappppeeee))))
+                  Whether to use the Shape Extension, if available.
+                  If true, this is the same as the -_s_h_a_p_e command line
+                  argument; if false, this is the same as -_n_o_s_h_a_p_e.
+
+          mmmmeeeemmmmoooorrrryyyy ((((class MMMMeeeemmmmoooorrrryyyy))))
+                  This must be _h_i_g_h, _m_e_d_i_u_m, or _l_o_w, the same as the
+
+
+
+     Page 4                                           (printed 6/5/96)
+
+
+
+
+
+
+     XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))        XXXX VVVVeeeerrrrssssiiiioooonnnn 11111111 ((((8888----JJJJaaaannnn----99995555))))        XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))
+
+
+
+                  -_m_e_m_o_r_y command-line option.
+
+          ffffoooonnnntttt ((((class FFFFoooonnnntttt))))
+                  The same as the -_f_o_n_t command line option: the font
+                  to melt.  If this is the string BBBBUUUUIIIILLLLTTTTIIIINNNN, then the
+                  large builtin font is used.  If this is the string
+                  BBBBUUUUIIIILLLLTTTTIIIINNNN2222, then the _e_v_e_n _l_a_r_g_e_r builtin font is used.
+                  Otherwise, this must be the name of a valid X font.
+
+          mmmmooooddddeeee ((((class MMMMooooddddeeee))))
+                  Whether to display 12-hour or 24-hour time.  If 11112222,
+                  this is the same as the -_1_2 command line argument;
+                  if 22224444, this is the same as -_2_4.
+
+          ddddaaaatttteeeemmmmooooddddeeee ((((class DDDDaaaatttteeeeMMMMooooddddeeee))))
+                  Specifies how the date should be printed when a
+                  mouse button is held down.  This may be one of the
+                  strings mmmmmmmm////dddddddd////yyyyyyyy, dddddddd////mmmmmmmm////yyyyyyyy, yyyyyyyy////mmmmmmmm////dddddddd, yyyyyyyy////dddddddd////mmmmmmmm,
+                  mmmmmmmm////yyyyyyyy////dddddddd, or dddddddd////yyyyyyyy////mmmmmmmm.  The default is mmmmmmmm////dddddddd////yyyyyyyy.  If
+                  seconds are not being displayed, then only the first
+                  four digits will ever be displayed (mmmmmmmm////dddddddd instead of
+                  mmmmmmmm////dddddddd////yyyyyyyy, for example.)
+
+          ffffuuuullllllllSSSSccccrrrreeeeeeeennnn ((((class FFFFuuuullllllllSSSSccccrrrreeeeeeeennnn))))
+                  The same as the -_f_u_l_l_s_c_r_e_e_n command-line option.
+
+          rrrrooooooootttt ((((class RRRRooooooootttt))))
+                  The same as the -_r_o_o_t command-line option.
+
+          vvvviiiissssuuuuaaaallllIIIIDDDD ((((class VVVViiiissssuuuuaaaallllIIIIDDDD))))
+                  The same as the -_v_i_s_u_a_l command-line option.
+
+     EEEENNNNVVVVIIIIRRRROOOONNNNMMMMEEEENNNNTTTT
+          DDDDIIIISSSSPPPPLLLLAAAAYYYY
+              to get the default host and display number.
+
+          XXXXEEEENNNNVVVVIIIIRRRROOOONNNNMMMMEEEENNNNTTTT
+              to get the name of a resource file that overrides the
+              global resources stored in the RESOURCE_MANAGER
+              property.
+
+          TTTTZZZZ  to get the current time zone.  If you want to force the
+              clock to display some other time zone, set this variable
+              before starting it.  For example:
+
+                   $ TZ=GMT0 xdaliclock
+                   % ( setenv TZ PST8PDT ; xdaliclock )
+
+              You may notice that the format of the TZ variable (which
+              is used by the C library ccccttttiiiimmmmeeee(3) and llllooooccccaaaallllttttiiiimmmmeeee(3)
+              routines) is not actually documented anywhere.  The
+              fourth character (the digit) is the only thing that
+
+
+
+     Page 5                                           (printed 6/5/96)
+
+
+
+
+
+
+     XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))        XXXX VVVVeeeerrrrssssiiiioooonnnn 11111111 ((((8888----JJJJaaaannnn----99995555))))        XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))
+
+
+
+              really matters: it is the offset in hours from GMT.  The
+              first three characters are ignored.  The last three
+              characters are used to flag daylight savings time: their
+              presence effectively adds 1 to the zone offset.  (I am
+              not making this up...)
+
+     SSSSEEEEEEEE AAAALLLLSSSSOOOO
+          XXXX(1), xxxxrrrrddddbbbb(1), xxxxllllssssffffoooonnnnttttssss(1), xxxxcccclllloooocccckkkk(1), ddddcccclllloooocccckkkk(1), oooocccclllloooocccckkkk(1),
+          ttttcccclllloooocccckkkk(1), xxxxssssccccrrrreeeeeeeennnnssssaaaavvvveeeerrrr(1)
+
+     BBBBUUUUGGGGSSSS
+          Other system load will sometimes cause the second-display to
+          increment by more than one second at a time, in order to
+          remain synchronized to the current time.
+
+          The -_m_e_m_o_r_y option is disgusting and shouldn't be necessary,
+          but I'm not clever enough to eliminate it.  It has been said
+          that hacking graphics in X is like finding _s_q_r_t(_p_i) with
+          roman numerals.
+
+          When using a small font (less than 48x56 or so) it's
+          possible that shipping a bitmap to the server would be more
+          efficient than sending a DrawSegments request (since the
+          endpoints are specified using 16 bits each, when all that we
+          really need is 6 or 7 bits.)
+
+          Support for the Shared Memory Extension would be a good
+          thing.
+
+          It should display the day of the week somewhere.
+
+          The color cycling should be less predictable; it should vary
+          saturation and intensity as well, and should be more careful
+          that foreground and background contrast well.
+
+          Should have a -_a_n_a_l_o_g mode (maybe someday...)
+
+     CCCCOOOOPPPPYYYYRRRRIIIIGGGGHHHHTTTT
+          Copyright 8c9 1991, 1992, 1993, 1994, 1995 by Jamie Zawinski.
+          Permission to use, copy, modify, distribute, and sell this
+          software and its documentation for any purpose is hereby
+          granted without fee, provided that the above copyright
+          notice appear in all copies and that both that copyright
+          notice and this permission notice appear in supporting
+          documentation.  No representations are made about the
+          suitability of this software for any purpose.  It is
+          provided "as is" without express or implied warranty.
+
+     AAAAUUUUTTTTHHHHOOOORRRR
+          Jamie Zawinski <jwz@netscape.com>, 18-sep-91.
+
+          Please let me know if you find any bugs or make any
+
+
+
+     Page 6                                           (printed 6/5/96)
+
+
+
+
+
+
+     XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))        XXXX VVVVeeeerrrrssssiiiioooonnnn 11111111 ((((8888----JJJJaaaannnn----99995555))))        XXXXDDDDaaaalllliiiiCCCClllloooocccckkkk((((1111))))
+
+
+
+          improvements.
+
+          Thanks to Ephraim Vishniac <ephraim@think.com> for
+          explaining the format of the bitmap resources in the
+          Macintosh version of this, so that I could snarf them for
+          the -_b_u_i_l_t_i_n fonts.
+
+          And thanks to Steve Capps for the really great idea.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     Page 7                                           (printed 6/5/96)
+
+
+

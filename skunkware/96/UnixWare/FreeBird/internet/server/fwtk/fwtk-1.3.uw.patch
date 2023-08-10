@@ -1,0 +1,1053 @@
+Index: Makefile.config
+*** fwtk/Makefile.config	Fri Nov  4 23:31:31 1994
+--- fwtk-uw2/Makefile.config	Thu Jul 27 13:13:32 1995
+***************
+*** 25,31 ****
+  # Options for your compiler (eg, "-g" for debugging, "-O" for
+  # optimizing, or "-g -O" for both under GCC)
+  #COPT=	-g -traditional
+! COPT=	-g
+  #COPT=	-O
+  
+  
+--- 25,31 ----
+  # Options for your compiler (eg, "-g" for debugging, "-O" for
+  # optimizing, or "-g -O" for both under GCC)
+  #COPT=	-g -traditional
+! COPT=	-g -DSYSV  -DSVR4 -DRMAIL
+  #COPT=	-O
+  
+  
+***************
+*** 35,45 ****
+  
+  
+  # Your ranlib utility (use "touch" if you don't have ranlib)
+! RANLIB=	ranlib
+  #RANLIB=	touch
+  
+  
+  # Destination directory for installation of binaries
+  DEST=	/usr/local/etc
+  
+  
+--- 35,46 ----
+  
+  
+  # Your ranlib utility (use "touch" if you don't have ranlib)
+! RANLIB=	touch
+  #RANLIB=	touch
+  
+  
+  # Destination directory for installation of binaries
++ #DEST=	/opt/fwtk/bin
+  DEST=	/usr/local/etc
+  
+  
+***************
+*** 49,55 ****
+  
+  # Names of any auxiliary libraries your system may require (e.g., -lsocket)
+  # If you want to link against a resolver library, specify it here.
+! AUXLIB= -lresolv
+  #AUXLIB= -lsocket
+  
+  
+--- 50,56 ----
+  
+  # Names of any auxiliary libraries your system may require (e.g., -lsocket)
+  # If you want to link against a resolver library, specify it here.
+! AUXLIB= -lnsl -lsocket -lresolv -lgen
+  #AUXLIB= -lsocket
+  
+  
+***************
+*** 63,81 ****
+  # or -Bstatic for static binaries under SunOS 4.1.x)
+  #LDFL=	-Bstatic
+  #LDFL=
+! LDFL= -g
+  
+  
+  # Location of the fwtk sources [For #include by any external tools needing it]
+! FWTKSRCDIR=/u/b/mjr/firewall/fwtk
+  #FWTKSRCDIR=/usr/local/src/fwtk
+  
+  
+  # Location of X libraries for X-gw
+  #XLIBDIR=/usr/X11/lib
+! XLIBDIR=/usr/local/X11R5/lib
+  
+  
+  # Location of X include files
+  #XINCLUDE=/usr/X11/include
+! XINCLUDE=/usr/local/X11R5/include
+--- 64,86 ----
+  # or -Bstatic for static binaries under SunOS 4.1.x)
+  #LDFL=	-Bstatic
+  #LDFL=
+! #LDFL= -g
+! #LDFL= -Bstatic
+  
+  
+  # Location of the fwtk sources [For #include by any external tools needing it]
+! FWTKSRCDIR=/home/carson/src/firewalls/fwtk-work
+  #FWTKSRCDIR=/usr/local/src/fwtk
+  
+  
+  # Location of X libraries for X-gw
+  #XLIBDIR=/usr/X11/lib
+! XLIBDIR=/usr/X/lib
+  
+  
+  # Location of X include files
+  #XINCLUDE=/usr/X11/include
+! XINCLUDE=/usr/X/include
+! 
+! # Objects to include in libfwall for SYSV
+! SYSVOBJ=signal.o
+Index: auth/Makefile
+*** fwtk/auth/Makefile	Fri Nov  4 23:31:18 1994
+--- fwtk-uw2/auth/Makefile	Thu Jul 27 13:44:59 1995
+***************
+*** 54,60 ****
+  #security protocol modules
+  MODULES= $(SKEYLIB) $(SECURLIB) $(DESLIB)
+  
+! CFLAGS= -I.. $(COPT)
+  LIB=	../libauth.a
+  FWLIB=	../libfwall.a
+  
+--- 54,60 ----
+  #security protocol modules
+  MODULES= $(SKEYLIB) $(SECURLIB) $(DESLIB)
+  
+! CFLAGS= -I.. $(COPT) -I/usr/include/ -I/usr/ucbinclude
+  LIB=	../libauth.a
+  FWLIB=	../libfwall.a
+  
+***************
+*** 68,84 ****
+  	$(RANLIB) $@
+  
+  authmgr:	$(LIB) $(FWLIB) authmgr.o
+! 	$(CC) $(LDFL) -o $@ authmgr.o $(LIB) $(FWLIB) $(DESLIB) $(AUXLIB)
+  
+  authsrv:	$(LIB) $(FWLIB) authsrv.o $(SRVOBJ)
+! 	$(CC) $(LDFL) -o $@ authsrv.o $(SRVOBJ) $(LIB) $(FWLIB) $(MODULES) $(DBMLIB) $(AUXLIB)
+  	chmod 755 $@
+  
+  authdump:	$(LIB) $(FWLIB) authdump.o db.o
+! 	$(CC) $(LDFL) -o $@ authdump.o db.o $(FWLIB) $(DBMLIB) $(AUXLIB)
+  
+  authload:	$(LIB) $(FWLIB) authload.o db.o
+! 	$(CC) $(LDFL) -o $@ authload.o db.o $(FWLIB) $(DBMLIB) $(AUXLIB)
+  
+  snkkey:	snkkey.o
+  	$(CC) $(LDFL) -o $@ snkkey.o $(DESLIB) $(AUXLIB)
+--- 68,84 ----
+  	$(RANLIB) $@
+  
+  authmgr:	$(LIB) $(FWLIB) authmgr.o
+! 	$(CC) $(LDFL) -o $@ authmgr.o $(LIB) $(FWLIB) $(DESLIB) $(AUXLIB) 
+  
+  authsrv:	$(LIB) $(FWLIB) authsrv.o $(SRVOBJ)
+! 	$(CC) $(LDFL) -o $@ authsrv.o $(SRVOBJ) $(LIB) $(FWLIB) $(MODULES) $(DBMLIB) $(AUXLIB) -lc -L/usr/ucblib -lucb
+  	chmod 755 $@
+  
+  authdump:	$(LIB) $(FWLIB) authdump.o db.o
+! 	$(CC) $(LDFL) -o $@ authdump.o db.o $(FWLIB) $(DBMLIB) $(AUXLIB) -lc -L/usr/ucblib -lucb
+  
+  authload:	$(LIB) $(FWLIB) authload.o db.o
+! 	$(CC) $(LDFL) -o $@ authload.o db.o $(FWLIB) $(DBMLIB) $(AUXLIB) -lc -L/usr/ucblib -lucb
+  
+  snkkey:	snkkey.o
+  	$(CC) $(LDFL) -o $@ snkkey.o $(DESLIB) $(AUXLIB)
+Index: auth/authsrv.c
+*** fwtk/auth/authsrv.c	Fri Nov  4 23:31:15 1994
+--- fwtk-uw2/auth/authsrv.c	Thu Jul 27 12:54:02 1995
+***************
+*** 14,20 ****
+--- 14,23 ----
+  #include	<syslog.h>
+  #include	<time.h>
+  
++ /* Added for Solaris 2.3 Compatibility 11/08/94, dbsmall */
++ #ifndef SYSV
+  extern	char	*rindex();
++ #endif /*SYSV*/
+  extern	char	*ctime();
+  
+  #include	"firewall.h"
+Index: firewall.h
+*** fwtk/firewall.h	Fri Nov  4 23:31:26 1994
+--- fwtk-uw2/firewall.h	Thu Jul 27 13:18:13 1995
+***************
+*** 34,41 ****
+  #define	FWTK_VERSION		"TIS Internet Firewall Toolkit V1.3"
+  #define	FWTK_VERSION_MINOR	"V1.3"
+  
+  
+- 
+  /*
+  The firewall toolkit uses a single master configuration
+  and permissions file. Edit this as necessary for your
+--- 34,44 ----
+  #define	FWTK_VERSION		"TIS Internet Firewall Toolkit V1.3"
+  #define	FWTK_VERSION_MINOR	"V1.3"
+  
++ /*
++ If your headers define getenv to take const char *name, define this
++ */
++ #define GETENV_CONST_CHAR
+  
+  /*
+  The firewall toolkit uses a single master configuration
+  and permissions file. Edit this as necessary for your
+***************
+*** 53,59 ****
+  this value for logging entries.
+  */
+  #ifndef	LLEV
+! #define	LLEV	LOG_NOTICE
+  #endif
+  
+  
+--- 56,62 ----
+  this value for logging entries.
+  */
+  #ifndef	LLEV
+! #define	LLEV	LOG_INFO
+  #endif
+  
+  
+***************
+*** 62,67 ****
+--- 65,80 ----
+  #define	LFAC	LOG_DAEMON
+  #endif
+  
++ /* This is for Solaris 2.3 Compatibility */
++ /* Added by David Small, 11/4/94	 */
++ #ifdef SYSV
++ #define index strchr
++ #define rindex strrchr
++ #define bcopy(f,t,l) memmove(t,f,l)
++ #define bcmp memcmp
++ #define bzero(s,n) memset(s,(char)0,n)
++ #endif /*SYSV*/
++ /* end of Solaris Modifications */
+  
+  /*
+  Pick one of these two ways of declaring malloc(). This
+***************
+*** 77,84 ****
+  makes no difference. make sure that whichever your machine uses
+  is defined below.
+  */
+! #define DIRECT_STRUCT   struct direct
+! /* #define DIRECT_STRUCT   struct dirent */
+  
+  
+  /*
+--- 90,97 ----
+  makes no difference. make sure that whichever your machine uses
+  is defined below.
+  */
+! /*        #define DIRECT_STRUCT   struct direct */
+! #define DIRECT_STRUCT   struct dirent
+  
+  
+  /*
+***************
+*** 87,94 ****
+  enables lockf() style locking.
+  The locking primitives are implemented in lib/lock.c
+  */
+! #define	LOCK_FLOCK
+! /* #define	LOCK_LOCKF */
+  
+  
+  
+--- 100,107 ----
+  enables lockf() style locking.
+  The locking primitives are implemented in lib/lock.c
+  */
+! /*             #define	LOCK_FLOCK */
+! #define	LOCK_LOCKF
+  
+  
+  
+***************
+*** 100,106 ****
+  This primitive is implemented in lib/urg.c
+  */
+  #define	USE_F_SETOWN
+! /* #define	USE_SIOCSPGRP */
+  
+  
+  
+--- 113,119 ----
+  This primitive is implemented in lib/urg.c
+  */
+  #define	USE_F_SETOWN
+! /*#define	USE_SIOCSPGRP */
+  
+  
+  
+***************
+*** 119,126 ****
+  pick which one you use. Or if you want to use a different
+  PRNG, replace the one in lib/rand.c
+  */
+! #define	USE_RANDOM
+! /* #define	USE_RAND */
+  
+  
+  
+--- 132,139 ----
+  pick which one you use. Or if you want to use a different
+  PRNG, replace the one in lib/rand.c
+  */
+! /*      #define	USE_RANDOM */
+! #define	USE_RAND
+  
+  
+  
+Index: ftp-gw/ftp-gw.c
+*** fwtk/ftp-gw/ftp-gw.c	Fri Nov  4 23:30:16 1994
+--- fwtk-uw2/ftp-gw/ftp-gw.c	Thu Jul 27 12:54:02 1995
+***************
+*** 25,34 ****
+--- 25,41 ----
+  #include	<sys/time.h>
+  #include	<sys/types.h>
+  #include	<sys/socket.h>
++ /* Also Added for Solaris 2.3 Compatiblity, dbsmall 11/08/94 */
++ #ifdef SYSV
++ #include	<sys/sockio.h>
++ #endif /*SYSV*/
+  #include	<netinet/in.h>
+  
++ /* Added for Solaris 2.3 Compatibility, dbsmall 11/08/94 */
++ #ifndef SYSV
+  extern	char	*rindex();
+  extern	char	*index();
++ #endif /*SYSV*/
+  extern	char	*strtok();
+  extern	char	*inet_ntoa();
+  
+Index: http-gw/Makefile
+*** fwtk/http-gw/Makefile	Fri Nov  4 23:31:27 1994
+--- fwtk-uw2/http-gw/Makefile	Thu Jul 27 12:59:40 1995
+***************
+*** 19,28 ****
+  all:	version http-gw gauthd
+  
+  http-gw: version.h http-gw.o ../libfwall.a ../libauth.a
+! 	cc $(CFLAGS) -o $@ http-gw.o ../libfwall.a ../libauth.a
+  
+  gauthd:	gauthd.o ../libfwall.a ../libauth.a
+! 	cc $(CFLAGS) -o $@ gauthd.o ../libfwall.a ../libauth.a
+  
+  version: version.o
+  	cc $(CFLAGS) -o $@ version.o
+--- 19,28 ----
+  all:	version http-gw gauthd
+  
+  http-gw: version.h http-gw.o ../libfwall.a ../libauth.a
+! 	cc $(CFLAGS) -o $@ http-gw.o ../libfwall.a ../libauth.a $(AUXLIB)
+  
+  gauthd:	gauthd.o ../libfwall.a ../libauth.a
+! 	cc $(CFLAGS) -o $@ gauthd.o ../libfwall.a ../libauth.a $(AUXLIB)
+  
+  version: version.o
+  	cc $(CFLAGS) -o $@ version.o
+Index: http-gw/gauthd.c
+*** fwtk/http-gw/gauthd.c	Fri Nov  4 23:31:27 1994
+--- fwtk-uw2/http-gw/gauthd.c	Thu Jul 27 12:54:03 1995
+***************
+*** 27,36 ****
+--- 27,43 ----
+  #include	<sys/time.h>
+  #include	<sys/types.h>
+  #include	<sys/socket.h>
++ /* Inserted for Solaris 2.3 Compatibility, dbsmall 11/08/94 */
++ #ifdef SYSV
++ #include	<sys/sockio.h>
++ #endif /*SYSV*/
+  #include	<netinet/in.h>
+  
++ /*Inserted for Solaris 2.3 Compatibility, dbsmall 11/08/94 */
++ #ifndef SYSV
+  extern	char	*rindex();
+  extern	char	*index();
++ #endif /*SYSV*/
+  extern	char	*strtok();
+  extern	char	*inet_ntoa();
+  
+Index: http-gw/http-gw.c
+*** fwtk/http-gw/http-gw.c	Fri Nov  4 23:31:28 1994
+--- fwtk-uw2/http-gw/http-gw.c	Thu Jul 27 12:54:03 1995
+***************
+*** 17,23 ****
+  
+  #include	<stdio.h>
+  #include	<ctype.h>
+- #include	<syslog.h>
+  #include	<sys/signal.h>
+  #include	<sys/ioctl.h>
+  #include	<sys/errno.h>
+--- 17,22 ----
+***************
+*** 30,48 ****
+  #include	<sys/time.h>
+  #include	<sys/types.h>
+  #include	<sys/socket.h>
+  #include	<netinet/in.h>
+  #include	<netdb.h>
+  #include	<string.h>
+- #include	<varargs.h>
+  
+- 
+  #include	<net/if.h>
+  #ifndef VERSION
+  #include	"version.h"
+  #endif
+  
+  extern	char	*rindex();
+  extern	char	*index();
+  extern	char	*strtok();
+  extern	char	*inet_ntoa();
+  
+--- 29,52 ----
+  #include	<sys/time.h>
+  #include	<sys/types.h>
+  #include	<sys/socket.h>
++ /*Added for Solaris 2.3 Compatibility, dbsmall 11/08/94 */
++ #ifdef SYSV
++ #include	<sys/sockio.h>
++ #endif /*SYSV*/
+  #include	<netinet/in.h>
+  #include	<netdb.h>
+  #include	<string.h>
+  
+  #include	<net/if.h>
+  #ifndef VERSION
+  #include	"version.h"
+  #endif
+  
++ /* Added for Solaris 2.3 Compatibility, dbsmall 11/08/94 */
++ #ifndef SYSV
+  extern	char	*rindex();
+  extern	char	*index();
++ #endif /*SYSV*/
+  extern	char	*strtok();
+  extern	char	*inet_ntoa();
+  
+***************
+*** 49,54 ****
+--- 53,63 ----
+  extern	char	*optarg;
+  
+  #include	"firewall.h"
++ 
++ #include	<varargs.h>
++ 
++ /* This _must_ be _after_ varargs.h, or stdarg.h gets included */
++ #include	<syslog.h>
+  
+  #ifndef	VERSION
+  #define	VERSION	"0.9"
+Index: http-gw/version.h
+*** fwtk/http-gw/version.h	Fri Nov  4 23:31:28 1994
+--- fwtk-uw2/http-gw/version.h	Thu Jul 27 12:54:03 1995
+***************
+*** 1 ****
+! #define VERSION "Ver 1.0 / 42"
+--- 1 ----
+! #define VERSION "Ver 1.0 / 49"
+Index: lib/Makefile
+*** fwtk/lib/Makefile	Fri Nov  4 23:30:21 1994
+--- fwtk-uw2/lib/Makefile	Thu Jul 27 13:41:18 1995
+***************
+*** 20,26 ****
+  SYSLOG=	syslog.o
+  
+  OBJ=	config.o daemon.o pname.o nama.o mapu.o mapg.o conn.o hnam.o \
+! 	mktemp.o rand.o enargv.o alldi.o lock.o urg.o $(SYSLOG)
+  
+  
+  all:	$(LIB)
+--- 20,26 ----
+  SYSLOG=	syslog.o
+  
+  OBJ=	config.o daemon.o pname.o nama.o mapu.o mapg.o conn.o hnam.o \
+! 	mktemp.o rand.o enargv.o alldi.o lock.o urg.o $(SYSLOG) $(SYSVOBJ)
+  
+  
+  all:	$(LIB)
+Index: lib/config.c
+*** fwtk/lib/config.c	Fri Nov  4 23:30:18 1994
+--- fwtk-uw2/lib/config.c	Thu Jul 27 12:54:03 1995
+***************
+*** 17,23 ****
+--- 17,26 ----
+  #include	<syslog.h>
+  
+  extern	char	*strtok();
++ /* Added for Solaris Compatibility, dbsmall 11/08/94 */
++ #ifndef SYSV
+  extern	char	*index();
++ #endif /*SYSV*/
+  
+  #include	"firewall.h"
+  
+Index: lib/signal.c
+*** fwtk/lib/signal.c	Fri Jul 28 09:04:46 1995
+--- fwtk-uw2/lib/signal.c	Thu Jul 27 12:54:03 1995
+***************
+*** 0 ****
+--- 1,27 ----
++ /* Reliable version of signal(), using POSIX sigaction().  */
++ 
++ #include	<signal.h>
++ 
++ typedef void    Sigfunc(int);
++ 
++ Sigfunc *
++ signal(int signo, Sigfunc *func)
++ {
++ 	struct sigaction	act, oact;
++ 
++ 	act.sa_handler = func;
++ 	sigemptyset(&act.sa_mask);
++ 	act.sa_flags = 0;
++ 	if (signo == SIGALRM) {
++ #ifdef	SA_INTERRUPT
++ 		act.sa_flags |= SA_INTERRUPT;	/* SunOS */
++ #endif
++ 	} else {
++ #ifdef	SA_RESTART
++ 		act.sa_flags |= SA_RESTART;		/* SVR4, 44BSD */
++ #endif
++ 	}
++ 	if (sigaction(signo, &act, &oact) < 0)
++ 		return(SIG_ERR);
++ 	return(oact.sa_handler);
++ }
+Index: lib/syslog.c
+Prereq: 5.36
+*** fwtk/lib/syslog.c	Fri Nov  4 23:30:21 1994
+--- fwtk-uw2/lib/syslog.c	Thu Jul 27 12:54:03 1995
+***************
+*** 80,86 ****
+--- 80,89 ----
+  
+  void vsyslog();
+  void openlog();
++ /* Added for Solaris 2.3 Compaitiblity */
++ #ifndef SYSV
+  extern	char *index();
++ #endif /*SYSV*/
+  
+  /*
+   * syslog, vsyslog --
+Index: rlogin-gw/rlogin-gw.c
+*** fwtk/rlogin-gw/rlogin-gw.c	Fri Nov  4 23:31:20 1994
+--- fwtk-uw2/rlogin-gw/rlogin-gw.c	Thu Jul 27 12:54:03 1995
+***************
+*** 17,22 ****
+--- 17,26 ----
+  #include	<sys/types.h>
+  #include	<sys/time.h>
+  #include	<sys/socket.h>
++ /*Added for Solaris 2.3 Compatibility, dbsmall 11/08/94 */
++ #ifdef SYSV
++ #include	<sys/sockio.h>
++ #endif /*SYSV*/
+  #include	<sys/signal.h>
+  #include	<sys/ioctl.h>
+  #include	<fcntl.h>
+***************
+*** 25,31 ****
+--- 29,38 ----
+  
+  #include	"firewall.h"
+  
++ /*Included for Solaris 2.3 compatiblity, dbsmall 11/08/94 */
++ #ifndef SYSV
+  extern	char	*index();
++ #endif /*SYSV*/
+  
+  #define	RLOGINPORT	513
+  
+Index: smap/smap.c
+*** fwtk/smap/smap.c	Fri Nov  4 23:30:12 1994
+--- fwtk-uw2/smap/smap.c	Thu Jul 27 13:03:46 1995
+***************
+*** 26,31 ****
+--- 26,34 ----
+  
+  #include	"firewall.h"
+  
++ #ifdef SVR4
++ #define VERSION  "(UnixWare2/v1.3)"
++ #endif
+  /*
+  	smap - sendmail wrapper.
+  
+***************
+*** 204,216 ****
+--- 207,228 ----
+  		strcpy(myhostname,"amnesiac");
+  	else if ((hp = gethostbyname(myhostname)) != 0)
+  		strcpy(myhostname,hp->h_name);
++ #ifdef SVR4
++         printf("220 %s SMTP/smap %s Ready.\r\n",myhostname,VERSION);
++ #else 
+  	printf("220 %s SMTP/smap Ready.\r\n",myhostname);
++ #endif
+  	fflush(stdout);
+  
+  
+  #ifdef	SO_KEEPALIVE
+  	x = 1;
++ /*added for Solaris 2.3 Compatiblity, dbsmall 11/08/94 */
++ #ifndef SYSV
+  	(void)setsockopt(fileno(stdin),SOL_SOCKET,SO_KEEPALIVE,&x,sizeof(x));
++ #else /*SYSV*/
++ 	(int)setsockopt(fileno(stdin),SOL_SOCKET,SO_KEEPALIVE,&x,sizeof(x));
++ #endif /*SYSV*/
+  #endif
+  
+  	while(1) {
+***************
+*** 455,464 ****
+--- 467,484 ----
+  			char	*q;
+  
+  			if((q = strtok((char *)0,"\r\n")) == (char *)0) {
++ #ifdef SVR4
++                                 printf("250 %s Hello pleased to meet you\r\n",myhostname);
++ #else
+  				printf("250 Charmed, Im sure.\r\n");
++ #endif
+  				rhost = "??";
+  			} else {
++ #ifdef SVR4
++                                 printf("250 %s Hello %s pleased to meet you.\r\n",myhostname,q);
++ #else
+  				printf("250 (%s) pleased to meet you.\r\n",q);
++ #endif
+  				rhost = malloc(strlen(q) + 1);
+  				strcpy(rhost,q);
+  			}
+Index: smapd/smapd.c
+*** fwtk/smapd/smapd.c	Fri Nov  4 23:30:13 1994
+--- fwtk-uw2/smapd/smapd.c	Thu Jul 27 13:08:35 1995
+***************
+*** 11,17 ****
+--- 11,23 ----
+   */
+  static	char	RcsId[] = "$Header: smapd.c,v 1.8 94/11/01 11:57:58 mjr rel $";
+  
++ /* Changes for UnixWare 2  have been added under the
++  * following #defines
++  *	-D SVR4 - the default build uses sendmail in /usr/ucblib/sendmail
++  *  	-D RMAIL will use the UnixWare2 utility mailWrapper to deliver mail. 
++  */
+  
++ 
+  #include	<stdio.h>
+  #include	<syslog.h>
+  #include	<sysexits.h>
+***************
+*** 19,28 ****
+--- 25,42 ----
+  #include	<sys/param.h>
+  #include	<sys/types.h>
+  #include	<sys/stat.h>
++ #ifdef SVR4
++ #include 	<dirent.h>
++ #include	<fcntl.h>
++ #include	<sys/wait.h>
++ #else
+  #include	<sys/file.h>
+  #include	<sys/dir.h>
++ #endif
++ 
+  #include	<sys/signal.h>
+  
++ 
+  #include	"firewall.h"
+  
+  #define	MAXSM	512
+***************
+*** 49,55 ****
+--- 63,71 ----
+  */
+  
+  
++ #ifndef SYSV
+  extern	char	*index();
++ #endif
+  
+  
+  struct	towho	{
+***************
+*** 59,65 ****
+--- 75,89 ----
+  
+  static	char	*baddir = (char *)0;
+  static	char	*badargcount = "fwtkcfgerr: config line %d - incorrect number of parameters";
++ #ifdef SVR4
++ #ifdef RMAIL
++ static	char	*smailprog = "/usr/lib/mail/surrcmd/mailWrapper";
++ #else
++ static	char	*smailprog = "/usr/ucblib/sendmail";
++ #endif
++ #else
+  static	char	*smailprog = "/usr/lib/sendmail";
++ #endif
+  int		maxpids = 6;
+  int		curpids = 0;
+  int		dbgflg = 0;
+***************
+*** 385,390 ****
+--- 409,416 ----
+  				syslog(LLEV,"fwtksyserr: malloc: %m");
+  				goto leave_gracefully;
+  			}
++ 	if(dbgflg)
++ 		fprintf(stderr,"to %s\n",x);
+  
+  			strcpy(nrec->who,x);
+  			nrec->nxt = recips;
+***************
+*** 450,463 ****
+--- 476,511 ----
+  		while(nrec != (struct towho *)0) {
+  			if(i > MAXSM - 2)
+  				break;
++ #if defined( SVR4) && defined (RMAIL)
++ /* mailWrapper needs -r for recipients */
++ 		if(dbgflg)
++ 		   fprintf(stderr,"RMAIL:add -r recipient flag\n");
++ 		faka[i++] = "-r";
++ #endif
+  			faka[i++] = nrec->who;
+  			nrec = nrec->nxt;
+  		}
++ #if (defined(SVR4) && defined(RMAIL))
++ 	/* need to add a pathname for mailWrapper - use stdin fd*/
++ 		faka[i++] ="/dev/fd/0";
++ #endif
+  		faka[i] = (char *)0;
+  
+  		if((pid = fork()) == 0) {
+  			int	fd;
+  
++ 
++ #if defined(SVR4) && defined (RMAIL)
++ 	int x;
++ 
++ 	if (dbgflg) {
++ 		for (x =0 ; x <MAXSM; x++) {
++ 			if  ( faka[x] == (char *) 0)
++ 				break;
++ 			fprintf(stderr,"faka[%d] =%s\n",x,faka[x]);
++ 		}
++ 	}
++ #endif
+  			/*
+  			opened twice!!!
+  			kludge to get around busted mach2.0
+***************
+*** 481,490 ****
+--- 529,563 ----
+  			exit(1);
+  		}
+  
++ #ifdef SVR4
++ 		while (( wx= wait(&w)) >=0 ) {
++ 	
++ 		if (wx != pid) {
++ 		/* some other child? */
++ 		}
++ 		else if (!WIFEXITED(w)) {
++                 /* Not a normal Exit */
++                 break;
++                 }
++             	else if(WEXITSTATUS(w) == 0) {
++                 break;
++                 }
++             	else {
++                 	break;
++                 }    
++ 		}
++ 
++ #else
+  		while((wx = wait(&w)) != pid && wx != -1)
+  			;
++ #endif
++ 
+  #ifdef	WEXITSTATUS
+  		w = WEXITSTATUS(w);
++ #ifdef SVR4
++ 		if (dbgflg)
++ 			fprintf(stderr,"CHILD exit status: %d\n", w);
++ #endif
+  #endif
+  
+  		if(w != 0)
+Index: sysexits.h
+*** fwtk/sysexits.h	Fri Jul 28 09:04:40 1995
+--- fwtk-uw2/sysexits.h	Thu Jul 27 12:54:04 1995
+***************
+*** 0 ****
+--- 1,119 ----
++ /*
++  * Copyright (c) 1987 Regents of the University of California.
++  * All rights reserved.
++  *
++  * Redistribution and use in source and binary forms, with or without
++  * modification, are permitted provided that the following conditions
++  * are met:
++  * 1. Redistributions of source code must retain the above copyright
++  *    notice, this list of conditions and the following disclaimer.
++  * 2. Redistributions in binary form must reproduce the above copyright
++  *    notice, this list of conditions and the following disclaimer in the
++  *    documentation and/or other materials provided with the distribution.
++  * 3. All advertising materials mentioning features or use of this software
++  *    must display the following acknowledgement:
++  *	This product includes software developed by the University of
++  *	California, Berkeley and its contributors.
++  * 4. Neither the name of the University nor the names of its contributors
++  *    may be used to endorse or promote products derived from this software
++  *    without specific prior written permission.
++  *
++  * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
++  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++  * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
++  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
++  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
++  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
++  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
++  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
++  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
++  * SUCH DAMAGE.
++  *
++  *	from: @(#)sysexits.h	4.8 (Berkeley) 4/3/91
++  *	$Id: sysexits.h,v 1.3 1993/08/01 18:45:12 mycroft Exp $
++  */
++ 
++ #ifndef	_SYSEXITS_H_
++ #define	_SYSEXITS_H_
++ 
++ /*
++  *  SYSEXITS.H -- Exit status codes for system programs.
++  *
++  *	This include file attempts to categorize possible error
++  *	exit statuses for system programs, notably delivermail
++  *	and the Berkeley network.
++  *
++  *	Error numbers begin at EX__BASE to reduce the possibility of
++  *	clashing with other exit statuses that random programs may
++  *	already return.  The meaning of the codes is approximately
++  *	as follows:
++  *
++  *	EX_USAGE -- The command was used incorrectly, e.g., with
++  *		the wrong number of arguments, a bad flag, a bad
++  *		syntax in a parameter, or whatever.
++  *	EX_DATAERR -- The input data was incorrect in some way.
++  *		This should only be used for user's data & not
++  *		system files.
++  *	EX_NOINPUT -- An input file (not a system file) did not
++  *		exist or was not readable.  This could also include
++  *		errors like "No message" to a mailer (if it cared
++  *		to catch it).
++  *	EX_NOUSER -- The user specified did not exist.  This might
++  *		be used for mail addresses or remote logins.
++  *	EX_NOHOST -- The host specified did not exist.  This is used
++  *		in mail addresses or network requests.
++  *	EX_UNAVAILABLE -- A service is unavailable.  This can occur
++  *		if a support program or file does not exist.  This
++  *		can also be used as a catchall message when something
++  *		you wanted to do doesn't work, but you don't know
++  *		why.
++  *	EX_SOFTWARE -- An internal software error has been detected.
++  *		This should be limited to non-operating system related
++  *		errors as possible.
++  *	EX_OSERR -- An operating system error has been detected.
++  *		This is intended to be used for such things as "cannot
++  *		fork", "cannot create pipe", or the like.  It includes
++  *		things like getuid returning a user that does not
++  *		exist in the passwd file.
++  *	EX_OSFILE -- Some system file (e.g., /etc/passwd, /etc/utmp,
++  *		etc.) does not exist, cannot be opened, or has some
++  *		sort of error (e.g., syntax error).
++  *	EX_CANTCREAT -- A (user specified) output file cannot be
++  *		created.
++  *	EX_IOERR -- An error occurred while doing I/O on some file.
++  *	EX_TEMPFAIL -- temporary failure, indicating something that
++  *		is not really an error.  In sendmail, this means
++  *		that a mailer (e.g.) could not create a connection,
++  *		and the request should be reattempted later.
++  *	EX_PROTOCOL -- the remote system returned something that
++  *		was "not possible" during a protocol exchange.
++  *	EX_NOPERM -- You did not have sufficient permission to
++  *		perform the operation.  This is not intended for
++  *		file system problems, which should use NOINPUT or
++  *		CANTCREAT, but rather for higher level permissions.
++  */
++ 
++ #define EX_OK		0	/* successful termination */
++ 
++ #define EX__BASE	64	/* base value for error messages */
++ 
++ #define EX_USAGE	64	/* command line usage error */
++ #define EX_DATAERR	65	/* data format error */
++ #define EX_NOINPUT	66	/* cannot open input */
++ #define EX_NOUSER	67	/* addressee unknown */
++ #define EX_NOHOST	68	/* host name unknown */
++ #define EX_UNAVAILABLE	69	/* service unavailable */
++ #define EX_SOFTWARE	70	/* internal software error */
++ #define EX_OSERR	71	/* system error (e.g., can't fork) */
++ #define EX_OSFILE	72	/* critical OS file missing */
++ #define EX_CANTCREAT	73	/* can't create (user) output file */
++ #define EX_IOERR	74	/* input/output error */
++ #define EX_TEMPFAIL	75	/* temp failure; user is invited to retry */
++ #define EX_PROTOCOL	76	/* remote error in protocol */
++ #define EX_NOPERM	77	/* permission denied */
++ #define EX_CONFIG	78	/* configuration error */
++ 
++ #define EX__MAX	78	/* maximum listed value */
++ 
++ #endif /* !_SYSEXITS_H_ */
+Index: tn-gw/tn-gw.c
+*** fwtk/tn-gw/tn-gw.c	Fri Nov  4 23:30:18 1994
+--- fwtk-uw2/tn-gw/tn-gw.c	Thu Jul 27 12:54:04 1995
+***************
+*** 27,36 ****
+--- 27,43 ----
+  #include	<sys/time.h>
+  #include	<sys/types.h>
+  #include	<sys/socket.h>
++ /*Added for Solaris 2.3 Compaitiblity, dbsmall 11/08/94 */
++ #ifdef SYSV
++ #include	<sys/sockio.h>
++ #endif /*SYSV*/
+  #include	<netinet/in.h>
+  #include	<netdb.h>
+  
++ /*Added for Solaris 2.3 Compatibility, dsmall 11/08/94 */
++ #ifndef SYSV
+  extern	char	*index();
++ #endif /*SYSV*/
+  
+  #include	"firewall.h"
+  
+Index: tools/admin/portscan/portscan.c
+*** fwtk/tools/admin/portscan/portscan.c	Fri Nov  4 23:31:05 1994
+--- fwtk-uw2/tools/admin/portscan/portscan.c	Thu Jul 27 12:54:04 1995
+***************
+*** 4,9 ****
+--- 4,10 ----
+  #include	<sys/socket.h>
+  #include	<netinet/in.h>
+  #include	<netdb.h>
++ #include	"/usr/local/src/fwtk1.3.dbs/firewall.h"
+  
+  extern	char		*optarg;
+  extern	int		optind;
+Index: x-gw/getenv.c
+Prereq: 5.8
+*** fwtk/x-gw/getenv.c	Fri Nov  4 23:31:22 1994
+--- fwtk-uw2/x-gw/getenv.c	Thu Jul 27 12:54:04 1995
+***************
+*** 38,43 ****
+--- 38,44 ----
+  #include <stdlib.h>
+  #include <stddef.h>
+  #include <string.h>
++ #include "firewall.h"
+  
+  /*
+   * getenv --
+***************
+*** 45,51 ****
+--- 46,56 ----
+   */
+  char *
+  getenv(name)
++ #if defined(GETENV_CONST_CHAR)
++ 	const char *name;
++ #else
+  	char *name;
++ #endif
+  {
+  	int offset;
+  	char *_findenv();
+Index: x-gw/setenv.c
+Prereq: 5.6
+*** fwtk/x-gw/setenv.c	Fri Nov  4 23:31:23 1994
+--- fwtk-uw2/x-gw/setenv.c	Thu Jul 27 12:54:04 1995
+***************
+*** 31,36 ****
+--- 31,39 ----
+   * SUCH DAMAGE.
+   */
+  
++ /*Added to make the TIS fwtk have bcopy mapped for Solaris 2.3, dbsmall 11/08/94*/
++ #include	"firewall.h"
++ 
+  #if defined(LIBC_SCCS) && !defined(lint)
+  static char sccsid[] = "@(#)setenv.c	5.6 (Berkeley) 6/4/91";
+  #endif /* LIBC_SCCS and not lint */
+Index: x-gw/sig.c
+*** fwtk/x-gw/sig.c	Fri Nov  4 23:31:24 1994
+--- fwtk-uw2/x-gw/sig.c	Thu Jul 27 12:54:04 1995
+***************
+*** 29,38 ****
+  pid_t sigpid;
+  {
+          pid_t              temppid;
+! #ifdef __386BSD__   
+  	int                wstatus;
+! #else
+  	union  wait        wstatus; 
+  #endif
+  	int                exitstat, wopts=WNOHANG;
+  
+--- 29,43 ----
+  pid_t sigpid;
+  {
+          pid_t              temppid;
+! /*Modified for Solaris 2.3 Compatiblilty, dbsmall 11/08/94 */
+! #ifndef SYSV
+! #ifdef __386BSD__
+  	int                wstatus;
+! #else 
+  	union  wait        wstatus; 
++ #endif
++ #else
++ 	int		   wstatus;
+  #endif
+  	int                exitstat, wopts=WNOHANG;
+  
+Index: x-gw/ulib.h
+*** fwtk/x-gw/ulib.h	Fri Nov  4 23:31:25 1994
+--- fwtk-uw2/x-gw/ulib.h	Thu Jul 27 12:54:04 1995
+***************
+*** 18,23 ****
+--- 18,25 ----
+  #include "list.h"
+  
+  #include <X11/Intrinsic.h>
++ /*Added for Solaris 2.3 Compatibility */
++ #include	"firewall.h"
+  
+  #ifndef LLEV
+  #define LLEV    LOG_NOTICE

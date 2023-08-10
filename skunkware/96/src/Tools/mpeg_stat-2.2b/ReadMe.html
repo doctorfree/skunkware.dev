@@ -1,0 +1,281 @@
+<HTML>
+<HEAD>
+<TITLE>mpeg_stat</TITLE>
+</HEAD>
+<!--
+Light Blue Background
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+New Midnight Blue Background
+<BODY BGCOLOR=#00009C LINK=#00FFFF VLINK=#00C8C8 TEXT=#23D8FF ALINK=#00FF00>
+White Background
+<BODY BGCOLOR=#FFFFFF TEXT=#000000 LINK=#0000FF VLINK=#00009C ALINK=#00FF00>
+Black Background
+<BODY BGCOLOR=#000000  TEXT=#FFFFFF LINK=#0077FF VLINK=#FF3EE4 ALINK=#00FF00>
+-->
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+<H1>mpeg_stat</H1>
+<HR>
+<PRE>
+<STRONG>NAME</STRONG>
+  mpeg_stat - analyzes MPEG-1 encoded bitstreams
+
+<STRONG>SYNOPSIS</STRONG>
+  <STRONG>mpeg_stat</STRONG> [ <STRONG>-all</STRONG> <STRONG>basename</STRONG> ] [ <STRONG>-block_info</STRONG> <STRONG>filename</STRONG> ] [ <STRONG>-dct</STRONG>
+  ] [ <STRONG>-end</STRONG> <STRONG>N</STRONG> ] [ <STRONG>-histogram</STRONG> <STRONG>filename</STRONG> ] [ <STRONG>-offsets</STRONG> <STRONG>filename</STRONG> ] [
+  <STRONG>-qscale</STRONG> <STRONG>filename</STRONG> ] [ <STRONG>-quiet</STRONG> ] [ <STRONG>-rate</STRONG> <STRONG>filename</STRONG> ] [ <STRONG>-</STRONG>
+  <STRONG>ratelength</STRONG> <STRONG>N</STRONG> ] [ <STRONG>-time</STRONG> ] [ <STRONG>-size</STRONG> <STRONG>filename</STRONG> ] [ <STRONG>-start</STRONG> <STRONG>N</STRONG> ] [
+  <STRONG>-syslog</STRONG> <STRONG>filename</STRONG> ] [ <STRONG>-userdata</STRONG> <STRONG>filename</STRONG> ] [ <STRONG>-verify</STRONG> ] <STRONG>[</STRONG>
+  <STRONG>file_name</STRONG> <STRONG>]</STRONG>
+
+<STRONG>DESCRIPTION</STRONG>
+  <STRONG>mpeg_stat</STRONG> decodes mpeg-1 encoded bitstreams collecting
+  varying amounts of statistics.  Errors are sent to stderr,
+  basic statistics to stdout.  The basic information is the
+  pattern of frames used, number of bytes for each frame type,
+  the specified parameters, and lengths of vectors.  For each
+  frame type, the average size, compression rate, Q-factor,
+  and time to decode are given.  Wherever a filename is
+  requested - can be used to denote stdin/out.
+
+<STRONG>OPTIONS</STRONG>
+  <STRONG>-all</STRONG> <STRONG>basename</STRONG> : records information from all options
+	   (qscale, block_info, etc.) into files with basenames of
+	   basename (For wizards, -all foo -block_info bar will
+	   record all options BUT -block_info into files of the
+	   form foo.*).
+
+  <STRONG>-block_info</STRONG> <STRONG>filename</STRONG> : records information about every block
+	   into file filename.  Useful for detailed analysis and
+	   to make specifics files for re-encoding (see
+	   block2spec).  The format is:
+
+	   frame frame# IPB-type mv-scale temporal_ref
+
+	   slice slice# q-scale
+
+	   block block# IPB-type Q-scale bits block-type
+			&lt;vectors-if-any&gt; &lt;cbp&gt; &lt;dct decode&gt;
+  Numbering starts at 0 (except slices) and all motion vectors
+  are in half-pel units &lt;X Y&gt;.
+
+  <STRONG>-dct</STRONG> : enables the decoded dct values to be output into the
+	   block file.
+
+  <STRONG>-end</STRONG> <STRONG>N</STRONG> : causes mpeg_stat to finish collecting statistics at
+	   frame N.
+
+  <STRONG>-histogram</STRONG> <STRONG>filename</STRONG> : summaries the overall statisitcs for
+	   each frame type into the file.
+
+  <STRONG>-offsets</STRONG> <STRONG>filename</STRONG> : record the offset of every picture, GOP,
+	   and slice into file filename.
+
+  <STRONG>-quiet</STRONG> : toggles the display of the frame-types as they are
+	   parsed (and custom quantization matrices) [default:
+	   on].
+
+  <STRONG>-qscale</STRONG> <STRONG>filename</STRONG> : writes Q factor and custom quantization
+	   matrix information into file filename.  The Q-factor
+	   and number of blocks of that quality (ignoring skipped
+	   blocks) for each type of frame is recorded.
+
+  <STRONG>-rate</STRONG> <STRONG>filename</STRONG> : record the bit rate at every picture (after
+	   the first second) into the file filename.  Also collect
+	   minimum and maximum bit rate encountered in the summary
+	   information.  (Rate is the number of bits used per
+	   second, at every frame).
+
+  <STRONG>-ratelength</STRONG> <STRONG>N</STRONG> : Change the measurement period for rate to N,
+	   so it will measure the total rate required over any N
+	   frame period (after the first N, of course).
+
+  <STRONG>-size</STRONG> <STRONG>filename</STRONG> : stores information about the type (I,P,B)
+	   and size of each frame in file filename (one frame per
+	   line).
+
+  <STRONG>-start</STRONG> <STRONG>N</STRONG> : causes mpeg_stat to begin collecting statistics
+	   at frame N.  (Preceding frames will be parsed, but few
+	   statistics are collected (the system layer counters
+	   will sill be running).) <STRONG>-syslog</STRONG> <STRONG>filename</STRONG> : describes
+	   the parsing of the system layer into the file filename.
+	   Note this option is not turned on by -all.  <STRONG>-time</STRONG> :
+	   prints the amount of time total and per-frame type
+	   averages to decode.  This will give an estimate of time
+	   in a software player, but is not generally useful, so
+	   it is off by default.  <STRONG>-userdata</STRONG> <STRONG>filename</STRONG> : dumps user
+	   data fields into a file.  Can be read in ASCII.  <STRONG>-</STRONG>
+	   <STRONG>verify</STRONG> : does more work to check the validity of the
+	   sequence.  Slows down the statistics, so it is
+	   optional.
+
+<STRONG>EXAMPLE</STRONG>
+  Decoding the flowergarden sequence (mpeg_stat -quiet
+  flower.mpg) should produce the following statistics:
+
+
+  Reading /u/smoot/mpg/flower.mpg
+
+  Frame sequence as to be displayed:
+  BBPBBPBBPBBPBBIBBPBBPBBPBBPBBIBBPBBPBBPBBPBBIBBPBBPBBPBBPBBIBBPBBPBBPBBPBBI
+  BBPBBPBBPBBPBBIBBPBBPBBPBBPBBIBBPBBPBBPBBPBBIBBPBBPBBPBBPBBIBBPBBPBBPBBPBB
+
+
+  Searching for constant frame type sequence...pattern
+  detected: IBBPBBPBBPBBPBB
+
+
+  SUMMARY:
+
+  Total Bytes read: 0. Total number of frames: 150.  Length is
+  5.01 sec
+
+  Width: 352      Height: 240 Avg. Frame Size: 4786 bytes + 6
+  bits  (average rate 1147692.76 bits/sec)
+
+  Total Compression Rate:  1.89 % of uncompressed 24 bit
+  images
+						  =  0.45 bits per pixel
+
+  Number of Macroblocks [width * height = sum]: 22 x 15 = 330
+  per frame Skipped Macroblocks = 4389 (9.46%), Coded
+  Macroblocks = 41992 (90.54%)
+
+  Total Time Decoding: 8.611 secs. 0.05721 sec/frame or 17.11
+  frames/sec.
+
+  MPEG-Viewer requirements:
+		  Pixel aspect ratio of 0.6735
+		  Required display speed: 29.97 frames/sec
+		  Specified bit rate is 1.00 MBits/sec (2500 *
+  400bits/sec)
+		  Requested buffer size is 8K ints (16 bits).
+		  And the constrained parameter flag is on.       The
+  stream meets the constrained parameter requirements.
+
+  Length of vectors in pixels:
+		  Horizontal forward vectors, maximum :  39
+  average:   6
+		  Vertical forward vectors, maximum   :  22
+  average:   1
+
+		  Horizontal backward vectors, maximum:  29
+  average:   5
+		  Vertical backward vectors, maximum  :  16
+  average:   1
+
+
+  Frame specific information:
+
+	  10  I FRAMES, average is:
+		  Size: 17323 bytes + 1 bits (24.13%)
+		  Compression Rate:  6.84%
+		  Q Factor [scales quantization matrix]: 11.15
+		  Time to Decode: 0.114039 secs.
+
+	  40  P FRAMES, average is:
+		  Size: 8031 bytes + 0 bits (44.74%)
+		  Compression Rate:  3.17%
+		  Q Factor [scales quantization matrix]: 10.85
+		  Time to Decode: 0.075342 secs.
+
+	  100 B FRAMES, average is:
+		  Size: 2235 bytes + 4 bits (31.13%)
+		  Compression Rate:  0.88%
+		  Q Factor [scales quantization matrix]: 15.01
+		  50.59% interpolated Macro Blocks
+		  Time to Decode: 0.044516 secs.
+
+
+
+<STRONG>NOTES</STRONG>
+  The analyzer expects MPEG-1 video streams only. It can
+  handle multiplexed MPEG streams (video+audio streams), but
+  mostly analyzes the video portion.
+
+  Some streams do not end with the proper sequence end code
+  and will probably generate an "Improper sequence end code."
+  error when done.  In general mpeg_stat attempts to catch and
+  alert its user to errors in the stream.  Such errors are
+  glossed over in mpeg_play.  Be aware that errors can disturb
+  statistics gathering, generating odd results.
+
+  This player can handle XING data files. Be aware that XING
+  makes no use of temporal redundancy or motion vector
+  information. In other words, they do not use any P or B
+  frames in their streams. Instead, XING data is simply a
+  sequence of I frames.
+
+<STRONG>HISTORY</STRONG>
+  The analyzer is based on the UC Berkeley mpeg_play player by
+  Ketan Patel, Brian Smith, Henry Chi-To Ma, and Kim Man Liu.
+  It was modified at the Technical University of Berlin,
+  Germany, Dept. of Computer Science by Tom Pfeifer, Jens
+  Brettin, Harald Masche, Alexander Schulze, and Dirk
+  Schubert.  It has been further modified to collect much more
+  information by Steve Smoot (UC Berkeley).
+
+<STRONG>BUGS</STRONG>
+  No statistics should be collected before the start frame.
+  Sometimes system layer streams will indicate that they lack
+  proper end codes, when they have them.  VBV size conformance
+  is not checked.  Verification is not complete.  Frame
+  numbers should probably be in display numbering not stream
+  numbering.  Other bugs?  Send mail to &lt;mpeg-
+  bugs@plateau.cs.berkeley.edu&gt;.
+
+<STRONG>VERSION</STRONG>
+  This is version 2.2, contining some new features since 2.1,
+  and several bug fixes.  It is a major change since version
+  1.0.
+
+<STRONG>AUTHORS</STRONG>
+  Ketan Patel - University of California, Berkeley,
+	   kpatel@cs.berkeley.edu
+
+  Brian Smith - University of California, Berkeley,
+	   bsmith@cs.berkeley.edu
+
+  Henry Chi-To Ma - University of California, Berkeley,
+	   cma@cs.berkeley.edu
+
+  Kim Man Liu - University of California, Berkeley,
+	   kliu@cs.berkeley.edu
+
+  Tom Pfeifer - Multimedia systems project -
+	   pfeifer@fokus.gmd.de
+
+  Steve Smoot - University of California, Berkeley,
+	   smoot@cs.berkeley.edu
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

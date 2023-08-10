@@ -1,0 +1,62 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:
+TITLE:  CPIO Loses File Privileges
+DOCUMENT ID:  TID021205
+DOCUMENT REVISION:  A
+DATE:  17MAY93
+AUTHOR:  GKABLE
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Symptom Solution
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Drivers
+
+ABSTRACT:
+
+Restoring a full system backup effectively removes any privileges from all of the restored files.
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+SYMPTOM
+
+If the user restores a full system backup, accounts which were privileged (for example, system owners) will still appear to have the required privileges but will get errors when they try to use those privilege.
+
+SOLUTION
+
+When a full system is restored using cpio or any other backup/restore programs the inode characteristics of the file including the last inode change time and probably the inode number are changed.  As this information is used in the /etc/security/tcb/privs file to verify that the file hasn't been changed the system will effectively remove any privileges from all of the restored files.
+
+The following shell script reads the /etc/security/tcb/privs file and calls filepriv to up date every file in the data base.  This will restore the file privileges.  Note that this must be run as root.
+
+sed 's/:/ /g' /etc/security/tcb/privs | while read code1 code2 code3
+privs
+file
+do
+    filepriv `echo "$privs" | sed -e 's/%fixed,/ -f /' -e 's/%inher,/ -i
+/'`
+$file
+done
+
+Note:  These (`) are backward quotes (the key to the left of the 1 key)
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+
+
+
+

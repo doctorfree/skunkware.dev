@@ -1,0 +1,71 @@
+<HTML>
+<HEAD>
+<TITLE>Argus Readme</TITLE>
+</HEAD>
+<!--
+Light Blue Background
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+New Midnight Blue Background
+<BODY BGCOLOR=#00009C LINK=#00FFFF VLINK=#00C8C8 TEXT=#23D8FF ALINK=#00FF00>
+White Background
+<BODY BGCOLOR=#FFFFFF TEXT=#000000 LINK=#0000FF VLINK=#00009C ALINK=#00FF00>
+Black Background
+<BODY BGCOLOR=#000000  TEXT=#FFFFFF LINK=#0077FF VLINK=#FF3EE4 ALINK=#00FF00>
+-->
+<BODY BGCOLOR=#438BAE TEXT=#000000 VLINK=#650065 LINK=#00007A ALINK=#00FF00>
+<CENTER>
+<H1>Argus Readme</H1>
+</CENTER>
+I'm not convinced this port of Argus works correctly 100% of the time; I ran
+into a few bugs in the code in porting and had to add assorted ntohs/ntohl 
+calls in other places.  The "solaris2.5-uwe.patch" and "solaris_patches.readme"
+patches seem to fix #3.
+<P>
+- Nathan
+<PRE>
+                                     NOTES
+
+1) To install Argus add the following line to /etc/services:
+
+   monitor         561/tcp         # Argus server process
+
+2) when using ra -S machine you must wait some minutes for the timers to
+   expire before you get data.  
+   Each time you do a ra -S to connect to the machine the argus_mdi process
+   resets its timers again (viewable with the -D -d options).
+
+3) when using ra to print out the information the name1.port1  <->  name2.port2
+   seems to be reversed in some circumstances.  The arrow points to the 
+   destination machine according to the documentation.
+  
+   code works for ICMP packets - no problems seen.
+   code works for UDP packets.
+
+   Unfortunately, the code has many different checks for specific port 
+   ranges for port/ip address/mac address reversal:
+   TCP port 20(ftp-data)    ra
+   TCP port 6000-6010 (X)   ra
+   TCP port 20(ftp-data)    services
+   TCP port 6000 only       services
+
+   the routine reformat_datum() checks for both TCP and UDP:
+
+   TCP port 20
+
+   UDP:
+               if (((sport == 53) && (dport != 53)) ||
+                   ((sport == 2049) && (dport != 2049)) ||
+                   ((sport >= 7000) && (sport < 7010)) ||
+                   ((sport >= 6000) && (sport < 6010)))
+
+
+   Be aware that packets whose ports fall into these ranges may be displayed
+   incorrectly... 
+
+4) the policy program is not included with this distribution.  I couldn't
+   find it. :-(
+
+5) ra -I seems to be broken.
+</PRE>
+</BODY>
+</HTML>

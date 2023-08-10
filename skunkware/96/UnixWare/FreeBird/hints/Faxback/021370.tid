@@ -1,0 +1,60 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:
+TITLE:  ulimit Has No Effect on File Sizes in NFS
+DOCUMENT ID:  TID021370
+DOCUMENT REVISION:  A
+DATE:  13JUN94
+AUTHOR:  CGAISFOR
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Core OS
+Networking
+Drivers
+
+ABSTRACT:
+
+Setting the ulimit in /etc/default/login only effects the file size limit that the user (or root) is limited to.  This has no effect on what the system can handle.  Because NFS does not look at the file size limit that the users have, but instead looks at what the kernel is set to handle.  The file size limit must be changed on the kernel level.
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+SYMPTOM
+
+A user was trying to copy a file from an NFS mounted volume that was over 8 MB, and the copy was failing after 8.2 MB.  The user had changed the ulimit in the /etc/default./login file and ulimit reported a higher file size limit than 8 MB.
+
+SOLUTION
+
+The file size limit must be changed on the kernel level.
+
+To set the kernel file size limit to unlimited, do the following as root:
+
+/etc/conf/bin/idtune SFSZLIM 0x7FFFFFFF
+/etc/conf/bin/idtune HFSZLIM 0x7FFFFFFF
+
+Then rebuild the kernel and reboot:
+
+/etc/conf/bin/idbuild -B
+init 6
+
+Now the system will allow file copies over NFS greater than 8 MB.
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+

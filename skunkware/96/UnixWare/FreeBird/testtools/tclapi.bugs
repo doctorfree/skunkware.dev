@@ -1,0 +1,44 @@
+tcl api known problems
+-----------------------
+
+(i) different behavior to sh or C api for tet_xres file handling
+
+I discovered some behavor that is different than the sh or C api.
+When creating the tet_xres file the TCL api does not remove the old
+one. This means if you run with EXEC_IN_PLACE set to true or just
+run a test by hand the results are appended to the old tet_xres file.
+The C and sh api do not do this.
+
+This fix should be easy. Around line 369 in the tcl.tcm.dat file
+the tet_xres file is created. If an rm -f was added here any old
+tet_xres files could be removed.
+
+
+(ii) incr function incorrect
+
+I found another small problem with the tcl api. The incr function in
+tcl take an arg without a $ ie:
+
+incr garp
+not
+incr $garp
+
+This seems a bit odd to me also but thats the way it works. Anyway
+the tcl api uses incr both ways. There are about 4 incorrect uses.
+
+FIX:
+
+edit all the files and search for incr and delete any $
+
+
+(iii) tet_reason does not work
+
+Problem:
+tet_reason does not work
+
+Fix:
+change line 155 in tetapi.tcl from:
+puts[lindex 1 $line]
+to:
+puts[lindex $line 1]
+

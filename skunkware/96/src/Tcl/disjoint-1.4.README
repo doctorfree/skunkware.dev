@@ -1,0 +1,126 @@
+####################################################################
+#
+# DISJOINT.TK v1.4	- by Paul Raines
+#
+# This file contains code for a "listbox" using the 
+# text widget that supports disjoint selection. For the
+# most part, you can replace your normal 'listbox' command
+# with 'disjointlistbox' with the following provisos
+#
+#	(1) Configuration options are those of the text
+#	    widget instead of the listbox widget. This means
+#	    that the following listbox options aren't supported
+#		 geometry (use width and height instead)
+#		 xscrollcommand (sorry, can't do it)
+#		 exportselection (not with disjoint selection)
+#           The following option is also defined
+#	         selectrelief (for relief of selection tag)
+#
+#       (2) All the normal widget methods are implemented except
+#	    xview and select adjust. Also, in the scan mark and
+#	    scan dragto methods, the x coordinate is ignored.
+#
+#	(3) The following commands have been expanded.
+#	      curselection ?offset?
+#		  - offset is added to each index before the
+#		    list of selected indices is returned. This
+#		    is mainly there to make my life easier in TkMail
+#	      select clear ?index?
+#	          - where if index is given, only the item
+#		    at that position will be cleared
+#	      select from index ?keep?
+#		  - the key word 'keep' prevents other item
+#		    selections from being cleared. Index is
+#		    also made the primary single selection.
+#	      select to index ?keep?
+#		  - the key word 'keep' prevents other item
+#		    selections from being cleared
+#	      destroy
+#	          - safely destroy the disjoint listbox widget
+#		    ('destroy list' will seem to work but leaves
+#		     phantom procedures in memory)
+#
+#	(4) The following commands have been added
+#	      cursingle
+#	          - returns the index of the primary single
+#		    selection marked with a ">". This features
+#		    makes the listbox into a single selection
+#		    and multi-selection box all-in-one.
+#	      scan at index
+#	          - select the item at index not clearing any
+#		    other item and only making index the primary
+#		    single selection if it is the only selection.
+#	      select toggle index
+#	          - toggle the selection state of item at index 
+#		    not clearing any other item
+#	      item configure index ?option value ...?
+#	          - lets you configure a single line of the list
+#		    as a text tag. See the text widget tag configure
+#		    command for valid options.
+#	      item clear index ?index ...?
+#		  - clear configuration on a list item made
+#		    with the item configure command.
+#
+# NOTE: be careful not to include any "\n" characters in
+#	lines of text inserted into the disjoint listbox.
+#	This will really screw things up.
+#
+# The default bindings are:
+#
+#	<1>	Clicked item becomes "first" and only
+#		selected item
+# <Shift-1>	Toggle items selection
+#	<2>	Scanning
+#	<3>	Clicked item becomes an additional 
+#		selected item
+# <Shift-3>	Clicked item becomes is deselected
+# 
+# <1>, <3>, & <Shift-3> can be dragged to select (or deselect)
+# additional items, however, only <1> uses anchoring so that
+# you can backtrack.
+#
+# COPYRIGHT:
+#     Copyright 1993 by Paul Raines (raines@bohr.physics.upenn.edu)
+#
+#     Permission to use, copy, modify, and distribute this
+#     software and its documentation for any purpose and without
+#     fee is hereby granted, provided that the above copyright
+#     notice appear in all copies.  The University of Pennsylvania
+#     makes no representations about the suitability of this
+#     software for any purpose.  It is provided "as is" without
+#     express or implied warranty.
+#
+# DISCLAIMER:
+#     UNDER NO CIRCUMSTANCES WILL THE AUTHOR OF THIS SOFTWARE OR THE
+#     UNIVERSITY OF PENNSYLVANIA BE RESPONSIBLE FOR ANY DIRECT OR
+#     INCIDENTAL DAMAGE ARISING FROM THE USE OF THIS SOFTWARE AND ITS
+#     DOCUMENTATION. THE SOFTWARE HEREIN IS PROVIDED "AS IS" WITH NO
+#     IMPLIED OBLIGATION TO PROVIDE SUPPORT, UPDATES, OR MODIFICATIONS.
+#
+# HISTORY:
+#  v1.0 
+#     93-08-25    released original version
+#
+#  v1.1
+#     93-08-26	  fixed configure bug
+#		  added offset option to curselection
+#
+#  v1.2
+#     93-09-28    added dlb_convndx to handle "end" index and errors
+#		    (thanks to Norm (N.L.) MacNeil)
+#		  created 'destroy' procedure to safely destroy widget
+#		    and added catches to all 'renames'
+#		  added configure option -selectrelief to specify
+#		    relief for selection tag
+#		  fixed problem with deleting last element when
+#		    it was the single selection
+#     93-12-08    changed so configure will return results
+#
+#  v1.3
+#     94-05-17    added "item configure" and "item clear" commands
+#
+#  v1.4
+#     94-06-18    fixed bug with delete removing selline tag
+#
+###############################################################
+

@@ -1,0 +1,104 @@
+		ANNOUNCE: TCL With Objects (TWO)
+		--------------------------------
+
+This is the TCL implementation of TCL With Objects (TWO), version 1.  I
+wrote it because I felt that existing object extensions to TCL either
+were so complex they were difficult to port and to debug, or they made
+member variable access unnecessarily complex.  This object extension
+gives you objects with a very simple implementation.  Portability is
+assured because it's written in TCL.  Instance variable access is just
+like local variable access.  All methods must be called with "$objName
+methodName" or "$this methodName". 
+
+If enough of you are interested, I can produce C work-alikes for the
+time-critical portions of this package.  Please send comments to
+aginter@cuug.ab.ca.  I do follow comp.lang.tcl, but not diligently. 
+
+To use TWO, just "source two.tcl" and you're off to the races.  Here's
+how TWO classes, methods, and instance variables work:
+
+CLASSES:
+    class className baseClassName {
+	instanceVarName1 		# This is a instance variable
+	instanceVarName2
+	instanceVarName3
+    }
+    className objName arg1 ... N	# Create an object called objName
+    new className objName arg1 ... N	# ditto
+
+    There is no multiple inheritance, yet.  There is no C++-style static
+    data-member functionality, yet.  To create an instance of a class,
+    use the className as a function and pass it the name of the object
+    to create and any arguments you want to pass to the object's
+    constructor.  Calling new does the same thing.
+
+METHODS:
+    method className::methodName {arg1 ... argN} {body}
+    $objName method arg1 ...	    # Call method in object $objName
+    $objName class::method arg1 ... # Call method in object $objName
+    $this method arg1 ...	    # Call a method from a sibling method
+    $this class::method arg1 ...    # Call a method in a base class
+
+    If you call a method in an object without a :: qualifier, you get
+    the lowest method with that name in the inheritance chain for the
+    object -- just like "virtual" methods in C++.  If you call a
+    ::-qualified method in an object, you get the indicated method.  If
+    you call a method in the same class or a base class from within a
+    method of the same or a derived class, you need to prefix the call
+    with "$this".
+
+INSTANCE VARIABLES:
+    set instanceVar value	    # Member variable access inside methods
+    set otherVar $instanceVar
+    set class::var value	    # Overridden base class variable access
+    set otherVar ${class::var}
+
+    Most instance variables can be manipulated, set, unset, etc., as if
+    they were normal TCL variables.  If a derived class defines a
+    variable with the same name as one defined by a base class, you need
+    to use the :: syntax to manipulate the base class variable.
+
+CONSTRUCTORS:
+    method className::className {arg1 ... argN} {body}
+
+    If you want to call the base class constructor explicitly, you have
+    to do it first thing in the constructor with a syntax like:
+
+	$this baseClassName::baseClassName ?arg1 ...?
+
+    You can only call the parent base class.  If you need to pass values
+    to ancestors of the parent, the parent has to send them along up the
+    inheritance chain.  If you don't explicitly call the base class
+    constructor, an invisible call to the constructor will be inserted
+    at the beginning of "body".  As a result, classes are constructed in
+    order from the most distant ancestor through to the most derived
+    class.
+
+DESTRUCTORS:
+    method className::~className {arg1 ... argN} {body}
+    delete objectname
+
+    The way to destroy an object is to call "delete".  When you delete
+    an object, its destructor is called.  When the destructor returns,
+    the desructor for the base class is called, and so on.  Objects are
+    destroyed from the most derived class through to the most distant
+    ancestor.  Do not call destructors explicitly.
+
+COPYRIGHT & WARRANTEE DISCLAIMER
+
+	I hereby relinquish all copyrights to this software and its
+documentation and place them both into the public domain. 
+	IN NO EVENT SHALL THE AUTHORS OR DISTRIBUTORS BE LIABLE TO ANY
+PARTY FOR ERRORS CONTAINED HEREIN OR DIRECT, INDIRECT, SPECIAL,
+INCIDENTAL, OR CONSEQUENTIAL DAMAGES IN CONNECTION WITH THE FURNISHING,
+PERFORMANCE, OR USE OF THIS SOFTWARE, ITS DOCUMENTATION, OR ANY
+DERIVATIVES THEREOF, EVEN IF THE AUTHORS HAVE BEEN ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE. 
+	THE AUTHORS AND DISTRIBUTORS SPECIFICALLY DISCLAIM ANY
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. 
+THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, AND THE AUTHORS AND
+DISTRIBUTORS HAVE NO OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT,
+UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+
+Andrew Ginter			aginter@cuug.ab.ca

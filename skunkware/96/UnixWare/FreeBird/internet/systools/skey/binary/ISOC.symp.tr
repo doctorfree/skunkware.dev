@@ -1,0 +1,594 @@
+.PH ""
+.tr ~
+.ds HF 3 3 2 2 2 2 2
+.ds HP 0 0 0 0 0 0 0
+.de H1
+.sp
+.ce
+.B
+\\$1
+.R
+..
+.ce
+\fB\s+1THE S/KEY\s-5\uTM\d\s0 ONE-TIME PASSWORD SYSTEM\s-1\fP
+.sp 1
+.ce 4
+Neil M. Haller
+
+Bellcore
+Morristown, New Jersey
+.sp 3
+.2C
+.S 10
+.ce
+.B
+ABSTRACT
+.R
+.P
+Computing systems have been under increasingly sophisticated
+attack over the Internet and by using dial-up access ports.  One form
+of attack is eavesdropping on network connections to obtain login id's
+and passwords of legitimate users.  This information is used at a later
+time to attack the system.  We have developed a prototype software
+system, the S/KEY\s-4\uTM\d\s0 one-time password system, to
+.FS " "
+S/KEY is a trademark of Bellcore
+.FE
+counter this type of attack and have been using it experimentally
+for external access to a research computer complex at Bellcore.
+.P
+The \s-1S/KEY\s0 system has several
+advantages compared with other one-time or multi-use authentication
+systems.  The user's secret password never crosses the network during
+login or when executing other commands requiring authentication such
+as the \s-1UNIX\s0 \fIpasswd\fP (change password) or \fIsu\fP (change
+privilege) commands.  No secret information is stored anywhere, including
+on the host being protected, and the underlying algorithm may be made
+public. The remote end (client) of this system can run on any locally
+available computer and the host end (server) can be integrated into any
+application requiring authentication.
+.P
+The \s-1S/KEY\s0 authentication system has been in experimental use
+at Bellcore for two years.  It is available by anonymous ftp on
+the Internet.
+.PH "''- % -''"
+.H1 "INTRODUCTION"
+.P
+There are a variety of threats to be considered when operating a
+computer system.  One can distinguish between \fIinside jobs\fP and
+external attacks; in this paper, we are concerned with attempts
+to penetrate a system of computers from \fIoutside\fP the
+physical facility.  We are not concerned with the additional
+security issues where legitimate users may attempt to increase
+their privilege (become super-users) or where insiders with physical
+access to the computers attempt to gain improper access.
+.P
+We have built an experimental prototype \s-1S/KEY\s0
+authentication system for a \s-1UNIX\u\(rg\d\s0
+.FS " "
+UNIX is a registered trademark of X/Open.
+.FE
+environment, but there is nothing \s-1UNIX\s0-specific about the design.
+.HU "External Threats"
+There are several ways an external intruder might break into a
+\s-1UNIX\s0 system.  These include guessing poorly chosen passwords,
+potentially with dictionary attacks; taking advantage of bugs in 
+privileged UNIX system software (an example is the "Morris Worm" of
+November~1988 that exploited a bug in the Internet \fIfinger\fP
+server\*(Rf.),
+.RS
+Eugene H. Spafford, The Internet worm program: An analysis.
+.I
+Computer Communications Review
+.R
+19(1):17-57, January 1989.
+.RF
+and taking advantage of system configuration errors or poorly chosen
+system defaults.  Properly configured and administered systems are
+not generally vulnerable to these attacks.
+.P
+Other attacks take advantage of the information that crosses
+communications networks.  One can obtain passwords for later use
+by passive eavesdropping, and the form of current passwords can be
+used to guess future ones.  A  potential intruder can actively
+interfere with legitimate network traffic by \fIspoofing\fP or
+disrupting the communications protocols.
+.HU "Defenses Against Passive and Active Attacks"
+Data, including authentication information such as passwords,
+are carried on a variety of networks including LANS and private
+or public data and voice networks.  If a potential intruder can
+gain access, either directly or using tools designed for other functions
+(such as network management), this access can be used to monitor traffic
+from legitimate users and collect passwords and other data for later
+use.  This eavesdropping is classified as a \fIpassive\fP network attack.
+Alternatively, an attacker might choose to disrupt or divert the
+communications of legitimate users, e.g., by spoofing traffic;
+this is classified as an \fIactive\fP attack.
+.P
+In recent years, protocols capable of thwarting both passive and active
+attacks have been devised and implemented.  Many of these, including ours,
+involve an exchange of data between the host being protected and the
+client attempting to gain authorized access.  The defense against
+passive attacks is to make the data crossing the network useless to an
+eavesdropper; thus a potential intruder cannot gain improper access
+by \fIreplaying\fP a saved valid authentication sequence.
+.P
+The simplest form of such a defense is for the host to generate a random
+string and send it to the client.  The client then uses some computing
+device to compute a key-based cryptographic function (see below,
+\fISecure Hash Functions\fP) of this string and then return the output
+of this function to the host. The host executes the same function and
+compares the results.\*(Rf
+.RS
+R. M. Wong, T. A. Berson, R. J. Feiertag, "Polonius: An Identity
+Authentication System", \fIProceedings of the 1985 Symposium on
+Security and Privacy\fP, pp. 101-107, Oakland, California, April 1985.
+.RF
+A weakness
+of this system is that the secret keys must be available to the host,
+and protecting this host becomes a critical link in the security chain.
+.P
+This system can be implemented in software or as a special purpose
+device to be carried by the client.   The latter offers the advantages of
+portability and interface independence, but at an increased system cost.
+.P
+Another defense is the use of hand-held device containing a clock that
+is synchronized to the host (or security processor).  Both generate
+a sequence based on a secret seed that is stored in the host and is
+therefore a weak link.
+.P
+The \s-1S/KEY\s0 system as described here is implemented in software.
+It is straightforward to convert this system to utilize a portable
+device, but we have not done so.
+.P
+A notable example of a security protocol is the \fIKerberos\fP\*F
+.FS
+Athena and Kerberos are trademarks of MIT.
+.FE
+\*(Rf
+.RS
+J. G. Steiner, C. Neuman, and J. I. Schiller.  Kerberos: An authentication
+service for open network systems.  \fIUSENIX Conference Proceedings\fP,
+pp. 191-202, Dallas, Texas, February 1988.
+.RF
+authentication system from MIT's project Athena.\*(Rf
+.RS
+Champine, G., Geer, D., and Ruh, W. "Project Athena as a Distributed
+Computer System", \fIIEEE Computer\fP, September 1990.
+.RF
+Kerberos solves the problem of passive eavesdropping within a 
+single computing environment called a realm (multiple realms may be
+joined).  This system does not, however, address the problem of access
+across a network using client software that is unable to fully participate
+in the Kerberos protocol.  A client using a workstation within a realm (or
+connected realms) is completely and transparently protected by Kerberos
+against passive attacks, but a client using a simple
+(non-programmable) terminal or a non-participating\*F
+.FS
+Most communication programs on non-UNIX systems (both using dial-up
+and Internet connectivity) are unable to participate in the Kerberos
+protocol.  This is not to say that they could not be modified to do so.
+.FE
+computer is vulnerable to an eavesdropping/replay attack.
+.P
+A major strength of Kerberos is that it is capable of protecting
+against active attacks using encryption.  This option gets limited use
+because of the overhead it imposes, but the increasing power of low cost
+computers makes this a short term problem.  Given 
+that it is much easier to conduct a passive attack than an active
+one without risking detection, we feel that there is still value
+in a system that protects only against passive attacks.
+.HU "The S/KEY Authentication System"
+The \s-1S/KEY\s0 authentication system is a scheme that protects
+user passwords against passive attacks. It can be easily and quickly
+added to almost any \s-1UNIX\s0 system,
+without requiring any additional hardware and without requiring the
+system to store information (such as plain text passwords) that
+would be more sensitive than the encrypted passwords already stored.
+The \s-1S/KEY\s0 system can be used with "dumb terminals", personal
+computers with conventional communications programs, or workstations.
+It is conceptually compatible with a potential implementation based
+on smart cards or pocket calculators.
+.H1 "GOALS"
+.HU "Eavesdropping Protection"
+The primary goal of the \s-1S/KEY\s0 authentication system is to
+provide complete protection of the login-time authentication mechanism
+against passive eavesdropping. This protection implies that no
+information may cross the network that could potentially be used
+for authentication at a later time.  An eavesdropper with complete
+transcripts of many user sessions, including password changes,
+should have no information that would be useful in attempting to
+login to the system.
+.HU "Ease of Use"
+A security system must be easy to use.  Not all users are willing
+to cope with a complex security system and it is virtually impossible
+to block all insider built back-doors.  The more user-friendly the 
+system is, the less likely it will be bypassed.  Ideally the system
+should be as easy to use as a system protected by a conventional
+multi-use password system.
+.HU "Automated Operation"
+A common form of remote access to a computing system is from another
+computer acting as a terminal using a communications program.  This
+computer may be completely under the control of a single operator, and
+thus may be \fItrusted\fP.  We want our system to be nearly as simple
+to use in this configuration as remote login using a multi-use password.
+.P
+In some situations, it is useful to have one machine access another
+without human intervention.  Assuming a remote client machine is in a
+secure environment so that it can be trusted with the underlying secret
+password, full automatic operation can be achieved.
+.P
+The goal of providing automated operation implies that our system is
+primarily a secret based authentication system (something you know).
+As it requires computation to produce the one-time passwords, it is
+easily convertible to a token based (something you have) system.
+.HU "No Secret Algorithms"
+The security of the authentication system must be based entirely on the
+secret (or secret containing token) and not on secret algorithms.
+A public algorithm can be evaluated by the industry, thus developing
+confidence in its cryptographic strength.  If a system's security
+depends on a hidden algorithm, there is always a danger of exposure
+when someone who knows the secret changes jobs or loyalties.
+.HU "No Stored Secrets"
+Storing secret keys or passwords on a host increases its attractiveness
+as a target, and causes a breach of security to be more wide-spread.
+When a common password file is used for many machines, this risk
+becomes even greater.
+On \s-1UNIX\s0 systems, the password file contains passwords already
+processed through a secure hash function and thus the information in this
+file is not directly usable to an intruder.  We want our system to be
+no weaker\*F
+.FS
+Both \s-1UNIX\s0 password security and \s-1S/KEY\s0 authentication are
+vulnerable to dictionary attacks unless the passwords are well chosen.
+.FE
+than this \s-1UNIX\s0 scheme, implying that no usable passwords may be
+stored on any host.
+.H1 "DESCRIPTION OF THE S/KEY SYSTEM"
+.P
+There are two sides to the operation of our one-time password system.
+On the remote client side, the appropriate one-time password must
+be generated.  On the host side, the server must verify the one-time
+password.  This section describes both sides, and the secure hash
+function on which the \s-1S/KEY\s0 authentication system is based.
+.HU "Secure Hash Functions"
+.EQ
+delim $$
+.EN
+A secure hash function is a function that is easy to compute in the
+forward direction, but computationally infeasible to invert.  Consider:
+.DS 2
+$ y  =  f(x) $
+.DE
+If $ f $ is the secure hash function with input $ x $ and output $ y $,
+then computing $ y $ given $ x $ is fast and easy, but finding an
+$ x sup prime $ such that
+.DS 2
+$ y  =  f(x sup prime ) $
+.DE
+for a given $ y $ is extremely difficult.
+Ideally, there should be no way to determine such an $ x sup prime $
+other than by trying an infeasible number of values to see which one
+works. If the number of possible values of $ x $ that must be tried
+is made large enough, then for all
+practical purposes the function cannot be inverted.  We have chosen a
+hash function with 2\u\s-364\s0\d (about 10\u\s-319\s0\d) values.
+.P
+As the basis of our secure hash function, we chose the MD4 Message
+Digest algorithm\*F
+.FS
+Although the security of MD4 has not been broken, the newer function
+MD5 has been released.  MD5 is slightly slower and more complex;
+converting to MD5 is simple, but we have chosen to continue using
+MD4 because of the large number of client password computing programs
+that have been distributed.
+.FE
+designed by Ronald Rivest\*(Rf
+.RS
+R. L. Rivest, The MD4 Message-Digest Algorithm, \fIRequest For
+Comments (RFC) 1320\fP, MIT and
+RSA Data Security, Inc., April 1992.
+.RF
+of RSA Data Security Inc.
+MD4 accepts an arbitrary number of bits as
+input and produces 16 bytes of output. MD4 is fast, and so far it is
+believed to be secure; i.e., there is no known way of finding the
+input that produced a given output that is better than by exhaustively
+trying possible inputs.
+.P
+In order to be able to apply the hash function an arbitrary number
+of times, we have defined our function to take 8 bytes of input
+and to produce 8 bytes of output.  This is done by running the 8 bytes of
+input through MD4 and then "folding" pairs of bytes in the 16-byte MD4
+output down to 8 bytes with exclusive-OR operations.
+.HU "Generation of One-Time Passwords"
+Our one-time passwords are 64 bits in length.  We believe that this
+is long enough to be secure and short enough to be manually entered by
+users (see below, \fIForm of Password\fP, for the representation) when
+necessary.
+.HU "\f(BIPreparatory Step\fP"
+The input to our hash function (described above) is 8 bytes.
+As the client's secret
+password may be (should be) longer, a preparatory step is needed.  In
+this step, the password is concatenated with a \fIseed\fP that is
+transmitted from the server in clear text.  This non-secret seed
+allows a client to use the same secret password on multiple machines
+(using different seeds), and to safely \fIrecycle\fP secret passwords
+by changing the seed.  The result of the concatenation is passed
+through MD4, and then reduced to 8 bytes by exclusive-OR of the two
+8-byte halves.  This result, called $ s $ below, is passed on to
+the generation step.
+.HU "\f(BIGeneration Step\fP"
+The sequence of one-time passwords $ p sub i $ is produced by applying
+the secure hash function multiple times.  That is, the first one-way
+password is produced by running the client's processed secret
+password $ s $ through the hash function some specified number
+of times, $ N $.
+.DS 2
+$ p sub 0 = f sup N ( s ) $
+.DE
+The next one-way password is generated by running the user's password
+through the hash function only $ N-1 $ times.
+.DS 2
+$ p sub 1 = f sup N-1 ( s ) $
+.DE
+In general, the formula is:
+.DS 2
+$ p sub i = f sup N-i ( s ) $
+.DE
+An eavesdropper
+who has monitored the use of the one-time password $ p sub i $
+will not be able to generate the next one in the sequence
+($ p sub i+1 $) because doing so would require inverting the hash
+function. Without knowing the secret key that was the starting point of
+the function iterations, this can not be done.
+.HU "System Verification of Passwords"
+The host is initially given $ p sub 0 $.
+When a client attempts to be authenticated, the seed and current
+value of $ i $ are passed to the client.  The client returns the next
+one-time password.  The host computer first saves a copy of this
+one-time password, then it applies the hash function to it.
+.DS 2
+$ p sub i ~=~ f ( f sup N-i-1 ( s ) ) ~=~ f ( p sub i+1 ) $
+.DE
+If the result does not match the copy stored in the system's password
+file, then the request fails.  If they match, then the client's entry
+in the system password file is updated with the copy of the one-time
+password that was saved before the final execution (by the server) of
+the hash function.  This updating advances the password sequence.
+.P
+Because the number of hash function iterations executed by the user
+decreases by one each time, at some point the user must reinitialize the
+system or be unable to log in again.  This is done by executing the
+\fIkeyinit\fP command, that is essentially a special version of the
+the \s-1UNIX\s0 \fIpasswd\fP command, to start a new sequence
+of one-time passwords.  This operation is identical
+to a normal authentication, except that the one-time password
+received over the network is not checked against the entry already in
+the password file before it replaces it. In this way, the selection of
+a new password can be done safely even in the presence of an eavesdropper.
+This mechanism does not defend against an active attack.
+.H1 "OPERATION OF S/KEY SYSTEM"
+.HU "Overview"
+The \s-1S/KEY\s0 one-time password authentication system
+uses computation to generate a finite sequence of
+single-use passwords from a single secret.  The security is 
+entirely based on a single secret that is known only to the user\*F.
+.FS
+Alternatively, part of or the entire secret can be stored in a
+non-retrievable way, in the computing device.
+.FE
+The single-use passwords are related in a way that makes it computationally
+intractable to compute any password from the preceding sequence.  (It is
+simple, however, to compute \fIprevious\fP passwords from the current one.)
+.P
+The single use, or one-time, passwords replace all authentication
+password requirements.  They are used at login time and when using the
+\s-1UNIX\s0 \fIsu\fP command.  Even when the underlying secret password is
+changed, only a derived one-time password crosses the network.  The host
+computer never sees, and has no way of learning, the real secret.
+.P
+As no secret algorithms are used, and the code is freely available, it
+is straightforward to build the \s-1S/KEY\s0 one-time password security
+system into any command or product requiring authentication.
+.HU "Generation of S/KEY One-Time Passwords"
+.EQ
+delim off
+.EN
+As mentioned above, the one-time password sequence is derived from
+the secret password using a computer.  The required computation can be
+executed on any \s-1PC\s0 or \s-1UNIX\s0 class machine.
+A supplier of credit card size devices estimated that such a device
+could be built for less than $30 in large quantities.
+.P
+The program can also be stored on and executed from a standard floppy
+disk.  This would allow operation on a remote computer that could not be
+entirely trusted not to contain a Trojan Horse that would attempt to
+capture the secret password\*F.
+.FS
+For added security, one might prefer to boot off the floppy.  The
+truly paranoid will worry about the integrity of the \s-1ROM\s0.
+.FE
+It is also possible to pre-compute and print several one-time passwords
+that could be carried on a trip where no trusted local computation is
+available such as when using public workstations at a conference.
+.HU "Description of Operation"
+The following narrative describes the procedure for logging into
+a \s-1UNIX\s0 system using the \s-1S/KEY\s0 one-time password system.
+In this example, a hand-held PC compatible computer is assumed.
+Note that the \fIsequence numbers\fP of successive one-time passwords
+decreases.
+.AL
+.LI
+The user, call her Sue, identifies herself to the system by login name.
+.LI
+The system issues a challenge including the sequence number of the
+one-time password expected and a "seed".   This "seed" allows Sue to
+securely use a single secret for several machines.
+In this example, the seed is "unix3" and the sequence number is 54.
+.LI
+Sue enters 54 and unix3 into her palm-top computer.  She is prompted
+for her secret.
+.LI
+Sue enters her secret password that may be of any length.  The palm-top
+computes the 54th one-time password and displays it.
+.LI
+Sue enters the one-time password and is authenticated.
+.LI
+Next time Sue wants access, she will be prompted for one-time password
+sequence number 53.
+.LE
+.HU "Semi-Automated Operation"
+We have built semi-automatic interfaces for clients using communications
+software on a \s-1MS-DOS\s0\*F
+.FS
+MS-DOS is a registered trademark of Microsoft Corporation.
+.FE
+or Apple Macintosh\*F
+.FS
+Macintosh is a trademark of Apple Corporation.
+.FE
+personal computer.
+The following example describes a client interface that runs under
+\s-1DOS\s0 as a Terminate and Stay Resident \s-1(TSR)\s0 program.
+.P
+Consider Sue in the above example using a communications program on a
+\s-1MS-DOS\s0 machine.  Before starting the communications program, Sue 
+runs a program that ties itself to a \fIhot-key\fP such as function
+key F10.  When the host issues its challenge, Sue presses the hot-key.
+The program then scans the screen for the challenge and extracts the
+sequence number and seed.  It then prompts Sue for her secret password
+and generates the correct one-time password and stuffs it into the
+keyboard buffer simulating user entry of this password.
+.P
+Fully automated operation is obviously possible, but it would require
+the client machine to \fIknow\fP the secret password.  This is only
+acceptable if the client machine is in a physically secure place.
+.HU "Form of Password"
+Internally the one-time password is a 64 bit number providing 
+2\u\s-364\s0\d possible unique one-time passwords.  Entering a 64 bit
+number is not a pleasant task; the one-time password is therefore
+converted to a sequence of six short words (1 to 4 letters).
+Each word is chosen from a dictionary of 2048 English words thus
+providing a space of 2\u\s-366\s0\d possible sequences.  The contents
+and encoding of this dictionary are not kept secret.
+.H1 "ADMINISTRATION OF SYSTEM"
+.HU Installation
+The minimum that must be installed to use this one-time password
+system on a \s-1UNIX\s0 host is a replacement for the \fIlogin\fP command
+and an additional command similar to \fIpasswd\fP.  As with the original
+commands, these must run as root.  In addition, it may be useful to
+install a one-time password version of the \fIsu\fP command,
+a new version of \fIftpd\fP for allowing ftp access via one-time
+passwords, and a command to compute one-time passwords.
+.HU "Source Screening"
+It is frequently desirable for an installation to allow internal access
+with a multi-use password while requiring one-time passwords for 
+external access.  A screening table provides this function.  When this
+table is present, login attempts that pass the screening test are permitted
+to use the normal password or a one-time password.  Others are notified
+that the use of the one-time password is required.
+.HU "Password echo"
+Normally systems disable printing during the typing of a password so
+that an onlooker cannot steal the password.  With a one-time password,
+this is unnecessary.  The \s-1S/KEY\s0 modification of the \fIlogin\fP
+command allows the user to turn echo on by pressing "return" at the
+password prompt.  This makes it easier to enter the longer one-time password.
+.H1 "EXPERIENCE"
+.P
+The \s-1S/KEY\s0 authentication system has been in experimental use for
+off-premise access to Bellcore for about two years.  It has been available
+as an \fIalternative\fP one-time password
+system to the users of computer resources of one research organization.
+This section is based on this experience as unscientificly
+observed by the biased eyes of the author.
+.HU "Ease of Use"
+User reaction to the \s-1S/KEY\s0 system varied from delight to 
+indifference.  Our goal (see above, \fIGOALS\fP) of \fIease of use\fP
+was not fully met because the reaction of potential users was mixed
+based on two factors.
+.HU "\f(BIType of Terminal\fP"
+Those who accessed our systems using terminal programs on personal
+computers were generally happy (some were enthusiastic).  These
+people generally used one of the semi-automated client access programs.
+Those whose access was from non-programmable terminals (such as X-Terminals)
+were less satisfied.  They generally had to print lists of one-time 
+passwords and enter them as required.  No one liked typing the six-word
+one-time passwords although some preferred it to alternative systems.
+.HU "\f(BIEase of Learning\fP"
+Once you know how this system works, it is very easy to use.  And
+once you understand the underlying concept, it is easy to understand
+how it works.  But users are generally not interested in that level of
+understanding.  Several users stated that the system was easier to use
+than other systems, but took longer to learn.  Several potential users
+never bothered to learn and chose the token authenticator in general 
+use at Bellcore.  We learned that documentation is important, and that
+good user instructions are hard to write.
+.HU "Ease of Installation"
+Installing the \s-1S/KEY\s0 system  requires replacing the \fIlogin\fP
+program.  While the changes were straightforward, modifying the existing
+login is impossible for systems without access to source code.  In our
+case, we replaced the SunOS login with a modified program from
+\s-1BSD UNIX\s0.
+.H1 AVAILABILITY
+.P
+The server code for \s-1UNIX\s0 and the client interfaces are available
+\fBas-is\fP over the Internet by anonymous ftp.  Some documentation
+in the form of \fIman\fP pages is also available.  These files are 
+available from \fIthumper.bellcore.com\fP in subdirectories of 
+\fIpub/nmh\fP.  The contents of these subdirectories are:
+.VL 8 2 1
+.LI skey
+\s-1UNIX\s0 files including source, makefile, and man pages
+.LI dos
+\s-1DOS\s0 client interfaces and documentation in \s-1UNIX\s0
+man-page format
+.LI mac
+Macintosh client interface package
+.LE
+.H1 "SUMMARY"
+.P
+Computing systems have been under increasingly sophisticated
+attack using dial-up and other external access ports.
+The one-time password technology described is a simple and
+effective way to keep plain text passwords out of the hands of an
+eavesdropper.  It is more general than some other systems as
+it allows protected access to super-user privilege, and allows
+its underlying secret password to be securely changed.
+No authenticating secret is ever transmitted in a re-usable form.
+.P
+The \s-1S/KEY\s0 one-time password system described has been in
+use for about two years.  We have learned that ease of use and ease
+of learning are critical to user acceptance.  \s-1S/KEY\s0 is easy
+to use from workstations and personal computers, but more difficult
+from non-programmable terminals. In the later case, a self contained
+token authentication system seemed preferable to some users.
+.P
+One-time passwords protect only at the time of authentication.  They
+do not protect against an eavesdropper learning the content of the
+monitored session.  They also do not protect against false
+authentication using more sophisticated active attacks.  For
+example, a legitimate user might log into a system only to have the
+network connection "stolen" by an intruder. This could happen
+immediately after login, or the intruder could wait until the
+legitimate user attempts to log out (to reduce the chances of
+detection).  Attempts to defeat active attacks may require
+more computing power on the user end of the connection than is 
+frequently available, certainly more than is available on a "dumb"
+terminal. Techniques under study include the encryption or protecting
+with cryptographic checksums of some or all of every packet of
+data exchanged.
+.H1 ACKNOWLEDGMENTS
+.P
+The idea behind our system was originally described by Leslie Lamport.\*(Rf
+.RS
+Leslie Lamport, "Password Authentication with Insecure Communication",
+\fICommunications of the ACM\fP 24.11 (November 1981), 770-772.
+.RF
+The specific system described was proposed by Phil Karn who wrote most
+of the \s-1UNIX\s0 software.  Additional details of the design were
+contributed by the author and John S. Walden who wrote the initial
+version of the \s-1MS-DOS\s0client software.  The Macintosh one-time
+password generator was written by Mark Segal, and the current
+\s-1MS-DOS\s0 client interfaces were written by the author.
+.RP

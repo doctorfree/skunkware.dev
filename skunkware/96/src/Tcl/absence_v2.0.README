@@ -1,0 +1,139 @@
+absence V2.0 (Abwesenheit in german)
+--------------------------------------
+
+###########################################################################
+			#### DESCRIPTION ####
+###########################################################################
+
+"absence" is virtual white-board.
+
+The purpose was to give a graphic, real-time, distributed
+overview of the activities of members of a group.
+
+The columns are individual days, the rows are people to keep track of.
+The extreme left hand column (day) is always today.  (You cannot see
+where people were, only where they are or will be.) The number of days
+the can be seen is configurable, set at the moment to 240.  To use, a
+person (normally oneself) is locked (the button to the left of the row
+is clicked and turns red), MB1 is clicked on a morning or afternoon
+(resolution is 1/2 day) and dragged to the RIGHT to the ending morning
+or afternoon and released.  A prompt window materializes to get
+relevant information about the absence (vacation, customer visit,
+etc).  Also there are two possible colors, blue and red.  Red is used
+to indicate a physical absence, whereas red to denote intense,
+uninterruptible activity ("don't bother me!").
+
+###########################################################################
+###########################################################################
+
+This has been almost completely re-written, although the look-and-feel
+has remained almost identical.  It is now somewhat more
+buzzword-complient than the last version, as it is now based on a
+Client/Server (fanfare!) architecture.  It is therefore necessary to
+get and compile the DP (Distributed Processing) extension to TCL in order
+to use it, but I think it's worth it! Also, an entry in the
+/etc/services called "abwesenheit" is necessary, preferable in
+yellow-pages (and if you don't have such things centralized, and have
+more than 3 hosts in your net Selber Schuld!)
+
+Also, "absence" must be used with TCL 7.4, TK 4.0.
+
+A server process must run all the time (I start it when the system
+boots).  The server is responsible for maintaining the DATA files,
+managing locks, etc.
+
+The client does what clients usually do.
+
+The relevant files are:
+-----------------------
+server		guess what?
+abwesenheit	client, call it whatever you like, for example absence
+abwesenheit_vt	a character-cell client, for the X impaired (not very
+		nice, but does the job)
+config.tcl	site configuration file ** EDIT THIS **
+utils.tcl	common procedures for the clients and notify.tcl
+notify.tcl	a script to compile a summary for the week and send via
+		mail (to a secretary, for example)
+rec_help.tcl	help routines, used by 'abwesenheit'
+run-notify	a script to call the notify.tcl script
+*.bm		various bitmaps
+run		the script that I call from the boot scripts. It will
+		restart the server should it ever die (doesn't happen
+		very often)
+.feiertage	list of holidays (format is described below) (LANG=german)
+.holidays	list of holidays (format is described below) (LANG=english)
+.messen		list of trade fair days (format described below) (LANG=german)
+.tradeshows	list of trade fair days (format described below) (LANG=english)
+-----------------------
+
+=============================================================
+===================== CONFIGURATION =========================
+=============================================================
+
+First, edit "config.tcl".  The scripts "notify.tcl", "abwesenheit",
+"abwesenheit_vt", and "server" pull in config information from it.
+These scripts plus the "run" script must also be edited to set lib_dir.
+The places are all marked with *EDIT*.
+
+I have all the scripts in /usr/local/lib/abwesenheit. This is what is
+known as "$lib_dir" everywhere.  There are links from
+/usr/local/Scripts (in our $PATH) for the 'executable' scripts that point
+to the executable scripts in $lib_dir.  That is:
+
+/usr/local/Scripts/abwesenheit -> /usr/local/lib/abwesenheit/abwesenheit
+/usr/local/Scripts/abwesenheit_vt -> /usr/local/lib/abwesenheit/abwesenheit_vt
+
+Also, the data files (for historical reasons) are kept in
+"/ossc/local/Wesen". Change this is  "config.tcl".
+
+######################################################################
+
+Seeing as this is the only documenation, here are a few notes:
+
+====================
+===   COLORS     ===
+====================
+The default colors can be (partially)
+customized. A file called ".absence_colors" (".abwesenheit_colors" if
+language=german can be created in the login directory with following
+format (one entry per line):
+
+<color-name-in-abwesenheit-script> <color-name-from-/usr/lib/X11/rgb.txt>
+
+Example:
+reserved_person_color darkRed
+
+for all color names used, look in absence towards the end.
+
+==============================
+== HOLIDAYS and TRADE FAIRS ==
+==============================
+the systems displays holidays and trade fairs in the matrix (by default
+in green). 
+
+Holiday file (.holidays)
+-------------------------
+Has the following format:
+<designation> <date in dd/mm/yy format>: <description inside '{' and '}'>
+
+example:
+Holiday: 15/8/95 {all good sinners go to heaven day}
+
+look at the example ".feiertage" for more examples
+
+Trade fair file (.tradeshows)
+-----------------------------
+format:
+<date in dd/mm/yy format> <description in '{' and '}' chars>
+
+example:
+3/4/95 {DECUS Germany Symposium}
+
+look at the example ".messen" for more examples
+
+-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+Hope it works for you.
+
+Rob Urban
+urban@rto.dec.com

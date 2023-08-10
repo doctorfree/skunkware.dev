@@ -1,0 +1,166 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:
+TITLE:  DNS/EMAIL - Send/Receive Mail With UnixWare
+DOCUMENT ID:  TID021824
+DOCUMENT REVISION:  D
+DATE:  22SEP94
+AUTHOR:  SWOOTTON
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Issue
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Mail
+
+ABSTRACT:
+
+DNS/EMAIL - Setting up to send and receive UNIX.
+
+-----------------------------------------------------------------
+DISCLAIMER THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR
+EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+ISSUE
+
+     Setting up a UnixWare System to send and receive mail
+
+There are several ways to setup EMAIL with UnixWare.  This document will cover some of the more common mail configurations.
+
+SETTING UP BASIC MAIL
+This configuration is used for smaller networks.  Add an entry in your /etc/hosts file for every SMTP system on your network.  Each system will need to be running TCP/IP in order to send and receive SMTP mail.  
+
+Although this will work fine for a small network (2-20 users) it may not be practical for a larger network.  It can be quite difficult to keep updating the /etc/hosts file on each Unix machine for each change on the network if you have a large network.
+
+SETTING UP A SMARTER HOST
+Instead of keeping the /etc/hosts file of each system updated, you can make one machine the "Smarter host" machine.  All the systems would use the Smarter host's /etc/host file for mail transfers.
+
+A "smarter host" is a UnixWare system that contains alias tables to translate and send mail to the correct system and user.  There are only a few files that need to be setup on your smarter host to make it function.  The master alias path file /etc/mail/namefiles contains a list of files that mail searches for aliases.  By default the file contains a file name /etc/mail/names and a directory /etc/mail/lists.  The lists directory would contain multiple alias files.  
+
+The first word of each line in an alias file will be the recipient's name.  The rest of that line is used as the alias(es) where each user will receive mail. For example, in the following example if mail were sent to jdoe the name would be translated to be sent to john which, in turn, would be aliased to john@caipira.acme.com.  This is can also be very useful for setting up group mailing lists.  If mail was sent to acct.group the smarter host would then know to send the mail to paul, john, and fred. 
+
+/etc/mail/names
+jdoe john
+john_doe john
+john john@caipira.acme.com
+fjones frank
+frank_jones frank
+frank fjones@skipper.acme.com
+fred fred@mhs.acme.com  ;used for fred on an mhs system
+paul paul@fixe.acme.com
+acct.group paul john fred
+services.dept acct.group frank
+
+Add the following lines to your /etc/mail/mailcnfg file:
+
+SMARTERHOST=<smarterhostname>
+ADD_FROM=1
+
+Note: replace <smarterhostname> with the name of the system that will contain the alias tables.  Make sure you have the IP address of the Smarter host in the /etc/hosts file of each system on your network.
+
+You will need to restart the mail services to reflect the new mail configuration.  To restart mail services run "/usr/lib/mail/surrcmd/createSurr".
+
+SETTING UP MAIL WITH A DOMAIN NAME SERVER
+This configuration is probably the most common for large networks.  It is also commonly used to connect mail to the internet.  If you would like to setup a Domain Name Server refer to the documents available on our faxback service.  Call 1-800-486-4835 press 2 and 1 to get to the faxback service.  You can then download the master catalog to get a listing of all available technical documents.
+
+Add an entry in /etc/resolv.conf that points to your Domain Name Server (DNS).  You may have to create this file.
+
+/etc/resolv.conf
+domain <domainname>
+nameserver <IP address of DNS>
+
+Add the following lines to your /etc/mail/mailcnfg file:
+
+ADD_FROM=1
+%d=<domainname>
+
+Note: replace <domainname> with the name of your domain. 
+
+Add a translation entry in /usr/lib/mail/mailsurr.proto file.  The user@domain entry is shown below from the mailsurr.proto file.  These lines should be found near the end of part 2 of the mailsurr.proto file.
+
+# Map all names of the form user@local-machine -> user
+# Map all names of the form user@uname -> user
+# Map all names of the form user@domain
+#
+'.+' '(.+)@%L' 'Translate R=\\1'
+'.+' '(.+)@%U' 'Translate R=\\1'
+'.+' '(.+)@%d' 'Translate R=\\1'  # This is the added entry
+
+You will need to restart the mail services to reflect the new mail configuration.  This is done by executing "/usr/lib/mail/surrcmd/createSurr".
+
+Note:  Make sure your NEVER address mail <IP address>!<username>.  Use either <systemname>!<username> or <useranme>@<domainname>.  Sending to an IP address will cause a constant mail bounce on the system you send to.  This will cause that system to slow down considerably.  If this condition exists on your system you should enter the command (as root) "chmod 444 /var/spool/smtpq/*".  Your LOG file should immediately stop growing and your system will speed up.  Wait 5 mintues to clear out the mail bounce then remove all files and subdirectories in the /var/spool/smtpq subdirectory.
+
+MAIL ROUTING
+When mail gets sent it follows a specific path.  Mail will always be either accepted to the recipient's machine or rejected back to the original machine.
+
+All mail headers sent from or through the Unixware system will go through the /etc/mail/mailsurr file.  This file handles all mail translation and delivery commands.  There are four parts to the mailsurr file. Part 1 denys messages that contain meta or invalid characters.  
+Part 2 handles all mail translation commands.  For example, if mail is sent to <system>!<user>, a command in part 2 would cause the address to be changed to <user>@<system>.  Part 3 handles all delivery commands, based on the recipient's address, mail will get handed off to a delivery agent.  These delivery agents include smtp (TCP/IP mail), smf (MHS mail), uux (UUCP mail), and mailalias (local mail and alias mail).  The "-d" option will show which commands got executed as mail passes through  the mailsurr file (i.e. mail -d fred@novell.com).  Once the mail gets passed to the appropriate delivery agent, it becomes that transport's  responsibility to deliver the mail.  Each mail agent queues and  logs its mail in separate subdirectories under /var/spool.  The log files in each subdirectory will show if mail is getting sent successfully or failing for some reason. LOG is the log file for the current day.  log.1, log.2 etc, are log files for past days, 1 corresponds to Sunday, 2 for Monday etc.
+
+If mail cannot be sent to any transport, your Smarter host will then be the next destination for mail.  Once mail is delivered to your Smarter host, the Smarter host will follow the steps listed above on its own system.
+
+Note: Your Smarter host can also list its own Smarter host somewhere on the internet or backbone.
+
+If mail cannot be sent after following the above procedure it will be rejected back to the original machine and placed in a dead.letter file.
+
+SETTING UP MAIL WITH MHS
+If you are trying to send and receive mail to NetWare clients you will need to have an MHS gateway setup on your network.  Your Smarter host could then be the system you configure as your MHS gateway. Refer to the "Using the UnixWare MHS Gateway" document available on the faxback service.  You will need to address your mail <username>@<mhs.domain> "tjones@mhs.novell.com".  Sometimes it may also be necessary to include the mhs workgroup name in the  recipient's address (i.e. tjones@<workgroup>.mhs.novell.com).
+
+TROUBLESHOOTING
+If you can't receive and/or send mail try the following steps.  If any of these changes are made you will need to remove the Cmailsurr file with the command "rm /etc/mail/Cmailsurr" and execute "/usr/lib/mail/surrcmd/createSurr".  You should also execute "/usr/sbin/initprivs" and check for errors.
+
+1. Make sure you added %d=<domainname> and ADD_FROM=1 to your /etc/mail/mailcnfg file (if using DNS).  This step tells your system what domain it is in.  Every time you send mail from your system this address will be appended to the 'From' line.
+
+2. To send mail messages to user@domain, it is necessary to create a translation entry in /usr/lib/mail/mailsurr.proto file.  The user@domain entry is shown below from the mailsurr.proto file:
+
+# Map all names of the form user@local-machine -> user
+# Map all names of the form user@uname -> user
+# Map all names of the form user@domain
+#
+'.+' '(.+)@%L' 'Translate R=\\1'
+'.+' '(.+)@%U' 'Translate R=\\1'
+'.+' '(.+)@%d' 'Translate R=\\1'  # This is the added entry
+
+3. A problem occurs when incoming mail is routed through the MHS gateway addressed to user@domain.  The mail message does not arrive on the MHS gateway system.  This problem is associated with some syntax errors in the smf delivery command located in the /usr/lib/mail/mailsurr.proto file on lines 80 and 82.  The lines in question are shown below. Please note the syntax error to user@domain is %R@1D which is incorrect:
+
+(NOTE LINE 80->)<MHS>    '[^@]+'   '([^@,:]+)@%g'      '< B=4096;
+/usr/lib/mail/surrcmd/smfqueue -h 0 -r %R@1D ' '\\1@%g%D'
+<MHS>     '.+' '([^@,:]+)@%g'      '< B=4096; /usr/lib/mail/surrcmd
+/smfqueue -h 0 -r %R ' '\\1@%g%D'
+(NOTE LINE 82->)<MHS>    '[^@]+'   '([^@,:]+)@(.+).%g%D'    '< B=4096;
+/usr/lib/mail/surrcmd/smfqueue -h 0 -r %R@1D ' '\\1@\\2.%g%D'
+<MHS>     '.+' '([^@,:]+)@(.+).%g%D'    '< B=4096;
+/usr/lib/mail/surrcmd/smfqueue -h 0 -r %R ' '\\1@\\2.%g%D'
+<MHS>     '.+' '([^@,:]+)@(.+).%g' '< B=4096;
+/usr/lib/mail/surrcmd/smfqueue -h 0 -r %R ' '\\1@\\2.%g%D'
+
+4. Remove or add '-r' at the end of the smtp line in the /etc/inet/inetd.conf file (Usually the last line in inetd.conf). By putting the '-r' in the mailsurr file will not retranslate the address.  It is standard practice to leave the  '-r' in the inetd.conf file.  The mailx command in UnixWare had a problem with the 'From' line when mail is sent to a UnixWare host that uses !path addressing.
+
+5. Remove the blank line at the bottom of the /etc/uucp/Systems file.  This may be necessary if you are running just SMTP mail.  This blank line could get interpreted as a UUCP entry and will generate a UUCP flag in /etc/mail/mailflgs.  This will cause UUCP mail to be setup instead of just SMTP.
+
+6. If your are using UUCP mail and your mail messages are bouncing back with problems with the 'From' header line or missing the postmark line, it may be necessary to edit the mailsurr.proto file. 
+Remove the "I=1;" field of the smtpqer delivery command line entries.
+The "I=1;" field will strip out the 'From' line for delivery via 
+UUCP without TCP/IP installed. Typically this is only a problem if you are using UUCP mail. Note: make sure that you take out the ';' at the end of I=1.
+
+7. If the following error is displayed when sending mail to user@mhs.domain, the /etc/mail/Cmailsurr file should be removed.  You should also check your permissions in /etc/mail for the mailcnfg, mailflgs, and mailsurr files. These files should have -rw-r--r-- rights assigned (#chmod 644 <filename>)
+
+UX:mail:ERROR: Can't send to user@machine
+UX:mail:ERROR: Return to root
+UX:mail:ERROR: Unusable address in 'From:' header field
+
+Again if any of the above changes are made your will need to remove the Cmailsurr file with the command "rm /etc/mail/Cmailsurr" and execute "/usr/lib/mail/surrcmd/createSurr".  You should also execute "/usr/sbin/initprivs" and check for errors.
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------

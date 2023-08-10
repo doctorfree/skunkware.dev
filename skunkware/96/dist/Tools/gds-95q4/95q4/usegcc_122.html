@@ -1,0 +1,111 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - Disappointments</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_121.html">previous</A>, <A HREF="usegcc_123.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC125" HREF="usegcc_toc.html#TOC125">Disappointments and Misunderstandings</A></H2>
+<P>
+These problems are perhaps regrettable, but we don't know any practical
+way around them.
+<P>
+<UL>
+<LI>
+Certain local variables aren't recognized by debuggers when you compile
+with optimization.
+
+This occurs because sometimes GNU CC optimizes the variable out of
+existence.  There is no way to tell the debugger how to compute the
+value such a variable "would have had", and it is not clear that would
+be desirable anyway.  So GNU CC simply does not mention the eliminated
+variable when it writes debugging information.
+
+You have to expect a certain amount of disagreement between the
+executable and your source code, when you use optimization.
+
+<A NAME="IDX530"></A>
+<A NAME="IDX529"></A>
+<LI>
+Users often think it is a bug when GNU CC reports an error for code
+like this:
+
+<PRE>
+int foo (struct mumble *);
+
+struct mumble { ... };
+
+int foo (struct mumble *x)
+{ ... }
+</PRE>
+
+This code really is erroneous, because the scope of <CODE>struct
+mumble</CODE> in the prototype is limited to the argument list containing it.
+It does not refer to the <CODE>struct mumble</CODE> defined with file scope
+immediately below--they are two unrelated types with similar names in
+different scopes.
+
+But in the definition of <CODE>foo</CODE>, the file-scope type is used
+because that is available to be inherited.  Thus, the definition and
+the prototype do not match, and you get an error.
+
+This behavior may seem silly, but it's what the ANSI standard specifies.
+It is easy enough for you to make your code work by moving the
+definition of <CODE>struct mumble</CODE> above the prototype.  It's not worth
+being incompatible with ANSI C just to avoid an error for the example
+shown above.
+
+<LI>
+Accesses to bitfields even in volatile objects works by accessing larger
+objects, such as a byte or a word.  You cannot rely on what size of
+object is accessed in order to read or write the bitfield; it may even
+vary for a given bitfield according to the precise usage.
+
+If you care about controlling the amount of memory that is accessed, use
+volatile but do not use bitfields.
+
+<LI>
+GNU CC comes with shell scripts to fix certain known problems in system
+header files.  They install corrected copies of various header files in
+a special directory where only GNU CC will normally look for them.  The
+scripts adapt to various systems by searching all the system header
+files for the problem cases that we know about.
+
+If new system header files are installed, nothing automatically arranges
+to update the corrected header files.  You will have to reinstall GNU CC
+to fix the new header files.  More specifically, go to the build
+directory and delete the files <TT>`stmp-fixinc'</TT> and
+<TT>`stmp-headers'</TT>, and the subdirectory <CODE>include</CODE>; then do
+<SAMP>`make install'</SAMP> again.
+
+<LI>
+On 68000 systems, you can get paradoxical results if you test the
+precise values of floating point numbers.  For example, you can find
+that a floating point value which is not a NaN is not equal to itself.
+This results from the fact that the the floating point registers hold a
+few more bits of precision than fit in a <CODE>double</CODE> in memory.
+Compiled code moves values between memory and floating point registers
+at its convenience, and moving them into memory truncates them.
+
+You can partially avoid this problem by using the <SAMP>`-ffloat-store'</SAMP>
+option (see section <A HREF="usegcc_14.html#SEC17">Options That Control Optimization</A>).
+
+<LI>
+On the MIPS, variable argument functions using <TT>`varargs.h'</TT>
+cannot have a floating point value for the first argument.  The
+reason for this is that in the absence of a prototype in scope,
+if the first argument is a floating point, it is passed in a
+floating point register, rather than an integer register.
+
+If the code is rewritten to use the ANSI standard <TT>`stdarg.h'</TT>
+method of variable arguments, and the prototype is in scope at
+the time of the call, everything will work fine.
+</UL>
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_121.html">previous</A>, <A HREF="usegcc_123.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

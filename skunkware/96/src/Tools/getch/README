@@ -1,0 +1,34 @@
+getch: read a character in raw mode and write it and a newline to stdout.
+If the input is a TTY, it is put in non-canonical (character-by-character)
+mode to read a single character, and characters are not echoed as they are
+typed.  getch will trap keyboard generated signals as well as the
+terminate signal, and restore the TTY to the mode in effect before it was
+run.  Other signals may cause getch to leave the TTY in non-canonical mode.
+If the input is a TTY and the EOF character is read, getch will exit
+without writing anything.
+Usage: getch [-bcdeEhHops] [-n<num>] [-r<radix>] [-- stty-option ...]
+If any stty-options are given, they are passed to stty for processing.
+Whatever modes they set are unset when getch exits.  If the first
+stty-option starts with a '-', use -- to terminate the argument list
+before the first stty-option is given.  Example:
+getch -sE -n10 -- -brkint
+Options:
+-e: Do not disable echoing of characters typed to TTY.
+-c: Get and write characters until stopped by signal or end of input.  In
+    this mode, getch will terminate if sent a signal or if the input ends.
+    If the input is a TTY, getch will also terminate if the EOF character
+    is read.  Also, getch can be stopped by a broken pipe signal, which
+    will be delivered if getch is writing to a pipe and the output of the
+    pipe is closed.
+-E: Treat the EOF character like any other character.
+-h: Print this help.
+-p: Print a line giving the process id.  This can be used to kill
+    getch without it reading & writing another character.
+-b: Print characters as 8-digit binary values.
+-o: Print characters as 3-digit octal values.
+-d: Print characters as 3-digit decimal values.
+-H: Print characters as 2-digit hexadecimal values.
+-r<radix>: Print characters as numbers with radix <radix>.
+-s: Disable keyboard signals.  If this is given with -E, getch is liable
+    to be difficult to quit.
+-n<num>: Like -c, but also quit after writing <num> characters.

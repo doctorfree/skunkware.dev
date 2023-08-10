@@ -1,0 +1,112 @@
+"Tk debugger" Version 0.4.
+
+Send bug reports to Tom Tromey <tromey@busco.lanl.gov>
+
+================================================================
+
+This is the README for an extension to Don Libes' Tcl debugger.  This
+extension consists of two parts: an interactor that can be used with
+Tk, and extensions that allow true source-level debugging.
+
+The interactor allows connecting to an already running Tk program,
+even one that is running in the background.  It requires the use of
+Tk.
+
+The source-level debugging extensions try to associate the current
+statement with a line in some file.  Emacs lisp code is provided so
+that this debugger can be run under gud-mode.
+
+================================================================
+
+HOW TO BUILD IT
+
+First, apply the supplied patch to Tcl.  The patch is in the file
+"patch".  Unfortunately, this patch is necessary to get the
+source-level debugging features to work.  The patch adds one more
+argument to the functions called by Tcl when doing command tracing; if
+you use command tracing functions you must update them yourself (you
+can just arrange to ignore the extra argument).  Such functions exist
+in BLT (blt_debug), and Extended Tcl (cmdtrace and profile).
+
+Next, read the file INSTALL.  It should explain everything necessary
+to build this package.  If Tcl is not found, then the configure step
+will fail.  If Tk is not found, the Tk-dependent parts will not be
+built.  Note that this package requires the internal Tcl header files
+-- not just the ones that are installed.
+
+================================================================
+
+HOW TO USE THE DEBUGGER
+
+Call Dbg_Init as discussed in the paper (tcl-debug.ps).  Everything
+else is handled automatically.
+
+You can run any debuggable Tcl program under the Emacs gud interface;
+it will automatically cope.  You can even run "tcld" (see below) under
+gud.  See gud-tcl.el for details on integrating with your environment.
+
+================================================================
+
+HOW TO USE THE INTERACTOR
+
+Call "Dbg_InitTk(interp)" at some point in your initialization.  This
+will set up a socket for communication, and will call Dbg_Init for
+you.
+
+You must link your program against the "tkdbg" and "tcldbg" libraries,
+in addition to libtk, libtcl, etc.
+
+You can use the "tcld" program to connect to a Tk process that has
+initialized the debugger.  Usage is "tcld pid".  Read Libes' paper for
+details on how the debugger actually works.
+
+NOTE the use of this package *requires* that your program (the
+debugee) use Tk.  tk-debug calls Tk_CreateFileHandler to create a
+listener on the socket it opens.  Actually, if your program has any
+kind of event loop, you could write a Tk_CreateFileHandler workalike,
+and this package should work.
+
+================================================================
+
+SECURITY ISSUES
+
+Obviously, allowing socket connections to your running Tcl program
+brings up some serious security considerations.  This package
+sidesteps these by only creating Unix-domain sockets.  These sockets
+are placed in a restricted subdirectory.  The result is that only you
+can connect to processes running under your uid.
+
+================================================================
+
+KNOWN PROBLEMS / TO DO
+
+wish doesn't destroy the Tcl interpreter when it is finished, so the
+temp directory never gets cleaned up.  I don't have a particularly
+good fix for this right now.  You should just run "tcld-clean"
+periodically.
+
+There is a program that cleans up the temp directory, but it should be
+merged with tcld.
+
+tcld should have an option to print which processes are available.
+This could easily be added to "tcld-clean", but I haven't felt like
+it.
+
+There should be a texinfo page for the debugger.
+
+It would be nice to eliminate the need for a patch to Tcl.  I don't
+think this will happen, but I would love for someone to prove me
+wrong.  Failing that, it would be nice to see this patch becomes part
+of the Tcl core.
+
+================================================================
+
+THANKS
+
+Thanks to Don Libes <libes@nist.gov>, for writing the Tcl debugger,
+and for his helpful comments.
+
+Thanks to Daniel Simmons <simmdan@kenya.isu.edu>, for testing and
+comments.
+
+Thanks to Joe Hildebrand <hildjj@idaho.fuentez.com>

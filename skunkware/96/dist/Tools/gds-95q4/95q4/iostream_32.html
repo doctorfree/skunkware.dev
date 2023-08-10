@@ -1,0 +1,76 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from iostream.texi on 9 October 1995 -->
+
+<TITLE>The GNU C++ Iostream Library - Backing Up</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="iostream_1.html">first</A>, <A HREF="iostream_31.html">previous</A>, <A HREF="iostream_33.html">next</A>, <A HREF="iostream_35.html">last</A> section, <A HREF="iostream_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC32" HREF="iostream_toc.html#TOC32">Backing up</A></H2>
+<P>
+The GNU iostream library allows you to ask a <CODE>streambuf</CODE> to
+remember the current position.  This allows you to go back to this
+position later, after reading further.  You can back up arbitrary
+amounts, even on unbuffered files or multiple buffers' worth, as long as
+you tell the library in advance.  This unbounded backup is very useful
+for scanning and parsing applications.  This example shows a typical
+scenario:
+<P>
+<PRE>
+// Read either "dog", "hound", or "hounddog".
+// If "dog" is found, return 1.
+// If "hound" is found, return 2.
+// If "hounddog" is found, return 3.
+// If none of these are found, return -1.
+int my_scan(streambuf* sb)
+{
+    streammarker fence(sb);
+    char buffer[20];
+    // Try reading "hounddog":
+    if (sb-&#62;sgetn(buffer, 8) == 8
+        &#38;&#38; strncmp(buffer, "hounddog", 8) == 0)
+      return 3;
+    // No, no "hounddog":  Back up to 'fence'
+    sb-&#62;seekmark(fence); // 
+    // ... and try reading "dog":
+    if (sb-&#62;sgetn(buffer, 3) == 3
+        &#38;&#38; strncmp(buffer, "dog", 3) == 0)
+      return 1;
+    // No, no "dog" either:  Back up to 'fence'
+    sb-&#62;seekmark(fence); // 
+    // ... and try reading "hound":
+    if (sb-&#62;sgetn(buffer, 5) == 5
+        &#38;&#38; strncmp(buffer, "hound", 5) == 0)
+      return 2;
+    // No, no "hound" either:  Back up and signal failure.
+    sb-&#62;seekmark(fence); // Backup to 'fence'
+    return -1;
+}
+</PRE>
+<P>
+<A NAME="IDX186"></A>
+<U>Constructor:</U>  <B>streammarker::streammarker</B> <I>(streambuf* <VAR>sbuf</VAR>)</I><P>
+Create a <CODE>streammarker</CODE> associated with <VAR>sbuf</VAR>
+that remembers the current position of the get pointer.
+<P>
+<A NAME="IDX187"></A>
+<U>Method:</U> int <B>streammarker::delta</B> <I>(streammarker&#38; <VAR>mark2</VAR>)</I><P>
+Return the difference between the get positions corresponding
+to <CODE>*this</CODE> and <VAR>mark2</VAR> (which must point into the same
+<CODE>streambuffer</CODE> as <CODE>this</CODE>).
+<P>
+<A NAME="IDX188"></A>
+<U>Method:</U> int <B>streammarker::delta</B> <I>()</I><P>
+Return the position relative to the streambuffer's current get position.
+<P>
+<A NAME="IDX189"></A>
+<U>Method:</U> int <B>streambuf::seekmark</B> <I>(streammarker&#38; <VAR>mark</VAR>)</I><P>
+Move the get pointer to where it (logically) was when <VAR>mark</VAR>
+was constructed.
+<P>
+<HR>
+Go to the <A HREF="iostream_1.html">first</A>, <A HREF="iostream_31.html">previous</A>, <A HREF="iostream_33.html">next</A>, <A HREF="iostream_35.html">last</A> section, <A HREF="iostream_toc.html">table of contents</A>.
+</BODY>
+</HTML>

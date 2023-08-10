@@ -1,0 +1,264 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from libc.texinfo on 9 October 1995 -->
+
+<TITLE>The Cygnus C Support Library - printf</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="libc_1.html">first</A>, <A HREF="libc_77.html">previous</A>, <A HREF="libc_79.html">next</A>, <A HREF="libc_140.html">last</A> section, <A HREF="libc_toc.html">table of contents</A>.
+<HR>
+<A NAME="IDX108"></A>
+<A NAME="IDX109"></A>
+<A NAME="IDX110"></A>
+<H2><A NAME="SEC78" HREF="libc_toc.html#TOC78"><CODE>printf</CODE>, <CODE>fprintf</CODE>, <CODE>sprintf</CODE>---format output</A></H2>
+<STRONG>Synopsis</STRONG>
+<PRE>
+#include &#60;stdio.h&#62;
+
+int printf(const char *<VAR>format</VAR> [, <VAR>arg</VAR>, ...]);
+int fprintf(FILE *<VAR>fd</VAR>, const char *<VAR>format</VAR> [, <VAR>arg</VAR>, ...]);
+int sprintf(char *<VAR>str</VAR>, const char *<VAR>format</VAR> [, <VAR>arg</VAR>, ...]);
+
+</PRE>
+<STRONG>Description</STRONG><BR>
+<CODE>printf</CODE> accepts a series of arguments, applies to each a
+format specifier from <CODE>*<VAR>format</VAR></CODE>, and writes the
+formatted data to <CODE>stdout</CODE>, terminated with a null character.
+The behavior of <CODE>printf</CODE> is undefined if there are not enough
+arguments for the format.
+<CODE>printf</CODE> returns when it reaches the end of the format string.
+If there are more arguments than the format requires, excess
+arguments are ignored.
+<P>
+<CODE>fprintf</CODE> and <CODE>sprintf</CODE> are identical to <CODE>printf</CODE>, other than the
+destination of the formatted output: <CODE>fprintf</CODE> sends the
+output to a specified file <VAR>fd</VAR>, while <CODE>sprintf</CODE> stores the
+output in the specified char array <VAR>str</VAR>.  For <CODE>sprintf</CODE>,
+the behavior is also undefined if the output <CODE>*<VAR>str</VAR></CODE>
+overlaps with one of the arguments.
+<VAR>format</VAR> is a pointer to a charater string containing two types of
+objects: ordinary characters (other than <CODE>%</CODE>), which are
+copied unchanged to the output, and conversion
+specifications, each of which is introduced by <CODE>%</CODE>.
+(To include <CODE>%</CODE> in the output, use <CODE>%%</CODE> in the format string.)
+A conversion specification has the following form:
+<P>
+<PRE>
+       %[<VAR>flags</VAR>][<VAR>width</VAR>][.<VAR>prec</VAR>][<VAR>size</VAR>][<VAR>type</VAR>]
+</PRE>
+<P>
+The fields of the conversion specification have the following meanings:
+<P>
+<UL>
+
+<LI><VAR>flags</VAR>
+
+an optional sequence of characters which control
+output justification, numeric signs, decimal points,
+trailing zeroes, and octal and hex prefixes.
+The flag characters are minus (<CODE>-</CODE>), plus (<CODE>+</CODE>),
+space ( ), zero (<CODE>0</CODE>), and sharp (<CODE>#</CODE>).  They can
+appear in any combination.
+
+<DL COMPACT>
+
+<DT><CODE>-</CODE>
+<DD>The result of the conversion is left justified, and the right is
+padded with blanks.  If you do not use this flag, the result is right
+justified, and padded on the left.
+
+<DT><CODE>+</CODE>
+<DD>The result of a signed conversion (as determined by <VAR>type</VAR>)
+will always begin with a plus or minus sign.  (If you do not use
+this flag, positive values do not begin with a plus sign.)
+
+<DT><CODE>" " (space)</CODE>
+<DD>If the first character of a signed conversion specification
+is not a sign, or if a signed conversion results in no
+characters, the result will begin with a space.  If the
+space ( ) flag and the plus (<CODE>+</CODE>) flag both appear,
+the space flag is ignored.
+
+<DT><CODE>0</CODE>
+<DD>If the <VAR>type</VAR> character is <CODE>d</CODE>, <CODE>i</CODE>, <CODE>o</CODE>, <CODE>u</CODE>,
+<CODE>x</CODE>, <CODE>X</CODE>, <CODE>e</CODE>, <CODE>E</CODE>, <CODE>f</CODE>, <CODE>g</CODE>, or <CODE>G</CODE>: leading zeroes,
+are used to pad the field width (following any indication of sign or
+base); no spaces are used for padding.  If the zero (<CODE>0</CODE>) and
+minus (<CODE>-</CODE>) flags both appear, the zero (<CODE>0</CODE>) flag will
+be ignored.  For <CODE>d</CODE>, <CODE>i</CODE>, <CODE>o</CODE>, <CODE>u</CODE>, <CODE>x</CODE>, and <CODE>X</CODE>
+conversions, if a precision <VAR>prec</VAR> is specified, the zero (<CODE>0</CODE>)
+flag is ignored.
+Note that <CODE>0</CODE> is interpreted as a flag, not as the beginning
+of a field width.
+
+<DT><CODE>#</CODE>
+<DD>The result is to be converted to an alternative form, according
+to the next character:
+
+<DL COMPACT>
+
+<DT><CODE>0</CODE>
+<DD>increases precision to force the first digit
+of the result to be a zero.
+
+<DT><CODE>x</CODE>
+<DD>a non-zero result will have a <CODE>0x</CODE> prefix.
+
+<DT><CODE>X</CODE>
+<DD>a non-zero result will have a <CODE>0X</CODE> prefix.
+
+<DT><CODE>e, E or f</CODE>
+<DD>The result will always contain a decimal point
+even if no digits follow the point.
+(Normally, a decimal point appears only if a
+digit follows it.)  Trailing zeroes are removed.
+
+<DT><CODE>g or G</CODE>
+<DD>same as <CODE>e</CODE> or <CODE>E</CODE>, but trailing zeroes
+are not removed.
+
+<DT><CODE>all others</CODE>
+<DD>undefined.
+
+</DL>
+
+</DL>
+
+
+<LI><VAR>width</VAR>
+
+<VAR>width</VAR> is an optional minimum field width.  You can either
+specify it directly as a decimal integer, or indirectly by
+using instead an asterisk (<CODE>*</CODE>), in which case an <CODE>int</CODE>
+argument is used as the field width.  Negative field widths
+are not supported; if you attempt to specify a negative field
+width, it is interpreted as a minus (<CODE>-</CODE>) flag followed by a
+positive field width.
+
+<LI><VAR>prec</VAR>
+
+an optional field; if present, it is introduced with `<CODE>.</CODE>'
+(a period). This field gives the maximum number of
+characters to print in a conversion; the minimum number of
+digits of an integer to print, for conversions with <VAR>type</VAR>
+<CODE>d</CODE>, <CODE>i</CODE>, <CODE>o</CODE>, <CODE>u</CODE>, <CODE>x</CODE>, and <CODE>X</CODE>; the maximum number of
+significant digits, for the <CODE>g</CODE> and <CODE>G</CODE> conversions;
+or the number of digits to print after the decimal
+point, for <CODE>e</CODE>, <CODE>E</CODE>, and <CODE>f</CODE> conversions.  You can specify
+the precision either directly as a decimal integer or
+indirectly by using an asterisk (<CODE>*</CODE>), in which case
+an <CODE>int</CODE> argument is used as the precision.  Supplying a negative
+precision is equivalent to omitting the precision.
+If only a period is specified the precision is zero.
+If a precision appears with any other conversion <VAR>type</VAR>
+than those listed here, the behavior is undefined.
+
+<LI><VAR>size</VAR>
+
+<CODE>h</CODE>, <CODE>l</CODE>, and <CODE>L</CODE> are optional size characters which
+override the default way that <CODE>printf</CODE> interprets the
+data type of the corresponding argument.  <CODE>h</CODE> forces
+the following <CODE>d</CODE>, <CODE>i</CODE>, <CODE>o</CODE>, <CODE>u</CODE>, <CODE>x</CODE> or <CODE>X</CODE> conversion
+<VAR>type</VAR> to apply to a <CODE>short</CODE> or <CODE>unsigned short</CODE>. <CODE>h</CODE> also
+forces a following <CODE>n</CODE> <VAR>type</VAR> to apply to
+a pointer to a <CODE>short</CODE>. Similarily, an
+<CODE>l</CODE> forces the following <CODE>d</CODE>, <CODE>i</CODE>, <CODE>o</CODE>, <CODE>u</CODE>,
+<CODE>x</CODE> or <CODE>X</CODE> conversion <VAR>type</VAR> to apply to a <CODE>long</CODE> or
+<CODE>unsigned long</CODE>.  <CODE>l</CODE> also forces a following <CODE>n</CODE> <VAR>type</VAR> to
+apply to a pointer to a <CODE>long</CODE>. If an <CODE>h</CODE>
+or an <CODE>l</CODE> appears with another conversion
+specifier, the behavior is undefined.  <CODE>L</CODE> forces a
+following <CODE>e</CODE>, <CODE>E</CODE>, <CODE>f</CODE>, <CODE>g</CODE> or <CODE>G</CODE> conversion <VAR>type</VAR> to
+apply to a <CODE>long double</CODE> argument.  If <CODE>L</CODE> appears with
+any other conversion <VAR>type</VAR>, the behavior is undefined.
+
+<LI><VAR>type</VAR>
+
+<VAR>type</VAR> specifies what kind of conversion <CODE>printf</CODE> performs.
+Here is a table of these:
+
+<DL COMPACT>
+
+<DT><CODE>%</CODE>
+<DD>prints the percent character (<CODE>%</CODE>)
+
+<DT><CODE>c</CODE>
+<DD>prints <VAR>arg</VAR> as single character
+<DT><CODE>s</CODE>
+<DD>prints characters until precision is reached or a null terminator
+is encountered; takes a string pointer
+
+<DT><CODE>d</CODE>
+<DD>prints a signed decimal integer; takes an <CODE>int</CODE> (same as <CODE>i</CODE>)
+
+<DT><CODE>i</CODE>
+<DD>prints a signed decimal integer; takes an <CODE>int</CODE> (same as <CODE>d</CODE>)
+
+<DT><CODE>o</CODE>
+<DD>prints a signed octal integer; takes an <CODE>int</CODE>
+
+<DT><CODE>u</CODE>
+<DD>prints an unsigned decimal integer; takes an <CODE>int</CODE>
+
+<DT><CODE>x</CODE>
+<DD>prints an unsigned hexadecimal integer (using <CODE>abcdef</CODE> as
+digits beyond <CODE>9</CODE>); takes an <CODE>int</CODE>
+
+<DT><CODE>X</CODE>
+<DD>prints an unsigned hexadecimal integer (using <CODE>ABCDEF</CODE> as
+digits beyond <CODE>9</CODE>); takes an <CODE>int</CODE>
+
+<DT><CODE>f</CODE>
+<DD>prints a signed value of the form <CODE>[-]9999.9999</CODE>; takes
+a floating point number
+<DT><CODE>e</CODE>
+<DD>prints a signed	value of the form <CODE>[-]9.9999e[+|-]999</CODE>; takes a
+floating point number
+
+<DT><CODE>E</CODE>
+<DD>prints the same way as <CODE>e</CODE>, but using <CODE>E</CODE> to introduce the
+exponent; takes a floating point number
+
+<DT><CODE>g</CODE>
+<DD>prints a signed value in either <CODE>f</CODE> or <CODE>e</CODE> form, based on given
+value and precision--trailing zeros and the decimal point are
+printed only if necessary; takes a floating point number
+<DT><CODE>G</CODE>
+<DD>prints the same way as <CODE>g</CODE>, but using <CODE>E</CODE> for the exponent if an
+exponent is needed; takes a floating point number
+
+<DT><CODE>n</CODE>
+<DD>stores (in the same object) a count of the characters written;
+takes a pointer to <CODE>int</CODE>
+
+<DT><CODE>p</CODE>
+<DD>prints a pointer in an implementation-defined format.
+This implementation treats the pointer as an
+<CODE>unsigned long</CODE> (same as <CODE>Lu</CODE>).
+</DL>
+
+</UL>
+<P>
+<BR>
+<STRONG>Returns</STRONG><BR>
+<CODE>sprintf</CODE> returns the number of bytes in the output string,
+save that the concluding <CODE>NULL</CODE> is not counted.
+<CODE>printf</CODE> and <CODE>fprintf</CODE> return the number of characters transmitted.
+If an error occurs, <CODE>printf</CODE> and <CODE>fprintf</CODE> return <CODE>EOF</CODE>. No
+error returns occur for <CODE>sprintf</CODE>.
+<P>
+<BR>
+<STRONG>Portability</STRONG><BR>
+The  ANSI C standard specifies that implementations must
+support at least formatted output of up to 509 characters.
+<P>
+Supporting OS subroutines required: <CODE>close</CODE>, <CODE>fstat</CODE>, <CODE>isatty</CODE>,
+<CODE>lseek</CODE>, <CODE>read</CODE>, <CODE>sbrk</CODE>, <CODE>write</CODE>.
+<P>
+<BR>
+<P>
+<HR>
+Go to the <A HREF="libc_1.html">first</A>, <A HREF="libc_77.html">previous</A>, <A HREF="libc_79.html">next</A>, <A HREF="libc_140.html">last</A> section, <A HREF="libc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

@@ -1,0 +1,205 @@
+   Copyright (C) 1990, 1995 Aladdin Enterprises.  All rights reserved.
+  
+  This file is part of Aladdin Ghostscript.
+  
+  Aladdin Ghostscript is distributed with NO WARRANTY OF ANY KIND.  No author
+  or distributor accepts any responsibility for the consequences of using it,
+  or for whether it serves any particular purpose or works at all, unless he
+  or she says so in writing.  Refer to the Aladdin Ghostscript Free Public
+  License (the "License") for full details.
+  
+  Every copy of Aladdin Ghostscript must include a copy of the License,
+  normally in a plain ASCII text file named PUBLIC.  The License grants you
+  the right to copy, modify and redistribute Aladdin Ghostscript, but only
+  under certain conditions described in the License.  Among other things, the
+  License requires that the copyright notice and this notice be preserved on
+  all copies.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+This file, current.doc, describes problems and new features in the current
+release of Ghostscript.  This file describes version 3.53 of Ghostscript.
+
+For an overview of Ghostscript and a list of the documentation files, see
+README.
+
+New features (since release 3.33)
+============
+
+This is not a complete list of new features: see NEWS for details.
+
+New switches:
+	-dFIXEDMEDIA freezes the initial size of the initial window or page;
+	  attempts to change it with setpagedevice will be treated according
+	  to the Policies entry for PageSize.  -g (but not -sPAPERSIZE=)
+	  implies -dFIXEDMEDIA.
+	-dFIXEDRESOLUTION freezes the initial resolution; attempts to change
+	  it with setpagedevice will be ignored.  -r implies
+	  -dFIXEDRESOLUTION.
+	-dLOCALFONTS loads Type 1 fonts into the current VM, for
+	  compatibility with Adobe printers.
+	-dNOFONTMAP suppresses loading the Fontmap, for environments that
+	  rely entirely on FONTPATH and/or compiled-in fonts.
+	-dNOPROMPT suppresses the end-of-page prompts (but still waits for
+	  the user to type a newline after each page).
+	-dSHORTERRORS makes error messages more Adobe-compatible.
+	-sFONTMAP=filename specifies the name of the Fontmap file.
+	-sSUBSTFONT=fontname substitutes the given font for all unknown fonts,
+	  rather than using an intelligent substitution algorithm.
+	-P says look in `.' first for fonts and startup files.
+	-P- says *don't* look in `.' first for fonts and startup files.
+	-uname un-defines name (cancelling -d or -s).
+
+New scripts and utilities:
+	pdf2ps input.pdf output.ps
+		Converts PDF to PostScript.
+	pdf2dsc.ps
+		Converts PDF to fake DSC-compliant PostScript code.
+
+The MS Windows and OS/2 configurations now include the PDF interpreter.
+
+The PDF interpreter now accepts PDF 1.1 files, except for those that use
+encryption.  PDF to PostScript conversion works properly.  The Rotate key in
+PDF files is implemented.
+
+The library has a new API that allows feeding strings to the interpreter in
+arbitrary chunks.  See imain.h for details.
+
+Anti-aliased characters are available under X Windows.  Use the x11alpha
+device instead of x11.
+
+It is now possible to store band lists in RAM instead of on files.  See the
+definition of cl_impl in lib.mak.
+
+An experimental RasterOp extension is implemented.  See language.doc.
+
+setpagedevice is (finally) mostly implemented.
+
+Changes
+=======
+
+Usage
+-----
+
+The pgm[raw] and ppm[raw] drivers no longer switch automatically to a more
+compact format for pages that don't need gray-scale or color.  Use pgnm[raw]
+and pnm[raw] instead.
+
+Building
+--------
+
+For compiling-in the initialization files, define COMPILE_INITS=1 instead of
+adding ccinit.dev to FEATURE_DEVS.
+
+In devs.mak, printer devices must now include page.dev in their
+dependencies, and must use $(SETPDEV) rather than $(SETDEV).
+
+There is a new macro XEAUX that defines the executable extension for
+auxiliary programs.  All references to <some-program>$(XE) must be replaced
+by $(<SOME-PROGRAM>_XE), where some-program={$(GS), ansi2knr, echogs,
+genarch, genconf, geninit}.
+
+The mergeini.ps program has been replaced by geninit.c.
+
+Internal
+--------
+
+The library API for gs_image[mask]_init has changed significantly.  See
+gsimage.h for details.
+
+The format of the gx_device structure has changed slightly.  If you have
+drivers that don't use the macros in gxdevice.h and gdevprn.h for defining
+the prototype, or that reference the PageSize member of the structure, you
+will need to edit them.
+
+Known problems
+==============
+
+Usage
+-----
+
+On a MS-DOS system, interrupting the interpreter by typing ^C doesn't
+restore the display mode.
+
+Limitations
+-----------
+
+serialnumber returns the same value in all copies.
+
+User names (a Display PostScript facility) are not implemented.
+
+Some floating point exceptions terminate the interpreter, rather than
+producing a limitcheck error.
+
+The DCTEncode filter disregards the Blend parameter, and uses different
+QuantTables and HuffTables from Adobe's.
+
+The DCT filters do not support nonintegral sample ratios, and do not allow
+Sum(HS*VS)>10, regardless of the value of the Relax parameter.
+
+The size of the execution stack cannot be changed dynamically.  (However,
+the sizes of the operand and dictionary stacks can be changed.)
+
+Separation color spaces are implemented, but devices that actually produce
+color separations are not supported.  The special color separations All and
+None, and the primary separations (Red, Green, etc.), are not supported.
+
+execform and ucache are implemented, but they do not actually do any
+caching; setucacheparams and ucachestatus are dummies.  (This only impacts
+performance, not functionality.)
+
+The image operator only honors the Interpolate flag in the image
+dictionary if the combined transformation (ImageMatrix + CTM) doesn't
+involve rotation, skewing, or X-reflection.
+
+Any path building operation (moveto, lineto, curveto) that would generate a
+device coordinate larger than +/-2^19 will cause a limitcheck.
+
+setpagedevice recognizes only the following standard keys for all devices:
+	BeginPage
+	EndPage
+	HWResolution
+	ImagingBBox  InputAttributes  Install
+	Margins
+	NumCopies
+	OutputAttributes  OutputDevice
+	PageOffset  PageSize  Policies  ProcessColorModel
+It uses the following for input attribute matching:
+	InsertSheet
+	MediaColor  MediaType  MediaWeight
+	PageSize
+It uses the following for output attribute matching:
+	OutputType
+Of course, specific devices may add to this list.
+
+Graphics bugs
+-------------
+
+The implementation only looks at the PaintType of the font when doing
+show, not when doing charpath.  Because of this, stroked fonts don't work
+correctly with charpath.
+
+arcto gives an error for negative radii.
+
+Opening more than one window device at the same time doesn't work.
+This is the case for both X Windows and Microsoft Windows.
+
+cshow doesn't work with composite fonts.
+
+Non-graphics bugs
+-----------------
+
+The %statementedit pseudo-file is equivalent to %lineedit.  As a
+consequence, the interactive interpreter requires that every statement fit
+on a line, i.e., you can't have an unpaired (, {, or <.
+
+The following operators that expect arrays won't accept packed arrays:
+	definefont (Subrs (type 1 fonts))
+
+Syntax errors occurring within a binary token do not produce the error
+message specified by the Adobe documentation.
+
+restore doesn't restore the user parameters.
+
+1 vmreclaim is equivalent to 2 vmreclaim -- there is no separate GC for
+local VM.

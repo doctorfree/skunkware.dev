@@ -1,0 +1,198 @@
+
+
+
+NNTPD(8C)	      MAINTENANCE COMMANDS		NNTPD(8C)
+
+
+
+NAME
+     nntpd - Network News Transfer Protocol server
+
+SYNOPSIS
+     /etc/nntpd
+     (with /etc/inetd, see below)
+
+DESCRIPTION
+     Nntpd is a	server that supports the  proposed  standard  for
+     the  stream based transmission of network news articles.  It
+     can be used both by ``reader/poster'' clients  that  present
+     news  to  users,  and by ``transfer'' clients that	transport
+     news between machines.  When used with Internet  TCP,  nntpd
+     operates at the port indicated in the ``nntp'' service entry
+     in	/etc/services; the port	number assigned	 by  the  Network
+     Information  Center  for  this service is 119.  For use with
+     DECNET (which is only known to work  under	 ULTRIX),  define
+     the NNTP object with NCP.
+
+     ncp define	object NNTP number 0 file /etc/nntpd
+     ncp define	object NNTP default user guest type stream
+     ncp set object NNTP all
+
+     This manual page describes	nntpd from version 1.5.9  of  the
+     NNTP package.
+
+     Nntpd can operate either as a stand-alone server,	or  as	a
+     server  under inetd(8C).  For stand-alone use, nntpd must be
+     compiled with the -DALONE option, and is usually invoked  at
+     system   startup	by   the   /etc/rc.local  script.   Under
+     inetd(8C),	 the  appropriate   entry   must   be	made   in
+     /etc/inetd.conf, and the server must be compiled without the
+     -DALONE flag. You may need	to halt	and restart inetd(8C)  or
+     send it SIGHUP to force it	to reread /etc/inetd.conf.
+
+     The server	handles	clients	on a one to one	basis, forking to
+     take  care	 of  clients  as  they request connections.  Each
+     server changes its	 current  directory  to	 the  news  spool
+     directory ( /usr/spool/news) and then executes commands from
+     its client.  These	commands are described in  ARPA	 Internet
+     RFC  977, ``Network News Transfer Protocol; A Proposed Stan-
+     dard for the Stream Based Transmission of News Articles.''
+
+CLIENT ACCESS
+     Sites may choose to limit	the  hosts  that  can  query  the
+     server  for news.	Further, some sites may	not wish to allow
+     certain hosts to post news.  Finally, some	sites may wish to
+     restrict  the  newsgroups	that  can be accessed from remote
+     hosts.  Such limiting can be accomplished through an  access
+     file,  /usr/lib/news/nntp_access.	 This  file  consists  of
+     three or four fields in the following form:
+
+
+
+
+AT&T Bell LaboratorieLast change: 4 July 1990			1
+
+
+
+
+
+
+NNTPD(8C)	      MAINTENANCE COMMANDS		NNTPD(8C)
+
+
+
+     host/net/*domain.suffix/address   read/xfer/both/no  post/no  newsgroups
+
+     where host	is a valid host	name as	found in /etc/hosts,  net
+     is	  a   valid  network  name  as	found  in  /etc/networks,
+     *.domain.suffix is	a valid	domain part of	a  hostname  pre-
+     ceeded  by	 an asterisk, address is a valid internet address
+     in	the form  of  a	 dotted	 quad,	and  ``read'',	``xfer'',
+     ``both'',	``post'', and ``no'' are the corresponding string
+     constants.	  Newsgroups  is  an  optional	list   of   comma
+     separated	newsgroup  names.  Anything to the right of a `#'
+     character is taken	to be a	comment	and is ignored.
+
+     The presence of an	entry in this file implies that	 specific
+     host,  or hosts on	the named network, or hosts with a domain
+     suffix that matches, are allowed to read news,  but  not  to
+     post  news.   The	absence	 of  a	entry  corresponding to	a
+     client's host or network implies  that  the  client  is  not
+     allowed  to  read	or post	news.  Default permissions can be
+     set by having the first entry in the file be a host/net name
+     of	 ``default''.	If  this is used, ``default'' must be the
+     first entry.
+
+     The first field to	the right of the host/net entry	specifies
+     the  read	access of the host/net in question.  If	the entry
+     is	``read,'' matching hosts can read news.	This  means  that
+     all  commands  but	 IHAVE	and POST can be	executed.  If the
+     entry is ``xfer,''	however, matching hosts	can only  execute
+     commands  used  for transferring news, such as NEWNEWS, NEW-
+     GROUPS, IHAVE, and	ARTICLE	with message-id	 parameters.   If
+     the entry is ``both,'' ths	host can execute all commands but
+     POST.  The	string ``no'' denies read permission of	any  kind
+     to	a matching host.
+
+     The next field to the right defines whether a matching  host
+     has  post permission: if the field	is ``post'' then the POST
+     command is	permitted; if the field	is ``no,'' then	 matching
+     clients are not allowed to	post news.
+
+     The next field is optional, and,  if  present,  is	 a  comma
+     separated list of newsgroup names that restrict the client's
+     reading  ability.	 Clients  are  not  allowed  to	 read  or
+     transfer articles in newsgroup names preceded by an exclama-
+     tion point.  By default, clients are  allowed  to	read  all
+     newsgroups.
+
+     Nntpd is selective	and searches for a  ``best  match''  when
+     searching this file to check its client's permissions.  That
+     is, a specific host name match is used over a client being	a
+     member of a specified net.
+
+EXAMPLE	ACCESS FILE
+
+
+
+
+AT&T Bell LaboratorieLast change: 4 July 1990			2
+
+
+
+
+
+
+NNTPD(8C)	      MAINTENANCE COMMANDS		NNTPD(8C)
+
+
+
+     #
+     # Example access file
+     #
+     default	     xfer    no
+     ucb-ether	     read    post
+     shadow	     no	     no
+     *.stanford.edu  no	     no
+     ic		     read    post     !ucb.postgres
+     128.249.1.1     read    no
+
+
+     The above file allows only	transfer of news (i.e.,	no  read-
+     ing  or  posting)	by  default.  Hosts on the network ``ucb-
+     ether'' would be able to read and post  news,  however  news
+     transfer  would  not  be allowed.	The host ``shadow'' would
+     not be allowed to read or post  news.   Hosts  that  have	a
+     domain suffix of ``.stanford.edu''	are denied access to this
+     server.  The host ``ic'' is allowed to read and  post  news,
+     but cannot	access articles	in the newsgroup ``ucb.postgres''
+     or	   any	   of	  its	  child	    newsgroups	   (e.g.,
+     ``ucb.postgres.core'').   Finally,	the host whose ip address
+     is	128.249.1.1 is allowed to read but not post. If	you  have
+     mutl-homed	host, all addresses for	that host will need to be
+     listed with the same access information or	things	will  not
+     work as expected.
+
+INFORMING USERS	OF NEW NEWSGROUPS
+     The NEWGROUPS command does	not work well when  used  with	B
+     news.   However, C	news provides this information and use of
+     the NEWGROUPS command will	be much	more reliable.	For those
+     sites  using  B  news, client programs can	determine if new-
+     groups have been created by testing for  the  difference  in
+     active file size from the previous	session.
+
+     Older versions of nntpd relied on the program  mkgrdates  to
+     prepare  newsgroup	creation information.  Mkgrdates was fal-
+     lible and could present a hefty load on the serving  system.
+     Consequently,  it	is  no	longer	supported, and its use is
+     discouraged.
+
+AUTHORS
+     Phil    Lapsley	(Internet:    phil@berkeley.edu;    UUCP:
+     ...!ucbvax!phil)
+     Stan Barber (Internet: sob@tmc.edu; UUCP: ...!bcm!sob)
+
+SEE ALSO
+     services(5), inetd(8C), rc.local(8)
+
+     RFC 977, ``Network	News Transfer Protocol:	 A Proposed Stan-
+     dard for the Stream Based Transmission of News Articles.''
+
+
+
+
+
+AT&T Bell LaboratorieLast change: 4 July 1990			3
+
+
+

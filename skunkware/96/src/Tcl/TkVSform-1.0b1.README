@@ -1,0 +1,422 @@
+                            TkVSform-1.0b1
+                            ==============
+                            (Dec. 8, 1995)
+
+TkVSform version 1.0, beta release 1
+
+With apologies to the many people that have contacted me over the
+months since I alluded to this package, I'm finally making a
+prerelease version available for your experimentation.
+
+TkVSform is a facility for developing Tk-based forms without worrying
+too much about such things as widget path names, widget arguments, key
+bindings, geometry management, and other annoying Tk issues.  As a
+result, a forms-based GUI tends to be put together much more quickly
+and consistently over its Tk equivalent.
+
+TkVSform works well with the other TclVS toolkit components, TclVSdb
+(a database facility) and TclVSrpt (a report / document generation
+facility), but can be used independently.  [see dbForm.tcl for TclVSdb
+integration].
+
+As much as I hate the term "widget", I find no good alternative to the
+term for this document.  In context of TclVSform, a "widget" is a GUI
+item on the form that presents or obtains information.  Decorative or
+control elements are not "widgets".
+
+Features:
+=========
+
+o  A "form" is a data abstraction that is associated with a Tcl
+   associative array variable.  This associative array contains all
+   state information and the configuration of the form.
+
+o  A "group" is continuous region of the form of consisting of "lines"
+   and has a border drawn around it.
+
+o  A "line" is a horizontal band of "widgets".
+
+o  An "widget" is a graphical user-interface element.  Supported widgets
+   include:
+
+   formLABEL      a prompt string and / or string obtained from a variable
+   formCHECK      a checkbutton with prompt that sets a boolean variable
+   formRADIO      a radiobutton that sets a variable to its prompt value
+   formBUTTON     a push button that launches a Tcl command or procedure 
+   formENTRY      a text entry line with two-way association to a
+                  variable and optional Tcl verification procedure
+   formPASSWORD   a formENTRY which echos "*" instead of typed input
+   formMESSAGE    a multi-line text display
+   formTEXT       a scrollable multi-line text entry area or text display
+                  area, with two-way association to a variable
+   formLIST       a scrollable selection list (select single entry) with 
+                  three possible input sources:
+                    *  list of fixed entries via literal list
+                    *  list of entries pulled from a variable
+                    *  list of entries returned from a Tcl command or
+                       procedure
+                  two possible output destinations:
+                    *  a variable
+                    *  a Tcl procedure
+
+o  Each "widget" may have a state name (a mnemonic string) 
+   associated with it, (independent of its line or group membership).  
+   All items with same state name may be enabled or disabled atomically.
+
+o  All selectable widgets support keyboard traversal via <Tab> 
+   <Shift-Tab> and activation via <Enter>.
+
+o  Two way association exists between all widgets and their source
+   variable, meaning that invoking or changing the widget via the
+   form instantly maps the values to the variable, and changing the
+   variable's value immediately updates the form.
+
+o  Forms are not mapped to the screen until all construction and
+   geometry management is completed.
+
+o  Form composition is simple; following a basic outline structure
+   working from the top of the form, down line by line, and from the
+   left to the right adding widgets to a line:
+     formBEGIN
+       formGROUP
+         formNEWLINE
+           widget
+           widget
+           widget
+         formNEWLINE
+           widget
+           widget
+       formGROUP
+         formNEWLINE
+           widget
+           widget
+     formEND
+
+
+Drawbacks:
+==========
+
+o  Not all Tk widgets or features are supported
+
+o  Placement of widgets is on from left to right on a line, to add
+   spacing between widgets, insert a formLABEL widget with an empty
+   string.  No centering on a line or placement controls are given
+
+
+
+Procedures:
+===========
+
+     NOTE:  The widget creation procedures return the Tk widget 
+            path of the widget.  In most situations, this value
+            can be simply ignored as TkVSform tracks all of this
+            information internally.
+
+formBEGIN fvar title pos wtoposto [MAIN]
+
+  Start definition of a form.  Associate form with global array
+  named "fvar".  Put "title" in the window decoration.  Position the
+  upper-left corner of the form to "pos" (i.e. "+100+100").  Ignore
+  "wtoposto" for now as relative positioning of forms hasn't been
+  implemented yet.  If "MAIN" is added, the main "wish" window is used
+  for the form, otherwise, a new toplevel form is created.
+
+formGROUP fvar
+
+  Close definition of any previous lines or groups and start
+  definition of a new group on the form associated with the "fvar"
+  global array variable.
+
+formNEWLINE fvar
+
+  Close definition of the previous line and start definition of a new
+  line in the form associated with the "fvar" global array variable.
+  A "line" is a horizontal band of widgets which are added from left
+  to right.  The height of the current line is determined by the
+  height of the tallest widget on the line.  Widgets are centered 
+  vertically within their line.
+
+formCHECK fvar statetag prompt var [elem] [tkopts]
+
+  Create a checkbutton widget on the current line of the form
+  associated with the "fvar" global array variable.  "statetag" can
+  be an arbitrary string (no white space) for managing enabling 
+  or disabling of this widget, or "" if not important.  "prompt"
+  is the string to label the checkbutton with (placed to the right 
+  of the checkbutton).  "var" is a global variable to take the boolean
+  value (1=selected, 0=not selected) of the checkbutton.  If "var" is 
+  a global array variable, "elem" is the element name to associate
+  with the checkbutton (or either omit or set to "" if not needed).
+  "tkopts" is a string containing any additional Tk options that 
+  you might want to optionally set for the checkbutton widget.
+ 
+formRADIO fvar statetag prompt var [elem] [tkopts]
+
+  Create a radiobutton widget on the current line of the form
+  associated with the "fvar" global array variable.  "statetag" can
+  be an arbitrary string (no white space) for managing enabling 
+  or disabling of this widget, or "" if not important.  "prompt"
+  is the string to label the radiobutton with and is also the 
+  value returned if the radiobutton is selected (placed to the 
+  right of the radio).  "var" is a global variable to receive 
+  the value of the radiobutton.  If "var" is a global array variable, 
+  "elem" is the element name to associate with the radiobutton 
+  (or either omit or set to "" if not needed).  "tkopts" is a 
+  string containing any additional Tk options that you might want 
+  to optionally set for the radiobutton widget.
+  
+formBUTTON fvar statetag prompt cmd [cmdargs] [width] [tkopts]
+
+  Create a button widget on the current line of the form associated
+  with the "fvar" global array variable.  "statetag" can be an 
+  arbitrary string (no white space) for managing enabling  or 
+  disabling of this widget, or "" if not important.  "prompt" is the 
+  string to display on the button.  "cmd" is the Tcl command or
+  procedure name to invoke when the button is activated.  "cmdargs"
+  is a string containing any arguments that you might wish to 
+  provide the "cmd" argument, or omit or set to "" if not needed.  
+  "width" is the desired width of the button in characters, which,
+  if omitted or set to "" will default to the width of "prompt".  
+  "tkopts" is a string containing any additional Tk options that 
+  you might want to optionally set for the button widget.
+  
+formLABEL fvar statetag prompt [var] [elem] [width] [tkopts]
+
+  Create a label widget on the current line of the form associated
+  with the "fvar" global array variable.  "statetag" can be an 
+  arbitrary string (no white space) for managing enabling  or 
+  disabling of this widget, or "" if not important.  "prompt" is 
+  a bolded string to display prior to the label widget (or set to ""
+  if not desired).  "var" is an optional global variable to display
+  a non-bolded string from after the "prompt" string (and is
+  updateable at run time by simply assigning to "var"; either omit or
+  set to "" if not needed).  If "var" is a global array variable, 
+  "elem" is the element name to associate with the label widget 
+  (or either omit or set to "" if not needed).  "tkopts" is a string 
+  containing any additional Tk options that you might want to 
+  optionally set for the label widget.
+ 
+formENTRY fvar statetag var [elem] [width] [cmd] [cmdargs] [tkopts]
+ 
+  Create an entry (type-in) widget on the current line of the form
+  associated with the "fvar" global array variable.  "statetag" can be
+  an arbitrary string (no white space) for managing enabling  or 
+  disabling of this widget, or "" if not important.  Associate the
+  global variable "var" with the entry widget.  If "var" is a global
+  array, "elem" is used to specify which array element to associate
+  with the entry widget (omit or set to "" if not needed).  "width"
+  is the optional width of the entry widget in characters (defaults
+  to 25).  Validation of the entry is achieved with the "cmd" 
+  Tcl procedure name and its optional argument list, "cmdargs". 
+  The "cmd" procedure, if given will be called as:
+     procname $fvar $pathofentry $var $elem $cmdargs
+  when a <Return> is entered in the entry widget.  "tkopts" is a 
+  string containing any additional Tk options that you might want to 
+  optionally set for the entry widget.
+
+formPASSWORD fvar statetag var [elem] [width] [cmd] [cmdargs] [tkopts]
+ 
+  formPASSWORD is identical in every way to formENTRY execept all
+  typed-in input is echoed as a sequence of "*" characters.  See
+  the "formENTRY" entry above for usage.
+
+formMESSAGE fvar statetag var [elem] [tkopts]
+
+  Create a multi-line textual message widget on the current line of 
+  the form associated with the "fvar" global array variable.  
+  "statetag" can be an arbitrary string (no white space) for managing 
+  enabling or disabling of this widget, or "" if not important.
+  The argument "var" may be either the string to display in the
+  message widget or the global variable name containing the text
+  to display in the message widget.  The message widget determines
+  its width by the width of the longest line of text to be displayed,
+  and will only break displayed lines when a newline is found in the
+  text.  If "var" is a global variable array, "elem" is the element 
+  name for the message widget to associate with in the array.
+  "tkopts" is a string containing any additional Tk options that you 
+  might want to optionally set for the message widget.
+
+formTEXT fvar statetag var [elem] [width] [height] [tkopts]  
+  
+  Create a multi-line scrollable text input / output region widget 
+  on the current line of the form associated with the "fvar" global 
+  array variable.  "statetag" can be an arbitrary string (no white 
+  space) for managing enabling or disabling of this widget, or "" 
+  if not important.  "var" is the global variable to associate with
+  the scrollable text region ("var" for this widget acts as if a Tk
+  text widget had a "-textvariable" option [which it doesn't]).  If
+  "var" is a global array variable, "elem" specifies the element in
+  the array to associate with the widget.  "width" specifies the
+  width of this widget is characters (defaults to 45) and "height"
+  specifies the height of the widget in lines of text (defaults to 8).
+  "tkopts" is a string containing any additional Tk options that you 
+  might want to optionally set for the text widget.  Should you wish
+  to not allow input into this widget, but make it read-only, specify
+  the "tkopts" string "-state disabled".
+
+formLIST fvar statetag var elem ovar [oelem] [width] [height] [tkopts]
+
+  Create a multi-line scrollable, single selection, list widget on 
+  the current line of the form associated with the "fvar" global 
+  array variable.  "statetag" can be an arbitrary string (no white 
+  space) for managing enabling or disabling of this widget, or "" 
+  if not important.  "var" is the data source of the list of strings 
+  to display in the list widget, one per line, and may be given as 
+  one of three forms:  (1) a quoted literal list of items for the list
+  ("elem" must be set to ""), (2) "var" is the name of a global
+  variable from which the list of items to display are obtained
+  ("elem" specifies the element name for the list if "var" is a global
+  array), and (3) "var" is the name of a Tcl command or procedure
+  which will return the list of items to display ("elem" is the 
+  arguments to the command or procedure, or "").  "ovar" is the 
+  destination of of the list item text selected.  "ovar" may take on 
+  one of two forms:  (1) "ovar" is the name of a global variable to 
+  receive the selected list item string ("oelem" is the element name 
+  for the assignment if "ovar" is a global array), or (2) "ovar" is 
+  the name of a Tcl procedure to receive the selected item string 
+  ("oelem" becomes an list of additional arguments to the procedure.  
+  The argument list to "ovar" when used in this manner is:
+     procname $fvar $selectedindex $selecteditem ["olem" arguments]
+  The various input and output options to the formLIST widget makes
+  it very flexible.  "width" is the width of the list in characters
+  (defaults to 15).  "height" is the height of the list in lines
+  displayed (defaults to 5).  "tkopts" is a string containing any 
+  additional Tk options that you  might want to optionally set for 
+  the list widget.
+
+formEND fvar [showit] [focuseditem] [focustype]
+
+  Signals completion of the form defintion associated with the
+  global array variable "fvar".  "showit" may have the value of
+  "on" (the default) or "off", governing whether the form should
+  be displayed on the screen immediately.  The "formSHOW" command 
+  may be used to display a form whose "showit" value has been set 
+  to "off".  "focuseditem" is the widget path the on the form that 
+  receives the initial highlighted input focus (defaults to the 
+  first form widget defined).  "focustype" may be set to the value 
+  of "lockedinput" which will exclude any transfer for focus outside
+  of the form when it is visible on the screen [use this option only
+  after exhaustive testing of the form without it, and then, with 
+  caution].
+
+formDIE fvar
+
+  Removes a form from the screen, destroys it, frees all resources 
+  associated with the form, and destroys the "fvar" global array 
+  variable.
+
+formSHOW fvar [showit]
+
+  Displays a finished form (formEND has been previously issued)
+  associated with the global array variable "fvar", or removes 
+  the form non-destructively from the screen.  "showit" may take 
+  the value "on" to display a form (the default), or "off" to remove 
+  the form from the screen.
+
+formPATHS fvar [pattern]
+
+  Returns a list of the Tk widget paths for all widgets in the form 
+  associated with the global array variable "fvar".  If "pattern" is
+  omitted, all widget paths are returned.  "pattern" is a glob-style
+  pattern to restrict the returned paths.  For instance, a pattern
+  of "*.txt" will return all text area widgets, and a pattern of 
+  "*.g3.*" will return all widgets in the third group defined for the
+  form.
+
+formSTATE fvar statetag [onoff]
+
+  Activates or deactives all widgets in the form associated with the
+  global array variable "fvar" whose "statetag" matches the string
+  provided with this command.  "onoff" may take the value of "on" 
+  (the default) to activate the widgets, or "off" will deactivate 
+  the widgets.  When a widget is deactivated, it becomes a light gray 
+  in color and is neither selectable with the mouse or keyboard 
+  traversal.
+
+formCURSOR fvar [type] [altcursorname]
+
+  Set the cursor shown when the mouse pointer is over the form for the
+  form associated with the global array variable "fvar".  "type" may
+  take on the values of "normal" (the default), "busy" (an hourglass),
+  or "alt".  If "type" is set to "alt", then "altcursorname" must
+  contain the name of the cursor to use.
+
+formTEXTTRACE fvar opcode
+
+  Activates or deactivates the two-way association between the 
+  text widgets in the form associated with the global array variable
+  "fvar", and their data source variables.  "opcode" may be set
+  to "on" (the default) to activate the two-way association, or
+  "off" to break the association.
+
+formTEXTREFRESH fvar
+
+  Updates the text widgets for the form associated with the global
+  array variable "fvar" from their data source variables.  This
+  would be desirable if "formTEXTTRACE" was used to break two-way
+  association with these variables.
+
+formLISTCLEAR fvar [path]
+
+  Clears the contents of a scrollable single item selection list
+  widget in the form associated with the global array variable "fvar".
+  if "path" is omitted, all list widgets in the form are cleared.
+  Otherwise, "path" is the Tk widget path returned by the "formLIST"
+  command to the widget to be cleared.
+
+formLISTUPDATE fvar path var [elem]
+
+  Replaces the contents of a scrollable single item selection list
+  widget in the form associated with the global array variable
+  "fvar".  "path" is the Tk widget path (as returned by "formLIST")
+  for the widget to be updated.  "var" is a list of strings to display
+  in the list widget, one per line, and may be given as one of three 
+  forms:  (1) a quoted literal list of items for the list widget ("elem" 
+  must be set to ""), (2) "var" is the name of a global variable from 
+  which the list of items to display are obtained ("elem" specifies 
+  the element name for the list if "var" is a global array), and 
+  (3) "var" is the name of a Tcl command or procedure which will
+  return the list of items to display ("elem" is the arguments to the 
+  command or procedure, or ""). 
+ 
+
+Missing features desired for actual release of TkVSform:
+========================================================
+
+o  Multi, discontinuous, list selection
+
+o  Menu bars and menu lists
+
+o  Bitmap and image support (without using "tkopts")
+
+o  Library of stock forms (e.g. file selection, font selection,
+   email form, error popup, confirmation popup, etc.)
+
+o  Sample application integrating TkVSform with TclVSdb and TclVSrpt
+   to provide database definition, selection, editing, and report
+   generation.
+
+o  Possible other sample applications (bug tracking?  rolodex?)
+
+
+Feedback, comments, bugs, enhancement requests:
+===============================================
+   Please send all feedback, comments, bugs, enhancement
+   requests, war stories, success stories, etc. to:
+
+        steven@cirque.com
+
+        Steve Wahl
+        Cirque Labs, Inc.
+        268 W. Third St. / P. O. Box 1774
+        Nederland, CO  80466
+        (303) 258-0100
+        (303) 258-7255 (FAX)
+        url: http://www.cirque.com/  
+
+   Announcements will be made to comp.lang.tcl, perhaps
+   comp.lang.tcl.announce (if it happens anytime soon).
+
+   TclVS archives are found at:
+        ftp://ftp.cirque.com/pub/TclVS
+        http://www.cirque.com/tclvs.html

@@ -1,0 +1,69 @@
+
+
+
+Example Argus Deployment and Functional Configuration
+
+
+We describe two working Argus configurations.  All the IP network addresses
+have been changed to protect the innocent.
+
+The first and simplest configuration, the Argus daemon is run from a
+host with a single network interface, and logs data directly to disk.
+With this configuration, one may also connect directly to the auditing
+host and collect data remotely in real time (see ra(1) using the -S option).
+Steps should be taken to harden this host with respect to security to
+insure the integrity of the Argus data.  This is a typical configuration
+for auditing on trusted internal networks segments.
+
+Note: due to a bug on Sun OS 4.X and the SNIT interface, no datagrams
+sent from the auditing host will not be detected.  In order to avoid
+confusion, in this configuration we recommend that you filter packets
+involving the Argus host on the argus command line.
+
+The second example configuration can be used to verify a network
+firewall service policy for intrusion detection.  In this configuration,
+the auditing host is stripped of all non-essential network services,
+hardened with respect to security and an given an additional network
+interface.  This extra interface is attached directly to the firewall
+network and assigned the IP address of 0.0.0.0, so that it cannot be
+accessed by any external hosts located outside the firewall.  Also,
+the auditing host does not have a default route, and has IP forwarding
+turned off in the kernel.  The following is an example of this
+configuration:
+
+                                    |
+                               -----------
+                               | Internet|
+                               | Gateway |
+                               -----------
+                 Firewall Network   |  10.1.1.1
+              |--------------------------------------------|
+                            | 10.1.1.2       |  0.0.0.0
+                       -----------      -----------
+                       | Gateway |      |  Argus  |
+                       |         |      |  Host   |
+                       -----------      -----------
+                            | 192.0.0.1      | 192.0.0.2
+              |--------------------------------------------|
+                             Internal Network
+
+Note: since the primary interface of the Argus host (192.0.0.2) is attached 
+directly to the internal network, we restrict the Argus host to routing only 
+to the internal network for security purposes.
+
+In both configurations, the Argus daemon is started from rc.local, i.e.,
+
+   if [ -f /usr/argus/bin/argus_snit ]; then
+      /usr/argus/bin/argus_snit -w /usr/argus/argus.file & 
+      echo -n ' Argus'
+   fi
+ 
+When the Argus daemon reports a network transaction or an event, it opens
+the file, writes the data, then closes.  Hence since the Unix mv(1)
+command is autonomous, the Argus file can simply be moved to an archive 
+directory for archival purposes, and the original file will continue to be
+created without dropping data.  I.e. this is an example of a script run from 
+cron(8) to move the file to an archive directory hourly,
+
+   mv /usr/argus/argus.file /usr/argus/archive/argus.`date +%m.%d.%H`:00
+

@@ -1,0 +1,1163 @@
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+     NNNNAAAAMMMMEEEE
+          tcpdump - dump traffic on a network
+
+     SSSSYYYYNNNNOOOOPPPPSSSSIIIISSSS
+          ttttccccppppdddduuuummmmpppp [ ----ddddeeeeffffllllnnnnNNNNOOOOppppqqqqSSSSttttvvvvxxxx ] [ ----cccc _c_o_u_n_t ] [ ----FFFF _f_i_l_e ]
+                  [ ----iiii _i_n_t_e_r_f_a_c_e ] [ ----rrrr _f_i_l_e ] [ ----ssss _s_n_a_p_l_e_n ]
+                  [ ----wwww _f_i_l_e ] _e_x_p_r_e_s_s_i_o_n
+
+     DDDDEEEESSSSCCCCRRRRIIIIPPPPTTTTIIIIOOOONNNN
+          _T_c_p_d_u_m_p prints out the  headers  of  packets  on  a  network
+          interface  that  match the boolean _e_x_p_r_e_s_s_i_o_n.  UUUUnnnnddddeeeerrrr SSSSuuuunnnnOOOOSSSS::::
+          You must be root to invoke _t_c_p_d_u_m_p or it must  be  installed
+          setuid  to  root.  UUUUnnnnddddeeeerrrr UUUUllllttttrrrriiiixxxx:::: Any user can invoke _t_c_p_d_u_m_p
+          once the super-user has enabled  promiscuous-mode  operation
+          using  _p_f_c_o_n_f_i_g(8).   UUUUnnnnddddeeeerrrr BBBBSSSSDDDD:::: Access is controlled by the
+          permissions  on  /_d_e_v/_b_p_f_0,  etc.   UUUUnnnnddddeeeerrrr  SSSSCCCCOOOO::::  Access   is
+          controlled by access to the device in /_d_e_v/_m_d_i.
+
+     OOOOPPPPTTTTIIIIOOOONNNNSSSS
+          ----cccc   Exit after receiving _c_o_u_n_t packets.
+
+          ----dddd   Dump the  compiled  packet-matching  code  to  standard
+               output and stop.
+
+          ----eeee   Print the link-level header on each dump line.
+
+          ----ffff   Print `foreign' internet addresses  numerically  rather
+               than  symbolically  (this  option  is  intended  to get
+               around serious  brain  damage  in  Sun's  yp  server  -
+               usually it hangs forever translating non-local internet
+               numbers).
+
+          ----FFFF   Use _f_i_l_e  as  input  for  the  filter  expression.   An
+               additional  expression  given  on  the  command line is
+               ignored.
+
+          ----iiii   Listen on _i_n_t_e_r_f_a_c_e.  If unspecified, _t_c_p_d_u_m_p  searches
+               the  system  interface  list  for  the lowest numbered,
+               configured up interface (excluding loopback).  Ties are
+               broken by choosing the earliest match.
+
+          ----llll   Make stdout line buffered.  Useful if you want  to  see
+               the data while capturing it.  E.g.,
+               ``tcpdump  -l  |  tee  dat''   or   ``tcpdump  -l     >
+               dat  &  tail  -f  dat''.
+
+          ----nnnn   Don't convert addresses  (i.e.,  host  addresses,  port
+               numbers, etc.) to names.
+
+          ----NNNN   Don't print domain name qualification  of  host  names.
+               E.g.,  if  you  give  this flag then _t_c_p_d_u_m_p will print
+               ``nic'' instead of ``nic.ddn.mil''.
+
+
+
+     Page 1                                          (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+          ----OOOO   Do not run the packet-matching code optimizer.  This is
+               useful only if you suspect a bug in the optimizer.
+
+          ----pppp   _D_o_n'_t put the interface into  promiscuous  mode.   Note
+               that  the  interface  might  be in promiscuous for some
+               other  reason;  hence,  `-p'  cannot  be  used  as   an
+               abbreviation for `ether host {localhost} or broadcast'.
+
+          ----qqqq   Quick (quiet?) output.  Print less protocol information
+               so output lines are shorter.
+
+          ----rrrr   Read packets from _f_i_l_e (which was created with  the  -w
+               option).  Standard input is used if _f_i_l_e is ``-''.
+
+          ----ssss   Snarf _s_n_a_p_l_e_n bytes of data  from  each  packet  rather
+               than  the  default  of  68  (with  NIT,  the minimum is
+               actually 96).  68 bytes is adequate for IP,  ICMP,  TCP
+               and UDP but may truncate protocol information from name
+               server and NFS packets (see below).  Packets  truncated
+               because  of  a  limited  snapshot  are indicated in the
+               output with ``[|_p_r_o_t_o]'', where _p_r_o_t_o is  the  name  of
+               the   protocol   level  at  which  the  truncation  has
+               occurred.   Note  that  taking  larger  snapshots  both
+               increases  the  amount  of  time  it  takes  to process
+               packets  and,  effectively,  decreases  the  amount  of
+               packet  buffering.   This may cause packets to be lost.
+               You should limit _s_n_a_p_l_e_n to the  smallest  number  that
+               will capture the protocol information you're interested
+               in.
+
+          ----SSSS   Print absolute,  rather  than  relative,  TCP  sequence
+               numbers.
+
+          ----tttt   _D_o_n'_t print a timestamp on each dump line.
+
+          ----tttttttt  Print an unformatted timestamp on each dump line.
+
+          ----vvvv   (Slightly more) verbose output.  For example, the  time
+               to live and type of service information in an IP packet
+               is printed.
+
+          ----vvvvvvvv  Even more  verbose  output.   For  example,  additional
+               fields are printed from NFS reply packets.
+
+          ----wwww   Write the raw packets to _f_i_l_e rather than  parsing  and
+               printing  them out.  They can later be printed with the
+               -r option.  Standard output is used if _f_i_l_e is ``-''.
+
+          ----xxxx   Print each packet (minus its link level header) in hex.
+               The  smaller of the entire packet or _s_n_a_p_l_e_n bytes will
+               be printed.
+
+
+
+
+     Page 2                                          (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+           _e_x_p_r_e_s_s_i_o_n
+               selects which packets will be dumped.  If no _e_x_p_r_e_s_s_i_o_n
+               is  given,  all  packets  on  the  net  will be dumped.
+               Otherwise, only packets for which _e_x_p_r_e_s_s_i_o_n is  `true'
+               will be dumped.
+
+               The _e_x_p_r_e_s_s_i_o_n consists  of  one  or  more  _p_r_i_m_i_t_i_v_e_s.
+               Primitives  usually  consist  of an _i_d (name or number)
+               preceded by one or more qualifiers.   There  are  three
+               different kinds of qualifier:
+
+               _t_y_p_e qualifiers say what kind of thing the id  name  or
+                    number  refers  to.   Possible types are hhhhoooosssstttt, nnnneeeetttt
+                    and ppppoooorrrrtttt.  E.g., `host foo',  `net  128.3',  `port
+                    20'.   If  there  is  no  type  qualifier, hhhhoooosssstttt is
+                    assumed.
+
+               _d_i_r  qualifiers specify a particular tranfer  direction
+                    to  and/or  from  _i_d. Possible directions are ssssrrrrcccc,
+                    ddddsssstttt, ssssrrrrcccc oooorrrr ddddsssstttt and ssssrrrrcccc aaaannnndddd ddddsssstttt.  E.g., `src foo',
+                    `dst  net  128.3', `src or dst port ftp-data'.  If
+                    there is no dir qualifier, ssssrrrrcccc oooorrrr ddddsssstttt is assumed.
+
+               _p_r_o_t_o
+                    qualifiers restrict  the  match  to  a  particular
+                    protocol.   Possible  protos are: eeeetttthhhheeeerrrr, ffffddddddddiiii, iiiipppp,
+                    aaaarrrrpppp, rrrraaaarrrrpppp, ddddeeeeccccnnnneeeetttt, llllaaaatttt, mmmmoooopppprrrrcccc, mmmmooooppppddddllll, ttttccccpppp and uuuuddddpppp.
+                    E.g.,  `ether src foo', `arp net 128.3', `tcp port
+                    21'.   If  there  is  no  proto   qualifier,   all
+                    protocols  consistent  with  the type are assumed.
+                    E.g., `src foo' means `(ip or  arp  or  rarp)  src
+                    foo' (except the latter is not legal syntax), `net
+                    bar' means `(ip or arp or rarp) net bar' and `port
+                    53' means `(tcp or udp) port 53'.
+
+               [`fddi' is actually an alias for  `ether';  the  parser
+               treats  them  identically  as  meaning  ``the data link
+               level used on the specified network interface.''   FDDI
+               headers  contain  Ethernet-like  source and destination
+               addresses,  and  often  contain  Ethernet-like   packet
+               types,  so  you can filter on these FDDI fields just as
+               with the analogous Ethernet fields.  FDDI headers  also
+               contain   other   fields,  but  you  cannot  name  them
+               explicitly in a filter expression.]
+
+               In addition  to  the  above,  there  are  some  special
+               `primitive'  keywords  that  don't  follow the pattern:
+               ggggaaaatttteeeewwwwaaaayyyy,  bbbbrrrrooooaaaaddddccccaaaasssstttt,  lllleeeessssssss,  ggggrrrreeeeaaaatttteeeerrrr   and   arithmetic
+               expressions.  All of these are described below.
+
+               More complex filter expressions are built up  by  using
+               the words aaaannnndddd, oooorrrr and nnnnooootttt to combine primitives.  E.g.,
+
+
+
+     Page 3                                          (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+               `host foo and not port ftp and not port ftp-data'.   To
+               save  typing, identical qualifier lists can be omitted.
+               E.g., `tcp dst port  ftp  or  ftp-data  or  domain'  is
+               exactly  the  same as `tcp dst port ftp or tcp dst port
+               ftp-data or tcp dst port domain'.
+
+               Allowable primitives are:
+
+               ddddsssstttt hhhhoooosssstttt _h_o_s_t
+                    True if the IP destination field of the packet  is
+                    _h_o_s_t, which may be either an address or a name.
+
+               ssssrrrrcccc hhhhoooosssstttt _h_o_s_t
+                    True if the IP source field of the packet is _h_o_s_t.
+
+               hhhhoooosssstttt _h_o_s_t
+                    True if either the IP source or destination of the
+                    packet is _h_o_s_t.  Any of the above host expressions
+                    can be prepended with the keywords,  iiiipppp,  aaaarrrrpppp,  or
+                    rrrraaaarrrrpppp as in:
+                         iiiipppp hhhhoooosssstttt _h_o_s_t
+                    which is equivalent to:
+                         eeeetttthhhheeeerrrr pppprrrroooottttoooo \_i_p aaaannnndddd hhhhoooosssstttt _h_o_s_t
+                    If _h_o_s_t is a name with multiple IP addresses, each
+                    address will be checked for a match.
+
+               eeeetttthhhheeeerrrr ddddsssstttt _e_h_o_s_t
+                    True if the ethernet destination address is _e_h_o_s_t.
+                    _E_h_o_s_t  may  be either a name from /etc/ethers or a
+                    number (see _e_t_h_e_r_s(3N) for numeric format).
+
+               eeeetttthhhheeeerrrr ssssrrrrcccc _e_h_o_s_t
+                    True if the ethernet source address is _e_h_o_s_t.
+
+               eeeetttthhhheeeerrrr hhhhoooosssstttt _e_h_o_s_t
+                    True if either the ethernet source or  destination
+                    address is _e_h_o_s_t.
+
+               ggggaaaatttteeeewwwwaaaayyyy _h_o_s_t
+                    True if the packet used _h_o_s_t as a gateway.   I.e.,
+                    the  ethernet  source  or  destination address was
+                    _h_o_s_t  but  neither  the  IP  source  nor  the   IP
+                    destination  was  _h_o_s_t.   _H_o_s_t  must be a name and
+                    must be found in both /etc/hosts and  /etc/ethers.
+                    (An equivalent expression is
+                         eeeetttthhhheeeerrrr hhhhoooosssstttt _e_h_o_s_t aaaannnndddd nnnnooootttt hhhhoooosssstttt _h_o_s_t
+                    which can be used with either names or numbers for
+                    _h_o_s_t / _e_h_o_s_t.)
+
+               ddddsssstttt nnnneeeetttt _n_e_t
+                    True if the IP destination address of  the  packet
+                    has  a  network number of _n_e_t, which may be either
+
+
+
+     Page 4                                          (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+                    an address or a name.
+
+               ssssrrrrcccc nnnneeeetttt _n_e_t
+                    True if the IP source address of the packet has  a
+                    network number of _n_e_t.
+
+               nnnneeeetttt _n_e_t
+                    True  if  either  the  IP  source  or  destination
+                    address of the packet has a network number of _n_e_t.
+
+               ddddsssstttt ppppoooorrrrtttt _p_o_r_t
+                    True if the packet is ip/tcp or ip/udp and  has  a
+                    destination port value of _p_o_r_t.  The _p_o_r_t can be a
+                    number  or  a  name  used  in  /etc/services  (see
+                    _t_c_p(4P) and _u_d_p(4P)).  If a name is used, both the
+                    port number and protocol are checked.  If a number
+                    or ambiguous name is used, only the port number is
+                    checked  (e.g.,  ddddsssstttt  ppppoooorrrrtttt  555511113333  will  print  both
+                    tcp/login  traffic  and  udp/who traffic, and ppppoooorrrrtttt
+                    ddddoooommmmaaaaiiiinnnn will print both tcp/domain  and  udp/domain
+                    traffic).
+
+               ssssrrrrcccc ppppoooorrrrtttt _p_o_r_t
+                    True if the packet has  a  source  port  value  of
+                    _p_o_r_t.
+
+               ppppoooorrrrtttt _p_o_r_t
+                    True if either the source or destination  port  of
+                    the  packet  is  _p_o_r_t.   Any  of  the  above  port
+                    expressions can be prepended  with  the  keywords,
+                    ttttccccpppp or uuuuddddpppp, as in:
+                         ttttccccpppp ssssrrrrcccc ppppoooorrrrtttt _p_o_r_t
+                    which matches only tcp packets.
+
+               lllleeeessssssss _l_e_n_g_t_h
+                    True if the packet has a length less than or equal
+                    to _l_e_n_g_t_h.  This is equivalent to:
+                         lllleeeennnn <<<<==== _l_e_n_g_t_h....
+
+               ggggrrrreeeeaaaatttteeeerrrr _l_e_n_g_t_h
+                    True if the packet has a length  greater  than  or
+                    equal to _l_e_n_g_t_h.  This is equivalent to:
+                         lllleeeennnn >>>>==== _l_e_n_g_t_h....
+
+               iiiipppp pppprrrroooottttoooo _p_r_o_t_o_c_o_l
+                    True if the packet is an ip packet (see _i_p(4P)) of
+                    protocol  type _p_r_o_t_o_c_o_l.  _P_r_o_t_o_c_o_l can be a number
+                    or one of the names _i_c_m_p, _u_d_p, _n_d, or  _t_c_p.   Note
+                    that  the  identifiers _t_c_p, _u_d_p, and _i_c_m_p are also
+                    keywords and must be escaped  via  backslash  (\),
+                    which is \\ in the C-shell.
+
+
+
+
+     Page 5                                          (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+               eeeetttthhhheeeerrrr bbbbrrrrooooaaaaddddccccaaaasssstttt
+                    True  if  the  packet  is  an  ethernet  broadcast
+                    packet.  The _e_t_h_e_r keyword is optional.
+
+               iiiipppp bbbbrrrrooooaaaaddddccccaaaasssstttt
+                    True if the packet is an IP broadcast packet.   It
+                    checks   for  both  the  all-zeroes  and  all-ones
+                    broadcast conventions,  and  looks  up  the  local
+                    subnet mask.
+
+               eeeetttthhhheeeerrrr mmmmuuuullllttttiiiiccccaaaasssstttt
+                    True  if  the  packet  is  an  ethernet  multicast
+                    packet.   The  _e_t_h_e_r keyword is optional.  This is
+                    shorthand for `eeeetttthhhheeeerrrr[[[[0000]]]] &&&& 1111 !!!!==== 0000'.
+
+               iiiipppp mmmmuuuullllttttiiiiccccaaaasssstttt
+                    True if the packet is an IP multicast packet.
+
+               eeeetttthhhheeeerrrr pppprrrroooottttoooo _p_r_o_t_o_c_o_l
+                    True if the packet  is  of  ether  type  _p_r_o_t_o_c_o_l.
+                    _P_r_o_t_o_c_o_l  can  be a number or a name like _i_p, _a_r_p,
+                    or _r_a_r_p.  Note these identifiers are also keywords
+                    and  must  be  escaped via backslash (\).  [In the
+                    case of FDDI  (e.g.,  `ffffddddddddiiii  pppprrrroooottttooooccccoooollll  aaaarrrrpppp'),  the
+                    protocol   identification  comes  from  the  802.2
+                    Logical  Link  Control  (LLC)  header,  which   is
+                    usually   layered  on  top  of  the  FDDI  header.
+                    _t_c_p_d_u_m_p assumes, when filtering  on  the  protocol
+                    identifier,  that  all FDDI packets include an LLC
+                    header, and that the LLC header  is  in  so-called
+                    SNAP format.]
+
+               ddddeeeeccccnnnneeeetttt ssssrrrrcccc _h_o_s_t
+                    True if the DECNET source address is  _h_o_s_t,  which
+                    may  be  an  address  of the form ``10.123'', or a
+                    DECNET host name.  [DECNET host  name  support  is
+                    only   available   on   Ultrix  systems  that  are
+                    configured to run DECNET.]
+
+               ddddeeeeccccnnnneeeetttt ddddsssstttt _h_o_s_t
+                    True if the DECNET destination address is _h_o_s_t.
+
+               ddddeeeeccccnnnneeeetttt hhhhoooosssstttt _h_o_s_t
+                    True if either the DECNET  source  or  destination
+                    address is _h_o_s_t.
+
+               iiiipppp, aaaarrrrpppp, rrrraaaarrrrpppp, ddddeeeeccccnnnneeeetttt
+                    Abbreviations for:
+                         eeeetttthhhheeeerrrr pppprrrroooottttoooo _p
+                    where _p is one of the above protocols.
+
+               llllaaaatttt, mmmmoooopppprrrrcccc, mmmmooooppppddddllll
+
+
+
+     Page 6                                          (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+                    Abbreviations for:
+                         eeeetttthhhheeeerrrr pppprrrroooottttoooo _p
+                    where _p is one of the above protocols.  Note  that
+                    _t_c_p_d_u_m_p does not currently know how to parse these
+                    protocols.
+
+               ttttccccpppp, uuuuddddpppp, iiiiccccmmmmpppp
+                    Abbreviations for:
+                         iiiipppp pppprrrroooottttoooo _p
+                    where _p is one of the above protocols.
+
+               _e_x_p_r _r_e_l_o_p _e_x_p_r
+                    True if the relation holds, where _r_e_l_o_p is one  of
+                    >,  <,  >=,  <=,  =, !=, and _e_x_p_r is an arithmetic
+                    expression   composed   of    integer    constants
+                    (expressed  in  standard  C  syntax),  the  normal
+                    binary operators [+, -, *,  /,  &,  |],  a  length
+                    operator,  and  special packet data accessors.  To
+                    access data inside the packet, use  the  following
+                    syntax:
+                         _p_r_o_t_o [[[[ _e_x_p_r :::: _s_i_z_e ]]]]
+                    _P_r_o_t_o is one of eeeetttthhhheeeerrrr,,,, ffffddddddddiiii,,,, iiiipppp,,,, aaaarrrrpppp,,,,  rrrraaaarrrrpppp,,,,  ttttccccpppp,,,,
+                    uuuuddddpppp,,,, or iiiiccccmmmmpppp, and indicates the protocol layer for
+                    the index operation.  The byte offset, relative to
+                    the  indicated  protocol  layer, is given by _e_x_p_r.
+                    _S_i_z_e is optional and indicates the number of bytes
+                    in  the  field  of interest; it can be either one,
+                    two, or four, and defaults  to  one.   The  length
+                    operator,  indicated by the keyword lllleeeennnn, gives the
+                    length of the packet.
+
+                    For example, `eeeetttthhhheeeerrrr[[[[0000]]]]  &&&&  1111  !!!!====  0000'  catches  all
+                    multicast traffic.  The expression `iiiipppp[[[[0000]]]] &&&& 0000xxxxffff !!!!====
+                    5555'  catches  all  IP  packets  with  options.  The
+                    expression  `iiiipppp[[[[6666::::2222]]]]  &&&&  0000xxxx1111ffffffffffff  ==== 0000' catches only
+                    unfragmented datagrams and frag zero of fragmented
+                    datagrams.   This  check  is implicitly applied to
+                    the ttttccccpppp and uuuuddddpppp index operations.   For  instance,
+                    ttttccccpppp[[[[0000]]]]  always  means  the  first  byte of the TCP
+                    _h_e_a_d_e_r, and never  means  the  first  byte  of  an
+                    intervening fragment.
+
+               Primitives may be combined using:
+
+                    A parenthesized group of primitives and  operators
+                    (parentheses  are special to the Shell and must be
+                    escaped).
+
+                    Negation (`!!!!' or `nnnnooootttt').
+
+                    Concatenation (`&&&&&&&&' or `aaaannnndddd').
+
+
+
+
+     Page 7                                          (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+                    Alternation (`||||||||' or `oooorrrr').
+
+               Negation  has  highest  precedence.   Alternation   and
+               concatenation  have equal precedence and associate left
+               to  right.   Note  that  explicit   aaaannnndddd   tokens,   not
+               juxtaposition, are now required for concatenation.
+
+               If an identifier is given without a keyword,  the  most
+               recent keyword is assumed.  For example,
+                    nnnnooootttt hhhhoooosssstttt vvvvssss aaaannnndddd aaaacccceeee
+               is short for
+                    nnnnooootttt hhhhoooosssstttt vvvvssss aaaannnndddd hhhhoooosssstttt aaaacccceeee
+               which should not be confused with
+                    nnnnooootttt (((( hhhhoooosssstttt vvvvssss oooorrrr aaaacccceeee ))))
+
+               Expression arguments can be passed to tcpdump as either
+               a  single  argument or as multiple arguments, whichever
+               is  more  convenient.   Generally,  if  the  expression
+               contains  Shell metacharacters, it is easier to pass it
+               as a single, quoted argument.  Multiple  arguments  are
+               concatenated with spaces before being parsed.
+
+     EEEEXXXXAAAAMMMMPPPPLLLLEEEESSSS
+          To print all packets arriving at or departing from _s_u_n_d_o_w_n:
+               ttttccccppppdddduuuummmmpppp hhhhoooosssstttt ssssuuuunnnnddddoooowwwwnnnn
+
+          To print traffic between _h_e_l_i_o_s and either _h_o_t or _a_c_e:
+               ttttccccppppdddduuuummmmpppp hhhhoooosssstttt hhhheeeelllliiiioooossss aaaannnndddd \\\\(((( hhhhooootttt oooorrrr aaaacccceeee \\\\))))
+
+          To print all IP packets between  _a_c_e  and  any  host  except
+          _h_e_l_i_o_s:
+               ttttccccppppdddduuuummmmpppp iiiipppp hhhhoooosssstttt aaaacccceeee aaaannnndddd nnnnooootttt hhhheeeelllliiiioooossss
+
+          To print all  traffic  between  local  hosts  and  hosts  at
+          Berkeley:
+               ttttccccppppdddduuuummmmpppp nnnneeeetttt uuuuccccbbbb----eeeetttthhhheeeerrrr
+
+          To print all ftp  traffic  through  internet  gateway  _s_n_u_p:
+          (note  that  the  expression  is quoted to prevent the shell
+          from (mis-)interpreting the parentheses):
+               ttttccccppppdddduuuummmmpppp ''''ggggaaaatttteeeewwwwaaaayyyy ssssnnnnuuuupppp aaaannnndddd ((((ppppoooorrrrtttt ffffttttpppp oooorrrr ffffttttpppp----ddddaaaattttaaaa))))''''
+
+          To print traffic neither sourced from nor destined for local
+          hosts  (if  you  gateway to one other net, this stuff should
+          never make it onto your local net).
+               ttttccccppppdddduuuummmmpppp iiiipppp aaaannnndddd nnnnooootttt nnnneeeetttt _l_o_c_a_l_n_e_t
+
+          To print the start and end packets (the SYN and FIN packets)
+          of each TCP conversation that involves a non-local host.
+               ttttccccppppdddduuuummmmpppp ''''ttttccccpppp[[[[11113333]]]] &&&& 3333 !!!!==== 0000 aaaannnndddd nnnnooootttt ssssrrrrcccc aaaannnndddd ddddsssstttt nnnneeeetttt _l_o_c_a_l_n_e_t''''
+
+          To print IP packets  longer  than  576  bytes  sent  through
+
+
+
+     Page 8                                          (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+          gateway _s_n_u_p:
+               ttttccccppppdddduuuummmmpppp ''''ggggaaaatttteeeewwwwaaaayyyy ssssnnnnuuuupppp aaaannnndddd iiiipppp[[[[2222::::2222]]]] >>>> 555577776666''''
+
+          To print IP broadcast or multicast  packets  that  were  _n_o_t
+          sent via ethernet broadcast or multicast:
+               ttttccccppppdddduuuummmmpppp ''''eeeetttthhhheeeerrrr[[[[0000]]]] &&&& 1111 ==== 0000 aaaannnndddd iiiipppp[[[[11116666]]]] >>>>==== 222222224444''''
+
+          To print all ICMP packets that are not echo requests/replies
+          (i.e., not ping packets):
+               ttttccccppppdddduuuummmmpppp ''''iiiiccccmmmmpppp[[[[0000]]]] !!!!==== 8888 aaaannnndddd iiiiccccmmmmpppp[[[[0000]]]] !!!!==== 0000""""
+
+     OOOOUUUUTTTTPPPPUUUUTTTT FFFFOOOORRRRMMMMAAAATTTT
+          The output of _t_c_p_d_u_m_p is protocol dependent.  The  following
+          gives  a  brief  description  and  examples  of  most of the
+          formats.
+
+          LLLLiiiinnnnkkkk LLLLeeeevvvveeeellll HHHHeeeeaaaaddddeeeerrrrssss
+
+          If the '-e' option  is  given,  the  link  level  header  is
+          printed  out.   On  ethernets,  the  source  and destination
+          addresses, protocol, and packet length are printed.
+
+          On FDDI networks, the  '-e' option causes _t_c_p_d_u_m_p  to  print
+          the  `frame  control'  field,   the  source  and destination
+          addresses, and the  packet  length.   (The  `frame  control'
+          field  governs the interpretation of the rest of the packet.
+          Normal packets (such as those containing IP  datagrams)  are
+          `async'  packets, with a priority value between 0 and 7; for
+          example, `aaaassssyyyynnnncccc4444'.  Such packets are assumed to  contain  an
+          802.2  Logical  Link Control (LLC) packet; the LLC header is
+          printed if it is _n_o_t an ISO datagram  or  a  so-called  SNAP
+          packet.
+
+          (_N._B.: _T_h_e _f_o_l_l_o_w_i_n_g _d_e_s_c_r_i_p_t_i_o_n  _a_s_s_u_m_e_s  _f_a_m_i_l_i_a_r_i_t_y  _w_i_t_h
+          _t_h_e _S_L_I_P _c_o_m_p_r_e_s_s_i_o_n _a_l_g_o_r_i_t_h_m _d_e_s_c_r_i_b_e_d _i_n _R_F_C-_1_1_4_4.)
+
+          On SLIP links, a direction  indicator  (``I''  for  inbound,
+          ``O''   for   outbound),   packet   type,   and  compression
+          information are printed out.  The  packet  type  is  printed
+          first.   The three types are _i_p, _u_t_c_p, and _c_t_c_p.  No further
+          link  information  is  printed  for  _i_p  packets.   For  TCP
+          packets,  the connection identifier is printed following the
+          type.  If the packet is compressed, its  encoded  header  is
+          printed  out.  The special cases are printed out as ****SSSS++++_n and
+          ****SSSSAAAA++++_n, where _n is the amount by which  the  sequence  number
+          (or  sequence  number  and ack) has changed.  If it is not a
+          special case, zero or more changes are printed.  A change is
+          indicated  by  U  (urgent  pointer),  W (window), A (ack), S
+          (sequence number), and I (packet ID), followed  by  a  delta
+          (+n  or  -n),  or  a new value (=n).  Finally, the amount of
+          data in the packet and compressed header length are printed.
+
+
+
+     Page 9                                          (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+          For example, the following line shows an outbound compressed
+          TCP  packet, with an implicit connection identifier; the ack
+          has changed by 6, the sequence number by 49, and the  packet
+          ID by 6; there are 3 bytes of data and 6 bytes of compressed
+          header:
+               OOOO ccccttttccccpppp **** AAAA++++6666 SSSS++++44449999 IIII++++6666 3333 ((((6666))))
+
+          AAAARRRRPPPP////RRRRAAAARRRRPPPP PPPPaaaacccckkkkeeeettttssss
+
+          Arp/rarp output shows the type of request and its arguments.
+          The  format  is  intended to be self explanatory.  Here is a
+          short sample taken from the start of an `rlogin'  from  host
+          _r_t_s_g to host _c_s_a_m:
+               arp who-has csam tell rtsg
+               arp reply csam is-at CSAM
+          The first line says that rtsg sent an arp packet asking  for
+          the  ethernet  address  of internet host csam.  Csam replies
+          with  its  ethernet  address  (in  this  example,   ethernet
+          addresses are in caps and internet addresses in lower case).
+
+          This would look less redundant if we had done ttttccccppppdddduuuummmmpppp ----nnnn:
+               arp who-has 128.3.254.6 tell 128.3.254.68
+               arp reply 128.3.254.6 is-at 02:07:01:00:01:c4
+
+          If we had done ttttccccppppdddduuuummmmpppp ----eeee, the fact that the first packet is
+          broadcast and the second is point-to-point would be visible:
+               RTSG Broadcast 0806  64: arp who-has csam tell rtsg
+               CSAM RTSG 0806  64: arp reply csam is-at CSAM
+          For the first packet this says the ethernet  source  address
+          is  RTSG, the destination is the broadcast address, the type
+          field contained hex 0806  (type  ETHER_ARP)  and  the  total
+          length was 64 bytes.
+
+          TTTTCCCCPPPP PPPPaaaacccckkkkeeeettttssss
+
+          (_N._B.:_T_h_e _f_o_l_l_o_w_i_n_g _d_e_s_c_r_i_p_t_i_o_n _a_s_s_u_m_e_s _f_a_m_i_l_i_a_r_i_t_y _w_i_t_h _t_h_e
+          _T_C_P  _p_r_o_t_o_c_o_l _d_e_s_c_r_i_b_e_d _i_n _R_F_C-_7_9_3.  _I_f _y_o_u _a_r_e _n_o_t _f_a_m_i_l_i_a_r
+          _w_i_t_h _t_h_e _p_r_o_t_o_c_o_l, _n_e_i_t_h_e_r _t_h_i_s _d_e_s_c_r_i_p_t_i_o_n _n_o_r _t_c_p_d_u_m_p _w_i_l_l
+          _b_e _o_f _m_u_c_h _u_s_e _t_o _y_o_u.)
+
+          The general format of a tcp protocol line is:
+               _s_r_c > _d_s_t: _f_l_a_g_s _d_a_t_a-_s_e_q_n_o _a_c_k _w_i_n_d_o_w _u_r_g_e_n_t _o_p_t_i_o_n_s
+          _S_r_c and _d_s_t are the source and destination IP addresses  and
+          ports.   _F_l_a_g_s  are  some combination of S (SYN), F (FIN), P
+          (PUSH) or R (RST) or a single `.'  (no  flags).   _D_a_t_a-_s_e_q_n_o
+          describes  the portion of sequence space covered by the data
+          in this packet (see example below).  _A_c_k is sequence  number
+          of  the  next  data  expected  the  other  direction on this
+
+
+     Page 10                                         (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+          connection.  _W_i_n_d_o_w is the number of bytes of receive buffer
+          space available the other direction on this connection.  _U_r_g
+          indicates there is `urgent' data in the packet.  _O_p_t_i_o_n_s are
+          tcp options enclosed in angle brackets (e.g., <mss 1024>).
+
+          _S_r_c, _d_s_t and _f_l_a_g_s are always  present.   The  other  fields
+          depend  on  the contents of the packet's tcp protocol header
+          and are output only if appropriate.
+
+          Here is the opening portion of an rlogin from host  _r_t_s_g  to
+          host _c_s_a_m.
+               rtsg.1023 > csam.login: S 768512:768512(0) win 4096 <mss 1024>
+               csam.login > rtsg.1023: S 947648:947648(0) ack 768513 win 4096 <mss 1024>
+               rtsg.1023 > csam.login: . ack 1 win 4096
+               rtsg.1023 > csam.login: P 1:2(1) ack 1 win 4096
+               csam.login > rtsg.1023: . ack 2 win 4096
+               rtsg.1023 > csam.login: P 2:21(19) ack 1 win 4096
+               csam.login > rtsg.1023: P 1:2(1) ack 21 win 4077
+               csam.login > rtsg.1023: P 2:3(1) ack 21 win 4077 urg 1
+               csam.login > rtsg.1023: P 3:4(1) ack 21 win 4077 urg 1
+          The first line says that tcp port 1023 on rtsg sent a packet
+          to  port  _l_o_g_i_n  on csam.  The SSSS indicates that the _S_Y_N flag
+          was set.  The packet  sequence  number  was  768512  and  it
+          contained  no  data.   (The notation is `first:last(nbytes)'
+          which means `sequence numbers _f_i_r_s_t up to but not  including
+          _l_a_s_t  which  is  _n_b_y_t_e_s  bytes  of user data'.) There was no
+          piggy-backed ack, the  available  receive  window  was  4096
+          bytes  and there was a max-segment-size option requesting an
+          mss of 1024 bytes.
+
+          Csam replies with a similar  packet  except  it  includes  a
+          piggy-backed ack for rtsg's SYN.  Rtsg then acks csam's SYN.
+          The `.' means no flags were set.  The  packet  contained  no
+          data so there is no data sequence number.  Note that the ack
+          sequence number is a small  integer  (1).   The  first  time
+          ttttccccppppdddduuuummmmpppp  sees  a  tcp `conversation', it prints the sequence
+          number from  the  packet.   On  subsequent  packets  of  the
+          conversation,  the  difference  between the current packet's
+          sequence number and this initial sequence number is printed.
+          This  means  that  sequence  numbers  after the first can be
+          interpreted as relative byte positions in the conversation's
+          data  stream  (with the first data byte each direction being
+          `1').  `-S' will override this feature, causing the original
+          sequence numbers to be output.
+
+          On the 6th line, rtsg sends csam 19 bytes of data  (bytes  2
+          through  20  in  the rtsg -> csam side of the conversation).
+          The PUSH flag is set in the packet.  On the 7th  line,  csam
+          says it's received data sent by rtsg up to but not including
+          byte 21.  Most of this data is  apparently  sitting  in  the
+          socket  buffer  since  csam's  receive  window has gotten 19
+
+
+
+     Page 11                                         (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+          bytes smaller.  Csam also sends one byte of data to rtsg  in
+          this packet.  On the 8th and 9th lines, csam sends two bytes
+          of urgent, pushed data to rtsg.
+
+          UUUUDDDDPPPP PPPPaaaacccckkkkeeeettttssss
+
+          UDP format is illustrated by this rwho packet:
+               actinide.who > broadcast.who: udp 84
+          This says that port _w_h_o on host _a_c_t_i_n_i_d_e sent a udp datagram
+          to  port  _w_h_o  on  host  _b_r_o_a_d_c_a_s_t,  the  Internet broadcast
+          address.  The packet contained 84 bytes of user data.
+
+          Some  UDP  services  are  recognized  (from  the  source  or
+          destination  port  number)  and  the  higher  level protocol
+          information printed.  In  particular,  Domain  Name  service
+          requests  (RFC-1034/1035)  and  Sun  RPC calls (RFC-1050) to
+          NFS.
+
+          UUUUDDDDPPPP NNNNaaaammmmeeee SSSSeeeerrrrvvvveeeerrrr RRRReeeeqqqquuuueeeessssttttssss
+
+          (_N._B.:_T_h_e _f_o_l_l_o_w_i_n_g _d_e_s_c_r_i_p_t_i_o_n _a_s_s_u_m_e_s _f_a_m_i_l_i_a_r_i_t_y _w_i_t_h _t_h_e
+          _D_o_m_a_i_n  _S_e_r_v_i_c_e  _p_r_o_t_o_c_o_l _d_e_s_c_r_i_b_e_d _i_n _R_F_C-_1_0_3_5.  _I_f _y_o_u _a_r_e
+          _n_o_t _f_a_m_i_l_i_a_r _w_i_t_h _t_h_e _p_r_o_t_o_c_o_l,  _t_h_e  _f_o_l_l_o_w_i_n_g  _d_e_s_c_r_i_p_t_i_o_n
+          _w_i_l_l _a_p_p_e_a_r _t_o _b_e _w_r_i_t_t_e_n _i_n _g_r_e_e_k.)
+
+          Name server requests are formatted as
+               _s_r_c > _d_s_t: _i_d _o_p? _f_l_a_g_s _q_t_y_p_e _q_c_l_a_s_s _n_a_m_e (_l_e_n)
+               h2opolo.1538 > helios.domain: 3+ A? ucbvax.berkeley.edu. (37)
+          Host _h_2_o_p_o_l_o asked  the  domain  server  on  _h_e_l_i_o_s  for  an
+          address   record   (qtype=A)   associated   with   the  name
+          _u_c_b_v_a_x._b_e_r_k_e_l_e_y._e_d_u.   The  query  id  was  `3'.   The   `+'
+          indicates  the  _r_e_c_u_r_s_i_o_n  _d_e_s_i_r_e_d  flag was set.  The query
+          length was 37 bytes, not including the UDP and  IP  protocol
+          headers.   The query operation was the normal one, _Q_u_e_r_y, so
+          the op field was omitted.  If the op had been anything else,
+          it  would  have  been  printed  between the `3' and the `+'.
+          Similarly, the qclass was the normal one, _C__I_N, and omitted.
+          Any  other  qclass would have been printed immediately after
+          the `A'.
+
+          A few anomalies are checked and may result in  extra  fields
+          enclosed in square brackets:  If a query contains an answer,
+          name server  or  authority  section,  _a_n_c_o_u_n_t,  _n_s_c_o_u_n_t,  or
+          _a_r_c_o_u_n_t are printed as `[_na]', `[_nn]' or  `[_nau]' where _n is
+          the appropriate count.  If any of the response bits are  set
+          (AA,  RA or rcode) or any of the `must be zero' bits are set
+          in bytes two and three, `[b2&3=_x]' is printed,  where  _x  is
+          the hex value of header bytes two and three.
+
+
+
+     Page 12                                         (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+          UUUUDDDDPPPP NNNNaaaammmmeeee SSSSeeeerrrrvvvveeeerrrr RRRReeeessssppppoooonnnnsssseeeessss
+
+          Name server responses are formatted as
+               _s_r_c > _d_s_t:  _i_d _o_p _r_c_o_d_e _f_l_a_g_s _a/_n/_a_u _t_y_p_e _c_l_a_s_s _d_a_t_a (_l_e_n)
+               helios.domain > h2opolo.1538: 3 3/3/7 A 128.32.137.3 (273)
+               helios.domain > h2opolo.1537: 2 NXDomain* 0/1/0 (97)
+          In the first example, _h_e_l_i_o_s responds to  query  id  3  from
+          _h_2_o_p_o_l_o  with  3 answer records, 3 name server records and 7
+          authority records.   The  first  answer  record  is  type  A
+          (address)  and  its  data  is internet address 128.32.137.3.
+          The total size of the response was 273 bytes, excluding  UDP
+          and  IP headers.  The op (Query) and response code (NoError)
+          were omitted, as was the class (C_IN) of the A record.
+
+          In the second example, _h_e_l_i_o_s responds to  query  2  with  a
+          response  code  of  non-existent  domain  (NXDomain) with no
+          answers, one name server and no authority records.  The  `*'
+          indicates  that the _a_u_t_h_o_r_i_t_a_t_i_v_e _a_n_s_w_e_r bit was set.  Since
+          there were no answers, no type, class or data were printed.
+
+          Other flag characters that might appear are  `-'  (recursion
+          available,  RA,  _n_o_t  set)  and  `|' (truncated message, TC,
+          set).  If the `question' section doesn't contain exactly one
+          entry, `[_nq]' is printed.
+
+          Note that name server requests  and  responses  tend  to  be
+          large  and  the  default _s_n_a_p_l_e_n of 96 bytes may not capture
+          enough of the packet to print.  Use the ----ssss flag to  increase
+          the snaplen if you need to seriously investigate name server
+          traffic.  `----ssss 111122228888' has worked well for me.
+
+
+          NNNNFFFFSSSS RRRReeeeqqqquuuueeeessssttttssss aaaannnndddd RRRReeeepppplllliiiieeeessss
+
+          Sun NFS (Network  File  System)  requests  and  replies  are
+          printed as:
+               _s_r_c._x_i_d > _d_s_t._n_f_s: _l_e_n _o_p _a_r_g_s
+               _s_r_c._n_f_s > _d_s_t._x_i_d: _r_e_p_l_y _s_t_a_t _l_e_n _o_p _r_e_s_u_l_t_s
+
+               sushi.6709 > wrl.nfs: 112 readlink fh 21,24/10.73165
+               wrl.nfs > sushi.6709: reply ok 40 readlink "../var"
+               sushi.201b > wrl.nfs:
+                    144 lookup fh 9,74/4096.6878 "xcolors"
+               wrl.nfs > sushi.201b:
+                    reply ok 128 lookup fh 9,74/4134.3150
+
+          In the first line, host _s_u_s_h_i sends a  transaction  with  id
+          _6_7_0_9  to _w_r_l (note that the number following the src host is
+          a transaction id, _n_o_t the source port).  The request was 112
+
+
+     Page 13                                         (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+          bytes,  excluding the UDP and IP headers.  The operation was
+          a  _r_e_a_d_l_i_n_k  (read  symbolic  link)  on  file  handle   (_f_h)
+          21,24/10.731657119.   (If one is lucky, as in this case, the
+          file handle can  be  interpreted  as  a  major,minor  device
+          number  pair,  followed  by  the inode number and generation
+          number.) _W_r_l replies `ok' with the contents of the link.
+
+          In the third  line,  _s_u_s_h_i  asks  _w_r_l  to  lookup  the  name
+          `_x_c_o_l_o_r_s'  in  directory file 9,74/4096.6878.  Note that the
+          data printed depends on the operation type.  The  format  is
+          intended  to be self explanatory if read in conjunction with
+          an NFS protocol spec.
+
+          If the -v (verbose) flag is given, additional information is
+          printed.  For example:
+
+               sushi.1372a > wrl.nfs:
+                    148 read fh 21,11/12.195 8192 bytes @ 24576
+               wrl.nfs > sushi.1372a:
+                    reply ok 1472 read REG 100664 ids 417/0 sz 29388
+
+          (-v also prints the IP header  TTL,  ID,  and  fragmentation
+          fields,  which have been omitted from this example.)  In the
+          first line, _s_u_s_h_i asks _w_r_l to  read  8192  bytes  from  file
+          21,11/12.195,  at  byte offset 24576.  _W_r_l replies `ok'; the
+          packet shown on the second line is the first fragment of the
+          reply,  and  hence  is only 1472 bytes long (the other bytes
+          will follow in subsequent fragments, but these fragments  do
+          not  have  NFS  or  even  UDP  headers  and  so might not be
+          printed, depending on the filter expression used).   Because
+          the -v flag is given, some of the file attributes (which are
+          returned in addition to the file data) are printed: the file
+          type  (``REG'', for regular file), the file mode (in octal),
+          the uid and gid, and the file size.
+
+          If the -v flag is given more than once,  even  more  details
+          are printed.
+
+          Note that NFS requests are very large and much of the detail
+          won't be printed unless _s_n_a_p_l_e_n is increased.  Try using `----ssss
+          111199992222' to watch NFS traffic.
+
+          NFS  reply  packets  do  not  explicitly  identify  the  RPC
+          operation.   Instead,  _t_c_p_d_u_m_p  keeps  track  of  ``recent''
+          requests,  and  matches  them  to  the  replies  using   the
+          transaction  ID.   If  a  reply  does not closely follow the
+          corresponding request, it might not be parseble.
+
+          KKKKIIIIPPPP AAAApppppppplllleeeettttaaaallllkkkk ((((DDDDDDDDPPPP iiiinnnn UUUUDDDDPPPP))))
+
+
+
+
+     Page 14                                         (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+          Appletalk DDP packets encapsulated in UDP datagrams are  de-
+          encapsulated  and  dumped  as DDP packets (i.e., all the UDP
+          header information is discarded).  The file /_e_t_c/_a_t_a_l_k._n_a_m_e_s
+          is  used  to  translate  appletalk  net  and node numbers to
+          names.  Lines in this file have the form
+               _n_u_m_b_e_r    _n_a_m_e
+
+               1.254          ether
+               16.1      icsd-net
+               1.254.110 ace
+          The first two lines give the names  of  appletalk  networks.
+          The  third  line gives the name of a particular host (a host
+          is distinguished from a net by the 3rd octet in the number -
+          a  net  number  _m_u_s_t  have two octets and a host number _m_u_s_t
+          have three octets.)  The number and name should be separated
+          by  whitespace  (blanks or tabs).  The /_e_t_c/_a_t_a_l_k._n_a_m_e_s file
+          may contain blank lines or  comment  lines  (lines  starting
+          with a `#').
+
+          Appletalk addresses are printed in the form
+               _n_e_t._h_o_s_t._p_o_r_t
+
+               144.1.209.2 > icsd-net.112.220
+               office.2 > icsd-net.112.220
+               jssmag.149.235 > icsd-net.2
+          (If the /_e_t_c/_a_t_a_l_k._n_a_m_e_s doesn't exist or doesn't contain an
+          entry  for  some  appletalk  host/net  number, addresses are
+          printed in numeric form.) In the  first  example,  NBP  (DDP
+          port  2)  on  net  144.1  node 209 is sending to whatever is
+          listening on port 220 of net icsd node 112.  The second line
+          is the same except the full name of the source node is known
+          (`office').  The third line is a send from port 235  on  net
+          jssmag  node 149 to broadcast on the icsd-net NBP port (note
+          that the broadcast address (255) is indicated by a net  name
+          with  no  host  number - for this reason it's a good idea to
+          keep node names and net names distinct in /etc/atalk.names).
+
+          NBP (name binding protocol) and ATP  (Appletalk  transaction
+          protocol)  packets  have  their contents interpreted.  Other
+          protocols just dump the protocol name (or number if no  name
+          is registered for the protocol) and packet size.
+
+          NNNNBBBBPPPP ppppaaaacccckkkkeeeettttssss are formatted like the following examples:
+               icsd-net.112.220 > jssmag.2: nbp-lkup 190: "=:LaserWriter@*"
+               jssmag.209.2 > icsd-net.112.220: nbp-reply 190: "RM1140:LaserWriter@*" 250
+               techpit.2 > icsd-net.112.220: nbp-reply 190: "techpit:LaserWriter@*" 186
+          The first line is a name  lookup  request  for  laserwriters
+          sent  by net icsd host 112 and broadcast on net jssmag.  The
+          nbp id for the lookup is 190.  The second line shows a reply
+
+
+
+     Page 15                                         (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+          for  this  request  (note that it has the same id) from host
+          jssmag.209 saying that it has a laserwriter  resource  named
+          "RM1140"  registered on port 250.  The third line is another
+          reply  to  the  same  request  saying   host   techpit   has
+          laserwriter "techpit" registered on port 186.
+
+          AAAATTTTPPPP ppppaaaacccckkkkeeeetttt  formatting  is  demonstrated  by  the  following
+          example:
+               jssmag.209.165 > helios.132: atp-req  12266<0-7> 0xae030001
+               helios.132 > jssmag.209.165: atp-resp 12266:0 (512) 0xae040000
+               helios.132 > jssmag.209.165: atp-resp 12266:1 (512) 0xae040000
+               helios.132 > jssmag.209.165: atp-resp 12266:2 (512) 0xae040000
+               helios.132 > jssmag.209.165: atp-resp 12266:3 (512) 0xae040000
+               helios.132 > jssmag.209.165: atp-resp 12266:4 (512) 0xae040000
+               helios.132 > jssmag.209.165: atp-resp 12266:5 (512) 0xae040000
+               helios.132 > jssmag.209.165: atp-resp 12266:6 (512) 0xae040000
+               helios.132 > jssmag.209.165: atp-resp*12266:7 (512) 0xae040000
+               jssmag.209.165 > helios.132: atp-req  12266<3,5> 0xae030001
+               helios.132 > jssmag.209.165: atp-resp 12266:3 (512) 0xae040000
+               helios.132 > jssmag.209.165: atp-resp 12266:5 (512) 0xae040000
+               jssmag.209.165 > helios.132: atp-rel  12266<0-7> 0xae030001
+               jssmag.209.133 > helios.132: atp-req* 12267<0-7> 0xae030002
+          Jssmag.209 initiates transaction id 12266 with  host  helios
+          by requesting up to 8 packets (the `<0-7>').  The hex number
+          at the end of the line is the value of the `userdata'  field
+          in the request.
+
+          Helios responds  with  8  512-byte  packets.   The  `:digit'
+          following  the  transaction  id  gives  the  packet sequence
+          number in the transaction and the number in  parens  is  the
+          amount of data in the packet, excluding the atp header.  The
+          `*' on packet 7 indicates that the EOM bit was set.
+
+          Jssmag.209  then  requests   that   packets   3   &   5   be
+          retransmitted.  Helios resends them then jssmag.209 releases
+          the transaction.  Finally,  jssmag.209  initiates  the  next
+          request.  The `*' on the request indicates that XO (`exactly
+          once') was _n_o_t set.
+
+
+          IIIIPPPP FFFFrrrraaaaggggmmmmeeeennnnttttaaaattttiiiioooonnnn
+
+          Fragmented Internet datagrams are printed as
+               ((((ffffrrrraaaagggg _i_d::::_s_i_z_e@@@@_o_f_f_s_e_t++++))))
+               ((((ffffrrrraaaagggg _i_d::::_s_i_z_e@@@@_o_f_f_s_e_t))))
+          (The first form indicates there  are  more  fragments.   The
+          second indicates this is the last fragment.)
+
+          _I_d is the fragment id.  _S_i_z_e is the fragment size (in bytes)
+          excluding  the  IP header.  _O_f_f_s_e_t is this fragment's offset
+
+
+     Page 16                                         (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+          (in bytes) in the original datagram.
+
+          The fragment information is output for each  fragment.   The
+          first fragment contains the higher level protocol header and
+          the frag info is printed after the protocol info.  Fragments
+          after  the first contain no higher level protocol header and
+          the frag info is printed after the  source  and  destination
+          addresses.   For  example,  here  is  part  of  an  ftp from
+          arizona.edu to lbl-rtsg.arpa over a  CSNET  connection  that
+          doesn't appear to handle 576 byte datagrams:
+               arizona.ftp-data > rtsg.1170: . 1024:1332(308) ack 1 win 4096 (frag 595a:328@0+)
+               arizona > rtsg: (frag 595a:204@328)
+               rtsg.1170 > arizona.ftp-data: . ack 1536 win 2560
+          There are a couple of things to note here:  First, addresses
+          in the 2nd line don't include port numbers.  This is because
+          the TCP protocol information is all in  the  first  fragment
+          and  we  have  no idea what the port or sequence numbers are
+          when we print the later fragments.  Second, the tcp sequence
+          information  in  the  first line is printed as if there were
+          308 bytes of user data when, in fact, there  are  512  bytes
+          (308  in  the first frag and 204 in the second).  If you are
+          looking for holes in the sequence space or trying  to  match
+          up acks with packets, this can fool you.
+
+          A packet with the IP _d_o_n'_t _f_r_a_g_m_e_n_t flag is  marked  with  a
+          trailing ((((DDDDFFFF)))).
+
+          TTTTiiiimmmmeeeessssttttaaaammmmppppssss
+
+          By default, all output lines are preceded  by  a  timestamp.
+          The timestamp is the current clock time in the form
+               _h_h:_m_m:_s_s._f_r_a_c
+          and is as accurate as the kernel's clock (e.g., +_10ms  on  a
+          Sun-3).   The  timestamp  reflects the time the kernel first
+          saw the packet.  No attempt is made to account for the  time
+          lag  between  when the ethernet interface removed the packet
+          from the wire and when the kernel serviced the `new  packet'
+          interrupt (of course, with Sun's lousy clock resolution this
+          time lag is negligible.)
+
+     SSSSEEEEEEEE AAAALLLLSSSSOOOO
+          traffic(1C), nit(4P), bpf(4)
+
+     AAAAUUUUTTTTHHHHOOOORRRRSSSS
+          Van   Jacobson    (van@helios.ee.lbl.gov),    Craig    Leres
+          (leres@helios.ee.lbl.gov)       and      Steven      McCanne
+          (mccanne@helios.ee.lbl.gov),  all   of   Lawrence   Berkeley
+          Laboratory, University of California, Berkeley, CA.
+
+     BBBBUUUUGGGGSSSS
+          The clock resolution on most Suns is  pathetic  (20ms).   If
+
+
+     Page 17                                         (printed 9/18/95)
+
+
+
+
+
+
+     TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))         UUUUNNNNIIIIXXXX SSSSyyyysssstttteeeemmmm VVVV ((((22220000 JJJJuuuunnnn 1111999999994444))))         TTTTCCCCPPPPDDDDUUUUMMMMPPPP((((1111))))
+
+
+
+          you  want  to  use  the  timestamp  to  generate some of the
+          important    performance    distributions    (like    packet
+          interarrival   time)  it's  best  to  watch  something  that
+          generates packets slowly  (like  an  Arpanet  gateway  or  a
+          MicroVax running VMS).
+
+          NIT doesn't let you watch your  own  outbound  traffic,  BPF
+          will.  We recommend that you use the latter.
+
+          _t_c_p_d_u_m_p for Ultrix requires Ultrix version 4.0 or later; the
+          kernel  has to have been built with the _p_a_c_k_e_t_f_i_l_t_e_r pseudo-
+          device driver (see  _p_a_c_k_e_t_f_i_l_t_e_r(4)).   In  order  to  watch
+          either  your  own outbound or inbound traffic, you will need
+          to use Ultrix version 4.2 or later, and  you  will  have  to
+          have  used  the  _p_f_c_o_n_f_i_g(8)  command  to enable ``copyall''
+          mode.
+
+          Under SunOS 4.1, the packet capture code (or Streams NIT) is
+          not  what  you'd  call  efficient.  Don't plan on doing much
+          with your Sun while you're monitoring a busy network.
+
+          On Sun systems prior to release 3.2, NIT is very buggy.   If
+          run on an old system, tcpdump may crash the machine.
+
+          Some attempt should be made to reassemble IP  fragments  or,
+          at  least  to  compute the right length for the higher level
+          protocol.
+
+          Name server inverse queries are not  dumped  correctly:  The
+          (empty)  question  section is printed rather than real query
+          in the answer section.  Some believe  that  inverse  queries
+          are   themselves  a  bug  and  prefer  to  fix  the  program
+          generating them rather than tcpdump.
+
+          Apple Ethertalk DDP packets could be dumped as easily as KIP
+          DDP  packets  but  aren't.   Even  if we were inclined to do
+          anything to promote the use of Ethertalk  (we  aren't),  LBL
+          doesn't allow Ethertalk on any of its networks so we'd would
+          have no way of testing this code.
+
+          A packet trace that crosses a daylight savings  time  change
+          will give skewed time stamps (the time change is ignored).
+
+          Filters expressions that manipulate FDDI headers assume that
+          all FDDI packets are encapsulated Ethernet packets.  This is
+          true for IP, ARP, and DECNET Phase IV, but is not  true  for
+          protocols  such  as  ISO  CLNS.   Therefore,  the filter may
+          inadvertently accept certain packets that  do  not  properly
+          match the filter expression.
+
+
+
+
+
+
+     Page 18                                         (printed 9/18/95)
+
+
+

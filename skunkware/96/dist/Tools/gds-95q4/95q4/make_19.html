@@ -1,0 +1,61 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from make.texinfo on 9 October 1995 -->
+
+<TITLE>GNU Make - Overriding Makefiles</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_18.html">previous</A>, <A HREF="make_20.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC18" HREF="make_toc.html#TOC18">Overriding Part of Another Makefile</A></H2>
+<A NAME="IDX93"></A>
+<A NAME="IDX94"></A>
+<P>
+Sometimes it is useful to have a makefile that is mostly just like
+another makefile.  You can often use the <SAMP>`include'</SAMP> directive to
+include one in the other, and add more targets or variable definitions.
+However, if the two makefiles give different commands for the same
+target, <CODE>make</CODE> will not let you just do this.  But there is another way.
+<A NAME="IDX95"></A>
+<P>
+In the containing makefile (the one that wants to include the other),
+you can use a match-anything pattern rule to say that to remake any
+target that cannot be made from the information in the containing
+makefile, <CODE>make</CODE> should look in another makefile.
+See section <A HREF="make_92.html#SEC91">Defining and Redefining Pattern Rules</A>, for more information on pattern rules.
+<P>
+For example, if you have a makefile called <TT>`Makefile'</TT> that says how
+to make the target <SAMP>`foo'</SAMP> (and other targets), you can write a
+makefile called <TT>`GNUmakefile'</TT> that contains:
+<P>
+<PRE>
+foo:
+        frobnicate &#62; foo
+
+%: force
+        @$(MAKE) -f Makefile $@
+force: ;
+</PRE>
+<P>
+If you say <SAMP>`make foo'</SAMP>, <CODE>make</CODE> will find <TT>`GNUmakefile'</TT>,
+read it, and see that to make <TT>`foo'</TT>, it needs to run the command
+<SAMP>`frobnicate &#62; foo'</SAMP>.  If you say <SAMP>`make bar'</SAMP>, <CODE>make</CODE> will
+find no way to make <TT>`bar'</TT> in <TT>`GNUmakefile'</TT>, so it will use the
+commands from the pattern rule: <SAMP>`make -f Makefile bar'</SAMP>.  If
+<TT>`Makefile'</TT> provides a rule for updating <TT>`bar'</TT>, <CODE>make</CODE>
+will apply the rule.  And likewise for any other target that
+<TT>`GNUmakefile'</TT> does not say how to make.
+<P>
+The way this works is that the pattern rule has a pattern of just
+<SAMP>`%'</SAMP>, so it matches any target whatever.  The rule specifies a
+dependency <TT>`force'</TT>, to guarantee that the commands will be run even
+if the target file already exists.  We give <TT>`force'</TT> target empty
+commands to prevent <CODE>make</CODE> from searching for an implicit rule to
+build it--otherwise it would apply the same match-anything rule to
+<TT>`force'</TT> itself and create a dependency loop!
+<P>
+<HR>
+Go to the <A HREF="make_1.html">first</A>, <A HREF="make_18.html">previous</A>, <A HREF="make_20.html">next</A>, <A HREF="make_119.html">last</A> section, <A HREF="make_toc.html">table of contents</A>.
+</BODY>
+</HTML>

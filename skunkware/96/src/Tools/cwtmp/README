@@ -1,0 +1,41 @@
+cwtmp: compress wtmp file data by removing uninteresting entries.
+Usage: cwtmp [-ahnrvx] [-d<prefix>] -i<id[:id...]> [-[psw]<numrec>] [file]
+cwtmp compresses a wtmp file by discarding the uninteresting utmp entries
+that make up a large fraction of the typical wtmp file.  If no filename is
+given, /etc/wtmp is read.  utmp entries in the file are written to the
+output, except entries of type LOGIN_PROCESS and INIT_PROCESS, which are
+skipped.
+If the input file is not a multiple of the size of a utmp record and one
+of the v, a, or f flags is not given, cwtmp will exit with an error
+message and nonzero status.
+Options:
+-i<id[:id...]>: Discard entries whose id field is one of those given in
+    the colon-separated list.
+-t: Discard entries which have a non-empty user field and an empty line
+    field.  These are usually commands run from inittab which are not
+    associated with a tty.
+-v: Check every utmp record for validity.  If an invalid record is found,
+    scan the input character by character attempting to find the start of
+    the next utmp record.  Invalid records are not output.
+-a: Autoverify.  If the input file has a size that is not a multiple of
+    the size of a utmp record, the -v option is turned on.
+-x: Turn on verbose verification operation.  Various diagnostics are
+    printed, including a description of which verification tests fail.
+-d<name-prefix>: Entries whose ut_user field begins with the prefix are
+    discarded.
+-f: Do not fail if the input file does not have a valid size, and do no
+    checking for utmp record validity.  This is liable to produce unuseful
+    output if the input becomes unsynchronized, since the type test will
+    likely be done on a field component that is not the type.
+-n: Do not discard LOGIN_PROCESS and INIT_PROCESS entries.  This can be
+    used to fix a file with the -v or -a option without compressing it.
+-p<num-records>: Print a progress report to stderr after reading each
+    <num-records> records.
+-s<num-records>: Skip the initial <num-records> records in the file
+    without looking at them.
+-w<num-records>: Write <num-records> and then quit.
+-r: Print records in readable form, rather that writing the utmp structs.
+-0..-9: Remove entries with the given numeric type.  If any of these
+    options are given, entries of type LOGIN_PROCESS and INIT_PROCESS are
+    not removed unless their flags are explicitely given.  See utmp(F) for
+    a description of the types.

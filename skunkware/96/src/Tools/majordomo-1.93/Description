@@ -1,0 +1,111 @@
+Majordomo has the concept of an "owner" for each list.  The owner of a
+given list approves certain user "subscribe" and "unsubscribe"
+commands (the ones that majordomo doesn't automatically approve; for
+instance, if someone tries to unsubscribe something other than their
+own email address from a list, majordomo asks for approval).  Most
+list maintenance is done for the owner by majordomo, and the rest can
+be done by the owner using emailed commands to majordomo; the owner
+doesn't need an account on the machine majordomo runs on (Brent
+Chapman is the only person associated with SAGE that has an account on
+USENIX.ORG; the owners of the 17 mailing lists run the lists by
+"remote control" from their home accounts around the country).
+
+Majordomo also has a concept of "open" and "closed" lists.  The major
+difference between "open" and "closed" lists is what happens when a
+user submits a "subscribe" request for the list.  For a closed list,
+the request is forwarded to the list owner for approval.  For a open
+list, the request succeeds automatically if the address the user is
+asking to subscribe is their own (according to their mail headers).  In
+either case, the owner is notified of all successful "subscribe" and
+"unsubscribe" actions.
+
+To use majordomo, users email requests to an alias that pipes their
+message to majordomo (Brent uses "majordomo@usenix.org" as the alias for
+the SAGE lists).  The commands that majordomo understands are:
+
+    subscribe <list> [<address>]
+        Subscribe yourself (or <address> if specified) to the named <list>.
+
+    unsubscribe <list> [<address>]
+        Unsubscribe yourself (or <address> if specified) from the named <list>.
+
+    which [<address>]
+        Find out which lists you (or <address> if specified) are on.
+
+    who <list>
+        Find out who is on the named <list>.
+
+    info <list>
+        Retrieve the general introductory information for the named <list>.
+
+    lists
+        Show the lists served by this Majordomo server.
+
+    help
+        Retrieve this message.
+
+    end
+        Stop processing commands (useful if your mailer adds a signature).
+
+In addition, it understands the following password-protected commands to
+allow the "owners" of particular mailing lists (who don't have to have
+accounts on the machine where majordomo runs) to perform routine mailing
+list housekeeping activities:
+
+    approve <password> {subscribe|unsubscribe} <list> <address>
+	Allows a list owner to subscribe or unsubscribe someone from
+	their list.
+    
+    passwd <list> <old-password> <new-password>
+	Allows a list owner to change the password for their list.
+
+    newinfo <list> <password>
+	Allows a list owner to set the text a user receives when they do
+	an "info" command or subscribe to the list.
+
+New in majordomo 1.90 are the following password protected commands:
+
+    config <list> <password>
+
+	retrieve a self-documenting configuration file for the list
+	<list>.  The <password> can be the password contained in the
+	file <listname>.passwd or the admin_password in the
+	configuration file.
+
+    newconfig <list> <password>
+        <config file>
+    EOF
+
+    	Validates and installs a new configuration file. The config
+	file is expected to be a complete config file as returned by
+	"config".  Incremental changing of the config file is not yet
+	supported.  As soon as the config file is validated and
+	installed its settings are available for use. This is useful
+	to remember if you have multiple commands in your mail message
+	since they will be subject to the settings of the new config
+	file.  If there is an error in the config file (incorrect
+	value...), the config file will not be accepted and the error
+	message identifying the problem line(s) will be returned to
+	the sender. Buglet: only the error lines are returned to the
+	sender not the entire config file.
+
+    writeconfig <list> <password> 
+
+	Write a new config in standard form. All of the config file
+	documentation is optional. Only the keywords and values are
+	necessary. If a config file, stripped of all comments is
+	installed using newconfig, that is what is returned by config.
+	Writeconfig forces a rewrite of the config file with all
+	comments and default values in place. It is useful to use
+	after an upgrade of majordomo since it will add the new
+	keywords for people to change. It also updates the
+	documentation in the file if that has changed.
+	
+
+   mkdigest <digest list name> <password>
+
+	This will force a digest for the specified digest list to be
+	created.
+
+
+$Header: /sources/cvsrepos/majordomo/Description,v 1.3 1994/05/05 20:28:54 rouilj Exp $

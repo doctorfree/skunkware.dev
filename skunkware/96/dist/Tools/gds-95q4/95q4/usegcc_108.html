@@ -1,0 +1,127 @@
+<HTML>
+<HEAD>
+<!-- This HTML file has been created by texi2html 1.31
+     from usegcc.texi on 9 October 1995 -->
+
+<TITLE>Using GNU CC - C++ Signatures</TITLE>
+</HEAD>
+<BODY>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_107.html">previous</A>, <A HREF="usegcc_109.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+<HR>
+<H2><A NAME="SEC111" HREF="usegcc_toc.html#TOC111">Type Abstraction using Signatures</A></H2>
+<A NAME="IDX487"></A>
+<A NAME="IDX488"></A>
+<A NAME="IDX489"></A>
+<A NAME="IDX490"></A>
+<A NAME="IDX491"></A>
+<A NAME="IDX492"></A>
+<A NAME="IDX493"></A>
+<P>
+In GNU C++, you can use the keyword <CODE>signature</CODE> to define a
+completely abstract class interface as a datatype.  You can connect this
+abstraction with actual classes using signature pointers.  If you want
+to use signatures, run the GNU compiler with the
+<SAMP>`-fhandle-signatures'</SAMP> command-line option.  (With this option, the
+compiler reserves a second keyword <CODE>sigof</CODE> as well, for a future
+extension.)
+<P>
+Roughly, signatures are type abstractions or interfaces of classes.
+Some other languages have similar facilities.  C++ signatures are
+related to ML's signatures, Haskell's type classes, definition modules
+in Modula-2, interface modules in Modula-3, abstract types in Emerald,
+type modules in Trellis/Owl, categories in Scratchpad II, and types in
+POOL-I.  For a more detailed discussion of signatures, see
+<CITE>Signatures: A C++ Extension for Type Abstraction and Subtype
+Polymorphism</CITE> by Gerald Baumgartner and Vincent F. Russo (Tech report
+CSD--TR--93--059, Dept. of Computer Sciences, Purdue University,
+December 1994, to appear in <EM>Software Practice &#38; Experience</EM>).
+You can get the tech report by anonymous FTP from
+<CODE>ftp.cs.purdue.edu</CODE> in <TT>`pub/reports/TR93-059.PS.Z'</TT>.
+<P>
+Syntactically, a signature declaration is a collection of
+member function declarations and nested type declarations.
+For example, this signature declaration defines a new abstract type
+<CODE>S</CODE> with member functions <SAMP>`int foo ()'</SAMP> and <SAMP>`int bar (int)'</SAMP>:
+<P>
+<PRE>
+signature S
+{
+  int foo ();
+  int bar (int);
+};
+</PRE>
+<P>
+Since signature types do not include implementation definitions, you
+cannot write an instance of a signature directly.  Instead, you can
+define a pointer to any class that contains the required interfaces as a
+<DFN>signature pointer</DFN>.  Such a class <DFN>implements</DFN> the signature
+type.
+<P>
+To use a class as an implementation of <CODE>S</CODE>, you must ensure that
+the class has public member functions <SAMP>`int foo ()'</SAMP> and <SAMP>`int
+bar (int)'</SAMP>.  The class can have other member functions as well, public
+or not; as long as it offers what's declared in the signature, it is
+suitable as an implementation of that signature type.
+<P>
+For example, suppose that <CODE>C</CODE> is a class that meets the
+requirements of signature <CODE>S</CODE> (<CODE>C</CODE> <DFN>conforms to</DFN>
+<CODE>S</CODE>).  Then
+<P>
+<PRE>
+C obj;
+S * p = &#38;obj;
+</PRE>
+<P>
+defines a signature pointer <CODE>p</CODE> and initializes it to point to an
+object of type <CODE>C</CODE>.  
+The member function call <SAMP>`int i = p-&#62;foo ();'</SAMP>
+executes <SAMP>`obj.foo ()'</SAMP>.
+<A NAME="IDX494"></A>
+<P>
+Abstract virtual classes provide somewhat similar facilities in standard
+C++.  There are two main advantages to using signatures instead:
+<P>
+<OL>
+<LI>
+Subtyping becomes independent from inheritance.  A class or signature
+type <CODE>T</CODE> is a subtype of a signature type <CODE>S</CODE> independent of
+any inheritance hierarchy as long as all the member functions declared
+in <CODE>S</CODE> are also found in <CODE>T</CODE>.  So you can define a subtype
+hierarchy that is completely independent from any inheritance
+(implementation) hierarchy, instead of being forced to use types that
+mirror the class inheritance hierarchy.
+
+<LI>
+Signatures allow you to work with existing class hierarchies as
+implementations of a signature type.  If those class hierarchies are
+only available in compiled form, you're out of luck with abstract virtual
+classes, since an abstract virtual class cannot be retrofitted on top of
+existing class hierarchies.  So you would be required to write interface
+classes as subtypes of the abstract virtual class.
+</OL>
+<A NAME="IDX495"></A>
+<A NAME="IDX496"></A>
+<P>
+There is one more detail about signatures.  A signature declaration can
+contain member function <EM>definitions</EM> as well as member function
+declarations.  A signature member function with a full definition is
+called a <EM>default implementation</EM>; classes need not contain that
+particular interface in order to conform.  For example, a
+class <CODE>C</CODE> can conform to the signature
+<P>
+<PRE>
+signature T
+{
+  int f (int);
+  int f0 () { return f (0); };
+};
+</PRE>
+<P>
+whether or not <CODE>C</CODE> implements the member function <SAMP>`int f0 ()'</SAMP>.
+If you define <CODE>C::f0</CODE>, that definition takes precedence;
+otherwise, the default implementation <CODE>S::f0</CODE> applies.
+<P>
+<HR>
+Go to the <A HREF="usegcc_1.html">first</A>, <A HREF="usegcc_107.html">previous</A>, <A HREF="usegcc_109.html">next</A>, <A HREF="usegcc_139.html">last</A> section, <A HREF="usegcc_toc.html">table of contents</A>.
+</BODY>
+</HTML>

@@ -1,0 +1,282 @@
+Some Frequently Asked Questions:
+---------------------------------
+(faq version @(#)etet/doc/faq	1.1)
+
+Q1. What is TET?
+
+TET stands for Test Environment Toolkit.
+TET is a freely available generic test harness for system testing.
+TET was originally developed by OSF, UNIX International and X/Open.
+It consists of an agreed specification and a reference implementation.
+The latest official release is TET1.10 (May 1992).
+
+Q2. Where can I get a copy of TET from ?
+
+It is available for ftp from xopen.xopen.co.uk.
+
+
+Q3. Is there a mailing list for discussions on TET?
+
+Yes, the TET Workshop mailing (tetworks@xopen.co.uk) 
+discusses TET issues (to subscribe mail to tetworks-request@xopen.co.uk).
+
+
+Q4. What does the TET Workshop do?
+
+The TET Workshop controls future directions for TET and meets irregularly.
+TET is widely in use in the commercial industry.
+You can obtain a copy of the Operating procedures for TETWorks
+by sending email to the Chairperson of the TET Workshop.
+
+Q5. What is the benefit of TET?
+
+The benefit of TET is the capability of test developed by different
+vendors to be shared since they use the same test scaffold (APIs)
+and driver.  
+
+Q6. What are the system requirements for TET?
+
+The reference implementation TET1.10 includes a C and 
+XPG3 Shell API and requires a POSIX.1 system.
+
+
+Q7. Why are tet_ins and rpt no longer a part of the TET release as of TET 1.10?
+
+The decision to remove the rpt and tet_ins tools was taken at the
+TET User Group Meeting in March 1992. The reason was likely that
+these tools don't actually provide in themselves much functionality.
+They're too general to be of use in many cases. There are no plans
+to replace them at the present time.
+
+
+Q8. Why does TET_OUTPUT_CAPTURE need to be enabled in order to see make problem
+s?
+
+TET_OUTPUT_CAPTURE is required here because in 
+order to have such output trapped and placed in the journal file
+it is necessary to redirect stdout and stderr. That's essentially
+what TET_OUTPUT_CAPTURE=True does.
+
+It should also be emphasised that the value for TET_OUTPUT_CAPTURE
+controls whether the tool or test case being executed uses the
+TET API. So the naming and use of the variable reflect more
+than just whether stdout and stderr are redirected.  
+
+(Note that ETET now adds TET_API_COMPLIANT and TET_PASS_TC_NAME
+to give finer granularity than just TET_OUTPUT_CAPTURE).
+
+Q9. Why does TET_OUTPUT_CAPTURE affect the passing or not passing of arguments 
+   to the Clean Tool?
+
+   The documentation that prompted this question is in the 
+   TET Programmers Guide, section 3.1.1.3, item number 3.
+   The last sentence in this description states:
+
+	"If output capture mode is enabled, then the arguments passed to 
+	 the clean tool are TET_CLEAN_FILE and the name of the test case, 
+	 otherwise no arguments are passed."
+
+
+If output capture mode is enabled, TET assumes that the clean tool
+is not written using the TET API. If output capture mode is disabled,
+TET assumes the tool is written using the API and executes it
+appropriately (as implied in item 2 above). However, the API
+assumes that any arguments passed to programs using the API are the
+invocable component number(s) for a test case. This would confuse
+the clean tool; the solution is not to allow any parameters at all.
+
+
+Q10. Why does TET not allow POSIX.1 signals to be set to be ignored or left 
+   unchanged?
+
+   The documentation that prompted this question is in version 1.7 of the 
+   TET Programmers Guide, section 5.2.2. The last paragraph in this section
+   state:
+
+	"The implementation does not allow the signals defined by POSIX.1
+	 (ISO 9945-1) to be set to be ignored or left unchanged, as this
+	 may pervert results."
+
+How will results be perverted if POSIX.1 signals are mentioned in
+TET_SIG_IGN or TET_SIG_LEAVE?
+
+A.	This is because the execution of test cases on a POSIX.1 system
+should follow standard behaviour for well defined signals (that is,
+the POSIX.1 defined signals). The TET test case manager (TCM) is
+able to handle these signals according to that specification
+precisely because of the POSIX definitions. A test case that
+ignores these signals, or changes the default handling, is
+likely to be breaking (perhaps inadvertently) some feature of
+the system or feature being tested.
+	
+The TET_SIG_IGN and TET_SIG_LEAVE variables are really intended to
+be used to specify an action for non-POSIX.1 signals where the test
+case manager is unable to accurately determine what to do with 
+such signals.
+	
+If it really is necessary to ignore or change the handling for
+POSIX.1 signals, code should be inserted into the test case(s) to
+do it. The point is that the handling of signals should be under
+control of the test suite author, not the end user.  By disallowing
+POSIX signals in TET_SIG_IGN and TET_SIG_LEAVE the TET takes care of
+the POSIX signals and so the test suite author only has to be concerned
+with any non-POSIX signals that are relevant to whatever is being
+tested.
+
+
+Q11. What is suite/bin for?  
+
+Q.   If suite/bin is useful, why doesn't tcc dynamically rebuild it's execution 
+   path to include suite/bin before looking for tools such as buildtool or 
+   cleantool to execute?  
+
+A	Should suite/bin be placed in front of the other PATH
+	directories, or at the end? Doing this could effect the execution
+	of test suites; for example, if a test purpose issued an execvp()
+	to execute a program whose name conflicts with one of the tools.
+	Other than that, what you are saying could be done. Of course,
+	it would have to be documented and agreed on tetworks first.
+
+Q.   Is tcc supposed to get buildtool or cleantool from suite/test_case_dir or 
+   from suite/bin?
+	
+A.	The tools are obtained by searching the directories in the PATH
+	environment variable. Note that it is possible to specify the
+	full path of these tools to disable this search. For example,
+
+	TET_BUILD_TOOL=/my/local/bin/make
+
+
+
+Q12. What is the ETET?
+
+The Extended Test Environment Toolkit (ETET) is an extension to the
+Test Environment Toolkit Release 1.10. 
+
+The objective of the ETET project is to extend the functionality of 
+TET to support its commercial use outside of the conformance test arena 
+in a way that is compatible with the base TET.
+
+The core of the work for ETET was implemented at SunSoft with extensions and 
+revisions by USL (now Novell's UNIX Systems Group). ETET is now being 
+maintained by a group of volunteers from many different companies (see 
+appendix A in the release notes).  All interested parties are welcome to 
+participate in development of the ETET.
+
+Q13.How compatible is ETET with TET1.10?
+
+The ETET has been designed to be compatible with TET1.10, so that
+existing tests require no changes to execute with an ETET harness.
+The main differences are in the test driver (the test case controller has
+extensions more suited to using TET for system testing in a production
+environment), and the provision of additional language bindings.
+The APIs are intended to be the same.
+
+
+Q14. What are the main ETET extensions over TET1.10?
+
+o A test case controller providing support for the building, execution,
+and clean-up of test scenarios with the following extensions:
+
+- New Scenario key words: parallel, group, repeat, timed_loop, random
+
+- Scenario Syntax extensions
+
+- Addition of TET_SUITE_ROOT to allow test suites to be 
+located in a different directory other than under TET_ROOT (also
+supports a read-only TET_ROOT).
+
+- Addition of TET_RUN to support  running of read-only copies of test suites.
+
+o `C' and `C++' Application Programming Interface;
+
+o  two `Shell' Application Programming Interfaces (XPG3 and Korn Shell).
+
+o  a `Perl' Application Programming Interfac.
+
+o  Improved and complete documentation.
+
+o  A contrib directory, containing several demonstration test suites, a test
+suite for the TET and ETET APIs, a TET portability library for non-POSIX
+systems and some sample tools.
+
+Q15. What Operating Systems are supported by ETET?
+
+ETET has the same requirements as the TET. The system should be
+compliant with POSIX.1 and the XPG3 Shell (for systems
+not quite compliant to POSIX.1 a compatibility library is provided). 
+To use the ETET extensions for Perl, requires Perl Version 4.0 or later, and to
+use the C++ extensions requires a C++ compiler (this release
+has been tested with USL C++ 3.0.2 and GNU g++ 2.5.7).
+
+The ETET has been installed and tested on the following platforms:
+	UNIX SVR4.0, ICL DRS6000
+	UNIX SVR4.2 or UnixWare 1.x on Intel i486
+	UNIX SVR4.2 MP, or UnixWare 2.0 on  Compaq Systempro 2 x i486
+	AIX 3.1, RS/6000
+	ULTRIX 4.2, Decstation 3100
+	SunOS 4.1, SPARCstation
+	SunOS 5.0 and later
+	IRIX 4.0, SGI 
+
+Q 16. Where can I get the ETET distribution from?
+
+ETET is available by anonymous ftp from bright.ecs.soton.ac.uk (152.78.64.201)
+/pub/etet/etet1.10.3.tar.Z. ETET is also mirrored on xopen.xopen.co.uk
+and the updated version should also appear there shortly.
+	
+	to unwind the ftp distribution (in the current directory)
+	 into a directory called ETET:
+		mkdir ETET; cd ETET
+		zcat ../etet1.10.3.tar.Z|tar xvf -
+
+	if you are using SunOS 4.1 use /usr/5bin/ustar or GNU tar if available
+
+ETET is also available from the mail-server@novell.co.uk
+
+	Send a mail message to that address with the following 
+	contents.
+
+
+	begin
+	send TET/etet1.10.3.tar.Z
+	end
+
+(if your mailer does not add a correct From: line, you may add the following
+after the begin -
+	reply your-email-address
+where the string "your-email-address" should be a valid internet address)
+
+Q17. How is ETET supported?
+
+ETET is supported by a group of volunteers. If you wish to
+contribute to future revisions or have problems with ETET send 
+electronic mail to:
+
+	etet_support@novell.co.uk
+
+
+Q18. How can I Contribute to the ETET.
+
+
+Contributions are welcome. Send mail to etet_support@novell.co.uk.
+
+
+Q19. When I run multiple copies of the same test suite  in parallel
+occasionally i see a message of the form:
+
+	cp: cannot access ts/tet_lock/2368a: No such file or directory
+
+The error is apparently harmless, any suggestions?
+
+A. This is due to the TET locking mechanism and its copying the
+suite to a temporary directory. ETET provides  a new communication
+variable to work around this: set TET_LOCK=False.
+
+Q20. How to I stop tcc running properly? When I hit the interrupt
+key some processes keep going.
+
+A. This is intentional. To make tcc abort you need to send it a
+SIGQUIT signal (often generated by CONTROL-\ ).
+When tcc receives a SIGINT signal, tcc sends it to the current testcase
+(if possible), the resumes execution.

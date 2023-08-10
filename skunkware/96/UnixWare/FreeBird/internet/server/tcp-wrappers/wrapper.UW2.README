@@ -1,0 +1,579 @@
+README - tcp/spx wrappers for UnixWare 2.x
+---------------------------------------------
+
+tcp_wrapper version 6.0.1
+Copyright 1993 by Wietse Venema.  All rights reserved.  Some individual
+files may be covered by other copyrights.
+
+THIS VERSION WILL NOT INSTALL ON UNIXwARE 1.X.
+
+PLEASE READ ALL THE ACCOMPANYING DOCUMENTATION WITH THIS
+PACKAGE PRIOR TO INSTALLATION !!!!
+
+
+To install the package the simplest way follows:
+
+1. Extract the tar archive. 
+
+$ cd /tmp
+$ su
+# tar xvf wrapper.UW2.pkg.tar
+
+2. Installing the package
+	pkgadd -d `pwd`
+
+3. Removing the package
+
+# pkgrm wrapper
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+This package contains ident/wrappers for TCP on UnixWare.
+The files installed/overlaid/edited by this package are:
+
+/usr/lib/newsyslog - a shell script to clean up logfiles nightly
+                     in /var/adm/log, run from the adm crontab
+/usr/sbin/wrapd	- the wrapper daemon run by inetd to do
+                  checking prior to invoking the real service
+/usr/sbin/spxwrap - the wrapper daemon run by nwnetd to do
+                  checking prior to invoking the real service
+/usr/sbin/in.identd - an identification daemon that tries to contact
+                  an identd on the remote machine
+
+/etc/inet/hosts.allow  - control file for allowed hosts for inet services
+/etc/inet/hosts.deny	- control file for denied hosts for inet services
+		(note hosts.allow and hosts.deny are symlinked into /etc)
+/etc/clients.allow   - an spx access control file
+/etc/syslog.conf    - config file for syslog 
+/var/spool/cron/crontabs/adm - updated to call newsyslog script to clean logs
+/etc/inet/inetd.conf    - updated inetd.conf file
+/etc/nwnetd.conf    - updated inetd.conf file
+
+Things to watch for:
+
+The nwnetd.conf and inetd.conf files are backed up prior to any
+changes in /etc/inetd/inetd.conf.orig and /etc/nwnetd.conf.orig.
+
+Once installed /etc/hosts.allow needs to be configured for the services,
+users and hosts that will access this host (the default is not too
+allow any hosts in).
+
+For example /etc/hosts.allow
+
+ALL: localhost .your.own.dom
+#in.telnetd: user@host
+in.smtpd: ALL
+nntpd: rocky.horror.novell.com battlestar.novell.de 192.11.12.
+ftpd: .foo.com .bar.com
+in.bootpd: ALL
+
+
+For example /etc/clients.allow
+#ident @(#)clients.allow        1.1
+# SPX wrapper config file
+# format is:
+# service       protocol        network         address
+#
+# any field can be a *
+# if a service is not allowed by this file, it will be rejected.
+#
+# example:
+# ninstalld     SPX             123456          *
+# would allow any machines on the network 123456 to use the install server
+#
+# See /etc/nwnetd.conf for possible services
+#
+in.inetinst     spx     0101a5fa        *
+in.inetinst     spx     0101a5fb        *
+in.inetinst     spx     0101a5fc        *
+in.inetinst     spx     0101a5fd        *
+in.inetinst     spx     0101a5fe        *
+nrexecd spx     0101a5fc        *         
+
+Test the installation!  try to access services from allowed users/hosts and
+others.  user/host combinations that are not allowed should simply be
+dropped (and a msg logged onto the console).
+
+To make inetd pick up the new configuration
+
+	ps -ef|grep inetd
+	kill -HUP {process id of inetd}
+
+To make nwnetd pick up the new configuration
+
+	ps -ef|grep nwnetd
+	kill -HUP {process id of nwnetd}
+
+To start syslogd by hand
+
+	/usr/sbin/syslogd
+
+(to restart syslogd send it a HUP signal).
+
+Once you're happy reboot the machine.
+
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+NAME
+     hosts_access - format of host access control files
+
+DESCRIPTION
+     This manual page describes	a simple access	control	 language
+     that  is  based on	client (host name/address, user	name) and
+     server (process name) patterns.  Examples are given  at  the
+     end.  The	impatient reader can skip to the EXAMPLES section
+     for a quick introduction.
+
+     In	the following text, daemon is the the process name  of	a
+     network  daemon  process,	and  client  is	 the  name and/or
+     address of	a host requesting service. Network daemon process
+     names are specified in the	inetd configuration file.
+
+ACCESS CONTROL FILES
+     The access	control	software consults two files.  The  search
+     stops at the first	match:
+
+     o	  Access will be  granted  when	 a  (daemon,client)  pair
+	  matches an entry in the /etc/hosts.allow file.
+
+     o	  Otherwise, access will be denied when	a (daemon,client)
+	  pair matches an entry	in the /etc/hosts.deny file.
+
+     o	  Otherwise, access will be granted.
+
+     A non-existing access control file	is treated as if it  were
+     an	 empty	file.  Thus,  access control can be turned off by
+     providing no access control files.
+
+ACCESS CONTROL RULES
+     Each access control file consists of zero or more	lines  of
+     text.  These lines	are processed in order of appearance. The
+     search terminates when a match is found.
+
+     o	  A newline character is ignored when it is preceded by	a
+	  backslash character.
+
+     o	  Blank	lines or lines that begin with	a  `#'	character
+	  are ignored.
+
+     o	  All other lines should satisfy  the  following  format,
+	  things between [] being optional:
+
+	     daemon_list : client_list [ : shell_command ]
+
+     daemon_list is a list of one or more  daemon  process  names
+     (argv[0] values) or wildcards (see	below).
+
+     client_list is a list  of	one  or	 more  host  names,  host
+     addresses,	 patterns  or  wildcards (see below) that will be
+
+
+
+AT&T Bell Laboratories	  Last change:				1
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+     matched against the remote	host name or address.
+
+     List elements should be separated by blanks and/or	commas.
+
+     With the exception	of NIS (YP) netgroup lookups, all  access
+     control checks are	case insensitive.
+
+PATTERNS
+     The access	control	language implements  the  following  pat-
+     terns:
+
+     o	  A string that	begins with a `.'  character.	A  client
+	  name or address is matched if	its last components match
+	  the  specified  pattern.   For  example,  the	  pattern
+	  `.tue.nl' matches the	host name `wzv.win.tue.nl'.
+
+     o	  A string that	ends with a `.'	character.  A client name
+	  or  address  is  matched  if its first fields	match the
+	  given	string.	  For  example,	 the  pattern  `131.155.'
+	  matches the address of (almost) every	host on	the Eind-
+	  hoven	University network (131.155.x.x).
+
+     o	  A string that	begins with a `@' character is treated as
+	  a  netgroup  name.   Netgroups are usually supported on
+	  systems with NIS (formerly YP)  data	bases.	A  client
+	  host	name  is  matched if it	is a (host) member of the
+	  specified netgroup.
+
+     o	  An expression	of the form `n.n.n.n/m.m.m.m'  is  inter-
+	  preted  as  a	 `net/mask'  pair.  A  client  address is
+	  matched if `net' is equal to the  bitwise  AND  of  the
+	  address  and the `mask'. For example,	the net/mask pat-
+	  tern `131.155.72.0/255.255.254.0' matches every address
+	  in the range `131.155.72.0' through `131.155.73.255'.
+
+WILDCARDS
+     The access	control	language supports explicit wildcards:
+
+     ALL  If this token	appears	in a daemon_list, it matches  all
+	  network daemon process names.	 If the	ALL token appears
+	  in a client_list,  it	 matches  all  client  names  and
+	  addresses.
+
+     LOCAL
+	  Matches any string that does not contain a dot  charac-
+	  ter.	Typical	use is in client_lists.
+
+     UNKNOWN
+	  Matches any host whose name  or  address  are	 unknown.
+	  Should be used with care: host names may be unavailable
+	  due  to  temporary  name  server  problems.  A  network
+	  address  will	 be  unavailable when the software cannot
+
+
+
+AT&T Bell Laboratories	  Last change:				2
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+	  figure out what type of network it is	talking	to.
+
+     KNOWN
+	  Matches any host whose  name	and  address  are  known.
+	  Should be used with care: host names may be unavailable
+	  due to  temporary  name  server  problems.   A  network
+	  address  will	 be  unavailable when the software cannot
+	  figure out what type of network it is	talking	to.
+
+     FAIL Like the ALL wildcard, but causes the	software to  pre-
+	  tend	that the scan of the current access control table
+	  fails. FAIL is being phased  out;  it	 will  become  an
+	  undocumented	feature.  The EXCEPT operator (see below)
+	  is a much cleaner alternative.
+
+OPERATORS
+     EXCEPT
+	  Intended use is of the form:	`list_1	 EXCEPT	 list_2';
+	  this	construct  matches  anything  that matches list_1
+	  unless it matches list_2.  This construct can	 be  used
+	  in  daemon_lists and in client_lists.	The EXCEPT opera-
+	  tor can be nested: if	the control language would permit
+	  the  use  of	parentheses,  `a EXCEPT	b EXCEPT c' would
+	  parse	as `(a EXCEPT (b EXCEPT	c))'.
+
+SHELL COMMANDS
+     If	the first-matched access control rule  contains	 a  shell
+     command,  that command is subjected to the	following substi-
+     tutions:
+
+     %a	  expands to the remote	host address.
+
+     %c	  expands to client information: user@host, user@address,
+	  a  host name,	or just	an address, depending on how much
+	  information is available.
+
+     %h	  expands to the remote	host name  (or	address,  if  the
+	  host name is unavailable).
+
+     %d	  expands to the daemon	process	name (argv[0] value).
+
+     %p	  expands to the daemon	process	id.
+
+     %u	  expands to the remote	user name (or "unknown").
+
+     %%	  expands to a single `%' character.
+
+     Characters	in % expansions	that may confuse  the  shell  are
+     replaced  by  underscores.	  The  result  is  executed  by	a
+     /bin/sh child process with	standard input,	output and  error
+     connected	to  /dev/null.	 Specify an `&'	at the end of the
+     command if	you do not want	to wait	until it has completed.
+
+
+
+AT&T Bell Laboratories	  Last change:				3
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+     Shell commands should not rely on the PATH	 setting  of  the
+     inetd.   Instead,	they  should  use absolute path	names, or
+     they should begin with an explicit	PATH=whatever statement.
+
+REMOTE USERNAME	LOOKUP
+     When the client host supports the RFC 931 protocol	or one of
+     its  descendants  (TAP,  IDENT)  the  wrapper  programs  can
+     retrieve additional information about the owner of	a connec-
+     tion. Remote username information,	when available,	is logged
+     together with the client host name, and can be used to match
+     patterns like:
+
+	daemon_list : ... user_pattern@host_pattern ...
+
+     The daemon	wrappers can be	configured  at	compile	 time  to
+     perform  rule-driven username lookups (default) or	to always
+     interrogate the client host.  In  the  case  of  rule-driven
+     username lookups, the above rule would cause username lookup
+     only when both the	daemon_list and	the host_pattern match.
+
+     A user pattern has	the same syntax	as a daemon process name,
+     host  name	 or  host  address pattern, so the same	wildcards
+     etc. apply	(but netgroup membership of  users  is	not  sup-
+     ported). One should not get carried away with username look-
+     ups, though.
+
+     o	  The remote username information cannot be trusted  when
+	  it is	needed most, i.e. when the remote system has been
+	  compromised.	In general, ALL	 and  (UN)KNOWN	 are  the
+	  only user name patterns that make sense.
+
+     o	  Username lookups are possible	only with TCP-based  ser-
+	  vices,  and  only  when the client host runs a suitable
+	  daemon; in all other cases the result	is "unknown".
+
+     o	  A well-known UNIX kernel bug may cause loss of  service
+	  when	username  lookups  are blocked by a firewall. The
+	  wrapper README document describes a procedure	 to  find
+	  out if your kernel has this bug.
+
+     o	  Username lookups cause noticeable delays for PC  users.
+	  The default timeout for username lookups is 10 seconds:
+	  too short to cope with slow networks,	but  long  enough
+	  to irritate PC users.
+
+     Selective username	lookups	can alleviate the  last	 problem.
+     For example, a rule like:
+
+	daemon_list : @pcnetgroup ALL@ALL
+
+     would match members of the	pc netgroup without  doing  user-
+     name  lookups,  but  would	perform	username lookups with all
+
+
+
+AT&T Bell Laboratories	  Last change:				4
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+     other systems.
+
+EXAMPLES
+     The language is flexible  enough  that  different	types  of
+     access  control  policy  can  be expressed	with a minimum of
+     fuss. Although the	language uses two access control  tables,
+     the  most common policies can be implemented with one of the
+     tables being trivial or even empty.
+
+     When reading the examples below it	is important  to  realize
+     that  the allow table is scanned before the deny table, that
+     the search	terminates when	a match	is found, and that access
+     is	granted	when no	match is found at all.
+
+     The examples use host and domain names. They can be improved
+     by	 including address and/or network/netmask information, to
+     reduce the	impact of temporary name server	lookup failures.
+
+MOSTLY CLOSED
+     In	this case, access is denied by default.	 Only  explicitly
+     authorized	hosts are permitted access.
+
+     The default policy	(no access) is implemented with	a trivial
+     deny file:
+
+     /etc/hosts.deny:
+	ALL: ALL
+
+     This denies all service to	all hosts, unless they	are  per-
+     mitted access by entries in the allow file.
+
+     The explicitly authorized hosts  are  listed  in  the  allow
+     file.  For	example:
+
+     /etc/hosts.allow:
+	ALL: LOCAL @some_netgroup
+	ALL: .foobar.edu EXCEPT	terminalserver.foobar.edu
+
+     The first rule permits access to all services from	hosts  in
+     the  local	domain (no `.' in the host name) and from members
+     of	the  some_netgroup  netgroup.  The  second  rule  permits
+     access  to	 all  services	from all hosts in the .foobar.edu
+     domain, with the exception	of terminalserver.foobar.edu.
+
+MOSTLY OPEN
+     Here, access is granted by	default; only  explicitly  speci-
+     fied hosts	are refused service.
+
+     The default policy	(access	granted)  makes	 the  allow  file
+     redundant	so  that  it can be omitted.  The explicitly non-
+     authorized	hosts are listed in the	deny file. For example:
+
+
+
+
+AT&T Bell Laboratories	  Last change:				5
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+     /etc/hosts.deny:
+	ALL: some.host.name, .some.domain
+	ALL EXCEPT in.fingerd: other.host.name,	.other.domain
+
+     The first rule denies some	hosts all  services;  the  second
+     rule still	permits	finger requests	from other hosts.
+
+BOOBY TRAPS
+     The next example permits tftp requests  from  hosts  in  the
+     local  domain.   Requests	from  any other	hosts are denied.
+     Instead of	the requested file, a finger probe is sent to the
+     offending host. The result	is mailed to the superuser.
+
+     /etc/hosts.allow:
+	in.tftpd: LOCAL, .my.domain
+
+     /etc/hosts.deny:
+	in.tftpd: ALL: (/some/where/safe_finger	-l @%h | \
+	     /usr/ucb/mail -s %d-%h root) &
+
+     The safe_finger command comes  with  the  tcpd  wrapper  and
+     should  be	installed in a suitable	place. It limits possible
+     damage from data sent by the remote finger	server.	 It gives
+     better protection than the	standard finger	command.
+
+     The expansion of the %h (remote host) and %d (service  name)
+     sequences is described in the section on shell commands.
+
+     Warning: do not booby-trap	your finger  daemon,  unless  you
+     are prepared for infinite finger loops.
+
+     On	network	firewall systems this trick can	be  carried  even
+     further.	The typical network firewall only provides a lim-
+     ited set of services to the outer world. All other	 services
+     can be "bugged" just like the above tftp example. The result
+     is	an excellent early-warning system.
+
+DIAGNOSTICS
+     An	error is reported when a syntax	error is found in a  host
+     access  control  rule;  when the length of	an access control
+     rule exceeds the capacity of an  internal	buffer;	 when  an
+     access  control  rule is not terminated by	a newline charac-
+     ter; when the result of %<character> expansion  would  over-
+     flow  an  internal	 buffer;  when	a  system call fails that
+     shouldn't.	 All problems are reported via the syslog daemon.
+
+FILES
+     /etc/hosts.allow, (daemon,client) pairs that are granted access.
+     /etc/hosts.deny, (daemon,client) pairs that are denied access.
+
+SEE ALSO
+     tcpd(8) tcp/ip daemon wrapper program.
+
+
+
+AT&T Bell Laboratories	  Last change:				6
+
+
+
+
+
+
+HOSTS_ACCESS(5)		  FILE FORMATS		  HOSTS_ACCESS(5)
+
+
+
+BUGS
+     If	a name server lookup times out,	the host name will not be
+     available	to  the	 access	control	software, even though the
+     host is registered.
+
+     Domain name server	lookups	are case insensitive; NIS  (form-
+     erly YP) netgroup lookups are case	sensitive.
+
+AUTHOR
+     Wietse Venema (wietse@wzv.win.tue.nl)
+     Department	of Mathematics and Computing Science
+     Eindhoven University of Technology
+     Den Dolech	2, P.O.	Box 513, 5600 MB Eindhoven, The	Netherlands
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+AT&T Bell Laboratories	  Last change:				7
+
+
+

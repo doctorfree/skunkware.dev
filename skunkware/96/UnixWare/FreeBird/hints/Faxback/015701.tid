@@ -1,0 +1,115 @@
+NOVELL TECHNICAL INFORMATION DOCUMENT
+
+DOCUMENT PROCESSING INFO:
+TITLE:  Using Dialup Setup and addttymon with Multi-p
+DOCUMENT ID:  TID015701
+DOCUMENT REVISION:  A
+DATE:  11APR94
+AUTHOR:  BAMUNDSO
+ALERT STATUS:  Yellow
+DISTRIBUTION:  Public
+INFORMATION TYPE:  Symptom Solution
+README FOR:  NA
+NOVELL PRODUCT CLASS:
+
+UNIX
+
+NOVELL PRODUCT and VERSION:
+
+UnixWare 1.0
+UnixWare 1.1
+
+CATEGORY:
+
+Networking
+
+ABSTRACT:
+
+If you have a multi-port adapter such as a Digiboard, Arnet, Specialix, and so forth, the Dialup Setup and addttymon utilities will not work for these devices.
+
+-----------------------------------------------------------------
+DISCLAIMER
+THE ORIGIN OF THIS INFORMATION MAY BE INTERNAL OR EXTERNAL TO NOVELL.  NOVELL MAKES EVERY EFFORT WITHIN ITS MEANS TO VERIFY THIS INFORMATION.  HOWEVER, THE INFORMATION PROVIDED IN THIS DOCUMENT IS FOR YOUR INFORMATION ONLY.  NOVELL MAKES NO EXPLICIT OR IMPLIED CLAIMS TO THE VALIDITY OF THIS INFORMATION.
+-----------------------------------------------------------------
+
+SYMPTOM
+
+If you have a multi-port adapter, such as a Digiboard, Arnet, Specialix, and so forth, the devices that are created for its ports all have varied names such as the following:
+
+	/dev/term/i01a
+
+The Dialup Setup and addttymon utilities do not work for these device names.  Dialup setup will create odd and varied results as it attempts to set up the /etc/uucp/Devices file.
+
+The /usr/X/adm/addttymon command will simply return the following error:
+
+MESSAGE
+
+	No Devices are currently set up, please use Dialup Setup: Devices
+
+SOLUTION
+
+This is a bug that has been reported.  Until it is fixed, there is a way to work around the problems in these two utilities.
+
+1.	When you run Dialup Setup -> Actions -> Setup Devices, specify you want to set up a device for Com1 or Com2, whichever one is not currently being used, then exit that window.
+
+2.	If desired, set up any Systems before you exit the Dialup Setup utility.
+
+3.	If you wish to issue a login prompt on your ports, do the following steps, otherwise skip to step 4.
+
+	a.	Open an terminal window, become superuser and run:
+
+			/usr/X/adm/addttymon
+
+		This creates a bi-directional port definition.
+
+	b.	Edit the bi-directional port definition file:
+
+			vi /etc/saf/ttymon1/_pmtab
+
+		Simply replace the device name /dev/tty0n to the proper device name for the port you want to set up.
+
+		For example:
+
+			/dev/term/i1a
+
+	c.	If you don't want the port to be bi-directional (dial-in	only), remove the 'bhr' string from the definition.
+
+	d.	If you want to change the baud rate, replace the "auto" string with the appropriate tag (field 1 from the /etc/ttydefs file).
+
+		For example:
+
+			9600NP or 9600
+
+	e.	If you want to set up other ports at this time, duplicate this definition line as many times as you like and change the device name to the appropriate name for each device.
+
+	HINT:	If you are new to vi, you can "yank" this line into a buffer by positioning the cursor anywhere on the line and do the following:
+
+				Esc
+				yy
+
+			Then press "p" as many times as you want to paste this new line into the file.
+
+	f.	Save the file and restart the port monitor.
+
+			sacadm -k -p ttymon1
+			sacadm -s -p ttymon1
+
+4.	Edit the Devices file and modify the device name:
+
+		vi /etc/uucp/Devices
+
+	Replace the /dev/tty0n device with the appropriate device name for your port.  (See step b above for assistance.)
+
+	Replace the baud rate "Any" (field 4) with the appropriate ttydef tag discussed in step d above.
+
+	You can duplicate this line as many times as you wish, if you need to dial-out using multiple devices.
+
+5.	Now that you have set up the port monitors and Devices file, the Dialup Setup utility can now be used to modify or add any Systems you want to set up.
+
+-----------------------------------------------------------------
+Any trademarks referenced in this document are the property of their respective owners.  Consult your product manuals for complete trademark information.
+-----------------------------------------------------------------
+
+
+
+
