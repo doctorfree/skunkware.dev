@@ -51,12 +51,35 @@ of two days what Skunkware was, what the licensing for Skunkware was,
 what open source is, the difference between SCO Unix and Skunkware,
 and everything. Over and over.
 
-The second day the IBM lawyers turned to my personal website,
+The IBM lawyers also asked a lot of questions about my personal website,
 [ronecord.com](https://ronrecord.com). There was a bunch of open source
 software on my website! Yes, that is the software laboratory I wrote
 as part of my Ph.D. thesis in Mathematics at the University of California
 at Santa Cruz. The software creates a laboratory to explore chaotic
 dynamical systems and was released under an open source license.
+
+### GNUnix
+
+One thing that got a lot of attention from IBM was references to
+**GNUnix** in the Skunkware website. David Eyes had come up with
+this idea of releasing UnixWare under an open source license and
+calling it "GNUnix". It was a clever play on words, "GNU" being
+a recursive acronym standing for "GNU is Not Unix" but we were
+proposing to make Unix GNU.
+
+I thought that was a great idea so I jumped on board.
+We prepared a proposal for management to review.
+
+Of course, management shot us down pretty quickly. In retrospect,
+given the fact that SCO went down in flames and a judge ruled that
+SCO did not even own the copyrights to the Unix source code, it
+seems like management probably should have approved the idea.
+
+The idea that SCO was thinking of releasing Unix under an open source
+license really got the IBM lawyers hot. They could not let go of the
+notion that SCO was treating Unix like it was open source.
+
+## The End
 
 I do not know how my deposition played into IBM's legal strategy but
 I did get two free lunches and now I can say I was deposed by IBM.
