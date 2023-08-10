@@ -1,0 +1,145 @@
+#!/bin/sh
+#
+# UNLOAD - This script is a front-end to pkgtrans and can be used to
+#          transfer the Skunkware 7 filesystem format packages to data-stream
+#          package files on your hard disk. This is potentially useful to
+#          those folks that might want to redistribute these packages via
+#          ftp/http and would prefer data-stream format files.
+#
+
+#
+# Edit the following setting of MOUNTPT to be wherever you have
+# mounted the SCO Skunkware 7 CD-ROM. By default, i have set it
+# to /mnt. If you mounted the SCO Skunkware 7 CD-ROM on /usr/skunk7,
+# then you would set MOUNTPT=/usr/skunk7
+#
+
+MOUNTPT=/mnt
+
+#
+# ------------------------------------------------------------------
+#
+
+getnum() {
+        ans=
+        while [ "$ans" = "" ]
+        do
+                read ans
+                [ "$ans" = "1" ] || [ "$ans" = "2" ] || [ "$ans" = "3" ] || [ "$ans" = "4" ] && break
+                ans=
+                echo "\nPlease answer with 1, 2, 3, or 4 : \c"
+        done
+}
+
+getyn() {
+        ans=
+        while [ "$ans" = "" ]
+        do
+                read ans
+                [ "$ans" = "Y" ] || [ "$ans" = "y" ] && {
+                        ans=Y
+                        break
+                }
+                [ "$ans" = "n" ] || [ "$ans" = "N" ] && {
+                        ans=N
+                        break
+                }
+                ans=
+                echo "\nPlease answer with a Y or N \c"
+        done
+}
+
+Sorry() {
+echo "\nI'm sorry, but it appears you are running an operating system"
+echo "other than UnixWare 7, UnixWare 2.x, or OpenServer 5. If that is"
+echo "not the case, then run this script again and specify your operating"
+echo "system as one of the three supported."
+exit 2
+}
+
+Trans() {
+    for i in $MOUNTPT/*
+    do
+        b=`basename $i`
+        [ -f $i/pkginfo ] && {
+            pkgtrans -s $MOUNTPT $DEST/$b.pkg $b
+        }
+    done
+}
+
+Unload() {
+while [ ! -d $MOUNTPT/uw7 ]
+do
+        echo "\nIt appears you have the SCO Skunkware 7 CD-ROM mounted"
+        echo "somewhere other than $MOUNTPT .\n"
+        echo "Please enter the full absolute pathname of the CD-ROM"
+        echo "mount point (e.g. /cdrom, /usr/skunk, ...) : \c"
+        read MOUNTPT
+done
+
+NOTYET=1
+while [ "$NOTYET" ]
+do
+    echo "Please enter the full path to the directory you wish to unload to."
+    echo "Enter Path : \c"
+    read DEST
+    [ -d $DEST ] || {
+        echo "$DEST either does not exist or is not a directory."
+        continue
+    }
+    echo "Unloading to $DEST . Is this ok ? <Y/N> \c"
+    getyn
+    if [ "$ans" = "Y" ] || [ "$ans" = "y" ]
+    then
+        Trans
+        NOTYET=
+    else
+        echo "Try again."
+        continue
+    fi
+done
+echo "Unload of SCO Skunkware 7 packages to $DEST complete."
+}
+
+QueryOS() {
+        if [ -d /usr/sbin ]
+        then
+		VER=`uname -v`
+		OSNAME=UnixWare
+		case $VER in
+		7) GUESS=Gemini ;;
+		*) GUESS=UnixWare ;;
+		esac
+        else
+		VER=`uname -X | grep Release | awk ' { print $3 } '`
+		OSNAME=OpenServer
+                GUESS=OpenServer
+        fi
+        echo "I am uncertain of your operating system type."
+        echo "I think it's SCO $OSNAME $VER, is this correct ? <Y/N> \c"
+        getyn
+        if [ "$ans" = "Y" ]
+        then
+                Unload
+        else
+        	echo "Choose one of the following (enter 1, 2, 3, or 4) :"
+		echo "\t1. SCO UnixWare 7"
+		echo "\t2. SCO UnixWare 2.x"
+		echo "\t3. SCO OpenServer 5"
+		echo "\t4. Other"
+        	getnum
+		case $ans in
+		1) Unload ;;
+		2) Unload ;;
+		3) Unload ;;
+		4) Sorry ;;
+		esac
+        fi
+}
+
+case `uname` in
+SCO_SV) Unload ;;
+UNIX_SV) Unload ;;
+UnixWare) Unload ;;
+*) QueryOS ;;
+esac

@@ -1,0 +1,32 @@
+#!/bin/sh
+
+CMT="GNU Mailman Account" 
+
+chkmailman() {
+    echo "ADD=1" > /tmp/chk$$
+    awk ' BEGIN { FS=":" } { print $1 } ' $1 | while read f
+    do
+        [ "$f" = "mailman" ] && echo "ADD=" > /tmp/chk$$
+    done
+}
+
+addgrpmailman() {
+    groupadd mailman
+}
+
+addusrmailman() {
+    useradd -g mailman -d /usr/local/mailman -s /bin/sh -c "$CMT" mailman
+    echo "Setting the password for the newly created 'mailman' user account."
+    passwd mailman
+}
+
+chkmailman /etc/group
+. /tmp/chk$$
+[ "$ADD" ] && addgrpmailman
+chkmailman /etc/passwd
+. /tmp/chk$$
+[ "$ADD" ] && {
+    addusrmailman
+}
+rm -f /tmp/chk$$
+

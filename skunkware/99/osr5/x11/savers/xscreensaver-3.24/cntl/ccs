@@ -1,0 +1,50 @@
+#!/bin/sh
+#
+# Installation/Removal script for X11 screen savers on SCO OpenServer 5
+#
+# Written by Ron Record (rr@sco.com)
+#
+
+scriptname="$0"
+step="$1"
+keywords="$2"
+pkglist="$3"
+
+STARTX=/usr/lib/X11/sys.startxrc
+
+# Source in the standard functions library, ccsSetup.sh
+. ccsSetup.sh
+
+doPostExport() {
+    grep xscreensaver $STARTX > /dev/null || {
+        echo 'XSCCMD=/usr/local/bin/xscreensaver-command
+XSCRNS=/usr/local/bin/xscreensaver
+[ -x "$XSCCMD" ] && $XSCCMD -exit
+[ -x "$XSCRNS" ] && $XSCRNS -no-splash &
+' > /tmp/xsc$$
+        cat $STARTX >> /tmp/xsc$$
+        cp $STARTX ${STARTX}.orig
+        cp /tmp/xsc$$ ${STARTX}
+        rm -f /tmp/xsc$$
+    }
+}
+
+doPostUnExport() {
+    grep xscreensaver $STARTX > /dev/null && {
+	grep -v xscreensaver $STARTX > /tmp/xsc$$
+	grep -v XSCCMD /tmp/xsc$$ > /tmp/xsc2$$
+	grep -v XSCRNS /tmp/xsc2$$ > /tmp/xsc3$$
+        cp /tmp/xsc3$$ $STARTX
+        rm -f /tmp/xsc$$ /tmp/xsc2$$ /tmp/xsc3$$
+    }
+}
+
+ccs_return_value=0
+
+case "$step" in
+        POST_EXPORT) doPostExport ;;
+        POST_UNEXPORT) doPostUnExport ;;
+esac
+
+exit $ccs_return_value
+

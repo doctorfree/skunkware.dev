@@ -1,0 +1,71 @@
+#!/bin/sh
+
+scriptname="$0"
+step="$1"
+keywords="$2"
+pkglist="$3"
+
+# Source in the standard functions library, ccsSetup.sh
+. ccsSetup.sh
+
+doPostExport() {
+  CONFIG_H=/etc/conf/cf.d/config.h
+  export CONFIG_H
+  SHMMAX=`grep SHMMAX $CONFIG_H | awk ' { print $3 } '`
+  export SHMMAX
+
+  [ "$SHMMAX" ] && {
+    [ $SHMMAX -lt 1236992 ] && {
+        echo "It appears the SHMMAX parameter in the UNIX kernel needs to be
+increased in order to run PostgreSQL. The current value is $SHMMAX and the
+minimum value for PostgreSQL is 1236992. In order to run PostgreSQL you will
+either need to manually adjust this parameter value or answer 'yes' below and
+let this script automatically adjust it for you.
+
+Would you like this script to adjust the value of SHMMAX ? (yes/no) \c"
+        read ans
+        [ "$ans" = "yes" ] && {
+            /etc/conf/bin/idtune -m SHMMAX 10485760
+            /etc/conf/bin/idbuild
+        }
+        [ "$ans" != "yes" ] && {
+            echo "Manually tune your system for use with PostgreSQL by
+running the following commands (as root, using 10485760 as an example value):
+    # /etc/conf/bin/idtune -m SHMMAX 10485760
+    # /etc/conf/bin/idbuild"
+        }
+    }
+  }
+
+  echo "
+PostgreSQL has a Web site at http://www.postgresql.org/ which carries details
+on the latest release, upcoming features, and other information.
+
+For a listing of the current user-support mailing lists, see:
+
+        http://www.postgresql.org/users-lounge/index.html#maillist
+
+All of the mailing lists are currently archived and viewable at:
+
+        http://www.postgresql.org/gen-info.html#archives
+
+To register with the PostgreSQL survey, connect to the following URL:
+
+        http://www.postgresql.org -> Helping Us -> Survey/Register
+"
+
+}
+
+doPreUnExport() {
+	/etc/init.d/postgresql stop > /dev/null 2>&1
+}
+
+ccs_return_value=0
+
+case "$step" in
+        POST_EXPORT) doPostExport ; sleep 2 ;;
+        PRE_UNEXPORT) doPreUnExport ;;
+esac
+
+exit $ccs_return_value
+

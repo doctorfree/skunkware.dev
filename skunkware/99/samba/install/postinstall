@@ -1,0 +1,23 @@
+#!/bin/sh
+#
+# Create /var/spool/samba and setup swat to be run out of inetd on port 901
+#
+
+SPOOL=/var/spool/samba
+SVCS=/etc/services
+INET=/etc/inetd.conf
+
+[ -d $SPOOL ] || {
+     mkdir -p $SPOOL
+     chmod 1777 $SPOOL
+}
+
+grep swat $SVCS > /dev/null || {
+     echo "swat    901/tcp    # Samba Web Administration Tool " >> $SVCS
+}
+
+grep swat $INET > /dev/null || {
+     echo "swat stream tcp nowait root /usr/local/samba/bin/swat swat " >> $INET
+}
+
+kill -1 `ps -e | grep inetd | awk ' { print $1 } '`

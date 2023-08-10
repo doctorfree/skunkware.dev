@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# Written 22-Feb-2001 by Ronald Joe Record (rr@sco.com)
+#
+
+RUN=/usr/local/var/run
+INIT=/etc/init.d/prngd
+RC=/etc/rc2.d/S98prngd
+
+scriptname="$0"
+step="$1"
+keywords="$2"
+pkglist="$3"
+
+# Source in the standard functions library, ccsSetup.sh
+. ccsSetup.sh
+
+# Initialize the seed and startup
+doPostExport() {
+    [ -d $RUN ] || mkdir $RUN
+    /usr/local/sbin/prngd $RUN/egd-pool
+    [ -f $INIT ] && ln -s $INIT $RC
+}
+
+doPreUnExport() {
+    # Stop the daemon
+    $INIT stop
+
+    # Remove the rc script symbolic link and egd-pool named pipe
+    rm -f $RC $RUN/egd-pool
+}
+
+ccs_return_value=0
+
+case "$step" in
+        POST_EXPORT) doPostExport ;;
+        PRE_UNEXPORT) doPreUnExport ;;
+esac
+
+exit $ccs_return_value
+

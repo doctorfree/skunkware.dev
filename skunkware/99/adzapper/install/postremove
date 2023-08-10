@@ -1,0 +1,70 @@
+#!/bin/sh
+#
+# Postinstallscript written by Ron Record (rr@sco.com) for use with my
+# UnixWare 7 packaging of Ad Zapper. 
+# 
+
+#############################################################################
+#
+# restart_squid
+#
+# stop and restart squid
+# 
+#############################################################################
+restart_squid()
+{
+	if [ -x /etc/squid ]; then
+		/etc/squid restart > /dev/null 2>&1
+	fi
+}
+
+#############################################################################
+#
+# redirect_set
+#         remove the redirect_program in the Squid configuration file
+#
+#############################################################################
+redirect_set()
+{
+  CONF_FILE="/usr/local/squid/etc/squid.conf"
+  TMP=/tmp/squid$$
+  OUT=/dev/null
+  [ -f $CONF_FILE ] && {
+    if grep "^redirect_program /usr/local/etc/squid_redirect" $CONF_FILE > $OUT
+    then
+        sed -e "s/^redirect_program \/usr\/local\/etc\/squid_redirect/\#redirect_program none/" $CONF_FILE > $TMP
+    else
+        grep -v "/usr/local/etc/squid_redirect" $CONF_FILE > $TMP
+    fi
+    cp $TMP $CONF_FILE 
+    rm -f $TMP
+  }
+}
+
+#############################################################################
+#
+# crontab_edit
+#         Edit root's crontab entry to remove the automatic update of Ad Zapper
+#
+#############################################################################
+crontab_edit()
+{
+  crontab -l root > /tmp/crontab$$
+  grep -v /usr/local/etc/update-zapper /tmp/crontab$$ > /tmp/tmp$$
+  crontab /tmp/tmp$$ > /dev/null 2>&1
+  rm -f /tmp/crontab$$ /tmp/tmp$$
+}
+
+#############################################################################
+#
+# main
+#
+#############################################################################
+
+# edit configuration file
+redirect_set
+crontab_edit
+restart_squid
+
+# done
+exit 0

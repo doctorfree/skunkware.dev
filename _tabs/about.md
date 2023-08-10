@@ -18,11 +18,41 @@ An extensive SCO Skunkware download area has been maintained since 1993 and
 SCO Skunkware components were shipped with operating system distributions as far
 back as 1983 when Xenix for the IBM XT was released by The Santa Cruz Operation.
 
+## How did Skunkware get started
+
+In the beginning there were games. In 1983 I was responsible for building and
+packaging SCO Xenix. Except for the kernel, Buck would bring me a floppy with
+the Xenix kernel and bootstrap files. But all the rest, libraries and utilities,
+I would build and package for inclusion in the distribution which I was also
+responsible for cutting. The builds would take a long time and cutting the
+floppies was also time consuming. Me and Gever would be sitting in the lab
+for long hours so we compiled a bunch of games to play on our Xenix boxes.
+When I was cutting the first release of Xenix I included a floppy of games.
+Nobody objected. Maybe this would be considered the beginning of Skunkware.
+
+But, really, Skunkware did not take true form until a decade later when, again,
+I was spending long hours in the lab nursing builds and working on my Ph.D.
+Still responsible for builds and distribution cutting, I slipped a CD of open
+source software I had built and packaged for SCO UNIX. Nobody objected.
+
+SCO UNIX users really liked Skunkware as it provided a lot of useful tools
+not included in the operating system distribution. If you wanted to run the
+Apache web server or compile things with GCC then you needed Skunkware.
+Word got back to management and one day the company founder, Doug Michels,
+came by the lab and told me to keep on doing whatever I was doing. I even
+got some equipment dedicated to Skunkware. It became a real project,
+supported by management and funded (sort of).
+[People from all over the company](https://skunkware.dev/contributors) started
+sending me stuff. Others began to work on Skunkware in their spare time.
+
+Eventually Skunkware got a website, sco.com/skunkware. I got in a lot of trouble
+over that website, a story for another time.
+
 ## How was Skunkware distributed
 
 The mid-90s releases of SCO Skunkware were on a mountable CD-ROM which contained
 an HTTP server and HTML documents with links to SCO Custom+ installable packages.
-[NCSA Mosaic](https://en.wikipedia.org/wiki/Mosaic_(web_browser)) had been
+[NCSA Mosaic](<https://en.wikipedia.org/wiki/Mosaic_(web_browser)>) had been
 licensed by SCO shortly after its first release in 1993 and was used by
 Skunkware as the primary interface to browse the mounted CD-ROM. The CD also
 contained a Custom+ installable Skunkware SSO which installed the Skunkware

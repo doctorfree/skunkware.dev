@@ -1,0 +1,233 @@
+#!/bin/sh
+
+#
+# Edit the following setting of MOUNTPT to be wherever you have
+# mounted the SCO Skunkware 99 CD-ROM. By default, i have set it
+# to /mnt. If you mounted the SCO Skunkware 99 CD-ROM on /usr/skunk99,
+# then you would set MOUNTPT=/usr/skunk99
+#
+
+MOUNTPT=/mnt
+
+#
+# ------------------------------------------------------------------
+#
+# In order to easily access many of the installed SCO Skunkware 99
+# components, you may wish to add /usr/local/bin to your PATH and
+# /usr/local/man to your MANPATH. For instance, a Bourne shell user
+# could add the following to their $HOME/.profile :
+# 
+#         PATH=$PATH:/usr/local/bin
+#         MANPATH=$MANPATH:/usr/local/man
+#         export PATH MANPATH
+# 
+# The system administrator can set these on a system-wide basis by
+# modifying the files /etc/default/login and /etc/default/man.
+#
+# ------------------------------------------------------------------
+
+getnum() {
+        ans=
+        while [ "$ans" = "" ]
+        do
+                read ans
+                [ "$ans" = "1" ] || [ "$ans" = "2" ] || [ "$ans" = "3" ] || [ "$ans" = "4" ] && break
+                ans=
+                echo "\nPlease answer with 1, 2, 3, or 4 : \c"
+        done
+}
+
+getyn() {
+        ans=
+        while [ "$ans" = "" ]
+        do
+                read ans
+                [ "$ans" = "Y" ] || [ "$ans" = "y" ] && {
+                        ans=Y
+                        break
+                }
+                [ "$ans" = "n" ] || [ "$ans" = "N" ] && {
+                        ans=N
+                        break
+                }
+                ans=
+                echo "\nPlease answer with a Y or N \c"
+        done
+}
+
+Sorry() {
+echo "\nI'm sorry, but it appears you are running an operating system"
+echo "other than SCO OpenServer 5 or UnixWare 7. If that is not the case,"
+echo "then run this script again and specify your operating system as one"
+echo "of the two supported."
+exit 2
+}
+
+OpenServer() {
+echo "\nWould you like to remove all of the SCO Skunkware 99 custom"
+echo "installed software from your hard disk at this time ? <Y/N> \c"
+
+getyn
+
+while [ ! -f $MOUNTPT/.id_sw_99 ]
+do
+        echo "\nIt appears you have the SCO Skunkware 99 CD-ROM mounted"
+        echo "somewhere other than $MOUNTPT .\n"
+        echo "Please enter the full absolute pathname of the CD-ROM"
+        echo "mount point (e.g. /cdrom, /usr/skunk, ...) : \c"
+        read MOUNTPT
+done
+
+if [ "$ans" = "Y" ] 
+then
+        for b in Glib qt
+        do
+            [ -d $MOUNTPT/opt/K/SKUNK99/$b ] && custom -p SKUNK99:default:$b -r
+        done
+        for b in $MOUNTPT/opt/K/SKUNK99/*
+        do
+                p=`basename $b`
+                custom -p SKUNK99:default:$p -r
+        done
+        echo "Removal of SCO Skunkware 99 packages complete."
+else
+        for b in $MOUNTPT/opt/K/SKUNK99/*
+        do
+                p=`basename $b`
+                echo "Would you like to remove $p ? <Y/N> \c"
+                getyn
+                [ "$ans" = "Y" ] && {
+                    custom -p SKUNK99:default:$p -r
+                }
+        done
+        echo "Removal of SCO Skunkware 99 packages complete."
+fi
+}
+
+UnixWare() {
+echo "\nWould you like to remove all of the SCO Skunkware pkgadd"
+echo "installed software from your hard disk at this time ? <Y/N> \c"
+
+getyn
+
+while [ ! -f $MOUNTPT/.id_sw_99 ]
+do
+        echo "\nIt appears you have the SCO Skunkware 99 CD-ROM mounted"
+        echo "somewhere other than $MOUNTPT .\n"
+        echo "Please enter the full absolute pathname of the CD-ROM"
+        echo "mount point (e.g. /cdrom, /usr/skunk, ...) : \c"
+        read MOUNTPT
+done
+
+if [ "$ans" = "Y" ] 
+then
+        for p in $MOUNTPT/uw2/Packages/*.pkg
+        do
+		btmp=`basename $p`
+                b=`echo $btmp | sed -e "s/\.pkg//"`
+                pkginfo -q $b && pkgrm -a $MOUNTPT/remove.admin -n $b
+        done
+        echo "Removal of SCO Skunkware 99 packages complete."
+else
+        for p in $MOUNTPT/uw2/Packages/*.pkg
+        do
+		btmp=`basename $p`
+                b=`echo $btmp | sed -e "s/\.pkg//"`
+		[ "$VGR" ] && {
+                    Skipit $b && continue
+		    [ -d $MOUNTPT/$b ] && continue
+		}
+                echo "Would you like to remove $b ? <Y/N> \c"
+                getyn
+                [ "$ans" = "Y" ] && {
+                    pkginfo -q $b && pkgrm -a $MOUNTPT/remove.admin -n $b
+                }
+        done
+fi
+}
+
+Voyager() {
+echo "\nWould you like to remove all of the SCO Skunkware 99 pkgadd"
+echo "installed software from your hard disk at this time ? <Y/N> \c"
+
+getyn
+
+while [ ! -f $MOUNTPT/.id_sw_99 ]
+do
+        echo "\nIt appears you have the SCO Skunkware 99 CD-ROM mounted"
+        echo "somewhere other than $MOUNTPT .\n"
+        echo "Please enter the full absolute pathname of the CD-ROM"
+        echo "mount point (e.g. /cdrom, /usr/skunk, ...) : \c"
+        read MOUNTPT
+done
+
+if [ "$ans" = "Y" ] 
+then
+        for b in $MOUNTPT/*
+        do
+            [ -f $b/pkginfo ] && {
+                p=`basename $b`
+                pkginfo -q $p && pkgrm -a $MOUNTPT/remove.admin -n $p
+            }
+        done
+        echo "Removal of SCO Skunkware 99 packages complete."
+else
+        for b in $MOUNTPT/*
+        do
+            [ -f $b/pkginfo ] && {
+                echo "Would you like to remove $b ? <Y/N> \c"
+                getyn
+                [ "$ans" = "Y" ] && {
+                    p=`basename $b`
+                    pkginfo -q $p && pkgrm -a $MOUNTPT/remove.admin -n $p
+                }
+            }
+        done
+        echo "Removal of SCO Skunkware 99 packages complete."
+fi
+}
+
+QueryOS() {
+        if [ -d /usr/sbin ]
+        then
+		VER=`uname -v`
+		OSNAME=UnixWare
+		case $VER in
+		7*) GUESS=Voyager ;;
+		*) GUESS=UnixWare ;;
+		esac
+        else
+		VER=`uname -X | grep Release | awk ' { print $3 } '`
+		OSNAME=OpenServer
+                GUESS=OpenServer
+        fi
+        echo "I am uncertain of your operating system type."
+        echo "I think it's SCO $OSNAME $VER, is this correct ? <Y/N> \c"
+        getyn
+        if [ "$ans" = "Y" ]
+        then
+                $GUESS
+        else
+        	echo "Choose one of the following (enter 1, 2, 3, or 4) :"
+		echo "\t1. SCO UnixWare 7"
+		echo "\t2. SCO UnixWare 2.x"
+		echo "\t3. SCO OpenServer 5"
+		echo "\t4. Other"
+        	getnum
+		case $ans in
+		1) Voyager ;;
+		2) UnixWare ;;
+		3) OpenServer ;;
+		4) Sorry ;;
+		esac
+        fi
+}
+
+[ -f $MOUNTPT/.id_sw_99 ] || MOUNTPT=`dirname $0`
+[ "$MOUNTPT" = "." ] && MOUNTPT=`pwd`
+case `uname` in
+SCO_SV) OpenServer ;;
+UNIX_SV) UnixWare ;;
+UnixWare) Voyager ;;
+*) QueryOS ;;
+esac

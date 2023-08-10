@@ -1,0 +1,419 @@
+#!/bin/sh
+#
+#	@(#) ccs 15.1 99/09/02 
+#
+# Copyright (c) 1999 The Santa Cruz Operation, Inc.. All Rights Reserved.
+# THIS IS UNPUBLISHED PROPRIETARY SOURCE CODE OF THE SANTA CRUZ OPERATION INC.
+# The copyright notice above does not evidence any actual or intended
+# publication of such source code.
+#
+ME="`basename $0`"
+STEP="$1"
+KEYWORDS="$2"
+PKGLIST="$3"
+SUCCESS=0; FAIL=1; INTR=3
+trap "exit $INTR" 2 3 15
+
+# location of the packaging information files during this phase of installation
+INSTALL_DIR="$REQDIR/$PKGINST"
+
+#############################################################################
+#
+# backup_content
+#
+# save some existing config files to a safe location before
+# dropping our own into place
+#
+#############################################################################
+backup_content()
+{
+	for file in /usr/local/squid/etc/squid.conf \
+			/usr/local/squid/etc/mime.conf; do
+		if [ -f "$file" ]; then
+			cp $file $file.saved
+		fi
+	done
+}
+
+#############################################################################
+#
+# create_directories
+#
+# creates a directories for logfiles (so that rotation works correctly) and
+# for cache (so that removal does not lose the cache).
+#
+#############################################################################
+create_directories()
+{
+	for dir in /usr/local/squid/logs \
+			/usr/local/squid/cache; do
+		mkdir -p "$dir" 2> /dev/null 1> /dev/null
+		chown nouser:nogroup "$dir"
+		chmod 755 "$dir"
+	done
+}
+#############################################################################
+#
+# stop_server 
+#
+# stop the proxy server
+#
+#############################################################################
+stop_server()
+{
+        if [ -x "/etc/squid" ]; then
+                /etc/squid stop
+        fi
+}
+
+
+#############################################################################
+#
+# preinstall
+#
+#############################################################################
+preinstall()
+{
+	# back up any content to ensure we don't overwrite it
+	backup_content
+	stop_server
+}
+# included standard routines
+#############################################################################
+#
+#	@(#) add_manpages.sh_h 14.1 98/02/17 
+#
+# Standard routine to add manpages to the SCOhelp system using the ODSSI
+# tools
+#
+# Arguments are:
+#
+#	$1	- the SCOhelp section; an empty string implies all topics
+#	$2	- the language; an empty string implies all languages
+#
+# Return values are:
+#
+#	0	- success
+#	1	- failure, for example ODSSI tool returned fail status
+#
+# Also uses:
+#
+#	$ME	- name of the shell script calling the routine
+#	$SUCCESS- success value 0
+#	$FAIL	- error value 1
+#
+#############################################################################
+add_manpages()
+{
+	# the section is $1, language is $2 - null string for either
+	# implies all sections/languages
+	section="$1"
+	language="$2"
+
+	# if the SCOhelp ODSSI scripts exist then run them
+	# to add our man pages to the system
+	CONFIG_MAN="/usr/man/bin/config_man"
+	if [ -x "$CONFIG_MAN" ]; then
+		if [ -n "$language" ]; then
+			$CONFIG_MAN -L $language $section >/tmp/_ccs$$ 2>&1
+			rc=$?
+		else
+			$CONFIG_MAN $section >/tmp/_ccs$$ 2>&1
+			rc=$?
+		fi
+		if [ $rc -ne 0 ]; then
+			echo "$ME: add_manpages: error $rc running $CONFIG_MAN" >&2
+			cat /tmp/_ccs$$; rm -f /tmp/_ccs$$
+			return $FAIL
+		fi
+		rm -f /tmp/_ccs$$
+	fi
+	return $SUCCESS
+}
+
+
+
+
+#############################################################################
+#
+# start_servers
+#
+# start and enable the preconfigured servers, as a default
+# 
+#############################################################################
+start_servers()
+{
+	if [ -x "/etc/squid" ]; then
+		/etc/squid enable
+	fi
+}
+
+#############################################################################
+#
+# disown_files
+#
+# deliberately disown some of the configuration files shipped with this server 
+# so that removing the package doesn't remove these files (the user might
+# have changed them). On OpenServer, this is just a plain copy of the 
+# /opt/SCO/... version of the file to /usr/local/squid/etc.
+#
+#############################################################################
+disown_files()
+{
+	for file in /usr/local/squid/etc/squid.conf\
+			/usr/local/squid/etc/mime.conf; do
+		cp $SSO_SHARED_ROOT$file $file	
+	done
+}
+
+#############################################################################
+# link_language
+#
+# Based upon the locale of the machine we're installing on, make best guess
+# about what language to use for error messages.  If this is occurring at 
+# ISL, we need to get the language of the machine out of LOCALE, otherwise
+# it is in LANG.  (At ISL, LANG is set to the language of the installation.
+# LOCALE is set to the default language the system will be running in after
+# ISL.)
+#############################################################################
+link_language()
+{
+	# locale given in language_country.charset.  We only want the language part
+#	if [ -f $ISL_FILE ]; then
+		# get line in ifile that looks like LOCALE="de_CH.88591"
+#		LOCALELINE=`grep LOCALE= /isl/ifile`
+		# trim off quotes, and LOCALE=, to leave de_CH.88591
+#		LOCALE=`echo $LOCALELINE | sed -e "s/^.*=\"\(.*\)\"$/\1/p"`
+		# trim off country and codeset, leaving de
+#		_LANGUAGE=`echo $LOCALE |cut -c1-2`		
+#	else
+		_LANGUAGE=`echo $LANG |cut -c1-2`
+#	fi
+	
+	# now translate this 2 letter language code into a squid directory name
+	case $_LANGUAGE in
+		cs)
+			ERROR_LANG=Czech
+			;;
+		da)
+			ERROR_LANG=Danish
+			;;
+		de|ge)
+			ERROR_LANG=German
+			;;
+		du)
+			ERROR_LANG=Dutch
+			;;
+		en)
+			ERROR_LANG=English
+			;;
+		es|sp)
+			ERROR_LANG=Spanish
+			;;
+		'fi')
+			ERROR_LANG=Finnish
+			;;
+		fr)
+			ERROR_LANG=French
+			;;
+		hu)
+			ERROR_LANG=Hungarian
+			;;
+		it)
+			ERROR_LANG=Italian
+			;;
+		ko)
+			ERROR_LANG=Korean
+			;;
+		pl)
+			ERROR_LANG=Polish
+			;;
+		pt|po)
+			ERROR_LANG=Portuguese
+			;;
+		ro)
+			ERROR_LANG=Romanian
+			;;
+		sw)
+			ERROR_LANG=Swedish
+			;;
+		*)
+			ERROR_LANG=English
+			;;
+esac
+	# create a link to the appropriate directory
+	rm -f /usr/local/squid/etc/errors
+	ERROR_DIRECTORY=$SSO_SHARED_ROOT/usr/local/squid/etc/locale/$ERROR_LANG
+	ln -s $ERROR_DIRECTORY /usr/local/squid/etc/errors 2> /dev/null
+#	installf $PKGINST /usr/local/squid/etc/errors=$ERROR_DIRECTORY s
+}
+
+#############################################################################
+#
+# upgrade_config
+#
+# Merges a (possibly old) saved configuration file into the main config file
+#
+#############################################################################
+upgrade_config()
+{
+        # use config file as template
+        /usr/bin/awk -f $SSO_SHARED_ROOT/cntl/upgrade.awk \
+                -v convert_file=/usr/local/squid/etc/squid.conf.saved \
+                < /usr/local/squid/etc/squid.conf  > /tmp/squid.conf.$$
+        mv /tmp/squid.conf.$$ /usr/local/squid/etc/squid.conf
+}
+
+#############################################################################
+#
+# postinstall
+#
+#############################################################################
+postinstall ()
+{
+	create_directories
+	# disown some content so the packaging doesn't remove user-altered files
+	# disown_files
+
+	# add the man pages - temporary pending creation of squid_doc package
+#	add_manpages "1M" "en_US.ISO8859-1"
+
+	# if the pkginfo file says to enable in postinstall then either enable
+	# or start the new server
+#	if [ "$ENABLE_IN_POSTINSTALL" = "YES" ]; then
+
+	# Link to the language specific error messages directory.  This must be
+	# done before creating the swap directories since squid will bomb out
+	# if it cannot find its error messages on startup.
+	link_language
+
+	# create swap directories
+	# If this is not an overlay install, create new swap directories
+	# otherwise, merge old configuration settings with the new config file
+	if [ ! -f /usr/local/squid/etc/squid.conf.saved ]; then
+		/usr/local/squid/bin/squid -z 2> /dev/null
+	else
+		upgrade_config
+	fi
+}
+
+##########################################################################
+#
+# disable_servers
+#
+# disables all Web servers
+#
+##########################################################################
+disable_servers()
+{
+	if [ -x /etc/squid ]; then
+		/etc/squid disable
+	fi
+}
+
+
+##########################################################################
+#
+# preremove 
+#
+##########################################################################
+preremove()
+{
+	# shut things down and unravel them
+	disable_servers
+}
+#############################################################################
+#
+#	@(#) rm_manpages.sh_h 14.2 98/02/19 
+#
+# Standard routine to clear up after removing manpages from the SCOhelp
+# system using the ODSSI tools
+#
+# Arguments are:
+#
+#	$1	- the SCOhelp section; an empty string implies all topics
+#	$2	- the language; an empty string implies all languages
+#
+# Return values are:
+#
+#	0	- success
+#	1	- failure, for example ODSSI tool returned fail status
+#
+# Also uses:
+#
+#	$ME	- name of the shell script calling the routine
+#	$SUCCESS- success value 0
+#	$FAIL	- error value 1
+#
+#############################################################################
+rm_manpages()
+{
+	# the section is $1, language is $2 - null string for either
+	# implies all sections/languages
+	section="$1"
+	language="$2"
+
+	# if the SCOhelp ODSSI scripts exist then run them
+	# to add our man pages to the system
+	CONFIG_MAN="/usr/man/bin/config_man"
+	if [ -x "$CONFIG_MAN" ]; then
+		if [ -n "$language" ]; then
+			$CONFIG_MAN -L $language $section >/tmp/_ccs$$ 2>&1
+			rc=$?
+		else
+			$CONFIG_MAN $section >/tmp/_ccs$$ 2>&1
+			rc=$?
+		fi
+		if [ $rc -ne 0 ]; then
+			echo "$ME: rm_manpages: error $rc running $CONFIG_MAN" >&2
+			cat /tmp/_ccs$$; rm -f /tmp/_ccs$$
+			return $FAIL
+		fi
+		rm -f /tmp/_ccs$$
+	fi
+	return $SUCCESS
+}
+
+
+
+
+#############################################################################
+#
+# postremove
+#
+#############################################################################
+postremove ()
+{
+	# remove all logfiles
+	rm -rf /usr/local/squid/logs
+
+	# remove error directory symlink
+	rm -f /usr/local/squid/etc/errors
+
+	# remove icons directory
+	rm -rf /usr/local/squid/etc/icons
+
+	# remove squid binaries directory
+	rmdir /usr/local/squid/bin 2> /dev/null > /dev/null
+
+	# remove doc directories
+	find /usr/local/squid/docs -depth -exec rmdir {} \
+					2> /dev/null > /dev/null \;
+
+	# remove our man pages
+#	rm_manpages "1M" "en_US.ISO8859-1"
+}
+
+#############################################################################
+#
+# Main
+#
+#############################################################################
+case "$STEP" in
+	PRE_LOAD) preinstall ;;
+	POST_EXPORT) postinstall ;;
+	PRE_UNEXPORT) preremove ;;
+	POST_UNLOAD) postremove ;;
+esac
+
+exit $SUCCESS

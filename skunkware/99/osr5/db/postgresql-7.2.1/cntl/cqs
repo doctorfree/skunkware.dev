@@ -1,0 +1,32 @@
+#!/bin/sh
+
+CMT="PostgreSQL User Account" 
+
+chkpgsq() {
+    echo "ADD=1" > /tmp/chk$$
+    awk ' BEGIN { FS=":" } { print $1 } ' $1 | while read f
+    do
+        [ "$f" = "postgres" ] && echo "ADD=" > /tmp/chk$$
+    done
+}
+
+addgrppgsq() {
+    groupadd postgres
+}
+
+addusrpgsq() {
+    useradd -g postgres -d /usr/local/pgsql -s /bin/sh -c "$CMT" postgres
+    echo "Setting the password for the newly created 'postgres' user account."
+    passwd postgres
+}
+
+chkpgsq /etc/group
+. /tmp/chk$$
+[ "$ADD" ] && addgrppgsq
+chkpgsq /etc/passwd
+. /tmp/chk$$
+[ "$ADD" ] && {
+    addusrpgsq
+}
+rm -f /tmp/chk$$
+

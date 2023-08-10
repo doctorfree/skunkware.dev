@@ -1,0 +1,59 @@
+
+scriptname="$0"
+step="$1"
+keywords="$2"
+pkglist="$3"
+
+# Source in the standard functions library, ccsSetup.sh
+. ccsSetup.sh
+
+doPostExport() {
+  [ -d /usr/local/etc ] || mkdir -p /usr/local/etc
+  [ -f /usr/local/etc/ssh_host_key ] || {
+    /usr/local/bin/ssh-keygen -t rsa1 -f /usr/local/etc/ssh_host_key -N ""
+  }
+  [ -f /usr/local/etc/ssh_host_dsa_key ] || {
+    /usr/local/bin/ssh-keygen -t dsa -f /usr/local/etc/ssh_host_dsa_key -N ""
+  }
+  [ -f /usr/local/etc/ssh_host_rsa_key ] || {
+    /usr/local/bin/ssh-keygen -t rsa -f /usr/local/etc/ssh_host_rsa_key -N ""
+  }
+  # Enable the PRNGd rc startup/shutdown scripts and start prngd
+  #
+  if [ -x /etc/init.d/prngd ]
+  then
+      /etc/init.d/prngd enable
+      /etc/init.d/prngd stop
+      /etc/init.d/prngd start
+      # Enable the rc startup/shutdown scripts and start sshd
+      #
+      [ -x /etc/init.d/opensshd ] && {
+          /etc/init.d/opensshd enable
+          /etc/init.d/opensshd stop
+          /etc/init.d/opensshd start
+      }   
+  else
+    echo "This version of OpenSSH depends on PRNGD. The PRNGD package"
+    echo "for OpenServer is available at:"
+    echo "ftp://ftp2.caldera.com/pub/skunkware/osr5/vols/prngd-0.9.23-VOLS.tar"
+  fi
+  true
+}
+
+DisableStop() {
+    [ -x /etc/init.d/opensshd ] && {
+        /etc/init.d/opensshd disable
+        /etc/init.d/opensshd stop
+    }
+    true
+}
+
+ccs_return_value=0
+
+case "$step" in
+        POST_EXPORT) doPostExport ;;
+        PRE_UNEXPORT) DisableStop ;;
+esac
+
+exit $ccs_return_value
+

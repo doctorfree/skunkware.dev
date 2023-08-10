@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# Postinstallscript written by Ron Record (rr@sco.com) 
+# 
+
+scriptname="$0"
+step="$1"
+keywords="$2"
+pkglist="$3"
+
+# Source in the standard functions library, ccsSetup.sh
+. ccsSetup.sh
+
+ccs_return_value=0
+
+FixUpHost()
+{
+  HOSTPROG=/usr/bin/hostname
+  if [ -x $HOSTPROG ]
+  then
+    HOSTNAME=`$HOSTPROG`
+  else
+    HOSTNAME=localhost
+  fi
+  [ "$HOSTNAME" ] || HOSTNAME=localhost
+  HOST_FILES="/usr/local/mailman/Mailman/Defaults.py \
+/usr/local/mailman/Mailman/mm_cfg.py \
+/usr/local/mailman/Mailman/mm_cfg.py.dist"
+  for i in $HOST_FILES
+  do
+    [ -f $i ] && {
+        sed -e "s/disco/$HOSTNAME/g" < $i > /tmp/_ccs$$
+        mv /tmp/_ccs$$ $i
+        rm -f /tmp/_ccs$$
+        chown root:mailman $i
+    }
+  done
+}
+
+case "$step" in
+        POST_EXPORT) FixUpHost ;;
+esac
+
+exit $ccs_return_value
+

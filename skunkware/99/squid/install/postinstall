@@ -1,0 +1,92 @@
+#!/bin/sh
+#
+# Postinstallscript written by Ron Record (rr@sco.com) for use with my
+# UnixWare 7 packaging of Squid. Just need to setup the Squid configuration
+# file with the right hostname and initialize the cache. Also output a
+# message about using Squid as an HTTP accelerator.
+# 
+ME="`basename $0`"
+ISL_FILE="/etc/inst/scripts/postreboot.sh"
+SUCCESS=0; FAIL=1; INTR=3
+trap "exit $INTR" 2 3 15
+[ -f $ISL_FILE ] && exec 1>>/var/adm/log/$PKGINST.out
+[ -f $ISL_FILE ] && exec 2>>/var/adm/log/$PKGINST.err
+
+# location of the packaging information files during this phase of installation
+INSTALL_DIR="/var/sadm/pkg/$PKGINST/install/$PKGINST"
+
+#############################################################################
+#
+# start_server
+#
+# start and enable the preconfigured server, as a default
+# 
+#############################################################################
+start_server()
+{
+	if [ -x /etc/squid ]; then
+		/etc/squid enable
+	fi
+}
+
+#############################################################################
+#
+# HOST_set
+#         fixup the HOST name in any configuration files
+#
+#############################################################################
+HOST_set()
+{
+  if [ -f /etc/inst/scripts/postreboot.sh ]
+  then
+    HOST=`grep TCP_DOMAIN_NAME /isl/ifile`
+    HOSTNAME=`uname -n`.`echo $HOST | sed -e "s/^.*=\"\(.*\)\"$/\1/p"`
+  else
+    HOSTPROG=/usr/ucb/hostname
+    if [ -x $HOSTPROG ] 
+    then
+      HOSTNAME=`$HOSTPROG`
+    else
+      HOSTNAME=localhost
+    fi
+  fi
+  [ "$HOSTNAME" ] || HOSTNAME=localhost
+  HOST_FILES="/usr/local/squid/etc/squid.conf"
+  for i in $HOST_FILES
+  do
+  [ -f $i ] && {
+    sed -e "s/johndoe.pdev.sco.com/$HOSTNAME/g" < $i > /tmp/_ccs$$
+    mv /tmp/_ccs$$ $i
+    rm -f /tmp/_ccs$$ /tmp/_ccs_ip$$
+    chown root:sys $i
+  }
+  done
+}
+
+#############################################################################
+#
+# main
+#
+#############################################################################
+
+# edit configuration file
+HOST_set
+
+# Initialize the cache
+/usr/local/squid/bin/squid -z > /dev/null 2>&1
+
+# Tell the user what we're configured for
+echo "
+This release of Squid is pre-configured to act as a cacheing proxy server.
+As such, it runs on port 3128. These parameters can be configured by editing
+/usr/local/squid/etc/squid.conf. 
+
+In addition to the Squid binary distribution, this package also
+contains the Squid User's Guide which has been installed in the Apache
+web server's default document root (/usr/local/lib/apache/htdocs/squid).
+To access it, after installing Squid and Apache, open :
+http://your.host.name/squid/
+"
+
+# done
+exit $SUCCESS

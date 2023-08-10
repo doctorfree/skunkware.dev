@@ -19,4 +19,6 @@ and fun stuff.
 
 ## [Skunkware 96](https://skunkware.dev/skunkware/96/index.html) (SCO OpenServer 5)
 
+## [Skunkware 99](https://skunkware.dev/skunkware/99/index.html) (OpenServer 5 and UnixWare 7)
+
 ## [Skunkware 2000](https://skunkware.dev/skunkware/2000/index.html) (SCO OpenServer 5)

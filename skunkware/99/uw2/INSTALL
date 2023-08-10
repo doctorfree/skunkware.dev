@@ -1,0 +1,534 @@
+#!/bin/ksh
+#
+# INSTALL - front-end installation script for use with SCO Skunkware
+#
+# Written July, 1996 by Ronald Joe Record (rr@sco.com)
+#
+# Modified July, 1997 for use with Skunkware 97 (rr@sco.com)
+# Modified January, 1998 for use with Skunkware 7 (rr@sco.com)
+# Modified August, 1998 for use with Skunkware 98 (rr@sco.com)
+# Modified January, 1999 for use with Skunkware 7.1 (rr@sco.com)
+# Modified July, 1999 for use with Skunkware 99 (rr@sco.com)
+#
+
+MOUNTPT=/mnt
+
+# Install these first
+INPUTS="xmcd"
+# Install these next
+DEPENDS="glibs xpm skunkperl tcl804 tk804 jsdk apache gzip swing texinfo \
+         ctags XmHTML freefonts guile majordomo psutils qtfree Eterm teTeX \
+         aalib gs gawk ncftp libPropLi speechtoo xpdf xlockmore glib lxrun"
+
+#
+# ------------------------------------------------------------------
+#
+# In order to easily access many of the installed SCO Skunkware 
+# components, you may wish to add /usr/local/bin to your PATH,
+# /usr/local/man to your MANPATH and /usr/local/java to your CLASSPATH. 
+# For instance, a Bourne shell user could add the following to their 
+# $HOME/.profile :
+# 
+#         PATH=$PATH:/usr/local/bin
+#         MANPATH=$MANPATH:/usr/local/man
+#         if [ "$CLASSPATH" = "" ] ; then
+#            CLASSPATH=/usr/local/java:/usr/java/lib/classes.zip
+#         else
+#            CLASSPATH=$CLASSPATH:/usr/local/java:/usr/java/lib/classes.zip
+#         fi
+#         CLASSPATH=$CLASSPATH:/usr/local/java
+#         export PATH MANPATH CLASSPATH
+# 
+# The system administrator can set these on a system-wide basis by
+# modifying the files /etc/profile, /etc/default/login and /etc/default/man.
+#
+# ------------------------------------------------------------------
+
+getnum() {
+    ans=
+    while [ "$ans" = "" ]
+    do
+        read ans
+        [ "$ans" = "1" ] || [ "$ans" = "2" ] || [ "$ans" = "3" ] || [ "$ans" = "4" ] && break
+        ans=
+        echo "\nPlease answer with 1, 2, 3, or 4 : \c"
+    done
+}
+
+getyn() {
+    ans=
+    while [ "$ans" = "" ]
+    do
+        read ans
+        [ "$ans" = "Y" ] || [ "$ans" = "y" ] && {
+            ans=Y
+            break
+        }
+        [ "$ans" = "n" ] || [ "$ans" = "N" ] && {
+            ans=N
+            break
+        }
+        ans=
+        echo "\nPlease answer with a Y or N \c"
+    done
+}
+
+Sorry() {
+echo "\nI'm sorry, but it appears you are running an operating system"
+echo "other than SCO OpenServer or UnixWare 7. If that is not the case," 
+echo "then run this script again and specify your operating system as"
+echo " one of the two supported."
+exit 2
+}
+
+UW7CompList()
+{
+    PACKAGES="$PACKAGES `cat $MOUNTPT/uw7/$1/COMPONENTS`"
+}
+
+CheckCompName()
+{
+    pkg=$1
+    p=`grep -i $pkg $COMPFILE | head -1`
+    if [ "$pkg" != "$p" ]; then
+        echo -n "No match for '$pkg' - did you mean '$p' ? (y/n) "
+        getyn
+        case $ans in
+        [yY]*) pkg=$p 
+            ;;
+        [nN]*)
+            echo "\nSelect one of the following"
+            PS3='Please enter a number '
+            select i in `grep -i $pkg $COMPFILE`
+            do
+                pkg=$i
+                break
+            done
+            ;;
+        *)  echo "Skipping $pkg ..."
+            ;;
+        esac
+    fi
+    COMPCK="$COMPCK $pkg"
+}
+
+GetPackageList()
+{
+    echo "\nEnter the list of Skunkware components you would like to install"
+    echo "at this time. Enter one or more components per line and terminate"
+    echo "the list by entering an empty component name (press <Enter>)."
+    echo "\nA list of Skunkware component names is available via either"
+    echo "\tnetscape file:$MOUNTPT/COMPONENTS.html"
+    echo "or"
+    echo "\tpg $MOUNTPT/COMPONENTS"
+    while echo "\nEnter component name(s) (<Enter> to quit): \c"
+    do
+        read compname
+        [ "$compname" ] || break
+        COMPCK=
+        for j in $compname
+        do
+            CheckCompName $j
+        done
+        PACKAGES="$PACKAGES $COMPCK"
+    done
+}
+
+Install_All() {
+    clear
+    echo "\nA full installation of Skunkware 99 requires over 700 Megabytes"
+    echo "of disk space in /usr/local."
+    echo "\nCheck your system and verify that /usr/local is either a separate"
+    echo "filesystem with sufficient space or that the root filesystem has"
+    echo "sufficient disk space and free inodes."
+    echo "\nSee the Skunkware Release Notes (file:$MOUNTPT/relnotes.html)"
+    echo "for additional pre-installation information."
+    INTERACT=
+    for p in $INPUTS
+    do
+        [ -f $MOUNTPT/$p/pkginfo ] && INTERACT=1
+    done
+    [ "$INTERACT" ] && {
+      echo "\nSome SCO Skunkware components may require interaction"
+      echo "during installation. These components will be installed first."
+      echo "When no additional user input is required for installation,"
+      echo "you will see the prompt :\n"
+      echo "\tPress enter to continue without interaction :"
+      echo "\nat which time the installation will continue for some hours"
+      echo "without assistance."
+    }
+    echo "\nPress enter to continue the Skunkware installation: \c"
+    read foo
+    cd $MOUNTPT
+    [ "$INTERACT" ] && {
+      for p in $INPUTS
+      do
+        [ -f $p/pkginfo ] && {
+            pkginfo -q $p && pkgrm -a $MOUNTPT/remove.admin -n $p
+            /usr/sbin/pkgadd -q -d $MOUNTPT $p
+        }
+      done
+      echo "\n\tThe interactive portion of the Skunkware installation"
+      echo "\tis complete."
+      echo "\n\tPress enter to continue without interaction : \c"
+      read foo
+    }
+    for p in $DEPENDS
+    do
+        [ -f $p/pkginfo ] && {
+          [ "$p" = "apache" ] && {
+            DOC=/usr/local/lib/apache/htdocs
+            [ -f $DOC/index.html ] && {
+               cp $DOC/index.html $DOC/index.html.bak
+            }
+            pkginfo -q $p && pkgrm -a $MOUNTPT/remove.admin -n $p
+          }
+            /usr/sbin/pkgadd -q -d $MOUNTPT $p
+        }
+    done
+    for p in *
+    do
+        CONT=
+        for d in $DEPENDS $INPUTS
+        do
+            [ "$d" = "$p" ] && {
+                CONT=1
+                break
+            }
+        done
+        [ "$CONT" ] && continue
+        [ -f $p/pkginfo ] && {
+#           pkginfo -q $p && pkgrm -a $MOUNTPT/remove.admin -n $p
+            /usr/sbin/pkgadd -q -d $MOUNTPT $p
+        }
+    done
+    echo "Installation of SCO Skunkware 99 packages complete."
+}
+
+Install_Packages() {
+        rm -f /tmp/_pkg_i /tmp/_pkg_d /tmp/_pkg_o
+        touch /tmp/_pkg_i
+        touch /tmp/_pkg_d
+        touch /tmp/_pkg_o
+        for pkg in $PACKAGES
+        do
+          CONT=
+          for p in $INPUTS
+          do
+              [ "$pkg" = "$p" ] && {
+                  echo $pkg >> /tmp/_pkg_i
+                  CONT=1
+                  break
+               }
+          done
+          [ "$CONT" ] && continue
+          for p in $DEPENDS
+          do
+              [ "$pkg" = "$p" ] && {
+                  echo $pkg >> /tmp/_pkg_d
+                  CONT=1
+                  break
+               }
+          done
+          [ "$CONT" ] && continue
+          echo $pkg >> /tmp/_pkg_o
+        done
+        PACK_I="`sort -u /tmp/_pkg_i`"
+        PACK_D="`sort -u /tmp/_pkg_d`"
+        PACK_O="`sort -u /tmp/_pkg_o`"
+        PACKAGES="$PACK_I $PACK_D $PACK_O"
+        rm -f /tmp/_pkg_i /tmp/_pkg_d /tmp/_pkg_o
+#       for p in $PACKAGES
+#       do
+#           pkginfo -q $p && pkgrm -a $MOUNTPT/remove.admin -n $p
+#       done
+        /usr/sbin/pkgadd -q -d $MOUNTPT $PACKAGES
+}
+
+AddCompList()
+{
+    PACKAGES="$PACKAGES `grep '.cmpnt$' $MOUNTPT/osr5/CONTENTS | grep $1 | \
+             sed -e 's/.cmpnt$//' -e 's/.*\///' | sort`"
+}
+
+GetPackageList()
+{
+    echo "\nEnter the list of Skunkware 99 components you would like to install"
+    echo "at this time. Enter one or more components per line and terminate"
+    echo "the list by entering an empty component name (press <Enter>)."
+    echo "\nA list of Skunkware 99 component names is available via either"
+    echo "\tnetscape file:$MOUNTPT/osr5/COMPONENTS.html"
+    echo "or"
+    echo "\tpg $MOUNTPT/osr5/COMPONENTS"
+    while echo "\nEnter component name(s) (<Enter> to quit): \c"
+    do
+        read compname
+        [ "$compname" ] || break
+        COMPCK=
+        for j in $compname
+        do
+            CheckCompName $j
+        done
+        PACKAGES="$PACKAGES $COMPCK"
+    done
+}
+
+OpenServer() {
+while [ ! -d $MOUNTPT/opt/K/SKUNK99 ]
+do
+    echo "\nIt appears you have the SCO Skunkware 99 CD-ROM mounted"
+    echo "somewhere other than $MOUNTPT .\n"
+    echo "Please enter the full absolute pathname of the CD-ROM"
+    echo "mount point (e.g. /cdrom, /usr/skunk, ...) : \c"
+    read MOUNTPT
+done
+#
+
+ALL=
+PACKAGES=
+COMPFILE=$MOUNTPT/osr5/COMPONENTS 
+SETS="Install_All_Components Audio/Video_Components Database_Management_Components Development_Tools Editors Emulators File_and_Shell_Utilities Interpreters Java_Classes_and_Applications Mail_and_News_Components Networking_and_Internet_Components Shells System_Administration_Components Text_Processing_Components X11_Graphical_Components Enter_Individual_Components_Manually End_Selection"
+
+echo "\nSelect one or more of the following Skunkware 99 software sets:"
+PS3='Please enter a number (q or Q to exit selection dialogue) '
+select i in $SETS
+do
+    case $REPLY in
+        1) ALL=1
+           break
+           ;;
+        2) AddCompList audio
+	   AddCompList video
+           ;;
+        3) AddCompList db
+           ;;
+        4) AddCompList devtools
+	   AddCompList libraries
+           ;;
+        5) AddCompList editors
+           ;;
+        6) AddCompList emulators
+           ;;
+        7) AddCompList fileutil
+	   AddCompList shellutil
+           ;;
+        8) AddCompList interp
+           ;;
+        9) AddCompList java
+           ;;
+        10) AddCompList mail
+           ;;
+        11) AddCompList net
+           ;;
+        12) AddCompList shells
+           ;;
+        13) AddCompList sysadmin
+           ;;
+        14) AddCompList textproc
+           ;;
+        15) AddCompList x11
+           ;;
+        16) GetPackageList
+           ;;
+        [qQ]*|17) break
+           ;;
+        *) 
+           ;;
+    esac
+    REPLY=
+done
+# 
+if [ "$ALL" ]
+then
+  custom -p SKUNK99:default -i -m /dev/rcd0
+else
+  if [ "$PACKAGES" ]
+  then
+    for pkg in $PACKAGES
+    do
+        custom -p SKUNK99:default:$pkg -i -n -m /dev/rcd0
+    done
+  else
+    echo "\nWould you like to install all of the SCO Skunkware 99 custom"
+    echo "installable software to your hard disk at this time ? <Y/N> \c"
+
+    getyn
+
+    if [ "$ans" = "Y" ] 
+    then
+        custom -p SKUNK99:default -i -m /dev/rcd0
+    else
+        GetPackageList
+        for pkg in $PACKAGES
+        do
+            custom -p SKUNK99:default:$pkg -i -n -m /dev/rcd0
+        done
+    fi
+  fi
+fi
+}
+
+UnixWare() {
+echo "\nUsers of UnixWare 2.x and earlier UnixWare releases"
+echo "can obtain Skunkware components appropriate for your platform"
+echo "from either the Skunkware 7 CD-ROM or the Skunkware web site at"
+echo "http://www.sco.com/skunkware/"
+echo "\nMany of the Skunkware 99 components may be installed and run on"
+echo "UnixWare 2.x platforms with the UW2Compat compatibility modules."
+echo "In this case, you may install individual components from this CD using"
+echo "the pkgadd facility (e.g. pkgadd -d /dev/cdrom/cdrom1 package-name)."
+echo "\nSee file:$MOUNTPT/COMPONENTS.html for a list of components."
+}
+
+Voyager() {
+    while [ ! -f $MOUNTPT/.id_sw_99 ]
+    do
+        echo "\nIt appears you have the SCO Skunkware 99 CD-ROM mounted"
+        echo "somewhere other than $MOUNTPT .\n"
+        echo "Please enter the full absolute pathname of the CD-ROM"
+        echo "mount point (e.g. /cdrom, /usr/skunk, ...) : \c"
+        read MOUNTPT
+    done
+
+    echo "\nWould you like to install all of the SCO Skunkware 99"
+    echo "software to your hard disk at this time ? <Y/N> \c"
+
+    getyn
+
+    if [ "$ans" = "Y" ] 
+    then
+        Install_All
+    else
+        ALL=
+        PACKAGES=
+        COMPFILE=$MOUNTPT/COMPONENTS 
+        SETS="Install_All_Components Audio/Video_Components Database_Management_Components Development_Tools Editors Emulators File_and_Shell_Utilities Interpreters Java_Classes_and_Applications Mail_and_News_Components Networking_and_Internet_Components Shells System_Administration_Components Text_Processing_Components X11_Graphical_Components Enter_Individual_Components_Manually End_Selection"
+
+        echo "\nSelect one or more of the following Skunkware software sets:"
+        PS3='Please enter a number (q or Q to exit selection dialogue) '
+        select i in $SETS
+        do
+            case $REPLY in
+                1) ALL=1
+                   break
+                   ;;
+                2) UW7CompList audio
+                   ;;
+                3) UW7CompList db
+                   ;;
+                4) UW7CompList devtools
+                   ;;
+                5) UW7CompList editors
+                   ;;
+                6) UW7CompList emulators
+                   ;;
+                7) UW7CompList shellutil
+                   ;;
+                8) UW7CompList interp
+                   ;;
+                9) UW7CompList java
+                   ;;
+                10) UW7CompList mail
+                   ;;
+                11) UW7CompList net
+                   ;;
+                12) UW7CompList shells
+                   ;;
+                13) UW7CompList sysadmin
+                   ;;
+                14) UW7CompList textproc
+                   ;;
+                15) UW7CompList x11
+                   ;;
+                16) GetPackageList
+                   ;;
+                [qQ]*|17) break
+                   ;;
+                *) 
+                   ;;
+            esac
+            REPLY=
+        done
+        # 
+        if [ "$ALL" ]
+        then
+          Install_All
+        else
+          if [ "$PACKAGES" ]
+          then
+            Install_Packages
+          else
+            echo "\nWould you like to install all of the SCO Skunkware 99"
+            echo "software to your hard disk at this time ? <Y/N> \c"
+        
+            getyn
+        
+            if [ "$ans" = "Y" ] 
+            then
+                Install_All
+            else
+                GetPackageList
+                if [ "$PACKAGES" ]
+                then
+                    Install_Packages
+                else
+                    /usr/sbin/pkgadd -d $MOUNTPT
+                fi
+            fi
+          fi
+        fi
+    fi
+    [ -d /usr/local/info ] && {
+      [ -f /usr/local/info/dir ] || {
+        for i in `grep -l START-INFO /usr/local/info/*`
+        do 
+            install-info $i /usr/local/info/dir > /dev/null 2>&1
+        done
+      }
+    }
+}
+
+QueryOS() {
+        if [ -d /usr/sbin ]
+        then
+		VER=`uname -v`
+		OSNAME=UnixWare
+		case $VER in
+		7*) GUESS=Voyager ;;
+		*) GUESS=UnixWare ;;
+		esac
+        else
+		VER=`uname -X | grep Release | awk ' { print $3 } '`
+		OSNAME=OpenServer
+                GUESS=OpenServer
+        fi
+        echo "I am uncertain of your operating system type."
+        echo "I think it's SCO $OSNAME $VER, is this correct ? <Y/N> \c"
+        getyn
+        if [ "$ans" = "Y" ]
+        then
+                $GUESS
+        else
+        	echo "Choose one of the following (enter 1, 2, 3, or 4) :"
+		echo "\t1. SCO UnixWare 7"
+		echo "\t2. SCO UnixWare 2.x"
+		echo "\t3. SCO OpenServer 5"
+		echo "\t4. Other"
+        	getnum
+		case $ans in
+		1) Voyager ;;
+		2) UnixWare ;;
+		3) OpenServer ;;
+		4) Sorry ;;
+		esac
+        fi
+}
+
+[ -f $MOUNTPT/.id_sw_99 ] || MOUNTPT=`dirname $0`
+[ "$MOUNTPT" = "." ] && MOUNTPT=`pwd`
+case `uname` in
+SCO_SV) OpenServer ;;
+UNIX_SV) UnixWare ;;
+UnixWare) Voyager ;;
+*) QueryOS ;;
+esac

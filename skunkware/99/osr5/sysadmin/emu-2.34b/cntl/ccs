@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# Postinstallscript written by Ron Record (rr@sco.com) 
+# 
+
+scriptname="$0"
+step="$1"
+keywords="$2"
+pkglist="$3"
+
+# Source in the standard functions library, ccsSetup.sh
+. ccsSetup.sh
+
+ccs_return_value=0
+
+FixUpHost()
+{
+  HOSTPROG=/usr/bin/hostname
+  if [ -x $HOSTPROG ]
+  then
+    HOSTNAME=`$HOSTPROG`
+  else
+    HOSTNAME=localhost
+  fi
+  [ "$HOSTNAME" ] || HOSTNAME=localhost
+  HOST_FILES="/usr/local/emu/conf/2345.cfg \
+/usr/local/emu/agents/fs_agent-1.2/emsg.sh \
+/usr/local/emu/agents/inet_agent-1.0/emsg.sh \
+/usr/local/emu/agents/log_agent-1.2/emsg.sh \
+/usr/local/emu/agents/pro_agent-1.2/emsg.sh"
+  for i in $HOST_FILES
+  do
+    [ -f $i ] && {
+        sed -e "s/johndoe.pdev.sco.com/$HOSTNAME/g" < $i > /tmp/_ccs$$
+        mv /tmp/_ccs$$ $i
+        rm -f /tmp/_ccs$$
+        chown root:sys $i
+    }
+  done
+
+  echo "\nEmu is now installed and preconfigured to run on port 2345"
+  echo "with password icecream . To change the password, modify the"
+  echo "Emu configuration file /usr/local/emu/conf/2345.cfg ."
+  echo "\nTo start and access Emu, issue the command (as root):"
+  echo "\t# /etc/emu start"
+  echo "To start Emu automatically at boot time, run the command (as root):"
+  echo "\t# /etc/emu enable"
+}
+
+DisableStop()
+{
+    /etc/emu disable > /dev/null 2>&1
+    /etc/emu stop > /dev/null 2>&1
+}
+
+case "$step" in
+        POST_EXPORT) FixUpHost ;;
+        PRE_UNEXPORT) DisableStop ;;
+esac
+
+exit $ccs_return_value
+
