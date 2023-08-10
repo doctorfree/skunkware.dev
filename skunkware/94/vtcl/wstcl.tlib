@@ -1,0 +1,1020 @@
+#@package: WidgetServerX-menu WxMenu WxMenuGetButton \
+	WxOptionMenu WxOptionMenuGetSelected WxOptionMenuReplaceOptions  \
+        WxOptionMenuSetSelected
+#
+# Menu creation routines
+#
+#
+# WxMenu 
+#	    builds the insides of a menu bar, Uset WxMenuGetButton to get
+# 	    the reference to a menu item widget, ie WxMenuGetButton $dlog "New"
+#
+# Syntax:
+#           WxMenu formDialog menuBar menuList defaultCB
+#
+# Arguments:
+#       formDialog      - widgetName of form dialog
+#	menuBar 	- widgetName of menubar
+#	menuList	- menu list to build from
+#	defaultCB	- default callback to call if they aren't set 
+#			  in menuList
+#
+#
+# 	each item in menulist can contain the following indices
+#		OFFSET		Description
+#		-----		-----------
+#		  0		Type, one of following pd, hp, cs, bt, sp,
+#				   sp, tb, sc
+#		  1		Name, name of the button
+#		  2		mnemonic
+#		  3		accelerator
+#		  4		acceleratorString
+#		  5		callback to associate with button
+#		  6		If a toggle button this sets the initial state
+#
+# Use WxMenuGetButton to get the buttons in the menu.
+#
+
+proc WxMenu {dlog menubar menuList defaultCB} {
+    # different codes for various objects, the only one that is non
+    # obvious here is cs, it stands for cascade.
+    keylset typeKey pd WsPulldown 	hp WsPulldown 	cs WsPulldown \
+	  	    bt WsPushButton	sp WsSeparator	tb WsToggleButton \
+		    sc EndCascade
+
+    set cascadeStack ""
+    foreach m  $menuList {
+
+	set type [lindex $m 0]
+	set cmd [keylget typeKey $type]
+	set label [lindex $m 1]
+	
+	# convert the ellipses to '+'
+	set name [translit ". " "+_" $label]
+
+	switch $type {
+	    pd - hp {
+		# Creating a pulldown menu
+		lappend cmd "$menubar.$name"
+	    }
+	    sc {
+		# closing a cascade, pop the last pulldown off the stac
+		set lastPd [lvarpop cascadeStack]
+		continue
+	    }
+	    sp {
+		lappend cmd "$lastPd.$name" -allowDuplicateName
+		eval $cmd
+		continue
+	    }
+	    default {
+		lappend cmd "$lastPd.$name"
+	    }
+	}
+
+	# This is a help pulldown
+	if {$type == "hp"} { lappend cmd -help }
+
+	# set the label
+	lappend cmd -label $label
+	   
+
+	# now set the various placement dependant options
+	if { [lindex $m 2] != ""} {
+	    lappend cmd -mnemonic [lindex $m 2 ]
+	}
+
+	if { [lindex $m 3] != ""}  {
+	    lappend cmd  -accelerator [lindex $m 3]
+	}
+
+	if { [lindex $m 4] != ""} {
+	    lappend cmd -acceleratorString [lindex $m 4]
+	}
+
+	set cb [lindex $m 5]
+	if {$cb != ""} {
+	    lappend cmd -callback $cb
+	} elseif {$type != "pd" && $type != "hp" && $type != "cs"} {
+	    lappend cmd -callback $defaultCB
+	}
+
+	# Toggle buttons have a 6th option, the initial set state
+	if { $type == "tb" && [lindex $m 6] != "" } {
+	    lappend cmd -value [lindex $m 6]
+	}
+
+	
+	switch $type {
+	    pd - hp {
+		set lastPd [eval $cmd]
+		WxSetVar $dlog MenuButton($label) $lastPd
+	    }
+	    cs {
+		set cascade [eval $cmd]
+		lvarpush cascadeStack $lastPd
+		set lastPd $cascade
+	    }
+	    default {
+		set but [eval $cmd]
+
+		WxSetVar $dlog MenuButton($label) $but
+	    }
+	}
+    }
+}
+
+#
+#WxMenuGetButton
+#	Gets the widget name of a button in a menu created with WxMenu
+#
+#Syntax:
+#	WxMenuGetButton widgetName buttonLabel
+#
+#Arguments:
+#	widgetName	- Widget name of the menu created by WxMenu
+#	buttonLabel     - label of the button to retrieve
+#
+proc WxMenuGetButton {dlog name} {
+    return [WxGetVar $dlog MenuButton($name)]
+}
+
+
+#------------------------------------------------------------
+#
+# Routines for option menus
+#
+#
+# WxOptionMenu object.name label options defaultCB selection
+#
+#       Returns an option menu that contains pushbuttons for the
+#       options specified.
+#
+#	object.name     - widget hierarchy of option menu
+#       label           - option menu label, 
+#		         (e.g. "filename:")
+#       options         - tcl list of options 
+#			  (to be used as labels for the pushbuttons) 
+#		          (e.g. {one two three})
+#       defaultCB       - callback called when option menu changes
+#       selection       - option which is initially selected
+#                         (e.g. "one")
+#
+#
+# WxOptionMenuGetSelected menu 
+#
+#       Returns the label of the selected item in an option menu that
+#       was created by WxOptionMenu
+#
+#       widgetName       - name of menu returned by WxOptionMenu
+#
+# WxOptionMenuSetSelected menu selection
+#
+#       Sets the option menu's value to be <selection>. "selection" refers
+#       to the label of the selected pushbutton.  The option menu 
+#       referenced must have been created by WxOptionMenu.
+#
+#       widgetName       - name of menu returned by WxOptionMenu
+#       selection        - label of option to be selected.
+#
+#
+# WxOptionMenuReplaceOptions widgetName options selection
+#
+#           Returns the label of the selected item in an option menu that
+#
+#       widgetName      - name of menu returned by WxOptionMenu
+#       options         - tcl list of options 
+#			  (to be used as labels for the pushbuttons) 
+#		          (e.g. {one two three})
+#       selection       - option which is initially selected
+#                         (e.g. "one")
+#
+#
+
+proc _SetOptions {menu options selection} {
+	#
+	# make option menu buttons and assign to userdata
+	foreach buttonLabel $options {
+		set button [WsPushButton $menu.$buttonLabel  -label $buttonLabel]
+		keylset allButtons $buttonLabel $button
+	}
+	if {![info exists allButtons]} {
+		WsSetValues $menu -userData {}
+		return $menu
+	} else {
+		WsSetValues $menu -userData $allButtons
+	}
+
+
+	if {$selection == "" } {
+		#set to the first one
+		WsSetValues $menu -selectedWidget \
+		                              [lindex [lindex $allButtons 0] 1]
+	} else {
+		WsSetValues $menu -selectedWidget [keylget allButtons $selection]
+	}
+}
+
+
+proc WxOptionMenu {name label options CB selection} {
+	
+	set menu [WsOptionMenu $name -label $label]
+	if {$CB != ""} {
+		WsSetValues $menu -callback $CB
+	}
+
+	_SetOptions $menu $options $selection 
+	return $menu
+}
+
+
+proc WxOptionMenuGetSelected {menu} {
+
+	set selectedWidget [WsGetValues $menu -selectedWidget]
+
+	set nameList [split $selectedWidget .]
+	set buttonIndex [expr "[llength $nameList] - 1"]
+	return [lindex $nameList $buttonIndex] 
+}
+
+proc WxOptionMenuSetSelected {menu selected} {
+	
+	set userdata [WsGetValues $menu -userData]
+
+        set stat [catch {
+		WsSetValues $menu -selectedWidget [keylget userdata $selected]
+        } msg]
+
+	if {$stat == 1} {
+		error "WxOptionMenuSetSelected: selection invalid: $selected"
+        }
+}
+
+
+proc WxOptionMenuReplaceOptions {menu options selection} {
+        #
+	# get button list
+	set userdata [WsGetValues $menu -userData]
+
+	#
+	# destroy old buttons
+	if {$userdata != "{}"} {
+		set keys [keylkeys userdata]
+	        foreach button $keys {
+		     WsDestroy [keylget userdata $button]
+		}
+	}
+
+	#
+	# make new buttons
+	_SetOptions $menu $options $selection
+}
+
+#@packend
+
+
+#@package: WidgetServerX-label WxList WxText WxRowColumn WxRadioBox \
+	   WxCheckBox WxComboBox		  
+
+#
+# The following five routines add the -label -title functionality to 
+# WsList WsText WsRowColumn WsRadioBox WsCheckBox
+#
+
+proc WxList {name args} {
+	eval _WxBox WsList $name $args
+}
+
+proc WxText {name args} {
+	eval _WxBox WsText $name $args
+}
+
+proc WxRadioBox {name args} {
+	eval _WxBox WsRadioBox $name $args
+}
+
+proc WxCheckBox {name args} {
+	eval _WxBox WsCheckBox $name $args
+}
+
+proc WxRowColumn {name args} {
+	eval _WxBox WsRowColumn $name $args
+}
+
+proc WxComboBox {name args} {
+	eval _WxBox WsComboBox $name $args
+}
+
+proc _WxBox {cmd name args} {
+    set parts [split $name .]
+    set wName [lindex $parts end]
+
+    # delete name 
+    set parts [lreplace $parts end end]  
+    set parent [join $parts .]
+
+    # list of options that we are going to override, if any
+    # of the geometry options are set, we need to set them on the
+    # invisible form.
+    set geoOptions {}
+    foreach opt {
+  	leftOffset leftSide  alignLeft
+  	rightOffset rightSide alignRight
+  	topOffset topSide alignTop
+  	bottomOffset bottomSide alignBottom
+  	below above
+    } {
+      lappend geoOptions -$opt -MOTIF_$opt -CHARM_$opt
+    }
+  
+    # These two options are the ones that we are really interested in
+
+    # These two options are the ones that we are really interested in
+    # if either one of these two exist we create a form wrapper around
+    # the object.
+    set allOptions [concat $geoOptions "-title -label"]
+    
+    foreach opt $allOptions {
+	set found($opt) ""
+    }
+
+    set lastFound ""
+    set newArgs ""
+    foreach arg $args {
+
+	if {$lastFound != ""} {
+	    set found($lastFound) $arg
+	    set lastFound ""
+	    continue
+	}
+
+	set lastFound [lmatch -exact $allOptions $arg]
+	if {$lastFound != ""} {
+	    continue
+	}
+
+	lappend newArgs $arg
+    }
+
+    # Create the args list for the outer form
+    set boxArgs ""
+    foreach opt $geoOptions {
+	if {$found($opt) != ""} {
+	    lappend boxArgs $opt $found($opt)
+	}
+    }
+
+    set form $parent
+    if {$found(-title) != "" || $found(-label) != ""} {
+	# make the form
+	set boxname  [format "%s_box" $wName]
+
+	set form     [eval WsForm $parent.$boxname $boxArgs\
+		                   -marginHeight 0 -marginWidth 0]
+
+	if {$found(-title) != ""} {
+	    set label    [WsLabel $form.label -label $found(-title) \
+		         -topSide FORM]
+  	    set target   [eval $cmd $form.$wName $newArgs -topSide $label \
+  			 -leftSide FORM -rightSide FORM -bottomSide FORM]
+	} else {
+	    set label    [WsLabel $form.label -label $found(-label) \
+		                  -topSide FORM -bottomSide FORM]
+  	    set target   [eval $cmd $form.$wName $newArgs \
+  			       -leftSide $label -leftOffset 5 \
+ 			       -rightSide FORM \
+  			       -topSide FORM -bottomSide FORM]
+	}
+
+        WxSetVar $target "form" $form
+        WxSetVar $target "label" $label
+
+    } else {
+	set target [eval $cmd $form.$wName $newArgs $boxArgs]
+    }
+
+    return $target
+}
+
+
+#@packend
+
+#@package:  WidgetServerX-align WxAlignBaseLines WxCenterVertically \
+            WxSetLeftOffsets WxAlignedForm
+
+#================================================================== API ===
+# WxAlignBaseLines
+#
+#       Given two widgets which have been created with the sourceWidget
+#	-alignTop to the targetWidget, sets the top offset of the sourceWidget
+#	so that its baseline lines up with the targetWidget's baseline.
+#
+# Parameters:
+#	targetWidget  - the widget you are aligning to
+#	sourceWidget  - the widget that will be adjusted
+#	currentOffset - any topOffset the targetWidget already has which must
+#			be taken into account (OPTIONAL, default=0)
+# Globals:
+# Returns:
+#--------------------------------------------------------------------------
+proc WxAlignBaseLines {targetWidget sourceWidget {currentOffset 0}} {
+	set source [WsGetValues $sourceWidget -baseLineList]
+	set target [WsGetValues $targetWidget -baseLineList]
+	set diff [expr {($target - $source) + $currentOffset}]
+	WsSetValues $sourceWidget -MOTIF_topOffset $diff
+}
+ 
+#================================================================== API ===
+# WxCenterVertically
+#
+#       Given two widgets which have been created with the sourceWidget
+#	-alignTop to the targetWidget, sets the top offset of the sourceWidget
+#	so that the targetWidget is in the center.
+#
+# Parameters:
+#	targetWidget - the widget you are centering around
+#	sourceWidget - the widget that will be adjusted
+# Globals:
+# Returns:
+#--------------------------------------------------------------------------
+proc WxCenterVertically {targetWidget sourceWidget} {
+	set source [WsGetValues $sourceWidget -height]
+	set target [WsGetValues $targetWidget -height]
+	set diff [expr {($target - $source) / 2}]
+
+	WsSetValues $sourceWidget -MOTIF_topOffset $diff
+}
+
+
+#================================================================== API ===
+# WxSetLeftOffsets
+#
+#       Given a list of widgets which have been created with -alignRight
+#	to the previous label, sets the left offset of the first
+#	widget so that all the labels fit on the form
+#
+# Parameters:
+#	widgets     - a list of widgets, the first widget in the list is
+#		      the one that gets modified
+#	MOTIFOffset - any MOTIF leftOffset the first widget already has which
+#		      must be taken into account (OPTIONAL, default=0)
+#	CHARMOffset - any CHARM leftOffset the first widget already has which
+#		      must be taken into account (OPTIONAL, default=0)
+# Globals:
+# Returns:
+#--------------------------------------------------------------------------
+proc WxSetLeftOffsets {widgets {MOTIFOffset 0} {CHARMOffset 0}} {
+
+	set max 0
+	set CHARM_max 0
+	set firstWidget [lindex $widgets 0]
+
+	# find the widest widget
+	for {set i 0} {$i < [llength $widgets]} {incr i} {
+		set width [WsGetValues [lindex $widgets $i] -width]
+		if {$width > $max} then {
+			set max $width
+		}
+		set CHARM_width [string length [WsGetValues \
+			[lindex $widgets $i] -label]]
+		if {$CHARM_width > $CHARM_max} then {
+			set CHARM_max $CHARM_width
+		}
+	}
+
+	# set the left offset of the first widget
+	set diff [expr {$max - [WsGetValues $firstWidget -width] \
+		+ 1 + $MOTIFOffset}]
+
+	WsSetValues $firstWidget -MOTIF_leftOffset $diff
+
+	set CHARM_diff [expr {$CHARM_max - [string length [WsGetValues \
+						$firstWidget -label]] \
+		+ 1 + $CHARMOffset}]
+
+	WsSetValues $firstWidget -CHARM_leftOffset $CHARM_diff
+}
+
+
+
+# ----------------------------------------
+# WxAlignedForm
+#
+#    Description:
+#       Creates one or more vertically aligned widgets,
+#       with right-justified labels.
+#       Each Label and Widget are in their own form.
+#       Their widget names may be retrieved as follows:
+#
+#       (in the list below, $name is the name returned by the
+#        WxAlignedForm call, and $n is the position of the widget.
+#        "1" is the first widget)
+#
+#       Form:		WxGetVar $name "form$n"
+#       Widget:		WxGetVar $name "widget$n"
+#       Label:		WxGetVar $name "label$n"
+#
+#    Usage:
+#       WxAlignedForm widgetName dataList
+#
+#    Arguments:
+#       widgetName      - Name of parent.thisWidget
+#       dataList        - A list of lists, each containing a label and
+#                         another list containing the desired widget call 
+#                         and any desired arguments
+#
+#    Example:
+#       set form [WxAlignedForm $parent.Texts\
+#                   { {"The 1st label"  {WsText -columns 30 -value "stuff 1"}}
+#                     {"The second label"  {WsText -value "stuff 2"}}
+#                     {"3rd label"  {WsText -value "stuff 3"}}
+#                     {"Combo"  WsComboBox} } ]
+# --------------------
+#
+proc WxAlignedForm { args } {
+	set argc [llength $args]
+	if {$argc != 2} {
+		error "WxAlignedForm: wrong number of args: $argc"
+	}
+
+	set wname [lvarpop args]
+	set dataList [lvarpop args]
+
+	set form [WsForm $wname -marginWidth 0 -marginHeight 0]
+
+	set index 0
+	set maxWidth 0
+	foreach list $dataList {
+		# First element is the label
+		set labelstr [lindex $list 0]
+		# Second element is the widget call and list-o-arguments
+		set wlist [lindex $list 1]
+		set widgetCall [lvarpop wlist]
+
+		incr index
+		set tform\
+			[WsForm $form.Tform$index\
+				-marginWidth 0\
+				-marginHeight 0\
+				-leftSide FORM\
+				-rightSide FORM]
+
+		set label\
+			[WsLabel $tform.Label$index\
+				-label $labelstr\
+				-labelRight\
+				-leftSide FORM\
+				-rightSide NONE\
+				-topSide FORM\
+				-bottomSide FORM\
+				-alignLeft NONE]
+		set widget [eval $widgetCall $tform.Text$index $wlist]
+		WsSetValues $widget\
+			-alignLeft NONE\
+			-leftSide $label\
+			-topSide FORM\
+			-bottomSide FORM\
+			-rightSide FORM
+		set width [WsGetValues $label -width]
+		if {$width > $maxWidth} {
+			set maxWidth $width
+		}
+		WxSetVar $form "widget$index" $widget
+		WxSetVar $form "label$index" $label
+		WxSetVar $form "form$index" $tform
+	}
+
+	set maxWidth [expr {$maxWidth + 1}]
+	for {set i 1} {$i <= $index} {incr i} {
+		set label [WxGetVar $form "label$i"]
+		set tform [WxGetVar $form "form$i"]
+		set width [WsGetValues $label -width]
+		if {$width < $maxWidth} {
+			set offset [expr {$maxWidth - $width}]
+			WsSetValues $tform -leftOffset $offset
+		}
+	}
+
+	return $form
+}
+
+# ----------------------------------------
+
+#@packend
+
+
+
+#@package:  WidgetServerX-misc WxEndFormCB WxGetShortName
+
+#================================================================== API ===
+# WxGetShortName
+#
+#       Given a widget name, strips off all the parent widgets, leaving
+#	the short widget name
+#
+# Parameters:
+#	widget - the widget name to strip
+# Globals:
+# Returns:
+#	the stripped widget name
+#--------------------------------------------------------------------------
+proc WxGetShortName {widget} {
+	set wl [split $widget .]
+	set wi [expr "[llength $wl] - 1"]
+	set short [lindex $wl $wi]
+	return $short
+}
+
+
+proc WxEndFormCB {cbs} {
+    WsDestroyDialog [keylget cbs dialog]
+}
+
+#@packend
+
+#@package: WidgetServerX-var WxSetVar WxGetVar WxWidgetVarRef
+
+#
+# _WxWidgetVarError
+#
+#   Convert error in error stack to something that makes sense for the
+# variable.  This is needed becaused error stacks containing upvared variables
+# don't contain the real name.
+# 
+proc _WxWidgetVarError {msg realVar} {
+    global errorInfo errorCode
+    regsub {"var"} $msg \"$realVar\" msg
+    regsub {"var"} $errorInfo \"$realVar\" errorInfo
+    error $msg $errorInfo $errorCode
+}
+
+#
+# WxSetVar
+#
+#  Set the value of a per-widget variable frame variable.
+#
+# Parameters:
+#   o widgetName (I) - Name of widget that the variable is associated with.
+#   o varName (I) - Name of the variable.  May be a scalar or array reference.
+#   o value (I) - The value is assigned to the variable
+# Returns:
+#   Value is returned.
+#
+proc WxSetVar {widgetName varName value} {
+    upvar #0 "WSVars:$widgetName:$varName" var
+    
+    set stat [catch {
+        set result [set var $value]
+    } msg]
+
+    if {$stat == 1} {
+        _WxWidgetVarError $msg $varName
+    }
+    return $result
+}
+
+#
+# WxGetVar
+#
+#  Get the value of a per-widget variable frame variable.
+#
+# Parameters:
+#   o widgetName (I) - Name of widget that the variable is associated with.
+#   o varName (I) - Name of the variable.  May be a scalar or array reference.
+# Returns:
+#   Value is returned.
+#
+proc WxGetVar {widgetName varName} {
+    upvar #0 "WSVars:$widgetName:$varName" var
+
+    set stat [catch {
+        set result [set var]
+    } msg]
+
+    if {$stat == 1} {
+        _WxWidgetVarError $msg $varName
+    }
+    return $result
+}
+
+#
+# WxWidgetVarRef
+#
+#   Return a "reference" for per-widget variable frames variable.  This allows
+# the variable to be passed by reference to other Tcl commands. eg:
+#
+#    array names [WxWidgetVarRef my.widget.path data]
+#
+# Parameters:
+#   o widgetName (I) - Name of widget that the variable is associated with.
+#   o varName (I) - Name of the variable.  May be a scalar or array, but not
+#     an element of the arrray.
+# Returns:
+#   A reference to the variable usable in the current scope.
+#
+proc WxWidgetVarRef {widgetName varName} {
+    set ref "WSVars:$widgetName:$varName"
+    uplevel global $ref
+    return $ref
+}
+
+
+#@package: WidgetServerX-SpinButton WxSpinButton \
+			 WxSpinButtonSetMinValue WxSpinButtonSetMaxValue 
+
+#================================================================== INT ===
+#  SB:CheckBoundsCB
+#       Checks the text field value is within the upper and lower bounds.
+# Parameters:
+#	instance  - the widget name of the enclosing form of the SpinButton
+#	underCB   - a callback for when the value goes below the lower
+#		    bound.  If set to null, wraps the value around.
+#	overCB    - a callback for when the value goes over the upper
+#		    bound.  If set to null, wraps the value around.
+# Globals:
+#	SBlower     - array of lower value boundary values, indexed by
+#		      instance
+#	SBupper     - array of upper value boundary values, indexed by
+#		      instance
+# Returns:
+#--------------------------------------------------------------------------
+proc SB:CheckBoundsCB {instance underCB overCB cbs} {
+
+	global SBlower SBupper 
+
+	set field [WxGetVar $instance text]
+	set newValue [WsGetValues $field -value] 
+
+	if {![ctype digit $newValue]} then {
+   		WsSetValues $field -value $SBlower($instance)
+		return
+	}
+
+    	if {$newValue > $SBupper($instance)} then {
+		if {[string length $overCB]==0} then {
+   			WsSetValues $field -value $SBupper($instance)
+			return
+		} else {
+			$overCB $cbs
+			return
+		}
+	}
+	
+    	if {$newValue < $SBlower($instance)} then {
+		if {[string length $underCB]==0} then {
+   			WsSetValues $field -value $SBlower($instance)
+			return
+		} else {
+			$underCB $cbs
+			return
+		}
+    	}
+
+} ;# SB:CheckBoundsCB
+
+
+#================================================================== INT ===
+#  SB:ChangeValueCB
+#       Increases or decreases the SpinButton value, wrapping the value
+#	around upper and lower bounds.
+# Parameters:
+#	instance  - the widget name of the enclosing form of the SpinButton
+#	underCB   - a callback for when the value goes below the lower
+#		    bound.  If set to null, wraps the value around.
+#	overCB    - a callback for when the value goes over the upper
+#		    bound.  If set to null, wraps the value around.
+#	increment - how much to increase/decrease the value by
+#	direction - up: increase the value, down: decrease the value
+#	upOp      - operation to perform on increment when the "up" button
+#		    is pressed 
+#	dnOp      - operation to perform on increment when the "down" button
+#		    is pressed 
+# Globals:
+#	SBlower     - array of lower value boundary values, indexed by
+#		      instance
+#	SBupper     - array of upper value boundary values, indexed by
+#		      instance
+# Returns:
+#--------------------------------------------------------------------------
+proc SB:ChangeValueCB {instance underCB overCB increment \
+		       direction upOp dnOp cbs} {
+
+	global SBlower SBupper 
+
+	set field [WxGetVar $instance text]
+
+	set currentValue [WsGetValues $field -value]
+	if {[string length $currentValue] == 0} then {
+		set currentValue $SBlower($instance)
+    	}
+    	if {[ctype digit $currentValue] == 0} then {
+		set currentValue $SBlower($instance)
+    	}
+
+    	if {$direction == "up"} {
+        	set newValue [expr "$currentValue $upOp $increment"]
+    	} else {
+        	set newValue [expr "$currentValue $dnOp $increment"]
+    	}
+	
+    	if {$newValue>$SBupper($instance)} then {
+		if {[string length $overCB]==0} then {
+    			if {$direction == "up"} {
+				set newValue $SBlower($instance)
+			} else {
+				set newValue $SBupper($instance)
+			}
+		} else {
+			$overCB $cbs
+			return
+		}
+	}
+	
+    	if {$newValue<$SBlower($instance)} then {
+		if {[string length $underCB]==0} then {
+    			if {$direction == "up"} {
+				set newValue $SBlower($instance)
+			} else {
+				set newValue $SBupper($instance)
+			}
+		} else {
+			$underCB $cbs
+			return
+		}
+    	}
+
+   	WsSetValues $field -value $newValue
+
+} ;# SB:ChangeValueCB
+
+
+#================================================================== EXT ===
+# WxSpinButtonSetMinValue
+#       Sets the lower boundary for a spin button
+# Parameters:
+#	instance  - the instance name of the SpinButton
+#	lower     - the lower value boundary
+# Globals:
+#	SBlower     - array of lower value boundary values, indexed by
+#		      instance
+# Returns:
+#--------------------------------------------------------------------------
+proc WxSpinButtonSetMinValue {instance lower} {
+	global SBlower 
+
+	set SBlower($instance) $lower
+
+	set textW [WxGetVar $instance text]
+
+	set currentValue [WsGetValues $textW -value]
+	if {[string length $currentValue] == 0} then {
+		set currentValue $SBlower($instance)
+    	}
+    	if {[ctype digit $currentValue] == 0} then {
+		set currentValue $SBlower($instance)
+    	}
+
+	if {$currentValue < $SBlower($instance)} then {
+		set currentValue $SBlower($instance)
+	}
+
+	WsSetValues $textW -value $currentValue
+
+} ;# WxSpinButtonSetMinValue
+
+
+#================================================================== EXT ===
+# WxSpinButtonSetMaxValue
+#       Sets the upper boundary for a spin button
+# Parameters:
+#	instance  - the instance name of the SpinButton
+#	upper     - the upper value boundary
+# Globals:
+#	SBupper     - array of upper value boundary values, indexed by
+#		      instance
+# Returns:
+#--------------------------------------------------------------------------
+proc WxSpinButtonSetMaxValue {instance upper} {
+	global SBupper 
+
+	set SBupper($instance) $upper
+
+	set textW [WxGetVar $instance text]
+
+	set currentValue [WsGetValues $textW -value]
+	if {[string length $currentValue] == 0} then {
+		set currentValue $SBlower($instance)
+    	}
+    	if {[ctype digit $currentValue] == 0} then {
+		set currentValue $SBlower($instance)
+    	}
+
+	if {$currentValue > $SBupper($instance)} then {
+		set currentValue $SBupper($instance)
+	}
+
+	WsSetValues $textW -value $currentValue
+
+} ;# WxSpinButtonSetMaxValue
+
+
+#================================================================== EXT ===
+# WxSpinButton
+#       Creates a SpinButton, which consists of a text field and two
+#	buttons which increase and decrease the numeric value in the text
+#	field within upper and lower bounds.
+# Parameters:
+#	widget    - the widget name of this SpinButton
+#	width     - the width of the Text widget
+#	lower     - the lower boundary value 
+#	underCB   - a callback for when the value goes below the lower
+#		    bound.  If set to "", the package automatically wraps the
+#		    value around to the upper value.
+#	upper     - the upper boundary value
+#	overCB    - a callback for when the value goes over the upper
+#		    bound.  If set to "", the package automatically wraps the
+#		    value around to the lower value.
+#	increment - how much to increase/decrease the value by
+#	default   - the inital default value
+#	userCB    - a callback which checks the value of the Text widget, or ""
+#		    for no callback
+#	position  - standard geometryArgs for the Text widget.
+#	upOp (OPT)- operation to perform on increment when the "up" button
+#		    is pressed (+ if not present)
+#	dnOp (OPT)- operation to perform on increment when the "down" button
+#		    is pressed (- if not present)
+# Globals:
+#	SBlower     - array of lower boundary values, indexed by widget
+#	SBupper     - array of upper boundary values, indexed by widget
+# Returns:
+#	The name of the enclosing form widget
+# Notes:
+#	Attached to the form widget returned, is the name of the text widget
+#	and rowcol widget containing the buttons:
+#
+#	WxGetVar $sb text     for the text widget
+#	WxGetVar $sb rowcol   for the rowcol widget
+#--------------------------------------------------------------------------
+proc WxSpinButton {widget width lower underCB upper overCB \
+		       increment default userCB position \
+		       {upOp "+"} {dnOp "-"}} {
+
+	global SBlower SBupper
+
+	set iconPath /usr/lib/X11/sco/scoAdmin
+
+	set SB [eval WsForm $widget -marginHeight 0 -marginWidth 0 $position]
+
+	if {$userCB != ""} then {
+		set text [WsText $SB.text -rows 1 -columns $width \
+			-value $default -callback $userCB \
+			-leftSide FORM -topSide FORM -bottomSide FORM \
+			-MOTIF_topOffset 2 -MOTIF_bottomOffset 4 ]
+	} else {
+		set text [WsText $SB.text -rows 1 -columns $width \
+			-value $default \
+			-callback "SB:CheckBoundsCB $SB \"$underCB\" \"$overCB\""\
+			-leftSide FORM -topSide FORM -bottomSide FORM \
+			-MOTIF_topOffset 2 -MOTIF_bottomOffset 4 ]
+	}
+
+	set SBlower($SB) $lower
+	set SBupper($SB) $upper
+
+	if {! [WsInfo -charm]} then {
+		set rowcol [WsRowColumn $SB.rc -packing TIGHT -spacing 0 \
+		-leftOffset 0 -leftSide NONE -topSide FORM -rightSide FORM \
+		-bottomSide FORM -xmArgs {XmNmarginHeight 0 XmNmarginWidth 0}]
+
+		WsSetValues $text -rightSide $rowcol \
+				  -rightOffset 0
+
+		set upBut [WsPushButton $rowcol.up \
+			-pixmap $iconPath/up_ptr.xbm \
+			-callback "SB:ChangeValueCB $SB {$underCB} \
+			  	{$overCB} $increment up $upOp $dnOp" \
+        		-label "^"]
+
+		set downBut [WsPushButton $rowcol.down \
+			-pixmap $iconPath/down_ptr.xbm \
+			-callback "SB:ChangeValueCB $SB {$underCB} \
+			  	{$overCB} $increment down $dnOp $dnOp" \
+        		-label "v"]
+
+		WxSetVar $SB rowcol  $rowcol
+		WxSetVar $SB upBut   $upBut
+		WxSetVar $SB downBut $downBut
+	} else {
+		WsSetValues $text -rightSide FORM
+	}
+
+	WxSetVar $SB text    $text
+
+	return $SB
+
+} ;# WxSpinButton
+
+#@packend
+
+
+
