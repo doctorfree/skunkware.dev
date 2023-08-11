@@ -4,6 +4,10 @@ icon: fas fa-info-circle
 order: 6
 ---
 
+<div align="center">
+  <img src="/skunkware/pics/jpg/skunkware_5.jpg" alt="Skunkware">
+</div>
+
 ## What is Skunkware
 
 **SCO Skunkware**, often referred to as simply "**Skunkware**", is a collection of

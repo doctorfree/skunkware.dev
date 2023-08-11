@@ -1,8 +1,8 @@
 ---
-title: When SCO Sued IBM over Linux
+title: Management and Me
 author: doctorfree
 date: 2023-07-04 16:20:00 +0800
-tags: [ibm, skunkware, sco, linux, suit, deposition]
+tags: [skunkware, sco, linux, management, nosepak, nonstop clusters]
 pin: true
 img_path: "/posts/20230704"
 ---
