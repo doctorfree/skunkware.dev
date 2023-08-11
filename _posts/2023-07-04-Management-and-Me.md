@@ -123,10 +123,10 @@ whatever other new fun interesting things he wanted. Suck that Support Manager!
 ## Corporate Sponsorships
 
 SCO was pretty good about giving you money to do things. Me and Jeff Johnson
-started a bowling league with money SCO gave us. It was called the "Corporate
-Espionage Bowling League" but we should have called it the League of Corporate
-Espionage Bowlers. Jeff and I also started a company softball team with money
-from SCO. We came in second place two years in a row!
+started a bowling league with money SCO gave us. It was called the "Hi-Tech
+Corporate Espionage Bowling League" but we should have called it the League
+of Hi-Tech Corporate Espionage Bowlers. Jeff and I also started a company
+softball team with money from SCO. We came in second place two years in a row!
 
 Hiram Clawson and I got SCO to donate $5000 to the
 [Berkeley SETI project](https://seti.berkeley.edu/) and we got to go to
@@ -142,6 +142,6 @@ was new and seemed really cool at the time but the actual streams were
 pretty bad. Things have improved. I got to meet Todd Rundgren!
 
 There were many SCO sponsored activities including a flag football team,
-a volleyball league, field trips, camping, daquiri parties, a hot tub,
-and the annual Solstice Party. It was a ton of fun and all my direct
-managers were super. Thanks SCO!
+a volleyball league, co-ed softball, field trips, camping, daiquiri parties,
+a hot tub, bonfires on the beach, and the annual Solstice Party. It was a ton
+of fun and all my direct managers were super. Thanks SCO!
