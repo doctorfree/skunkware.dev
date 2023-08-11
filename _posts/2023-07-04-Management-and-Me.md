@@ -64,7 +64,8 @@ an open source e-commerce platform but it seemed important to the execs so I
 did it. I took all of the content that I removed from Skunkware and added it
 to my personal website then added some links to my personal website in
 Skunkware. For example, here is the full list of
-[Unabomber Haikus](https://doctorfree.github.io/archive.ronrecord.com/Poems/unabomber.html)
+[Unabomber Haikus](https://archive.ronrecord.com/Poems/unabomber.html)
+and the [Homer Simpson Quotes](https://archive.ronrecord.com/Quotes/homer.html).
 Take that Blue Meanies!
 
 ## NOSEPAK
