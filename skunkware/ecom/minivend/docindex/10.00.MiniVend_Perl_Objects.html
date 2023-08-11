@@ -1,0 +1,628 @@
+<HTML>
+<HEAD>
+<TITLE>MiniVend Perl Objects</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<A HREF="index.html"><B>Index</B></A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html"><B>Previous:</B> MINIVEND TAG REFERENCE</A>&nbsp;&nbsp;&nbsp;<A HREF="11.00.FORMS_AND_MINIVEND.html"><B>Next:</B> FORMS AND MINIVEND</A><HR><H1><A NAME="MiniVend_Perl_Objects">MiniVend Perl Objects</A></H1>
+<P>
+MiniVend gives ready access to all objects associated with the catalog and
+the user settings, with opcode restrictions based on the standard Perl
+module <CODE>Safe.pm</CODE>.
+
+<P>
+There are some things you will need to know about programming with
+Minivend. 
+
+<P>
+Under <CODE>Safe</CODE>, certain things cannot be used. For instance, this is not legal when
+running Safe:
+
+<P>
+<PRE>    $variable = `cat file/contents`;
+</PRE>
+<P>
+The backtick operator violates a number of the default Safe op code
+restrictions. You can not do direct file opens, either:
+
+<P>
+<PRE>    open(SOMETHING, &quot;something.txt&quot;) 
+        or die;
+</PRE>
+<P>
+This will also cause a trap, and the code will fail to compile.
+
+<P>
+You can, however, use the Minivend equivalent routines:
+
+<P>
+<PRE>    # This will work if your administrator doesn't have NoAbsolute
+    # set
+    $users = $Tag-&gt;file('/home/you/list');
+</PRE>
+<P>
+<PRE>    # This will always work, file names are based in the 
+    # catalog directory
+    $users = $Tag-&gt;file('userlist');
+</PRE>
+<P>
+The standard objects are:
+
+<DL>
+<DT><STRONG><A NAME="item__CGI">$CGI</A></STRONG><DD>
+<P>
+This is a hash reference to <CODE>%CGI::values</CODE>, the value of user variables as submitted in the current page/form. To get
+the value of a variable submitted as
+
+<P>
+<PRE>    &lt;INPUT TYPE=hidden NAME=foo VALUE=bar&gt;
+</PRE>
+<P>
+use 
+
+<P>
+<PRE>    &lt;% $Document-&gt;write(&quot;Value of foo is $CGI-&gt;{'foo'}&quot;); %&gt;
+</PRE>
+<P>
+Remember, multiple settings of the same variable are separated by a 
+<FONT SIZE=-1>NULL</FONT> character. To get the array value, use
+$CGI_array.
+
+<DT><STRONG><A NAME="item__CGI_array">$CGI_array</A></STRONG><DD>
+<P>
+This is a hash reference to <CODE>%CGI::values_array</CODE>, arrays containing the value or values of user variables as submitted in
+the current page/form. To get the value of a variable submitted as
+
+<P>
+<PRE>    &lt;INPUT TYPE=hidden NAME=foo VALUE=bar&gt;
+    &lt;INPUT TYPE=hidden NAME=foo VALUE=baz&gt;
+</PRE>
+<P>
+use 
+
+<P>
+<PRE>    &lt;% = &quot;The values of foo are&quot;, join (' and ', @{$CGI_array-&gt;{'foo'}}) %&gt;
+</PRE>
+<P>
+Remember, multiple settings of the same variable are separated by a 
+<FONT SIZE=-1>NULL</FONT> character. To get the array value, use
+$CGI_array.
+
+<DT><STRONG><A NAME="item__Carts">$Carts</A></STRONG><DD>
+<P>
+
+<FONT SIZE=-1>A</FONT> reference to the shopping cart hash
+$Vend::Session-&gt;{carts}. The normal default cart is ``main''. An alias
+for that is <CODE>$Items</CODE> in the normal course of events.
+
+<P>
+Shopping carts are an array of hash references. Here is an example of a
+session cart array containing a <CODE>main</CODE> and a <CODE>layaway</CODE> cart.
+
+<P>
+<PRE>    {
+        'main' =&gt; [ 
+                    {
+                        'code' =&gt; '00-0011',
+                        'mv_ib' =&gt; 'products',
+                        'quantity' =&gt; 1,
+                        'size' =&gt; undef,
+                        'color' =&gt; undef
+                    },
+                    {
+                        'code' =&gt; '99-102',
+                        'mv_ib' =&gt; 'products',
+                        'quantity' =&gt; 2,
+                        'size' =&gt; 'L',
+                        'color' =&gt; 'BLUE'
+                    }
+                ],
+        'layaway' =&gt; [ 
+                    {
+                        'code' =&gt; '00-341',
+                        'mv_ib' =&gt; 'products',
+                        'quantity' =&gt; 1,
+                        'size' =&gt; undef,
+                        'color' =&gt; undef
+                    }
+                ]
+    }
+</PRE>
+<P>
+In this cart array $Carts-&gt;{main}[1]{'code'} is equal to <CODE>99-102</CODE>. In the normal course of events, it would be equivalent to
+$Items-&gt;[1]{'code'}.
+
+<DT><STRONG><A NAME="item__Config">$Config</A></STRONG><DD>
+<P>
+
+<FONT SIZE=-1>A</FONT> reference to the $Vend::Cfg array. Normally you
+should use this with a liberal dose of the MiniVend source code, but for
+simple things you can use something like:
+
+<P>
+<PRE>    # Turn off CyberCash for this user
+    $Config-&gt;{CyberCash} = 0;
+</PRE>
+<P>
+Changes are not persistent except when running in the foreground (Debug
+mode or on Windows).
+
+<DT><STRONG><A NAME="item__DB">%DB</A></STRONG><DD>
+<P>
+
+<FONT SIZE=-1>A</FONT> hash of databases that you shared with the <CODE>[mvasp tables=&quot;foo&quot;]</CODE> parameter to the tag call. Once you share the database, it is opened and
+can be accessed by any of its methods.
+
+<P>
+
+<FONT SIZE=-1>ONCE</FONT> 
+<FONT SIZE=-1>AGAIN,</FONT> this will not work with 
+<FONT SIZE=-1>SQL</FONT> unless AllowGlobal is set for your catalog.
+
+
+<P>
+To get a reference to a particular table, specify its hash element:
+
+<P>
+<PRE>    $ref = $Db-&gt;{products};
+</PRE>
+<P>
+The methods available:
+
+<P>
+<PRE>    # access an element of the table
+    $field = $ref-&gt;field($column, $key);
+</PRE>
+<P>
+<PRE>    # set an element of the table
+    $ref-&gt;set_field($column_name, $key, $value);
+</PRE>
+<P>
+<PRE>    # atomic increment of an element of the table
+    $ref-&gt;inc_field($column_name, $key, 1);
+</PRE>
+<P>
+<PRE>    # see if element of the table is numeric
+    $is_numeric = $ref-&gt;numeric($column_name);
+</PRE>
+<P>
+<PRE>    # Quote for SQL query purposes
+    $quoted = $ref-&gt;quote($value, $column_name);
+</PRE>
+<P>
+<PRE>    # Check configuration of the database
+    $delimiter = $ref-&gt;config('DELIMITER');
+</PRE>
+<P>
+<PRE>    # Find the names of the columns (not including the key)
+    @columns = $ref-&gt;columns();
+    # Insert the key column name
+    unshift @columns, $ref-&gt;config('KEY');
+</PRE>
+<P>
+<PRE>    # See if a column is in the table
+    $is_a_column = defined $ref-&gt;test_column($column_name);
+</PRE>
+<P>
+<PRE>    # See if a row is in the table
+    $is_present = $ref-&gt;record_exists($key);
+</PRE>
+<P>
+<PRE>    # Create a subroutine to return a single column from the table
+    $sub = $ref-&gt;field_accessor($column);
+    for (@keys) {
+        push @values, $sub-&gt;($key);
+    }
+</PRE>
+<P>
+<PRE>    # Create a subroutine to set a single column in the database
+    $sub = $ref-&gt;field_settor($column);
+    for (@keys) {
+        $sub-&gt;($key, $value);
+    }
+</PRE>
+<P>
+<PRE>    # Create a subroutine to set a slice of the database
+    $sub = $ref-&gt;row_settor(@columns);
+    for (@keys) {
+        $sub-&gt;($key, @values);
+    }
+</PRE>
+<P>
+<PRE>    # Retrurn a complete array of the database (minus the key)
+    @values = $ref-&gt;row($key);
+</PRE>
+<P>
+<PRE>    # Retrurn a complete hash of the database row (minus the key)
+    $hashref = $ref-&gt;row_hash($key);
+</PRE>
+<P>
+<PRE>    # Delete a record/row from the table
+    $ref-&gt;delete_record($key);
+</PRE>
+<DT><STRONG><A NAME="item__SQL">%SQL</A></STRONG><DD>
+<P>
+
+<FONT SIZE=-1>A</FONT> hash of 
+<FONT SIZE=-1>SQL</FONT> databases that you shared with the
+ <CODE>[mvasp tables=&quot;foo&quot;]</CODE>
+parameter to the tag call. It returns the 
+<FONT SIZE=-1>DBI</FONT> database handle, so you can do things like:
+
+<P>
+<PRE>  &lt;%
+    my $dbh = $SQL{products}
+        or return HTML &quot;Database not shared.&quot;;
+    my $sth = $dbh-&gt;prepare('select * from products')
+        or return HTML &quot;Couldn't open database.&quot;;
+    $sth-&gt;execute();
+    my @record;
+    while(@record = $sth-&gt;fetchrow()) {
+        foo();
+    }
+    $sth = $dbh-&gt;prepare('select * from othertable')
+        or return HTML &quot;Couldn't open database.&quot;;
+    $sth-&gt;execute();
+    while(@record = $sth-&gt;fetchrow()) {
+        bar();
+    }
+  %&gt;
+</PRE>
+<P>
+
+<FONT SIZE=-1>ONCE</FONT> 
+<FONT SIZE=-1>AGAIN,</FONT> this will not work with unless AllowGlobal is set for your catalog. And full ``use strict'' checking is in force.
+
+
+<DT><STRONG><A NAME="item__DbSearch">$DbSearch</A></STRONG><DD>
+<P>
+
+<FONT SIZE=-1>A</FONT> search object which will search a database without
+using the text file. It is the same as MiniVend's <CODE>db</CODE> searchtype. Options are specified in a hash and passed to the object. All
+multiple-field options should be passed as array references.
+
+<P>
+Before using the <CODE>$DbSearch</CODE> object, you must tell it which
+table to search -- to use the table <CODE>foo</CODE> it must have been shared with <CODE>[mvasp foo]</CODE>.
+
+<P>
+There are three search methods -- <CODE>array</CODE>, <CODE>hash</CODE>, and <CODE>list</CODE>.
+
+<P>
+<PRE>    array    Returns a reference to an array of arrays (best)
+    hash     Returns a reference to an array of hashes (slower)
+    list     Returns a reference to an array of tab-delimited lines
+</PRE>
+<P>
+Example:
+
+<P>
+<PRE>    $DbSearch-&gt;{table} = $Db{foo};
+</PRE>
+<P>
+<PRE>    $search = {
+</PRE>
+<P>
+<PRE>            mv_searchspec =&gt; 'Mona Lisa',
+            mv_search_field =&gt; [ 'title', 'artist', 'price' ],
+            mv_return_fields    =&gt; ['
+</PRE>
+<P>
+<PRE>        }; 
+  
+    my $ary = $DbSearch-&gt;array($search);
+  
+    if(! scalar @$ary) {
+        return HTML &quot;No match.\n&quot;;
+    }
+  
+    for(@$ary) {
+</PRE>
+<DT><STRONG><A NAME="item__Document">$Document</A></STRONG><DD>
+<P>
+This is an object that has several routines associated with it.
+
+<P>
+<PRE> HTML $foo;                     # Append $foo to the write buffer array
+ $Document-&gt;write($foo);        # object call to append $foo to the write
+                                # buffer array
+ $Document-&gt;insert($foo);       # Insert $foo to front of write buffer array
+ $Document-&gt;header($foo, $opt); # Append $foo to page header
+ $Document-&gt;send();             # Send write buffer array to output, done
+                                # automatically upon end of ASP, clears buffer
+                                # and invalidates $Document-&gt;header()
+ $Document-&gt;hot(1);             # Cause writes to send immediately
+ $Document-&gt;hot(0);             # Stop immediate send
+ @ary = $Document-&gt;review();    # Place contents of write buffer in @ary
+ $Document-&gt;replace(@ary)       # Replace contents of write buffer with @ary
+ $ary_ref = $Document-&gt;ref();   # Return ref to output buffer
+</PRE>
+<DT><STRONG><A NAME="item__Document_write_foo_">$Document-&gt;write($foo)</A></STRONG><DD>
+<P>
+Write <CODE>$foo</CODE> to the page in a buffered fashion. The buffer is an
+array that is the results of all previous <CODE>$Document-</CODE>&gt;<CODE>write()</CODE> operations. If $Document-&gt;hot(1) has been set, the output immediately
+goes to the user.
+
+<DT><STRONG><A NAME="item__Document_insert_foo_">$Document-&gt;insert($foo)</A></STRONG><DD>
+<P>
+Insert <CODE>$foo</CODE> to the page buffer.
+
+<P>
+<PRE>    $Document-&gt;write(&quot;23&quot;);
+    $Document-&gt;insert(&quot;1&quot;);
+    $Document-&gt;send();
+</PRE>
+<P>
+will output ``123'', while
+
+<P>
+<PRE>    $Document-&gt;write(&quot;23&quot;);
+    $Document-&gt;write(&quot;1&quot;);
+    $Document-&gt;send();
+</PRE>
+<P>
+will output ``231''.
+
+<DT><STRONG><A NAME="item__Document_header_foo_">$Document-&gt;header($foo, $opt)</A></STRONG><DD>
+<P>
+Add the header line <CODE>$foo</CODE> to the 
+<FONT SIZE=-1>HTTP</FONT> header. You can use this to change the page
+content type, cache options, or other attributes.
+
+<P>
+The below code changes the content type 
+<FONT SIZE=-1>(MIME</FONT> type) to text/plain:
+
+<P>
+<PRE>    $Document-&gt;header(&quot;Content-type: text/plain&quot;);
+</PRE>
+<P>
+There is an option hash that can be sent, with the only valid value being
+``replace''. The below code scrubs all previous header lines:
+
+<P>
+<PRE>    $Document-&gt;header(&quot;Content-type: text/plain&quot;, { replace =&gt; 1 } );
+</PRE>
+<P>
+Once you have sent output with $Document-&gt;send(), this can no longer be
+done.
+
+<DT><STRONG><A NAME="item__Document_hot_foo_">$Document-&gt;hot($foo)</A></STRONG><DD>
+<P>
+If the value of <CODE>$foo</CODE> is true (in a Perl sense), then all
+$Document-&gt;write() operations will be immediately sent until a
+$Document-&gt;hot(0) is executed.
+
+<DT><STRONG><A NAME="item__Document_send_">$Document-&gt;send()</A></STRONG><DD>
+<P>
+Causes the document write buffer to be sent to the browser and empties the
+buffer. Any further $Document-&gt;header() calls will be ignored.
+
+<P>
+Can be used to implement non-parsed-header operation.
+
+<DT><STRONG><A NAME="item__Document_review_">$Document-&gt;review()</A></STRONG><DD>
+<P>
+Returns the value of the write buffer.
+
+<P>
+<PRE>    @ary = $Document-&gt;review();
+</PRE>
+<DT><STRONG><A NAME="item__Document_replace_new_">$Document-&gt;replace(@new)</A></STRONG><DD>
+<P>
+Completely replaces the write buffer with the arguments.
+
+<DT><STRONG><A NAME="item__Document_ref_">$Document-&gt;ref()</A></STRONG><DD>
+<P>
+Returns a reference to the write buffer.
+
+<P>
+<PRE>    # Remove the first item in the write buffer
+    my $ary_ref = $Document-&gt;ref();
+    shift @$ary_ref;
+</PRE>
+<DT><STRONG><A NAME="item_HTML">HTML</A></STRONG><DD>
+<P>
+Writes a string (or list of strings) to the write buffer array. The call
+
+<P>
+<PRE>    HTML $foo, $bar;
+</PRE>
+<P>
+is exactly equivalent to
+
+<P>
+<PRE>    $Document-&gt;write($foo, $bar);
+</PRE>
+<P>
+Honors the $Document-&gt;hot() setting.
+
+<DT><STRONG><A NAME="item__Items">$Items</A></STRONG><DD>
+<P>
+
+<FONT SIZE=-1>A</FONT> reference to the <EM>current</EM> shopping cart. Unless you have used a MiniVend
+<CODE>[cart ...]</CODE> tag, it is normally the same as $Carts-&gt;{main}.
+
+<DT><STRONG><A NAME="item__Scratch">$Scratch</A></STRONG><DD>
+<P>
+
+<FONT SIZE=-1>A</FONT> reference to the scratch values ala <CODE>[scratch foo]</CODE>.
+
+<P>
+<PRE>    &lt;% $Scratch-&gt;{foo} = 'bar'; %&gt;
+</PRE>
+<P>
+is equivalent to:
+
+<P>
+<PRE>    [set foo]bar[/set]
+</PRE>
+<DT><STRONG><A NAME="item__Session">$Session</A></STRONG><DD>
+<P>
+
+<FONT SIZE=-1>A</FONT> reference to the session values ala <CODE>[data session username]</CODE>.
+
+<P>
+<PRE>    &lt;%
+        my $out = $Session-&gt;{browser};
+        $Document-&gt;write($out);
+    %&gt;
+</PRE>
+<P>
+is equivalent to:
+
+<P>
+<PRE>    [data session browser]
+</PRE>
+<P>
+You can also set values. If you wanted to change the value of 
+<CODE>[data session source]</CODE>, for example, you could do:
+
+<P>
+<PRE>    &lt;%
+        $Session-&gt;{source} = 'New_partner';
+    %&gt;
+</PRE>
+<DT><STRONG><A NAME="item__Tag">$Tag</A></STRONG><DD>
+<P>
+Using the <CODE>$Tag</CODE> object, you can access any MiniVend tag
+including user-defined tags.
+
+<P>
+<STRONG>IMPORTANT NOTE:</STRONG> If the tag will access a database that has not been previously opened, you must pass in the table name in the 
+<FONT SIZE=-1>ASP</FONT> call, i.e.:
+
+
+<P>
+<PRE>    # HTML style
+    &lt;HTML MV=&quot;mvasp&quot; MV.TABLES=&quot;products pricing&quot;&gt;
+     
+      or
+     
+    # Named parameters
+    [mvasp tables=&quot;products pricing&quot;] 
+     
+      or
+     
+    # Positional parameters
+    [mvasp products pricing] 
+</PRE>
+<P>
+Any tag can be called.
+
+<P>
+<PRE>    &lt;%
+        my $user = $Session-&gt;{username};
+        my $name_from_db = $Tag-&gt;data('userdb', 'name', $user );
+        $Document-&gt;write($name_from_db);
+    %&gt;
+</PRE>
+<P>
+is the same as:
+
+<P>
+<PRE>    [data table=userdb column=name key=&quot;[data session username]&quot;]
+</PRE>
+<P>
+If the tag has a dash (<CODE>-</CODE>) in it, use an underscore instead:
+
+<P>
+<PRE>    # WRONG!!!
+    $Tag-&gt;shipping-desc('upsg');
+    # Right
+    $Tag-&gt;shipping_desc('upsg');
+</PRE>
+<P>
+There are two ways of specifying parameters. You can either use the
+positional parameters as documented (for an authoritative look at the
+parameters, trace the <A HREF="#item__Routine">%Routine</A> value in
+Vend::Parse), or you can specify it all with an option hash parameter names
+as in any named parameters as you would specify in a MiniVend tag. The
+calls
+
+<P>
+<PRE>    $Tag-&gt;data('products', 'title', '00-0011');
+</PRE>
+<P>
+and
+
+<P>
+<PRE>    my $opt = {     
+                    table   =&gt; 'products',
+                    column  =&gt; 'title',
+                    key     =&gt; '00-0011',
+                };
+</PRE>
+<P>
+<PRE>    $Tag-&gt;data( $opt );
+</PRE>
+<P>
+are equivalent for the <A HREF="#item_data">data</A> tag.
+
+<P>
+If you are using the option hash method, and the tag has container text,
+you can either specify it in the hash parameter <CODE>body</CODE> or add it as the next argument. The two calls:
+
+<P>
+<PRE>    $Tag-&gt;item_list( { 
+                        'body' =&gt; &quot;[item-code] [item-field title]&quot;,
+                    });
+</PRE>
+<P>
+and 
+
+<P>
+<PRE>    $Tag-&gt;item_list( { }, &quot;[item-code] [item-field title]&quot;)
+</PRE>
+<P>
+are equivalent.
+    
+                        
+    
+                        
+
+<P>
+Parameter names are 
+<FONT SIZE=-1>ALWAYS</FONT> lower case.
+
+<DT><STRONG><A NAME="item__Values">$Values</A></STRONG><DD>
+<P>
+
+<FONT SIZE=-1>A</FONT> reference to the user form values ala <CODE>[value foo]</CODE>.
+
+<P>
+<PRE>    &lt;% $Document-&gt;write($Values-&gt;{foo}); %&gt;
+</PRE>
+<P>
+is equivalent to:
+
+<P>
+<PRE>    [value foo]
+</PRE>
+<DT><STRONG><A NAME="item__amp_Log">&amp;amp;Log</A></STRONG><DD>
+<P>
+Send a message to the error log (same as ::logError in GlobalSub or global
+UserTag).
+
+<P>
+<PRE>    &lt;% 
+        Log(&quot;error log entry&quot;);
+    %&gt;
+</PRE>
+<P>
+It prepends the normal timestamp with user and page information. To supress
+that information, begin the message with a backslash (<CODE>\</CODE>).
+
+<P>
+<PRE>    &lt;% 
+        Log(&quot;\\error log entry without timestamp&quot;);
+        Log('\another error log entry without timestamp');
+        Log(&quot;error log entry with timestamp&quot;);
+    %&gt;
+</PRE>
+</DL>
+<P>
+<HR>
+<UL><LI><A HREF="10.01.On_the_fly_Catalog_Pages.html">On-the-fly Catalog Pages</A></LI>
+<LI><A HREF="10.02.Special_Pages.html">Special Pages</A></LI>
+<LI><A HREF="10.03.Checking_Page_HTML.html">Checking Page HTML</A></LI>
+</UL><BR><HR><A HREF="index.html"><B>Index</B></A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html"><B>Previous:</B> MINIVEND TAG REFERENCE</A>&nbsp;&nbsp;&nbsp;<A HREF="11.00.FORMS_AND_MINIVEND.html"><B>Next:</B> FORMS AND MINIVEND</A></BODY></HTML>

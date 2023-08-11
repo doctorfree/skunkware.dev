@@ -1,0 +1,49 @@
+#!/bin/sh
+# it's the install script.  nothing fancy.
+/bin/echo "Installing the SPY package"
+/bin/echo "Installing new header files"
+cd drv
+for i in spy.h spyfilsys.h spyinode.h
+do
+   /bin/rm -f /usr/include/sys/fs/$i 2>/dev/null
+   /bin/cp $i /usr/include/sys/fs
+   /bin/chmod 644 /usr/include/sys/fs/$i
+   /bin/chown root /usr/include/sys/fs/$i
+done
+/bin/echo "Installing new command files"
+cd ../cmd
+/bin/rm -rf /etc/fscmd.d/SPY >/dev/null 2>&1
+/bin/mkdir -p /etc/fscmd.d/SPY >/dev/null 2>&1
+/bin/chmod 755 /etc/fscmd.d/SPY >/dev/null 2>&1
+/bin/cp mount fstyp fsstat /etc/fscmd.d/SPY
+/bin/chmod 755 /etc/fscmd.d/SPY/*
+/bin/chown root /etc/fscmd.d/SPY/*
+/bin/ln /etc/fscmd.d/SPY/mount /etc/fscmd.d/SPY/umount
+/bin/rm -f /bin/spyon /bin/spysend /bin/spycons /bin/spycontrol >/dev/null 2>&1
+/bin/cp spyon /bin
+/bin/cp spysend /bin
+/bin/cp spycons /bin
+/bin/cp spycontrol /bin
+/bin/chmod 755 /bin/spyon /bin/spysend /bin/spycons /bin/spycontrol
+/bin/chown root /bin/spyon /bin/spysend /bin/spycons /bin/spycontrol
+/bin/echo "Installing SPY driver files"
+cd ../drv
+#  - remove the old version
+/etc/conf/bin/idinstall -d spy
+# then add in new version
+/etc/conf/bin/idinstall -a -m -s -o -p -l -c -k spy
+# add to /etc/default/filesys so that it's automatically mounted
+# when system goes multi user (although it can be mounted at any time)
+# we need a block device of some kind.  any kind will do.  Nothing
+# is ever written to it.  
+# choices: /dev/recover, a 16 ram disk, floppy, some married device
+# we also assume a mount directory of /spy.
+mkdir /spy >/dev/null 2>&1
+grep -q "bdev=/dev/recover" /etc/default/filesys >/dev/null 2>&1
+if test $? != 0
+then
+   echo "bdev=/dev/recover mountdir=/spy fstyp=SPY fsck=no fsckflags= rcfsck=no mountflags= rcmount=yes mount=no" >> /etc/default/filesys
+fi
+
+/bin/echo "SPY installed.  You still need to relink a new kernel and reboot."
+

@@ -1,0 +1,631 @@
+#!/usr/bin/metapkg -p
+
+# Requires at least version 2.0.1 of MetaPKG
+want (2,0,1);
+# Requires version 1.0.5 or later of the CDMT backend
+want ("cdmt", 1, 0, 5);
+# Requires version 1.0.0 or later of the PKGADD backend
+want ("pkgadd", 1, 0, 0);
+
+define ("XORGVER", "6.8.2");
+define ("VERSUFFIX", "Ed");
+define ("GWXDESC", "Supplemental Graphics, Web and X11 Libraries");
+
+set ("product-code", "XORG");
+set ("description", "X.org X Window System Version 11 Release ${XORGVER}");
+set ("component-mode", 1);
+set ("version", "${XORGVER}${VERSUFFIX}");
+
+ifndef ("XORGOS")
+  error ("XORGOS not set - must be one of OSR5, OSR6 or UW7");
+endif
+
+ifeq ("XORGOS", "OSR5")
+  define ("XORGOK", "1");
+  define ("DEPVENDOR", "SCO:");
+endif
+
+ifeq ("XORGOS", "OSR6")
+  define ("XORGOK", "1");
+  define ("DEPVENDOR", "SCO:");
+endif
+
+ifeq ("XORGOS", "UW7")
+  backend ("pkgadd");
+  define ("XORGOK", "1");
+  set ("pkgadd-category", "application");
+  define ("PKGADD", "1");
+  define ("DEPVENDOR", "");
+  define ("SERVERNM", "xorgsrv");
+  define ("CLIENTNM", "xorgclnt");
+  define ("FONTSNM", "xorgfonts");
+  define ("XORGRTNM", "xorgrt");
+else
+  backend ("cdmt");
+  set ("dont-harden-symlinks", 0);
+  set ("dont-export-symlinks", 0);
+  define ("SERVERNM", "XORGServer");
+  define ("CLIENTNM", "XORGClients");
+  define ("FONTSNM", "XORGFonts");
+  define ("XORGRTNM", "XORGRT");
+endif
+
+ifneq ("XORGOK", "1")
+  error ("XORGOS=${XORGOS} not recognised - must be one of OSR5, OSR6 or UW7");
+endif
+
+prepare ("Checking and preparing distribution") {
+  script ("@@@@",
+@@@@
+[ -n "$DEBUG" ] && set -x
+origpwd=`pwd`
+
+[ -d XORGServer ] && exit 0
+
+[ -z "$HANDOFFS" ] && {
+  echo "ERROR: HANDOFFS environment variable not set. This must be set to"
+  echo "       the directory that contains the extra xorg/ handoffs directory."
+  exit 1
+}
+
+#
+# Called twice if we are running in Legend mode. Assumes that the directory
+# has been changed to the directory that contains the handoff.
+#
+massage_handoff() {
+  [ -n "$DEBUG" ] && set -x
+  distdir=`pwd`
+
+  for dir in XORGRT XORGClients XORGServer XORGFonts;do
+    mkdir $distdir/$dir
+    mkdir $distdir/$dir/usr
+    mkdir $distdir/$dir/usr/X11R6
+    mkdir $distdir/$dir/usr/X11R6/bin
+    mkdir $distdir/$dir/usr/X11R6/lib
+    mkdir $distdir/$dir/usr/X11R6/lib/X11
+  done
+
+  # First up is the XORGFonts component
+  tdir=$distdir/XORGFonts
+  xdir=$tdir/usr/X11R6/lib/X11
+  cd $xdir
+  mv -f $distdir/usr/X11R6/lib/X11/fonts .
+
+  #
+  # Copy SCO specific fonts over ...
+  #
+  fdir=$distdir/XORGFonts/usr/X11R6/lib/X11/fonts/100dpi
+  for font in $HANDOFFS/xorg/100dpi/*.gz;do
+    cp -f $font $fdir
+  done
+  chmod u+w $fdir/fonts.alias
+  cat $HANDOFFS/xorg/100dpi/fonts.alias >> $fdir/fonts.alias
+  cd $fdir || exit 1
+  /usr/X11R6/bin/mkfontdir
+
+  fdir=$distdir/XORGFonts/usr/X11R6/lib/X11/fonts/75dpi
+  for font in $HANDOFFS/xorg/75dpi/*.gz;do
+    cp -f $font $fdir
+  done
+  chmod u+w $fdir/fonts.alias
+  cat $HANDOFFS/xorg/75dpi/fonts.alias >> $fdir/fonts.alias
+  cd $fdir || exit 1
+  /usr/X11R6/bin/mkfontdir
+
+  fdir=$distdir/XORGFonts/usr/X11R6/lib/X11/fonts/misc
+  for font in $HANDOFFS/xorg/misc/*.gz;do
+    cp -f $font $fdir
+  done
+  chmod u+w $fdir/fonts.alias
+  cat $HANDOFFS/xorg/misc/fonts.alias >> $fdir/fonts.alias
+  cd $fdir || exit 1
+  /usr/X11R6/bin/mkfontdir
+
+  fdir=$distdir/XORGFonts/usr/X11R6/lib/X11/fonts/Type1
+  for font in $HANDOFFS/xorg/Type1/*;do
+    cp -f $font $fdir
+  done
+  cd $fdir || exit 1
+  /usr/X11R6/bin/mkfontscale
+  /usr/X11R6/bin/mkfontdir
+
+  # Now the XORGServer component
+  tdir=$distdir/XORGServer
+  bdir=$tdir/usr/X11R6/bin
+  ldir=$tdir/usr/X11R6/lib
+  xdir=$tdir/usr/X11R6/lib/X11
+  cd $bdir || exit 1
+  mv -f $distdir/usr/X11R6/bin/X* .
+  mv -f $distdir/usr/X11R6/bin/{inb,inl,inw,ioport} .
+  mv -f $distdir/usr/X11R6/bin/{outb,outl,outw} .
+  mv -f $distdir/usr/X11R6/bin/{mmapr,mmapw,startx,xinit,xvidtune,xdm} .
+  mv -f $distdir/usr/X11R6/bin/rstart* .
+  mv -f $distdir/usr/X11R6/bin/getconfig* .
+  mv -f $distdir/usr/X11R6/bin/xtrap* .
+  mv -f $distdir/usr/X11R6/bin/xorg* .
+  mkdir $tdir/usr/X11R6/man
+  mkdir $tdir/usr/X11R6/man/man1
+  cd $tdir/usr/X11R6/man/man1
+  mv -f $distdir/usr/X11R6/man/man1/X* .
+  mv -f $distdir/usr/X11R6/man/man1/xorg* .
+  mv -f $distdir/usr/X11R6/man/man1/xtrap* .
+  mv -f $distdir/usr/X11R6/man/man1/rstart* .
+  mv -f $distdir/usr/X11R6/man/man1/getconfig* .
+  mv -f $distdir/usr/X11R6/man/man1/startx* .
+  mv -f $distdir/usr/X11R6/man/man1/xinit* .
+  mv -f $distdir/usr/X11R6/man/man1/xvidtune* .
+  mv -f $distdir/usr/X11R6/man/man1/xdm* .
+  mv -f $distdir/usr/X11R6/man/man1/lbxproxy* .
+  mv -f $distdir/usr/X11R6/man/man1/proxymngr* .
+  cd $tdir/usr/X11R6/man
+  mv -f $distdir/usr/X11R6/man/man4 .
+  mv -f $distdir/usr/X11R6/man/man7 .
+  cd $ldir
+  mv -f $distdir/usr/X11R6/lib/libxf86config.a .
+  mv -f $distdir/usr/X11R6/lib/modules .
+  cd $xdir
+  mv -f $distdir/usr/X11R6/lib/X11/{xserver,xinit,xdm,rstart,getconfig,lbxproxy,xkb,fs} .
+  mv -f $distdir/usr/X11R6/lib/X11/{proxymngr,doc,Cards,Options} .
+  [ "$XORGOS" = "OSR6" ] && {
+    cd $tdir
+    dvdir=usr/share/meta/doc/UserHelpTopics/DSKhome/DSKgroup/DSK_xwinsys
+    mkdir -p $tdir/$dvdir
+    cp $HANDOFFS/xorg/doc/* $dvdir
+  }
+
+  # Now the XORGClients component
+  tdir=$distdir/XORGClients
+  bdir=$tdir/usr/X11R6/bin
+  ldir=$tdir/usr/X11R6/lib
+  xdir=$tdir/usr/X11R6/lib/X11
+  cd $bdir
+  mv -f $distdir/usr/X11R6/bin/* .
+  mkdir $tdir/usr/X11R6/man
+  mkdir $tdir/usr/X11R6/man/man1
+  cd $tdir/usr/X11R6/man/man1
+  mv -f $distdir/usr/X11R6/man/man1/* .
+  cd $xdir
+  mv -f $distdir/usr/X11R6/lib/X11/{app-defaults,xedit,xsm,etc,twm} .
+  mv -f $distdir/usr/X11R6/lib/X11/x11perfcomp .
+
+  # Now the XORGRT component
+  tdir=$distdir/XORGRT
+  bdir=$tdir/usr/X11R6/bin
+  ldir=$tdir/usr/X11R6/lib
+  xdir=$tdir/usr/X11R6/lib/X11
+  cd $ldir
+  mv -f $distdir/usr/X11R6/lib/* .
+  mkdir $tdir/usr/lib
+  mv pkgconfig $tdir/usr/lib
+  cd $tdir/usr/X11R6
+  mv -f $distdir/usr/X11R6/include .
+  mv -f $distdir/usr/X11R6/man .
+
+  # Move some stuff back from XORGClients into XORGRT
+  cd $bdir
+  cdir=$distdir/XORGClients/usr/X11R6/bin
+  mv -f $cdir/{atobm,bdftopcf,bdftruncate,bitmap,bmtoa,bsdinst,ccmakedep} .
+  mv -f $cdir/{gccmakedep,imake,lndir,makedepend,makeg,makestrs,mergelib} .
+  mv -f $cdir/{mkcfm,mkdirhier,mkfontdir,mkfontscale,mkhtmlindex} .
+  mv -f $cdir/{showrgb,ucs2any,xcursor-config,xcursorgen,xft-config,xmkmf} .
+  mv -f $cdir/{sxpm,cxpm} .
+
+  cd $tdir/usr/X11R6/man/man1
+  cdir=$distdir/XORGClients/usr/X11R6/man/man1
+  mv -f $cdir/atobm* .
+  mv -f $cdir/bdftopcf* .
+  mv -f $cdir/bdftruncate* .
+  mv -f $cdir/bitmap* .
+  mv -f $cdir/bmtoa* .
+  mv -f $cdir/ccmakedep* .
+  mv -f $cdir/gccmakedep* .
+  mv -f $cdir/imake* .
+  mv -f $cdir/lndir* .
+  mv -f $cdir/makedepend* .
+  mv -f $cdir/makeg* .
+  mv -f $cdir/makestrs* .
+  mv -f $cdir/mergelib* .
+  mv -f $cdir/mkcfm* .
+  mv -f $cdir/mkdirhier* .
+  mv -f $cdir/mkfontdir* .
+  mv -f $cdir/mkfontscale* .
+  mv -f $cdir/mkhtmlindex* .
+  mv -f $cdir/showrgb* .
+  mv -f $cdir/ucs2any* .
+  mv -f $cdir/xcursorgen* .
+  mv -f $cdir/xmkmf* .
+  mv -f $cdir/sxpm* .
+  mv -f $cdir/cxpm* .
+
+  # Clean up
+  cd $distdir
+  rm -fr usr var
+}
+
+#
+# Given a prepared tree, SCO-ise it
+#
+makesco() {
+  [ -n "$DEBUG" ] && set -x
+  distdir=`pwd`
+  chmod u+w $distdir/XORGRT/usr/X11R6/lib/X11/rgb.txt 
+  cat >> $distdir/XORGRT/usr/X11R6/lib/X11/rgb.txt <<EOF
+203 203 192		scoBackground
+ 11   0 113		scoForeground
+255 240 248		scoTopShadow
+255 206 137		scoActiveBackground
+ 43  45  49		scoActiveForeground
+254 222 255		scoActiveTopShadow
+172 186 204		scoAltBackground
+  0   0 255		scoHighlight
+EOF
+
+  #
+  # Replace startx with our own
+  #
+  rm -f $distdir/XORGServer/usr/X11R6/bin/startx
+  if [ "$XORGOS" = "UW7" ]; then
+    cp $HANDOFFS/xorg/xorg.startx.uw7 $distdir/XORGServer/usr/X11R6/bin/startx
+  else
+    cp $HANDOFFS/xorg/xorg.startx.osr5 $distdir/XORGServer/usr/X11R6/bin/startx
+  fi
+  chmod 755 $distdir/XORGServer/usr/X11R6/bin/startx
+
+  #
+  # Put in a new xinitrc that makes things look like the SCO X Server
+  #
+  rm -f $distdir/XORGServer/usr/X11R6/lib/X11/xinit/xinitrc
+  if [ "$XORGOS" = "UW7" ]; then
+    cp $HANDOFFS/xorg/xorg.xinitrc.uw7 $distdir/XORGServer/usr/X11R6/lib/X11/xinit/xinitrc
+  else
+    cp $HANDOFFS/xorg/xorg.xinitrc.osr5 $distdir/XORGServer/usr/X11R6/lib/X11/xinit/xinitrc
+  fi
+
+  #
+  # Change the XDM logos to be SCO logos
+  rm -f $distdir/XORGServer/usr/X11R6/lib/X11/xdm/pixmaps/xorg-bw.xpm
+  rm -f $distdir/XORGServer/usr/X11R6/lib/X11/xdm/pixmaps/xorg.xpm
+  cp -f $HANDOFFS/xorg/xdm/xorg-bw.xpm $distdir/XORGServer/usr/X11R6/lib/X11/xdm/pixmaps/xorg-bw.xpm
+  cp -f $HANDOFFS/xorg/xdm/xorg.xpm $distdir/XORGServer/usr/X11R6/lib/X11/xdm/pixmaps/xorg.xpm
+
+  #
+  # Make XTerm be color by default, change its title and scrollback size,
+  # and white on black background.
+  #
+  rm -f $distdir/XORGClients/usr/X11R6/lib/X11/app-defaults/XTerm
+  cp $HANDOFFS/xorg/xorg.xterm $distdir/XORGClients/usr/X11R6/lib/X11/app-defaults/XTerm
+
+  #
+  # The server needs a CCS script because it needs to register the SCOadmin
+  # manager. Only for legend though.
+  #
+  [ "$XORGOS" = "OSR6" ] && {
+    mkdir $distdir/XORGServer/cntl
+    cp -f $HANDOFFS/xorg/server.ccs $distdir/XORGServer/cntl/ccs
+
+    # And extract the actual config manager
+    vcg=$distdir/XORGServer/sa/vidconfGUI.obj
+    mkdir -p $vcg
+    (cd $vcg; tar xf $HANDOFFS/xorg/vidconfGUI.obj.tar)
+  }
+
+  # Not for UW7
+  [ "$XORGOS" = "UW7" ] || {
+    mkdir $distdir/XORGFonts/cntl
+    cp -f $HANDOFFS/xorg/fonts.ccs $distdir/XORGFonts/cntl/ccs
+  }
+
+  dfltdir=$distdir/XORGServer/etc/default
+
+  [ -d $dfltdir ] || {
+    mkdir -p -m 0755 $dfltdir
+  }
+
+  if [ "$XORGOS" = "UW7" ]; then
+    cp -f $HANDOFFS/xorg/xdesktops.default.uw7 $dfltdir/xdesktops
+    cp -f $HANDOFFS/xorg/X11.default.uw7 $dfltdir/X11
+  else
+    cp -f $HANDOFFS/xorg/xdesktops.default.osr5 $dfltdir/xdesktops
+    cp -f $HANDOFFS/xorg/X11.default.osr5 $dfltdir/X11
+  fi
+
+  h4dir=$distdir/XORGServer/usr/X11R6/man/html.4
+  h5dir=$distdir/XORGServer/usr/X11R6/man/html.5
+  [ -d $h4dir ] || {
+    mkdir -p -m 0755 $h4dir
+      cp -f $HANDOFFS/xorg/xorg.conf.4.html $h4dir
+  }
+  [ -d $h5dir ] || {
+    mkdir -p -m 0755 $h5dir
+      cp -f $HANDOFFS/xorg/X.Org.5.html $h5dir
+  }
+}
+
+#
+# Now for the actual preparation work. If we're running in Legend mode,
+# we need to do this all twice, once for each ABI. We then create a
+# single merged set of directories. In this particular case the only
+# one that has any work is the XORGRT component, as that is what delivers
+# the libraries and include files. However, we don't actually *use*
+# the XORGRT component in this package any more. It now travels with
+# GWXLIBS, since they are so tightly interlinked.
+#
+if [ "$XORGOS" = "OSR6" ]; then
+  cd $origpwd/uw7
+  massage_handoff
+  cd $origpwd/osr5
+  massage_handoff
+  cd $origpwd
+  mv uw7/XORGRT .
+  mv uw7/XORGServer .
+  mv uw7/XORGFonts .
+  mv uw7/XORGClients .
+  rm -fr uw7
+  loclib=usr/X11R6/lib/X11/locale
+  mkdir -p XORGRT/osr5/$loclib
+  mv osr5/XORGRT/usr/X11R6/lib/lib* XORGRT/osr5/usr/X11R6/lib
+  mv osr5/XORGRT/$loclib/lib XORGRT/osr5/$loclib
+  cd $origpwd
+  rm -fr osr5
+else
+  cd $origpwd
+  massage_handoff
+fi
+
+cd $origpwd
+makesco
+
+#
+# we're done!
+#
+exit 0
+@@@@ );
+
+  # Even though we prepare it here, we dont use it here. Its in GWXLIBS now.
+  remove("/XORGRT");
+  # Same with the fonts
+  remove ("/XORGFonts");
+  auto_compress_texinfo();
+  auto_format_mansource();
+  auto_strip (TRUE,TRUE);
+  mandir ("/usr/X11R6/man/man1");
+  mandir ("/usr/X11R6/man/man3");
+  mandir ("/usr/X11R6/man/man4");
+  mandir ("/usr/X11R6/man/man5");
+  mandir ("/usr/X11R6/man/man7");
+}
+
+package ("/XORGServer", "X.org X11R${XORGVER} Server", "XORGSERVER") {
+  remove ("/usr/X11R6/lib/X11/doc/html");
+  remove ("/usr/X11R6/lib/X11/doc/PDF");
+  remove ("/usr/X11R6/lib/X11/doc/PostScript");
+  remove ("/usr/X11R6/lib/drivers/i810_drv.o");
+
+  ifeq ("XORGOS", "OSR6")
+    directory ("/sa") {
+      export (none);
+    }
+  endif
+
+  target ("/usr/X11R6/lib/X11/xserver/C");
+  target ("/usr/X11R6/lib/X11/xserver/en_US");
+  target ("/usr/X11R6/lib/X11/rstart/commands/x11r6");
+
+  symlink (DIRECTORY, "/usr/X11R6/lib/X11/xserver/en_US/print/ddx-config") {
+    addexport ("/usr/X11R6/lib/X11/xserver/en_US/print/ddx-config", normal);
+  }
+  symlink (DIRECTORY, "/usr/X11R6/lib/X11/xserver/en_US/print/models") {
+    addexport ("/usr/X11R6/lib/X11/xserver/en_US/print/models", normal);
+  }
+  symlink (DIRECTORY, "/usr/X11R6/lib/X11/xserver/C/print/models/PSspooldir/fonts") {
+    addexport ("/usr/X11R6/lib/X11/xserver/C/print/models/PSspooldir/fonts", normal);
+  }
+
+  file ("/usr/X11R6/bin/Xorg") {
+    owner ("root");
+    group ("bin");
+    mode (4711);
+  }
+
+  file ("/etc/default/X11") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/etc/default/xdesktops") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/bin/startx") {
+    addexport ("/usr/bin/startxf86", early);
+    addexport ("/usr/bin/startxorg", early);
+    ifeq ("XORGOS", "OSR6")
+      addexport ("/usr/bin/startx", early);
+    endif
+  }
+
+  ifeq ("XORGOS", "OSR6")
+    allfiles("/usr/X11R6/bin/*") {
+      addexport ("/usr/bin/X11/%s", normal);
+    }
+  endif
+
+  file ("/usr/X11R6/lib/X11/getconfig/xorg.cfg") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/lbxproxy/AtomControl") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/proxymngr/pmconfig") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/rstart/config") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xdm/xdm-config") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xdm/Xresources") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xdm/Xservers") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xdm/Xsession") {
+    access (CLIENT);
+    mode (755);
+  }
+
+  file ("/usr/X11R6/lib/X11/xdm/Xaccess") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xdm/Xsetup_0") {
+    access (CLIENT);
+    mode (755);
+  }
+
+  file ("/usr/X11R6/lib/X11/xdm/Xwilling") {
+    access (CLIENT);
+    mode (755);
+  }
+
+  file ("/usr/X11R6/lib/X11/xinit/xinitrc") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xserver/SecurityPolicy") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  ifeq ("XORGOS", "OSR6")
+    file ("/usr/X11R6/lib/X11/doc/README") {
+      addexport ("/usr/share/doc/X11R6/README", normal);
+    }
+    file ("/usr/X11R6/lib/X11/doc/RELNOTES") {
+      addexport ("/usr/share/doc/X11R6/RELNOTES", normal);
+    }
+  endif
+
+  file ("/usr/X11R6/lib/X11/fs/config") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xkb/compat.dir") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xkb/geometry.dir") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xkb/keycodes.dir") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xkb/keymap.dir") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xkb/symbols.dir") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/xkb/types.dir") {
+    access (CLIENT);
+    mode (644);
+  }
+}
+
+package ("/XORGClients", "X.org X11R${XORGVER} Clients", "XORGCLIENTS") {
+  allfiles ("/usr/X11R6/lib/X11/app-defaults/*") {
+    access (CLIENT);
+    mode (644);
+    ifeq ("XORGOS", "OSR6")
+      addexport ("/usr/lib/X11/app-defaults/%s", normal);
+    endif
+  }
+
+  file ("/usr/X11R6/lib/X11/twm/system.twmrc") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  ifeq ("XORGOS", "OSR6")
+    allfiles("/usr/X11R6/bin/*") {
+      addexport ("/usr/bin/X11/%s", normal);
+    }
+  endif
+
+  file ("/usr/X11R6/bin/xload") {
+    owner ("root");
+    mode (4711);
+  }
+
+  file ("/usr/X11R6/bin/xterm") {
+    owner ("root");
+    mode (4711);
+  }
+
+  file ("/usr/X11R6/lib/X11/xsm/system.xsm") {
+    access (CLIENT);
+    mode (644);
+  }
+}
+
+component ("${SERVERNM}", "${METAPKG_VERSION}", "X.org X11R${XORGVER} Server") {
+  subpackage ("XORGSERVER");
+  dependency ("${DEPVENDOR}${XORGRTNM}", "X.org X11R${XORGVER} Runtime");
+  dependency ("${DEPVENDOR}${FONTSNM}", "X.org X11R${XORGVER} Core Fonts");
+  dependency ("${DEPVENDOR}gwxlibs", "${GWXDESC}");
+  dependency ("${DEPVENDOR}perl", "Perl 5.8.x Interpreter");
+
+  ifneq ("METAPKG_BACKEND", "pkgadd")
+    upgrades ("^6\\\\.7\\\\.0.*");
+    upgrades ("^6\\\\.8\\\\.0.*");
+    upgrades ("^6\\\\.8\\\\.1.*");
+    upgrades ("^6\\\\.8\\\\.2[A-D][a-z]");
+    upgrades ("^6\\\\.8\\\\.2E[a-c]");
+    replaces ("SCO:XF86Server::.*");
+  endif
+}
+
+component ("${CLIENTNM}", "${METAPKG_VERSION}", "X.org X11R${XORGVER} Clients") {
+  subpackage ("XORGCLIENTS");
+  dependency ("${DEPVENDOR}${XORGRTNM}", "X.org X11R${XORGVER} Runtime");
+  dependency ("${DEPVENDOR}${FONTSNM}", "X.org X11R${XORGVER} Core Fonts");
+  dependency ("${DEPVENDOR}gwxlibs", "${GWXDESC}");
+
+  ifneq ("METAPKG_BACKEND", "pkgadd")
+    upgrades ("^6\\\\.7\\\\.0.*");
+    upgrades ("^6\\\\.8\\\\.0.*");
+    upgrades ("^6\\\\.8\\\\.1.*");
+    upgrades ("^6\\\\.8\\\\.2[A-D][a-z]");
+    upgrades ("^6\\\\.8\\\\.2E[a-c]");
+    replaces ("SCO:XF86Clients::.*");
+  endif
+}

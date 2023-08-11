@@ -1,0 +1,85 @@
+#!/bin/ksh
+# @(#) dissociate.ksh 1.1 95/06/17
+# 92/09/15 John H. DuBois III (john@armory.com)
+# 95/06/17 Added fioe option.
+
+name=${0##*/}
+Usage=\
+"Usage: $name [-hp] [-f<filename>] [-i<input-file>] [-o<output-file>]
+       [-e<error-file>] command arg ..."
+PrintPID=false
+file=/dev/null
+input= output= error=
+
+while getopts :hpf:i:o:e: opt; do
+    case $opt in
+    h)
+	echo \
+"$name: execute a process disconnected from any tty.
+$Usage
+command is executed with /dev/null opened for standard input, output, and
+error.  It will initially belong to its own process group with no controlling
+tty.  The command is executed asynchronously, so it will not be waited for.
+Its parent will be process 1 (init).
+A check is done to make sure that command is executable.
+Any other errors that prevent command from being executed will not be
+reported, since they will occur after error output has been redirected.
+Options:
+-f<filename>: Open <filename> for the standard input, output, and error files.
+-[ioe]<filename>: Open the given file for standard input, output, or error.
+    These assignments override a filename given with -f.
+-h: print this help.
+-p: print the process ID of the executed command."
+	exit 0
+	;;
+    f)
+	file=$OPTARG
+	;;
+    i)
+	input=$OPTARG
+	;;
+    o)
+	output=$OPTARG
+	;;
+    e)
+	error=$OPTARG
+	;;
+    p)
+	PrintPID=true
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit 1
+fi
+
+if type "$1" > /dev/null; then :; else
+    echo "$name: Cannot execute $1.  Aborting." 1>&2
+    exit 1
+fi
+
+[ -z "$input" ] && input=$file
+[ -z "$output" ] && output=$file
+[ -z "$error" ] && error=$file
+
+/bin/setpgrp "$@" <"$input" >"$output" 2>"$error" &
+$PrintPID && echo $!

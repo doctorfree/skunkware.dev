@@ -1,0 +1,27 @@
+#!/bin/sh
+/bin/echo "removing SPY package"
+# remove old version first
+for i in spy.h spyfilsys.h spyinode.h
+do
+   /bin/rm -f /usr/include/sys/fs/$i 2>/dev/null
+done
+/bin/rm -rf /etc/fscmd.d/SPY >/dev/null 2>&1
+/bin/rm -f /bin/spyon /bin/spysend /bin/spycons /bin/spycontrol >/dev/null 2>&1
+/etc/conf/bin/idinstall -d spy
+#/etc/conf/bin/idinstall -d -m -s -o -p -l -c -k spy
+# now remove from /etc/default/filesys
+grep -q "bdev=/dev/recover" /etc/default/filesys >/dev/null 2>&1
+if test $? = 0
+then
+	# Remove pertinent information from /etc/default/filesys,
+	# correctly handling line continuation
+        dev=/dev/recover
+        tmp=/tmp/fs$$
+	awk_dev=`echo $dev | sed 's%/%\\\/%g'`
+	awk '
+	/bdev='"$awk_dev"' /	{ while ($0 ~ /.*\\$/ && getline) ; next ; }
+				{ print }' < /etc/default/filesys > $tmp
+	cp $tmp /etc/default/filesys
+fi
+/bin/echo "SPY removed.  You should relink your kernel now."
+exit 0

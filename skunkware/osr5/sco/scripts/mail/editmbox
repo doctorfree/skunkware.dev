@@ -1,0 +1,747 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# @(#) editmbox.gawk 1.0 96/06/18
+# 92/08/31 john h. dubois iii (spcecdt@deeptht.armory.com)
+# 94/01/30 Fixed z command; was completely munged
+# 94/03/08 Use gawk so - options can be given
+# 94/07/22 Made "-" command work
+
+BEGIN {
+    NumFiles = ProcArgs(ARGC,ARGV,"ho:dumns",Options) - 1
+    if ("h" in Options || NumFiles != 1) {
+	print \
+"editmbox: edit a mailbox, removing unwanted header lines and deleting\n" \
+"or saving messages.\n" \
+"Usage: editmbox [-hmudns] [-o<outfile>] <mailfile>\n" \
+"Output is put in <mailfile>.ed\n" \
+"Warning: this program is fragile.  If editing a large mailbox, save your\n"\
+"work occasionally using the Checkpoint function, and don't ever hit your\n"\
+"interrupt key!\n"\
+"Options:\n" \
+"-h: print this help\n" \
+"-o<outfile>: output is put in <outfile> instead of <mailfile>.ed\n" \
+"-m: don't complain about missing required fields in header\n" \
+"-u: don't complain about unrecognized fields in header\n" \
+"-d: don't discard any fields from header\n" \
+"-n: non-interactive: just discard unwanted fields from headers\n" \
+"-s: ignore EditStatus: field when reading in message file."
+
+	exit(0)
+    }
+
+    DFields = "Return-Path:|X-Mailer:|Received:|Status:|" \
+"Message-id:|Message-Id:|Message-ID:|References:|Reference:|"\
+"X-Newsgroups:|X-Organization:|X-Internet:|Resent-Message-Id:"\
+"X-Envelope-To:|X-Vms-To:|Distribution:|Errors-To:|Lines:"
+
+    OFields = "Cc:|Bcc:|In-Reply-To:|Apparently-To:|To:|" \
+"Really-From:|Newsgroups:|Organization:|Sender:|Posted-Date:|Phone-Number:|" \
+"Address:|In-Real-Life:|Reply-To:|Source-Info:|Content-Type:|Content-Length:" \
+
+    RFields = "From|From:|Subject:|Date:"
+
+    if ("d" in Options)
+	OFields = OFields "|" DFields
+    else
+	MakeSet(DiscardFields,DFields,"|")
+    DiscardFields["EditStatus:"]
+
+    if ("m" in Options)
+	OFields = OFields "|" RFields
+    else
+	MakeSet(ReqFields,RFields,"|")
+
+    if ("u" in Options)
+	NoUnReq = 1
+    else
+	MakeSet(OptFields,OFields,"|")
+
+    MakeSet(PrintFields,"From:|Subject:|To:|Cc:|Date:","|")
+
+    if ((PAGER = ENVIRON["PAGER"]) == "")
+	PAGER = "more"
+    if ((EDITOR = ENVIRON["VISUAL"]) == "" && 
+    (EDITOR = ENVIRON["EDITOR"]) == "")
+	EDITOR = "vi"
+    MSep = "\1\1\1\1"
+    for (ind = 1; !(ind in ARGV); ind++)
+	;
+    InputFile = ARGV[ind]
+    # Delete element so that we can read from tty as stdin (doesn't work!)
+    delete ARGV[ind]
+    ARGC = 0
+    if ("o" in Options)
+	OutFile = Options["o"]
+    else
+	OutFile = InputFile ".ed"
+    TmpName = InputFile ".tmp"
+    "tput lines" | getline DisplayLines
+    # Leave room for blank line & prompt line at end
+    DisplayLines -= 2
+
+    for (NumMessages = 1; (Ret = \
+    GetMessage(InputFile,NumMessages,!("s" in Options))) == 1; NumMessages++)
+	printf "."
+    if (Ret == -1) {
+	printf "Could not open input file \"%s\".\n",InputFile
+	exit 1
+    }
+    close(InputFile)
+    NumMessages--
+    # Must read from /dev/tty to work around gawk bug
+    ChProc = "exec getch -ecp < /dev/tty"
+    ChProc | getline getchPID
+    print ""
+    for (i = 1; i <= NumMessages; i++)
+	if (!(i in Status))
+	    Status[i] = " "
+    if ("n" in Options)
+	SaveMessages("S",OutFile,0)
+    else {
+	MakeUncontrolTable()
+	ProcMessages()
+    }
+    system("kill " getchPID)
+}
+
+# Save all messages in Messages that have status Type to file File.
+# If WriteStatus is true, add an "EditStatus:" field to the header
+# of messages with status Saved and Deleted, with value "S" or "D".
+# The number of messages saved is printed and returned.
+function SaveMessages(Type,File,WriteStatus,  MessageNum,NumSaved) {
+    NumSaved = 0
+    if (Readable(File)) {
+	printf "File \"%s\" exists.  Overwrite? ",File
+	if (GetChar(1) !~ "[yY]") {
+	    print "Aborting save."
+	    return -1
+	}
+    }
+    for (MessageNum = 1; MessageNum <= NumMessages; MessageNum++)
+	if (Status[MessageNum] ~ "[" Type "]") {
+	    print MSep > File
+	    SaveMessage(MessageNum,File,WriteStatus)
+	    print MSep > File
+	    NumSaved++
+	    printf "."
+	}
+    print ""
+    close(File)
+    printf "%s message(s) saved to %s.\n",NumSaved,File
+    return(NumSaved)
+}
+
+# Read next message from file File.
+# The messages are stored in Messages[Num,1..numlines].
+# If LoadStatus is true and the message header has an EditStatus: field,
+# Status[Num] is set to its value.
+function GetMessage(File,Num,LoadStatus,  Line,Ret,LineNum,Mod) {
+    # A progress mark is printed every Mod lines.
+    Mod = 100
+    # Read & discard message separator
+    while ((Ret = (getline Line < File)) == 1 && Line == MSep)
+	;
+    if (Ret != 1)
+	return Ret
+    
+    Messages[Num,LineNum = 1] = Line
+    while (getline Line < File == 1 && Line != MSep) {
+	Messages[Num,++LineNum] = Line
+	if (!(LineNum % Mod))
+	    printf "%s\010",substr("|/-\\",LineNum / Mod % 4 + 1,1)
+    }
+    # Get rid of trailing blank lines
+    while (LineNum && Messages[Num,LineNum] ~ "^[ \t]*$")
+	delete Messages[Num,LineNum--]
+    LastLine[Num] = LineNum
+    Display[Num] = GetDisplay(Num,LoadStatus)
+    return 1
+}
+
+# Build a display from message number Num & return it.
+# Uses ReqFields, OptFields, and PrintFields
+function GetDisplay(Num,LoadStatus,
+Fields,Field,LastField,HeadErrors,HeaderPrint,Line,LineNum,NumLines,
+BodyPrint,BodyLines,DisplaySize,RealLines) {
+
+    RealLines = NumLines = LastLine[Num]
+    HeaderPrint = LastField = ""
+    # Include space between header & body, and Lines: line
+    DisplaySize = 2
+    for (LineNum = 1; LineNum <= NumLines &&
+    (Line = Messages[Num,LineNum]) != ""; LineNum++) {
+	split(Line,Fields)
+	if (Line ~ "^[ \t]")
+	    Field = LastField
+	else
+	    Field = Fields[1]
+	LastField = Field
+	if (LoadStatus == 1 && Field == "EditStatus:")
+	    Status[Num] = Fields[2]
+	if (Field in DiscardFields) {
+	    delete Messages[Num,LineNum]
+	    RealLines--
+	    continue
+	}
+	if (Field in PrintFields) {
+	    HeaderPrint = HeaderPrint Line "\n"
+	    DisplaySize++
+	}
+	if (Field in ReqFields)
+	    ReqFields[Field] = 1
+	else if (!NoUnReq && !(Field in OptFields) && Field == Fields[1]) {
+	    HeadErrors = HeadErrors "Unrecognized header field \"" Field "\".\n"
+	    DisplaySize++
+	}
+    }
+    HeaderLines[Num] = LineNum - 1
+
+    for (Field in ReqFields)
+	if (ReqFields[Field])
+	    ReqFields[Field] = 0;
+	else {
+	    HeadErrors = HeadErrors "No \"" Field "\" field in header.\n"
+	    DisplaySize++
+	}
+    HeaderPrint = HeadErrors HeaderPrint
+
+    BodyPrint = ""
+    if (NumLines == LineNum)
+	BodyLines = 0
+    else {
+	LineNum++
+	BodyLines = NumLines - LineNum
+
+	for (; LineNum <= NumLines; LineNum++) {
+	    Line = Messages[Num,LineNum]
+	    gsub("\t","        ",Line)	# Worst-case tab expansion
+	    DisplaySize += int(length(Line) / 80) + 1
+	    if (DisplaySize <= DisplayLines)
+		BodyPrint = BodyPrint Messages[Num,LineNum] "\n"
+	    else
+		break
+	}
+    }
+    Lines[Num] = RealLines
+    return HeaderPrint "Lines: " max(BodyLines,0) "\n\n" BodyPrint
+}
+
+# Save message number MessageNum to file File.
+function SaveMessage(MessageNum,File,WriteStatus,
+LineNum,MLines,Line,MsgStatus,HLines) {
+    Mod = 100
+    MLines = LastLine[MessageNum]
+    HLines = HeaderLines[MessageNum]
+    for (LineNum = 1; LineNum <= HLines; LineNum++)
+	if (MessageNum SUBSEP LineNum in Messages)
+	    print Messages[MessageNum,LineNum] > File
+    if (WriteStatus) {
+	MsgStatus = Status[MessageNum] 
+	if (MsgStatus !~ "[ U]")
+	    printf "EditStatus: %s\n",MsgStatus > File
+    }
+    for (; LineNum <= MLines; LineNum++) {
+	print Messages[MessageNum,LineNum] > File
+	if (!(LineNum % Mod))
+	    printf "%s\010",substr("|/-\\",LineNum / Mod % 4 + 1,1)
+    }
+}
+
+# Return a string listing the options given in Words
+function OptionList(List,Words,  S,Len,i,Opt,OptLen,LineLen) {
+    Len = length(List)
+    S = Words[substr(List,1,1)]
+    LineLen = length(S)
+    for (i = 2; i <= Len; i++) {
+	Opt = substr(List,i,1)
+	OptLen = length(Words[Opt])
+	if (LineLen + OptLen > 78) {
+	    S = S "\n" Words[Opt]
+	    LineLen = OptLen
+	}
+	else {
+	    S = S " " Words[Opt]
+	    LineLen += OptLen + 1
+	}
+    }
+    return S
+}
+
+# Return a string listing the options given in Words and Help
+function HelpList(List,Words,Help,  S,Len,i,c) {
+    Len = length(List)
+    c = substr(List,1,1)
+    S = sprintf("%-11s%s",Words[c],Help[c])
+    for (i = 2; i <= Len; i++) {
+	c = substr(List,i,1)
+	S = S sprintf("\n%-11s%s",Words[c],Help[c])
+    }
+    return S
+}
+
+# Return the value of the Field field of message number Num,
+# or a null string if it does not exist
+function FindField(Num,Field,  Line) {
+    Line = FindHeaderLine(Num,Field "[ \t]")
+    return substr(Line,length(Field) + 1)
+}
+
+# Return a line giving the number, status, and subject of message number Num
+function MessageLine(Num) {
+    return sprintf("%3d %s %s",Num,Status[Num],FindField(Num,"Subject:"))
+}
+
+# Return a line giving statistics about the messages
+function MessageStats(  i,NumStat) {
+    for (i = 1; i <= NumMessages; i++)
+	NumStat[Status[i]]++
+    return sprintf("%d messages: %d saved, %d deleted, %d unmarked.", \
+    NumMessages,NumStat["S"],NumStat["D"], \
+    NumMessages - NumStat["S"] - NumStat["D"])
+}
+
+# Return the first line in the header of message Num that matches Pattern
+function FindHeaderLine(Num,Pattern,  LineNum,Line,Lines) {
+    Lines = HeaderLines[Num]
+    for (LineNum = 1; LineNum <= Lines; LineNum++)
+	if ((Num SUBSEP LineNum in Messages) && \
+	((Line = Messages[Num,LineNum]) ~ Pattern))
+	    return Line
+    return ""
+}
+
+# Global variables for static storage: OldFile
+function MessageCmd(Resp,MessageNum,Param,  i,LineNum,Sign) {
+
+    CloseFile = ""
+
+    if (Resp ~ "[sud]")
+	Status[MessageNum] = toupper(Resp)
+    else if (Resp == "l")
+	printf "%3d %s %s\n",MessageNum,Status[MessageNum], \
+	FindField(MessageNum,"Subject:")
+    else if (Resp == "f") {
+	if (Param == "")
+	    Param = OldFile
+	if (Param == "")
+	    print "Null filename."
+	else  {
+	    print MSep >> Param
+	    SaveMessage(MessageNum,Param,0)
+	    print MSep > Param
+	    CloseFile = Param
+	}
+    }
+    else if (Resp == "p") {
+	for (LineNum = 1; LineNum <= LastLine[MessageNum]; LineNum++)
+	    if (MessageNum SUBSEP LineNum in Messages)
+		print Messages[MessageNum,LineNum] | PAGER
+	CloseFile = PAGER
+    }
+    else if (Resp ~ "[ve]") {
+	SaveMessage(MessageNum,TmpName,0)
+	close(TmpName)
+	system(EDITOR " " TmpName)
+	if (GetMessage(TmpName,MessageNum,0) == -1)
+	    print ("Could not read temp file \"%s\".\n",TmpName)
+	close(TmpName)
+	system("rm " TmpName)
+    }
+    else if (Resp == "z") {
+	if (Param == "")
+	    Param = "+0"
+	if (Param ~ "[-+]") {
+	    Sign = (substr(Param,1,1) 1) + 0
+	    Param = substr(Param,2)
+	}
+	else
+	    Sign = 0
+	if (sign(Lines[MessageNum] - Param) == Sign)
+	    printf "%4d %s\n",Lines[MessageNum],MessageLine(MessageNum)
+    }
+    return CloseFile
+}
+
+function ProcMessages(  Resp,MessageNum,ValidOpt,NewNum,Param,
+OldPat,Words,Help,AllOpts,i,Error,PrevNum,OldNum,Direction,
+ListTo,ListFrom,Prompt,OldFile,LastMsg) {
+    AllOpts = "k,s,d,q,w,c,a,h,p,e,r,b,u,l,f,-,/,?,#,z"
+    InitArr(Words,AllOpts, \
+"sKip,Save,Delete,Quit,Write,Checkpoint,Abort,Help,Page,Edit,Redraw," \
+"Back,Unmark,List,File,-previous,/search,?search,#info,siZe",",")
+    gsub(",","\n",AllOpts)
+    InitArr(Help,AllOpts, \
+"Skip over message without marking it.\n" \
+"Mark message to be saved.\n" \
+"Mark message to be deleted.\n" \
+"Write messages marked to be saved to the output mailbox and quit.\n" \
+"Save all messages and markings to a new mailbox.\n" \
+"Write unmarked & save-marked messages and markings to a new mailbox.\n" \
+"Exit from this program without saving anything.\n" \
+"Print this help.\n" \
+"Pipe entire message into pager ($PAGER or \"more\")\n" \
+"Invoke editor $VISUAL, $EDITOR, or \"vi\" on message (also: v).\n" \
+"Print the display excerpt of the message again (also: ^L, ^R).\n" \
+"Go back one message.\n" \
+"Remove any marking of the message.\n" \
+"List status & subjects of messages (also: =).\n" \
+"Save message to a file (appending if it exists) in mailbox format.\n" \
+"Go to the previous message displayed.\n" \
+"Search forward for messages with a pattern in the header.\n" \
+"Search backward for messages with a pattern in the header.\n" \
+"Print statistics about messages.\n" \
+"Find messages by number of lines (enter lines, +lines, or -lines)." \
+,"\n")
+    gsub("\n","",AllOpts)
+    AllOpts = AllOpts
+
+    "clear" | getline ClearSeq
+    MessageNum = 1
+    PrevNum = 0
+    InitArr(OptTrans,"v,=,\014,\022","e,l,r,r",",")
+    InitArr(Prompts,"c,w,f","Mailbox name: ,Mailbox name: ,File name: ",",")
+    ParamOpts = "123456789/?cwfz"
+    while (1) {
+	LastMsg = max(PrevNum,1)
+	if (PrevNum != MessageNum) {
+	    if (MessageNum > NumMessages)
+		ValidOpt = "hqwcabl-?#"
+	    else {
+		ValidOpt = AllOpts
+		print ClearSeq Display[MessageNum]
+	    }
+	    PrevNum = MessageNum
+	}
+	if (MessageNum > NumMessages)
+	    Prompt = sprintf("No more messages: [%s] %s",ValidOpt,Error)
+	else
+	    Prompt = sprintf("%s %3d [%s] %s",Status[MessageNum], \
+	    MessageNum,ValidOpt,Error)
+	Error = ""
+	Resp = GetCommand(ValidOpt "123456789",Prompt,OptTrans, \
+	ParamOpts,Prompts,OptionList(ValidOpt,Words))
+	Param = substr(Resp,2)
+	Resp = substr(Resp,1,1)
+	if (Resp ~ "[1-9]") {
+	    NewNum = Resp Param
+	    if (NewNum !~ "[0-9]+") {
+		print "Bad number."
+		continue
+	    }
+	    NewNum += 0
+	    if (NewNum > NumMessages)
+		print "Not that many messages."
+	    else
+		MessageNum = NewNum
+	}
+	else if (Resp ~ "[k ]")
+	    MessageNum++
+	else if (Resp == "a") {
+	    printf "Abort without saving... are you sure? [yn] "
+	    Resp = tolower(GetChar(1))
+	    if (Resp == "y")
+		return
+	}
+	else if (Resp == "q") {
+	    for (i = 1; i <= NumMessages && Status[i] ~ "[SD]"; i++)
+		;
+	    if (i > NumMessages) {
+		if (SaveMessages("S",OutFile,0) != -1)
+		    return
+	    }
+	    else {
+		Error = "(Unmarked Message) "
+		MessageNum = i
+	    }
+	}
+	else if (Resp ~ "[cw]") {
+	    if (Param == "")
+		Param = OldFile
+	    if (Param == "")
+		print "Null filename."
+	    else  {
+		if (Resp == "c")
+		    Stat = " SU"
+		else
+		    Stat = " SUD"
+		SaveMessages(Stat,Param,1)
+	    }
+	}
+	else if (Resp == "h")
+	    print OptionList(ValidOpt,Words) "\n" HelpList(ValidOpt,Words,Help)
+	else if (Resp == "r")
+	    print ClearSeq Display[MessageNum]
+	else if (Resp == "b")
+	    MessageNum = max(1,MessageNum - 1)
+	else if (Resp == "-")
+	    MessageNum = LastMsg
+	else if (Resp == "#")
+	    print MessageStats()
+	else if (Resp == "?" || Resp == "/") {
+	    if (Param == "")
+		Param = OldPat
+	    if (Param == "") {
+		print "Null pattern."
+		continue
+	    }
+	    OldPat = Param
+	    Direction = (Resp == "/") * 2 - 1
+	    Count = 0
+	    for (i = MessageNum; 1 <= i && i <= NumMessages && \
+	    Count < DisplayLines; i += Direction)
+		if (FindHeaderLine(i,Param) != "") {
+		    print MessageLine(i)
+		    Count++
+		}
+	}
+	else if (Resp ~ "[sud]")
+	    MessageCmd(Resp,MessageNum++,Param)
+	else if (Resp == "l") {
+	    ListTo = min(NumMessages,MessageNum + DisplayLines - 1)
+	    ListFrom = max(1,ListTo - DisplayLines + 1)
+	    for (i = ListFrom; i <= ListTo; i++)
+		MessageCmd(Resp,i,"")
+	}
+	else if (Resp ~ "[vefp]") {
+	    if ((CloseFile = MessageCmd(Resp,MessageNum,Param)) != "")
+		close(CloseFile)
+	}
+	else if (Resp == "z") {
+	    if (Param !~ "[-+1-9][0-9]+") {
+		print "Bad range."
+		continue
+	    }
+	    for (i = 1; i <= NumMessages; i++)
+		MessageCmd(Resp,i,Param)
+	}
+	else 
+	    print "uh oh..."
+    }
+}
+
+# Library Routines
+
+# MakeSet: make a set from a list.
+# An index with the name of each element of the list
+# is created in the given array.
+# Input variables: 
+# Elements is a string containing the list of elements.
+# Sep is the character that separates the elements of the list.
+# Output variables:
+# Set is the array.
+function MakeSet(Set,Elements,Sep,  Num,Names) {
+    Num = split(Elements,Names,Sep)
+    for (; Num; Num--)
+	Set[Names[Num]];
+}
+
+function min(a,b) {
+    if (a < b)
+	return a
+    else
+	return b
+}
+
+function max(a,b) {
+    if (a > b)
+	return a
+    else
+	return b
+}
+
+# InitArr: Initialize an array with values.
+# Ind and Vals are separated into lists on Sep.
+# For each item in Ind, an index with that name is created in Arr[],
+# and the value with the same position in Vals is stored in it.
+# Global variables: none.
+function InitArr(Arr,Ind,Vals,sep,  numind,indnames,values) {
+    split(Ind,indnames,sep)
+    split(Vals,values,sep)
+    for (numind in indnames)
+	Arr[indnames[numind]] = values[numind]
+}
+
+# ProcArgs.awk   john h. dubois iii   92/02/29
+# optlist is a string which contains all of the possible command line options.
+# If a character is followed by a colon, 
+# it indicates that that option takes an argument.
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-" or
+# "+" is not taken to be an option string (it is not acted on).
+# If an option takes an argument, the argument may either immedately
+# follow it or be given separately.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in options and its value is set to "1".
+# If an option that does take an argument is given,
+# an index with its name is created in options and its value
+# is set to the value of the argument given for it.
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps 
+# left in the indices of argv[].
+# argv[0] is not examined.
+# An argument of "--" or "++" stops the scanning of argv.
+# The number of arguments left in argc is returned.
+# If an error occurs,
+# the string OptErr is set to an error message and -1 is returned.
+function ProcArgs(argc,argv,optlist,options,  
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos) {
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in optlist of the option being processed.
+    ArgsLeft = argc
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	Arg = argv[ArgNum]
+	if (Arg ~ "^[-+]") {
+	    if ((Arg == "-") || (Arg == "+"))
+		continue
+	    delete argv[ArgNum]
+	    ArgsLeft--
+	    if ((Arg == "--") || (Arg == "++"))
+		break
+	    ArgLen = length(Arg)
+	    for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+		Option = substr(Arg,ArgInd,1)
+		Pos = index(optlist,Option)
+		if (!Pos) {
+		    OptErr = "Invalid option: -" Option
+		    return -1
+		}
+		if (substr(optlist,Pos + 1,1) == ":") {
+		    if (ArgInd < ArgLen) {
+			options[Option] = substr(Arg,ArgInd + 1)
+			ArgInd = ArgLen
+		    }
+		    else {
+			if (ArgNum < (argc - 1)) {
+			    options[Option] = argv[++ArgNum]
+			    delete argv[ArgNum]
+			    ArgsLeft--
+			}
+			else {
+			    OptErr = "Option -" Option " requires an argument."
+			    return -1
+			}
+		    }
+		}
+		else
+		    options[Option] = 1
+	    }
+	}
+    }
+    return ArgsLeft
+}
+
+# Uncontrol(S): Convert control characters in S to symbolic form.
+# Characters in S with values < 32 are converted to the form ^X.
+# The resulting string is returned.
+# Global variables: the array UncTable must be initialized to a
+# lookup table translating characters 0..31 to symbolic values
+# before using this function.
+function Uncontrol(S,  c,i,len,Output) {
+    len = length(S)
+    Output = ""
+    for (i = 1; i <= len; i++) {
+	c = substr(S,i,1)
+	if (c in UncTable)
+	    Output = Output UncTable[c]
+	else
+	    Output = Output c
+    }
+    return Output
+}
+
+# MakeUncontrolTable: Make a table for use by Uncontrol().
+# Global variables: 
+# UncTable[] is made into a character -> symbolic character lookup table.
+function MakeUncontrolTable(  i) {
+    for (i = 0; i < 32; i++)
+	UncTable[sprintf("%c",i)] = "^" sprintf("%c",i + 64)
+}
+
+function sign(value) {
+    if (value > 0)
+	return 1
+    else if (value < 0)
+	return -1
+    else
+	return 0
+}
+
+# Read & return a line.
+# Needed because awk won't read stdin if any args were given.
+# If the read fails, an error message is printed and Err is returned.
+function TTYLine(Err,  Ret,ReadLine,Line) {
+    # Must read from /dev/tty due to gawk bug
+    ReadLine = "read line < /dev/tty && echo \"$line\""
+    Ret = (ReadLine | getline Line)
+    close(ReadLine)
+    if (Ret == 1) 
+	return Line
+    else {
+	print "Couldn't read from tty!"
+	return Err
+    }
+}
+
+# Get a character from stdin in non-canonical mode & return it.
+# The character is echoed.
+# If PrintNewline is 1, a newline is printed after the character is read.
+function GetChar(PrintNewline,  Resp) {
+    ChProc | getline Resp
+    if (PrintNewline)
+	print ""
+    return Resp
+}
+
+# Returns 0 if FileName can't be read, else nonzero.
+function Readable(FileName,  foo,Ret) {
+    Ret = getline foo < FileName
+    close(FileName)
+    return (Ret != -1)
+}
+
+# Wait for a key to be pressed & return it.
+# Prompt is printed to prompt for a key.
+# Options is a string containing all of the valid commands.
+# KeyMap is an array mapping command synonyms to characters in Options.
+# Help is a string to print if an invalid key is pressed.
+# If space is pressed, it is mapped to the first character in Options.
+# If a character in the string ParamOpts is pressed,
+# a string is read and appended to the key in the return value.
+# If the character is an index of the array Prompts,
+# the value in Prompts for the character is printed before reading the string.
+# If the key pressed is not in ParamOpts,
+# a newline is printed before returning.
+
+function GetCommand(Options,Prompt,KeyMap,ParamOpts,Prompts,Help,
+Done,Key,Cmd,Param) {
+    Done = 0
+    while (!Done) {
+	printf "%s",Prompt
+	Key = GetChar()
+	if (Key == " ")
+	    Cmd = Key = substr(Options,1,1)
+	else
+	    Cmd = tolower(Key)
+	Key = Uncontrol(Key)
+	if (Cmd in KeyMap)
+	    Cmd = KeyMap[Cmd]
+	if (index(Options,Cmd)) {
+	    if (index(ParamOpts,Cmd)) {
+		if (Cmd in Prompts)
+		    printf "\n%s",Prompts[Cmd]
+		if ((Param = TTYLine("\200")) != "\200")
+		    return Cmd Param
+	    }
+	    print ""
+	    return Cmd
+	}
+	else
+	    printf "\nInvalid command '%s'\n%s\n",Key,Help
+    }
+}

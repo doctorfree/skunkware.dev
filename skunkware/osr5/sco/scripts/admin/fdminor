@@ -1,0 +1,96 @@
+#!/bin/ksh
+# fdminor: show meaning of floppy drive device minor bits
+# @(#) fdminor.ksh 1.0 93/02/17
+# 93/02/17 john h. dubois iii (john@armory.com)
+
+name=${0##*/}
+
+if [ $# -eq 0 -o "$1" = -h ]; then
+	echo \
+"$name: show meaning of floppy drive device node minor number.
+Syntax: $name [-h] <minor_num>|<device-name> ...
+The meaning of the bit fields of the minor number will be printed.
+If a device name is given, its minor number is looked up.
+Options: -h prints this help.
+
+Minor number meaning:
+bits	meaning			value
+7	ignore cylinder 0	0: use cylinder 0; 1: skip cylinder 0
+6	autodetect floppy type	0: no autodetect; 1: autodetect
+				(bits 5..3 should be 0)
+5	tracks per side		0: 40 tracks/side; 1: 80 tracks/side
+4,3	sectors per track	0: 9 spt; 1: 8 spt; 2: 15 spt; 3: 18 spt
+2	sides			0: single sided; 1: double sided
+2,1	floppy drive number	0..3: drive number 0..3"
+    exit
+fi
+
+set -A sptvals 9 8 15 18
+set -A trackvals 40 80
+
+device=
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+function fdminor {
+    typeset IFS=" ," device
+    typeset -i10 major minor cylinder0 autodetect tracks spt sides drivenum
+
+    case "$1" in
+    [0-9]*) minor=$1;;
+    ./*|../*|/*) device=$1;;
+    *) device=/dev/$1;;
+    esac
+
+    if [ -n "$device" ]; then
+	set -- `l $device`
+	[ -z "$6" ] && return
+	if [[ "$1" != [cb]* ]]; then
+	    echo "$device is not a device file."
+	    return
+	fi
+	major=$5
+	minor=$6
+	if [[ "$5" != 2 ]]; then
+	    echo "Warning: $device is not a floppy device."
+	fi
+	echo "Device $device (minor number $minor):"
+    else
+	echo "Minor number $minor:"
+    fi
+
+    if [ $minor -gt 255 -o $minor -lt 0 ]; then
+	    echo "Minor number must be in the range 0-255!"
+	    exit 1
+    fi
+
+    cylinder0="minor&2#10000000"
+    autodetect="minor&2#1000000"
+    tracks="${trackvals[$(((minor&2#100000)>>5))]}"
+    spt="${sptvals[$(((minor&2#11000)>>3))]}"
+    sides="((minor&2#100)>>2)+1"
+    drivenum="minor&2#11"
+
+    isfalse cylinder0 && print "Uses cylinder 0" || print "Skips cylinder 0"
+
+    if istrue autodetect; then
+	print "tracks/side, sectors/track, sides: autodetected"
+    else
+	print "$tracks tracks/side"
+	print "$spt sectors/track"
+	print "$sides side(s)"
+	istrue cylinder0 && tracks=tracks-1
+	capacity=$((tracks * spt * sides * 512))
+	print "Capacity: $capacity bytes ($((capacity / 1024))K)"
+    fi
+    print "drive number: $drivenum"
+}
+
+fdminor "$1"
+shift
+
+for arg; do
+    echo ""
+    fdminor "$arg"
+done

@@ -1,0 +1,191 @@
+#!/bin/ksh
+# @(#) waiting.ksh 2.0 95/12/24
+# Under XENIX, the wait channel address printed by ps is assumed to be in 
+# segment 18h (data) unless it is 6000000h, in which case it is assumed to 
+# be in segment 0.
+# 91/11/04 john h. dubois iii (johnd@armory.com)
+# 92/02/16 added help
+# 92/02/17 added PATH setting to get real awk
+#          added code to make it also work under UNIX
+# 93/06/29 belal -- added "-" to adb call, to ignore stray core files
+# 95/12/24 Ported to 5.0.  Less dependence on ps output format.
+
+# This could be written to be much faster on UNIX systems by using crash,
+# but then unprivileged users wouln't be able to run it.
+
+name=${0##*/}
+
+if [ "$1" = -h ]; then
+    echo \
+"$name: show what processes are waiting for.
+Usage: $name [-h] [ps-options]
+$name prints one line for each process that is waiting,
+listing the uid, pid, ppid, tty, wait channel, and command.
+The wait channel is printed as a kernel symbol name and offset.
+If the offset is 0 it is not printed."
+    exit 0
+fi
+
+Debug=0
+if [ "$1" = -x ]; then
+    Debug=1
+    shift
+fi
+
+kernels="/xenix /unix"
+unset kernel
+
+for file in $kernels; do
+    if [ -f $file ]; then
+	if [ -r $file ]; then
+	    kernel=$file
+	else
+	    print -u2 "Cannot open $file."
+	    exit 1
+	fi
+	break
+    fi
+done
+
+if [ -n "$kernel" ]; then
+    adb $file - |&
+else
+    print -u2 "Can't find a kernel."
+    exit 1
+fi
+
+# To make sure we get the real awk
+PATH=/bin:/usr/bin:$PATH
+ttyAdj=0
+[[ "$(uname -X)" = *"Release = 3.2v4"* ]] && ttyAdj=1
+
+awk -v "args=$*" -v Debug=$Debug -v ttyAdj=$ttyAdj '
+BEGIN {
+    if (args == "")
+	args = "-e"
+    Cmd = "ps -lf " args " < /dev/null"
+    Cmd | getline Header
+    if (Debug)
+	printf "Header line:\n%s\n",Header
+    f = "CMD=0 COMMAND=0"
+    if (ttyAdj == 1)
+	f = "TTY=7 " f
+    FWidths = SetFields(Header,0,f, Fields,Gutter)
+    split("UID PID TTY TIME WCHAN CMD",Format)
+    split(FWidths,Widths)
+    if (Debug) {
+	printf "fieldwidths: %s\n",FWidths > "/dev/stderr"
+	for (Elem in Fields)
+	    printf "Field %s is %s; width %d\n",Elem,Fields[Elem],
+	    Widths[Elem] > "/dev/stderr"
+    }
+
+    while ((Cmd | getline) == 1) {
+	FieldsByName(Fields,FieldVals,$0,Widths)
+	wchan = FieldVals["WCHAN"]
+	if (Debug)
+	    printf "wchan: %s; uid: %s; pid: %s; tty: %s; time: %s; cmd: %s\n",
+	    FieldVals["WCHAN"],FieldVals["UID"],FieldVals["PID"],
+	    FieldVals["TTY"],FieldVals["TIME"],FieldVals["CMD"] > "/dev/stderr"
+	if (wchan !~ "[0-9a-z]")
+	    continue
+	else {
+	    gsub(" ","0",wchan)
+	    if (xenix == 1) {
+		if (wchan == "06000000")
+		    printf "0x0:0x%s =a\n",wchan
+		else
+		    printf "0x18:0x%s =a\n",wchan
+	    }
+	    else {
+		printf "0x1f:0x%s =a\n",wchan
+		getline	sym # unix adb echoes back command
+	    }
+	    getline sym
+	    if (sym ~ "^0x")
+		sym = wchan
+	    sub(/^\* /,"",sym)
+	    sub(/^_/,"",sym)
+	    sub(/:$/,"",sym)
+	}
+	if (!xenix && (sym == "e0000000"))
+	    sym = "<sleep>"
+	gsub(" ","",FieldVals["UID"])
+	gsub(" ","",FieldVals["PID"])
+	gsub(" ","",FieldVals["TTY"])
+	printf "%-8s %5s %-7s %-17s %s\n",FieldVals["UID"],FieldVals["PID"],
+	FieldVals["TTY"], sym,FieldVals["CMD"] | "cat 1>&2"
+    }
+}
+
+function SetFields(Header,LeftAdj,AltAdjFields,Fields,Gutter,
+Offset,NFields,HFields,Pos,Alt,i,Name,Adj,Lengths,PreSpace,Columns,
+OtherField,FieldNum,Widths) {
+    Offset = 1-LeftAdj*2
+    NFields = split(Header,HFields)
+    Pos = 0
+    Assign(Alt,AltAdjFields," +","=")
+    for (i = 1; i <= NFields; i++) {
+	Name = HFields[i]
+	if (Name in Alt)
+	    Adj[i] = !LeftAdj
+	else
+	    Adj[i] = LeftAdj
+	Lengths[i] = length(Name)
+	PreSpace[i] = index(Header,Name) - 1
+	Header = substr(Header,Lengths[i] + PreSpace[i] + 1)
+    }
+    for (i = 1; i <= NFields; i++) {
+	Columns = PreSpace[i+Adj[i]] 
+	OtherField = i + Adj[i]*2-1
+	if (Adj[i] == Adj[OtherField])
+	    Lengths[i] += Columns
+	else {
+	    Name = HFields[i]
+	    if (Name in Alt) {
+		if (Alt[Name] == 0)
+		    Alt[Name] = 1000000
+		Lengths[OtherField] += Lengths[i] + Columns - Alt[Name]
+		Lengths[i] = Alt[Name]
+	    }
+	}
+    }
+    FieldNum = 0
+    for (i = 1; i <= NFields; i++) {
+	Name = HFields[i]
+	Fields[++FieldNum] = Name
+	if (!Adj[i] && Adj[i+1]) {
+	    Widths = Widths Lengths[i]+1 " "
+	    Gutter[Name] = 1
+	    if (PreSpace[i+1] > 1) {
+		Widths = Widths PreSpace[i+1]-1 " "
+		++FieldNum
+	    }
+	}
+	else
+	    Widths = Widths Lengths[i] " "
+    }
+    return Widths
+}
+
+function Assign(Arr,Elements,Sep,AssignOp,
+Num,Names,Elem,Assignments,Assignment) {
+    Num = split(Elements,Assignments,Sep)
+    for (; Num; Num--) {
+	Assignment = Assignments[Num]
+	Ind = index(Assignment,AssignOp)
+	Arr[substr(Assignment,1,Ind - 1)] = substr(Assignment,Ind + 1)
+    }
+    return Num
+}
+
+function FieldsByName(FieldNames,FieldVals,Line,Widths,  i,Pos) {
+    Pos = 1
+    for (i = 1; i in Widths; i++) {
+	if (i in FieldNames)
+	    FieldVals[FieldNames[i]] = substr(Line,Pos,Widths[i])
+	Pos += Widths[i]
+    }
+}
+
+' 3>&1 <&p >&p 2>&3

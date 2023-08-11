@@ -1,0 +1,236 @@
+#!/bin/ksh
+# @(#) logins.ksh 1.4 96/03/31
+# 92/08/20 john h. dubois iii (john@armory.com)
+# 93/01/23 added printing of status if no args
+# 93/12/08 Create new login, not new issue
+# 94/02/18 Don't try to kill gettys if there are none.
+# 94/05/21 Added q option.
+# 94/05/24 Allow logins on console even when logins are off.
+# 94/09/25 Use mv -f to avoid query when moving a file being executed.
+# 94/10/22 Make console (sc_m) gettydefs entry special.
+#          Note: sc_m might also be used by some multi-console adapters?
+# 94/11/06 Added 'reason'
+# 94/11/29 Added /etc/default/logins
+# 94/12/15 Added syscon and console to built-in list of console ttys,
+#          in case those names are linked to e.g. tty01
+# 95/04/17 Use uname -n instead of just uname
+# 96/02/06 Set noglob in new /bin/login so that patterns can be used in
+#          /etc/default/logins.
+# 96/03/31 Replace *!login instead of *@!login because some systems have
+#          system name hard coded.  Match sc_m anywhere on line instead of
+#          only at the beginning, so that console line will hopefully be
+#          recognized by the 'next tag' field if the prompt is on a
+#          different line than the initial tag field.
+
+function qprint {
+    $quiet || print -- "$lname: $*"
+}
+
+function kill_gettys {
+    typeset PIDs
+
+    PIDs=$(ps -e | awk '{ if ($NF == "getty") print $1; }')
+    if [ -n "$PIDs" ]; then
+	kill $PIDs
+	qprint "gettys killed."
+    else
+	print -u2 "No gettys to kill."
+    fi
+}
+
+# Usage: disable_logins [reason]
+function disable_logins {
+    # Create new files
+    typeset CMessage="[non-console logins disabled] @!login: "
+    # Must use uname instead of @ here because $Message is also put in
+    # replacement login script
+    typeset Message="$(uname -n) is not allowing logins at this time."
+    [ -n "$1" ] && Message="$Message  Reason: $1"
+
+    sed "
+/sc_m/ {
+    s/[^#]*!login:[^#]*/$CMessage/
+    p
+    d
+}
+s/[^#]*!login:[^#]*/$Message/" \
+    $defs > $defs+
+    chmod a+r $defs+
+    chgrp sys $defs+
+    qprint "Created new $defs"
+    qprint "Non-console login prompt:\n$Message"
+
+    # Always allow logins on console; also allow logins on ttys named in
+    # 
+    echo \
+'#!/bin/ksh
+tty=$(/bin/tty)
+tty=${tty#/dev/}
+set -o noglob
+if [[ "$tty" = tty@([01][0-9]|syscon|console) ]] || { 
+sed -n "/^OVERRIDE_TTY=/{s///;p;}" /etc/default/logins 2>/dev/null |
+read ttypat && eval [[ \"$tty\" = $ttypat ]]; } then
+    exec /bin/login.b "$@"
+else
+    echo '"$Message"'
+fi' > $login+
+    chmod a+rx $login+
+    qprint "Created new $login"
+
+    files="$defs $login"
+    # Save files by linking them to file.b
+    for file in $files; do
+	if [ -f $file.b ]; then
+	    if [[ ! $file -ef $file.b ]]; then
+		echo "$lname: $file and $file.b are different.  Aborting."
+		exit 1
+	    else
+		qprint "$file was already linked to $file.b"
+	    fi
+	else
+	    if ln $file $file.b; then
+		qprint "Saved old $file to $file.b"
+	    else
+		echo "$lname: Could not link $file to $file.b.  Aborting."
+		exit 1
+	    fi
+	fi
+    done
+    # If saves succeeded, move in new file
+    for file in $files; do
+	mv -f $file+ $file
+	qprint "Replaced $file with new version."
+    done
+
+    # Don't want a welcome message; move it if we have one
+    if [ -f $issue -a ! -f $issue.b ]; then
+	mv -f $issue $issue.b
+	qprint "Moved aside $issue"
+    fi
+
+    kill_gettys
+
+    echo "$lname: Logins are disabled."
+    return 0
+}
+
+function enable_logins {
+    # Files that are moved aside if they exist when disabling logins
+    # Existance is is an error, since they should have been moved;
+    # nonexistance of backup isn't.
+    for file in $issue; do
+	if [ -f $file ]; then
+	    [ "$1" != boot ] && echo "$lname: $file already existed."
+	elif [ -f $file.b ]; then
+	    mv -f $file.b $file
+	    qprint "Moved $file.b to $file"
+	else
+	    qprint "Note: no $file"
+	fi
+    done
+
+    # Files that are moved aside & replaced with sustitutes when disabling
+    for file in $login $defs; do
+	if [ -f $file.b ]; then
+	    mv -f $file.b $file
+	    qprint "Moved $file.b to $file"
+	else
+	    [ "$1" != boot ] && echo "$lname: Couldn't find $file.b."
+	fi
+    done
+    [ "$1" != boot ] && kill_gettys
+
+    echo "$lname: Logins are enabled."
+}
+
+lname=${0##*/}
+Usage="Usage: $lname [-hq] [on|off [reason]|boot]"
+defs=/etc/gettydefs
+issue=/etc/issue
+login=/bin/login
+quiet=false
+
+while getopts :hq opt; do
+    case $opt in
+    h)
+	echo \
+"$lname: Enable or disable system logins.
+$Usage
+$lname off [reason]   disables logins by moving /bin/login.  It is replaced
+	    with a script that only allows logins on the console, and on
+	    ttys that matches the pattern given by the ksh pattern assigned to
+	    OVERRIDE_TTY in /etc/default/logins.  An example line would be
+	    OVERRIDE_TTY=tty[12]a
+	    A new /etc/gettydefs file is created with prompts informing users
+	    that logins are currently disallowed.  The prompt in the sc_m
+	    gettydefs entry, usually used only by console gettys, is changed to
+	    a prompt reminding the console user that non-console logins are
+	    disabled.  If any arguments are given after \"off\", they are
+	    included in the replacement login prompt as the reason that logins
+	    have been disabled.  If not, no reason is included.  All gettys are
+	    killed so that the new prompts will be read.  /etc/issue is moved
+	    so that if other processes (telnetd, rlogind, etc.) try to read it
+	    it will not be printed.
+$lname on   enables logins by undoing the above changes.  gettys are killed.
+$lname boot is identical to 'logins on' except that gettys are not killed
+            and no complaints are issued if logins were not off.  This would
+	    typically be put in one of the /etc/rc2.d scripts.
+With no argument, $lname prints the login status.
+Options:
+-h: Print this help.
+-q: Quiet operation."
+	exit 0
+	;;
+    q)
+	quiet=true
+	;;
+    +?)
+	print -u2 "$lname: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$lname: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?) 
+	print -u2 "$lname: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+set -e
+
+if [ $# -eq 0 ]; then
+    if [ ! -f $defs.b -a ! -f $login.b ]; then
+	echo "logins are enabled."
+    elif [ -f $defs.b -a -f $login.b ]; then
+	echo "logins are disabled."
+    else
+	echo "logins are in a mixed state."
+    fi
+else
+    State=$1
+    shift
+    if [ $# -gt 0 ]; then
+	if [ "$State" = off ]; then
+	    reason="$*"
+	else
+	    print -u2 "$Usage\nUse -h for help."
+	    exit 1
+	fi
+    fi
+    case "$State" in
+    boot) quiet=true
+	  enable_logins boot;;
+    on)	  enable_logins on;;
+    off)  disable_logins "$reason";;
+    *)    echo "$lname: Unrecognized command \"$State\".  Use -h for help."
+	  exit 1;;
+    esac
+fi

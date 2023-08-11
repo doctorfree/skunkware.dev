@@ -1,0 +1,29 @@
+
+/etc/keepalive.d/mysql_shutdown
+
+
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+datadir=/usr/local/var
+pid_file=/usr/local/var/mysqld.pid
+export PATH
+conf=/usr/local/var/my.cnf
+if test -f "$pid_file"
+then
+    mysqld_pid=`cat $pid_file`
+    echo "Killing mysqld with pid $mysqld_pid"
+    kill $mysqld_pid
+else
+    for pid_file in /usr/local/var/mysqld-node*.pid
+    do
+    [ "$pid_file" = "/usr/local/var/mysqld-node*.pid" ] && {
+       echo "No mysqld pid file found. Looked for $pid_file."
+       continue
+    }
+    [ -f "$pid_file" ] && {
+       mysqld_pid=`cat $pid_file`
+       echo "Killing mysqld with pid $mysqld_pid"
+       kill $mysqld_pid
+    }
+    done
+fi
+

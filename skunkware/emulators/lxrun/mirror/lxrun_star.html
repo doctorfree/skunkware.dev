@@ -1,0 +1,192 @@
+<HTML>
+<HEAD>
+<TITLE>
+How to make StarOffice 3.1 work with Lxrun
+</TITLE>
+<BODY BGCOLOR=#FFFFFF>
+<CENTER>
+<H1>
+How to make StarOffice 3.1 work on Lxrun
+</H1>
+<P>
+Written by Robert Lipe and edited by Ron Record
+<P>
+</CENTER>
+Get and install <A HREF="/skunkware/emulators/index.html#lxrun">
+lxrun 0.8.8 or higher</A>.
+Get and install 
+<A HREF="ftp://dontask.caltech.edu/pub/lxrun/linux-libs/linuxlibs.tar.gz">
+ftp://dontask.caltech.edu/pub/lxrun/linux-libs/linuxlibs.tar.gz</A>
+<P>
+Alternately, you can ala carte' the libs, but this package requires many
+relatively obscure ones.   If you place any value on your time (even with
+a slow link) you'll find that using the above library package (and thanking
+Ron Record and Steve Ginsburg for making it available) productive.
+<PRE>
+# mount /dev/cd0 /mnt
+</PRE>
+The first obstacle is to get RPM running under the emulated environment.
+We decide instead to circumvent this obstacle instead of tackling it.
+StarOffice comes with an RPM package that contains a utility to convert
+an RPM to a cpio image.    Since the StarOffice package is well-contained
+in a single directory (/opt/StarOffice-3.1) it's "safe" to just extract
+everything.
+<PRE>
+$ cd /mnt/rpm
+$ cp rpm* /tmp
+$ cp /tmp
+$ gzcat  rpm-2.2.6-1.i386.cpio.gz | cpio -ivd usr/bin/rpm2cpio
+$ lxrun usr/bin/rpm2cpio < /mnt/*common* | (cd / ; cpio -ivd)
+$ lxrun usr/bin/rpm2cpio < /mnt/*e-english* | (cd / ; cpio -ivd)
+$ lxrun usr/bin/rpm2cpio < /mnt/*statbin* | (cd / ; cpio -ivd)
+$ cd $LINUX_ROOT
+$ mkdir -p usr/X11R6/lib/X11
+$ ln -s /usr/lib/X11/XKeysymDB usr/X11R6/lib/X11
+</PRE>
+You want the statbin images above unless you have a compatible 
+Linux(R) Motif.   I didn't.  If you do, good luck. 
+<P>
+If you want to try to run the setup scripts, start with this patch 
+to /opt/StarOffice-3.1/setup.   Personally, I never found them 
+necessary or useful.   Besides, it drops core, and I didn't feel
+like disassembling it to find why.  :-) Dink with setup program if 
+you like.
+<P>
+Ultimately, the primary purpose of setup is to emit a shell script
+that should be sourced from your shell.   I ran it on rjlinux, then 
+modified it slightly for the lxrun environment.  You may have to do 
+the same.   You could just start with mine.
+<PRE>
+*** setup_ Mon Oct 20 22:49:40 1997
+--- setup Mon Oct 20 22:51:13 1997
+***************
+*** 46,51 ****
+                        echo your hardware is not supported
+                        exit 1;;
+                esac;;
+        *)
+                echo this UNIX version is not supported
+                exit 1;;
+--- 46,60 ----
+                        echo your hardware is not supported
+                        exit 1;;
+                esac;;
++       SCO_SV)
++               case `uname -m` in
++                       i?86)
++                               lxrun ${pfad:='.'}/linux-x86/bin/$name;;
++                       *)
++                       echo your hardware is not supported
++                       exit 1;;
++               esac;;
++
+        *)
+                echo this UNIX version is not supported
+                exit 1;;
+
+
+
+sd_inst=/opt/StarOffice-3.1
+sd_fonts=$sd_inst/fonts
+
+case `uname -s` in
+	SunOS)
+		case `uname -r` in
+			5.[4-5])
+				case `uname -p` in
+					sparc*)
+						sd_plat='solaris-sparc'
+						;;
+					i?86)
+						sd_plat='solaris-x86'
+						;;
+					ppc)
+						sd_plat='solaris-powerpc'
+						;;
+				esac
+				;;
+		esac
+		;;
+	SINIX*)
+		case `uname -r` in
+			5.4*)
+				case `uname -p` in
+					R4000)
+						sd_plat='sinix-mips'
+						;;
+				esac
+				;;
+		esac
+		;;
+	Linux|SCO_SV)
+				case `uname -m` in
+					i?86)
+						sd_plat='linux-x86'
+						;;
+				esac
+		;;
+esac
+
+PATH=$sd_inst/${sd_plat:=.}/bin:$PATH
+LD_LIBRARY_PATH=$sd_inst/$sd_plat/lib:$LD_LIBRARY_PATH
+XPPATH=$sd_inst/xp3
+HELPPATH=$sd_inst/modules
+XENVIRONMENT=$sd_inst/starview.xres
+SVFONTPATH=$sd_fonts/75dpi:$sd_fonts/75dpi/bdf:$sd_fonts/type1
+SVHOME=/home/robertl/star
+# LANG=us
+unset sd_inst sd_fonts sd_plat
+export PATH LD_LIBRARY_PATH XPPATH HELPPATH XENVIRONMENT SVFONTPATH SVHOME LANG
+</PRE>
+
+Now, if you look in /opt/StarOffice-3.1/linux-x86/bin you will find
+scalc3, schare3, sdraw3, simage3, smath3, and swriter3.  I have 
+successfully started all six application simultaneously.  Yes, my
+48Mb system was in the hole for available memory, though it worked
+just groovy.
+<P>
+You may wish to configure lxfront for these binaries.   See that
+doco for more info.   
+<P>
+
+RANDOM NOTES:
+<P>
+	I don't know *what* Star is doing when any of the X clients start,
+        but they all completely freeze the native X server on my system (dual 
+	P100 running 5.0.4c) for about 30 seconds while they start.  After
+	that, X performance is fine.
+<P>
+	If you have compiled lxrun with tracing while running these,
+	you're in for a treat.   These are large, complicated programs
+	and will generate dozens of megabytes of log files just during
+	startup.
+<P>
+	Don't ask me StarOffice questions.   My grand total of experience
+	with them was beating on lxrun until they booted, spending about
+	sixty seconds in each to give them the acid test.  "Hey, I can 
+	type numbers in these rows and columns.   Yep, looks like a 
+	spreadsheet allright."
+<P>
+	Some additional training is likely necessary to teach Star
+	to build pipes to SCO's lp systems.   I *think* (actually, I
+	pray) that lxrun will actually get pipes between emulated and
+	native binaries right as a result of much bludgeoning that
+	I and others have done in the 0.8.7 and 0.8.8 families.
+<P>
+	I have no idea how to work out the licensing issues on this.
+	It claims that it's free for non-commercial use, but my
+	spin on this is that if you're going to use it in a commercial
+	environment, you should buy the commercial LINUX license and
+	complain that a native version should be created.    All the
+	whining in the world about wanting applications won't garner
+	nearly the attention of a large number of Purchase Orders coming
+	through their system that say "Operating System: OpenServer"
+	written in.   Money talks.   If you like the program, pay the
+	people to get your vote in.
+<P>
+(R) Linux is a trademark or registered trademark of Linus Torvalds in
+    Australia, Germany, Japan, the United States, and other countries.
+<P>
+</BODY>
+</HTML>
+

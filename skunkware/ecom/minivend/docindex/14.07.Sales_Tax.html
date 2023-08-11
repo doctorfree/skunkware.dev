@@ -1,0 +1,72 @@
+<HTML>
+<HEAD>
+<TITLE>Sales Tax</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.06.Product_Discounts.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.08.Using_CyberCash.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Sales_Tax">Sales Tax</A></H2>
+<P>
+MiniVend allows calculation of sales tax on a straight percentage basis,
+with certain items allowed to be tax-exempt. To enable this feature, the
+directive <EM>SalesTax</EM> is initialized with the name of a field (or fields) on the order form.
+Commonly, this is zipcode and/or state:
+
+<P>
+<PRE>    SalesTax    zip,state
+</PRE>
+<P>
+This being done, MiniVend assumes the presence of a file <EM>salestax.asc</EM>, which contains a database with the percentages. Each line of 
+<EM>salestax.asc</EM> should be a code (again, usually a five-digit zip or a two letter state)
+followed by a tab, then a percentage. Example:
+
+<P>
+<PRE>    45056   .0525
+    61821   .0725
+    61801   .075
+    IL      .0625
+    OH      .0525
+    VAT     .15
+    WA      .08
+</PRE>
+<P>
+Based on the user's entry of information in the order form, MiniVend will look up (for our example SalesTax directive) first the zip, then the state, and apply the percentage to the 
+<FONT SIZE=-1>SUBTOTAL</FONT> of the order. The subtotal will include any taxable items, and will also include the shipping cost if the state/zip is included in the
+ <EM>TaxShipping</EM> directive. It will add the percentage, then make that available with the <A HREF="#item__salestax_">[salestax]</A>
+tag for display on the order form. If no match is found, the entry
+'default' is applied -- that is normally 0, but can be anything.
+
+<P>
+If business is being done on a national basis, it is now common to have to collect sales tax for multiple states. If you are doing so, it is possible to subscribe to a service which issues regular updates of the sales tax percentages -- usually by quarterly or monthly subscription. Such a database should be easily converted to MiniVend format -- but some systems are rather convoluted, and it will be well to check and see if the program can export to a flat 
+<FONT SIZE=-1>ASCII</FONT> file format based on zip code.
+
+
+<P>
+If some items are not taxable, then you must set up a field in your
+database which indicates that. You then place the <STRONG>name</STRONG> of that field in the <EM>NonTaxableField</EM> directive. If the field for that item evaluates true on a yes-no basis
+(i.e. is set to <A HREF="#item_yes">yes</A>, <CODE>y</CODE>, 1, or the like), sales tax will not be applied to the item. If it
+evaluates false, it will be taxed.
+
+<P>
+If your state taxes shipping, use the <EM>TaxShipping</EM> directive. Utah and Nevada are known to tax shipping -- there may be
+others.
+
+<P>
+If you want to set a fixed tax for all orders, as might occur for 
+<FONT SIZE=-1>VAT</FONT> in some countries, just set the <EM>SalesTax</EM> directive to a value like
+<CODE>tax_code</CODE>, and define a variable in the user session to reflect the proper entry in
+the <CODE>salestax.asc</CODE> file. To set it to 15% with the above <CODE>salestax.asc</CODE> file, you would put in a form:
+
+<P>
+<PRE>    &lt;INPUT TYPE=hidden NAME=tax_code VALUE=&quot;VAT&quot;&gt;
+</PRE>
+<P>
+or to do it without submitting a form:
+
+<P>
+<PRE>    [perl] $Values-&gt;{tax_code} = 'VAT'; return; [/perl]
+</PRE>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.06.Product_Discounts.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.08.Using_CyberCash.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

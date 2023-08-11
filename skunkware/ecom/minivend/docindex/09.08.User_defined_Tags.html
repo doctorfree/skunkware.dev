@@ -1,0 +1,312 @@
+<HTML>
+<HEAD>
+<TITLE>User-defined Tags</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.07.COMMENT.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.09.PRICE_DESCRIPTION_ACCESSORIES.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="User_defined_Tags">User-defined Tags</A></H2>
+<P>
+To define a tag that is catalog-specific, place <EM>UserTag</EM> directives in your catalog.cfg file. For server-wide tags, define them in
+minivend.cfg. Catalog-specific tags take precedence if both are defined --
+in fact, you can override the base MiniVend tag set with them. The
+directive takes the form:
+
+<P>
+<PRE>   UserTag  tagname  property  value
+</PRE>
+<P>
+where <CODE>tagname</CODE> is the name of the tag, <CODE>property</CODE> is the attribute (described below), and <A HREF="#item_value">value</A> is the value of the property for that tagname.
+
+<P>
+The user tags can either be based on Perl subroutines or just be aliases
+for existing tags. Some quick examples are below.
+
+<P>
+An alias:
+
+<P>
+<PRE>    UserTag product_name Alias     data products title
+</PRE>
+<P>
+This will change <CODE>[product_name 99-102]</CODE> into <CODE>[data products title 99-102]</CODE>, which will output the <A HREF="#item_title">title</A> database field for product code <CODE>99-102</CODE>. Don't use this with <CODE>[item-data ...]</CODE> and <CODE>[item-field ...]</CODE>, as they are parsed separately. You can do <CODE>[product-name [item-code]]</CODE>, though.
+
+<P>
+
+<FONT SIZE=-1>A</FONT> simple subroutine:
+
+<P>
+<PRE>    UserTag company_name Routine   sub { &quot;Your company name&quot; }
+</PRE>
+<P>
+When you place a <CODE>[company-name]</CODE> tag in a MiniVend page, the text 
+<CODE>Your company name</CODE> will be substituted.
+
+<P>
+
+<FONT SIZE=-1>A</FONT> subroutine with a passed text as an argument:
+
+<P>
+<PRE>    UserTag caps   Routine   sub { return &quot;\U@_&quot; }
+    UserTag caps   HasEndTag 
+</PRE>
+<P>
+The tag <CODE>[caps]This text should be all upper case[/caps]</CODE> will become
+<CODE>THIS TEXT SHOULD BE ALL UPPER CASE</CODE>.
+
+<P>
+Here is a useful one you might wish to use:
+
+<P>
+<PRE>    UserTag quick_table HasEndTag
+    UserTag quick_table Interpolate
+    UserTag quick_table Order   border
+    UserTag quick_table Routine &lt;&lt;EOF
+    sub {
+        my ($border,$input) = @_;
+        $border = &quot; BORDER=$border&quot; if $border;
+        my $out = &quot;&lt;TABLE ALIGN=LEFT$border&gt;&quot;;
+        my @rows = split /\n+/, $input;
+        my ($left, $right);
+        for(@rows) {
+            $out .= '&lt;TR&gt;&lt;TD ALIGN=RIGHT VALIGN=TOP&gt;';
+            ($left, $right) = split /\s*:\s*/, $_, 2;
+            $out .= '&lt;B&gt;' unless $left =~ /&lt;/;
+            $out .= $left;
+            $out .= '&lt;/B&gt;' unless $left =~ /&lt;/;
+            $out .= '&lt;/TD&gt;&lt;TD VALIGN=TOP&gt;';
+            $out .= $right;
+            $out .= '&lt;/TD&gt;&lt;/TR&gt;';
+            $out .= &quot;\n&quot;;
+        }
+        $out .= '&lt;/TABLE&gt;';
+    }
+    EOF
+</PRE>
+<P>
+Called with:
+
+<P>
+<PRE>    [quick-table border=2]
+    Name: [value name]
+    City: [value city][if value state], [value state][/if] [value country]
+    [/quick_table]
+</PRE>
+<P>
+The properties for UserTag are are:
+
+<DL>
+<DT><STRONG><A NAME="item_AddAttr">AddAttr</A></STRONG><DD>
+Add the attribute hash to the parameters already defined to be sent by the <EM>Order</EM> setting. This includes the canned attributes <A HREF="#item_true">true</A>,
+<A HREF="#item_false">false</A>, <CODE>undef</CODE>, <CODE>interpolate</CODE>, and any other attributes you have set in the tag. Allows your tag routine
+to take a hash reference with the important parameters. Example:
+
+<P>
+<PRE>    UserTag echo-params AddAttr
+    UserTag echo-params Routine &lt;&lt;EOR
+    sub {
+        my($ref) = @_;
+        my $out;
+        for (sort keys %$ref) {
+            # skip these meaningless parameters
+            next if /^(undef|true|false)$/;
+</PRE>
+<P>
+<PRE>            $out .= &quot;$_=&quot;;
+            $out .= '&quot;';
+            $out .= $ref-&gt;{$_};
+            $out .= '&quot;'
+            $out .= &quot;\n&quot;;
+        }
+        return $out;
+    }
+    EOR
+</PRE>
+<P>
+If you define the above UserTag and put put this on a MiniVend page
+
+<P>
+<PRE>    &lt;PRE&gt;
+    [echo-params  Param1=1 param2=2 param3=three]
+    &lt;/PRE&gt;
+</PRE>
+<P>
+the resulting output will be:
+
+<P>
+<PRE>    interpolate=&quot;0&quot;
+    param1=&quot;1&quot;
+    param2=&quot;2&quot;
+    param3=&quot;three&quot;
+</PRE>
+<P>
+The <CODE>interpolate</CODE> parameter is always present for every tag, and defines the behavior of
+container text or output depending on the value of <A HREF="#item_HasEndTag">HasEndTag</A>.
+
+</DD><P><DT><STRONG><A NAME="item_Alias">Alias</A></STRONG><DD>
+An alias for an existing (or other user-defined) tag. It takes the form:
+
+<P>
+<PRE>    UserTag tagname Alias    tag to insert
+</PRE>
+<P>
+An Alias is the only property that does not require a <EM>Routine</EM>
+to process the tag.
+
+</DD><P><DT><STRONG><A NAME="item_attrAlias">attrAlias</A></STRONG><DD>
+An alias for an existing attribute for defined tag. It takes the form:
+
+<P>
+<PRE>    UserTag tagname attrAlias   alias attr
+</PRE>
+<P>
+As an example, the standard MiniVend <A HREF="#item_value">value</A> tag takes a named attribute of <A HREF="#item_name">name</A> for the variable name, meaning that <CODE>[value name=var]</CODE>
+will display the value of form field <CODE>var</CODE>. If you put this line in catalog.cfg:
+
+<P>
+<PRE>    UserTag value attrAlias   identifier name
+</PRE>
+<P>
+then <CODE>[value identifier=var]</CODE> will be an equivalent tag.
+
+</DD><P><DT><STRONG><A NAME="item_CanNest">CanNest</A></STRONG><DD>
+Notifies MiniVend that this tag must be checked for nesting. Only applies
+to tags that have <EM>HasEndTag</EM> defined, of course. 
+<FONT SIZE=-1>NOTE:</FONT> Your routine must handle the subtleties of
+nesting, so don't use this unless you are quite conversant with parsing
+routines. See the routines <CODE>tag_loop_list</CODE> and <CODE>tag_if</CODE> in lib/Vend/Interpolate.pm for an example of a nesting tag.
+
+<P>
+<PRE>    UserTag tagname CanNest
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_Gobble">Gobble</A></STRONG><DD>
+If there is no end tag present for a container tag, the normal behavior is
+to not process the tag call. If you set <A HREF="#item_Gobble">Gobble</A>, the tag will work for all the remaining text on the page. The <CODE>timed-build</CODE> and
+<CODE>mvasp</CODE> tags are the tags MiniVend defines to <A HREF="#item_Gobble">Gobble</A>.
+
+</DD><P><DT><STRONG><A NAME="item_HasEndTag">HasEndTag</A></STRONG><DD>
+Defines an ending <CODE>[/tag]</CODE> to encapsulate your text -- the text in between the beginning <CODE>[tagname]</CODE> and ending <CODE>[/tagname]</CODE> will be the last argument sent to the defined subroutine.
+
+<P>
+<PRE>    UserTag tagname HasEndTag
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_Implicit">Implicit</A></STRONG><DD>
+This defines an attribute as implicit, meaning it can just be an <CODE>attribute</CODE> 
+instead of an <CODE>attribute=value</CODE> pair. It must be a recognized attribute in the tag definition, or there
+will be big problems. Use this with caution!
+
+<P>
+<PRE>    UserTag tagname Implicit attribute value
+</PRE>
+<P>
+If you want to set a standard include file to a fixed value by default, but
+don't want to have to specify <CODE>[include file=&quot;/long/path/to/file&quot;]</CODE>
+every time, you can just put:
+
+<P>
+<PRE>    UserTag include Implicit file file=/long/path/to/file
+</PRE>
+<P>
+and <CODE>[include file]</CODE> will be the equivalent. You can still specify another value with <CODE>[include file=&quot;/another/path/to/file&quot;]</CODE>
+
+
+
+</DD><P><DT><STRONG><A NAME="item_Interpolate">Interpolate</A></STRONG><DD>
+The behavior for this attribute depends on whether the tag is a container
+(i.e. <A HREF="#item_HasEndTag">HasEndTag</A> is defined). If it is not a container, the <A HREF="#item_Interpolate">Interpolate</A>
+attribute causes the <STRONG>the resulting HTML</STRONG> from the <CODE>UserTag</CODE> will be re-parsed for more MiniVend tags. If it is a container, <A HREF="#item_Interpolate">Interpolate</A>
+causes the contents of the tag to be parsed <STRONG>before</STRONG> the tag routine is run.
+
+<P>
+<PRE>    UserTag tagname Interpolate
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_InvalidateCache">InvalidateCache</A></STRONG><DD>
+If this is defined, the presence of the tag on a page will prevent search
+cache, page cache, and static builds from operating on the page.
+
+<P>
+<PRE>    UserTag tagname InvalidateCache
+</PRE>
+<P>
+It does not override <CODE>[tag flag build][/tag]</CODE>, though.
+
+</DD><P><DT><STRONG><A NAME="item_Order">Order</A></STRONG><DD>
+The optional arguments that can be sent to the tag. This defines not only
+the order in which they will be passed to <EM>Routine</EM>, but the name of the tags. If encapsulated text is appropriate (<EM>HasEndTag</EM> is set), it will be the last argument.
+
+<P>
+<PRE>    UserTag tagname Order param1 param2
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_PosRoutine">PosRoutine</A></STRONG><DD>
+Identical to the Routine argument -- a subroutine that will be called when
+the positional call is made, i.e. <CODE>[usertag argument]</CODE> instead of <CODE>[usertag ARG=argument]</CODE>. If not defined, <EM>Routine</EM> is used, and MiniVend will usually do the right thing.
+
+</DD><P><DT><STRONG><A NAME="item_ReplaceAttr">ReplaceAttr</A></STRONG><DD>
+Works in concert with InsertHTML, defining a <STRONG>single</STRONG> attribute which will be replaced in the insertion operation.
+
+<P>
+<PRE>  UserTag tagname ReplaceAttr  htmltag attr
+</PRE>
+<P>
+An example is the standard 
+<FONT SIZE=-1>HTML</FONT> &lt;
+<FONT SIZE=-1>A</FONT> 
+<FONT SIZE=-1>HREF=...&gt;</FONT> tag. If you want to use the MiniVend tag
+ <CODE>[area pagename]</CODE> inside of it, then you would normally want to replace the 
+<FONT SIZE=-1>HREF</FONT> attribute. So the equivalent to the following is
+defined within MiniVend:
+
+<P>
+<PRE>  UserTag  area  ReplaceAttr  a  href
+</PRE>
+<P>
+Causing this
+
+<P>
+<PRE>    &lt;A MV=&quot;area pagename&quot; HREF=&quot;a_test_page.html&quot;&gt;
+</PRE>
+<P>
+to become
+
+<P>
+<PRE>    &lt;A HREF=&quot;<A HREF="http://yourserver/cgi/simple/pagename?X8sl2lly">http://yourserver/cgi/simple/pagename?X8sl2lly</A>;;44&quot;&gt;
+</PRE>
+<P>
+when intepreted.
+
+</DD><P><DT><STRONG><A NAME="item_Routine">Routine</A></STRONG><DD>
+An inline subroutine that will be used to process the arguments of the tag.
+It must not be named, and will be allowed to access unsafe elements only if
+the <CODE>minivend.cfg</CODE> parameter <EM>AllowGlobal</EM> is set for the catalog.
+
+<P>
+<PRE>    UserTag tagname Routine  sub { &quot;your perl code here!&quot; }
+</PRE>
+<P>
+The routine may use a ``here'' document for readability:
+
+<P>
+<PRE>    UserTag tagname Routine &lt;&lt;EOF
+    sub {
+        my ($param1, $param2, $text) = @_;
+        return &quot;Parameter 1 is $param1, Parameter 2 is $param2&quot;;
+    }
+    EOF
+</PRE>
+<P>
+The usual <EM>here documents</EM> caveats apply.
+
+<P>
+Parameters defined with the <EM>Order</EM> property will be sent to the routine first, followed by any encapsulated
+text (<EM>HasEndTag</EM> is set).
+
+</DD><P></DL>
+<P>
+Note that the UserTag facility, combined with AllowGlobal, allows the user
+to define tags just as powerful as the standard MiniVend tags. This is not
+recommended for the novice, though -- keep it simple. 8-)
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.07.COMMENT.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.09.PRICE_DESCRIPTION_ACCESSORIES.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

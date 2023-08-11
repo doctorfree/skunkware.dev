@@ -1,0 +1,82 @@
+<HTML>
+<HEAD>
+<TITLE>I am using SQL, and MiniVend is so SLOW.....</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="08.00.Performance_issues.html">Up</A>&nbsp;&nbsp;<A HREF="08.03.The_browse_page_from_the_demo_.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="08.05.My_server_is_getting_loaded_How.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="I_am_using_SQL_and_MiniVend_is_">I am using SQL, and MiniVend is so SLOW.....</A></H2>
+<P>
+It isn't MiniVend.
+
+<P>
+First of all, did you index your 'code' field? The reason MiniVend doesn't do it for you is that every 
+<FONT SIZE=-1>SQL</FONT> database seems to do that a bit differently. Even then, you can do some stuff with MiniVend's 
+<FONT SIZE=-1>COLUMN_DEF</FONT> parameter:
+
+
+<P>
+<PRE>  Database  products  COLUMN_DEF  code=char(16) PRIMARY KEY
+</PRE>
+<P>
+That will index at least the <CODE>code</CODE> field for MySQL. Other databases differ.
+
+<P>
+MiniVend can return 
+<FONT SIZE=-1>VERY</FONT> fast 
+<FONT SIZE=-1>SQL</FONT> search results. But you need to at least give it something to work with. The proper method for fast selection is:
+
+
+<P>
+<PRE> [sql type=list
+      query=&quot;select code,category,title,price from products&quot; ]
+</PRE>
+<P>
+<PRE> Category: [sql-param category]&lt;BR&gt;
+ Title:    &lt;A HREF=&quot;[area [sql-code]]&quot;&gt; [sql-param title] &lt;/A&gt;&lt;BR&gt;
+ Price:    &lt;A HREF=&quot;[area order [sql-param 0]]&quot;&gt; [sql-param price] &lt;/A&gt;&lt;BR&gt;
+</PRE>
+<P>
+<PRE> [/sql]
+</PRE>
+<P>
+
+<FONT SIZE=-1>IMPORTANT</FONT> 
+<FONT SIZE=-1>NOTE:</FONT> The sql-param tag did not accept named fields before MiniVend 3.12beta4. Access with
+ <CODE>[sql-param n]</CODE>, where <CODE>n</CODE> is a modulus-zero positional field set from your query. In the example
+above, code=0, category=1, title=2, price=3.
+
+<P>
+This is especially powerful when you consider a joined query like
+
+<P>
+<PRE>        SELECT code, price, title, extended.desc
+        FROM   products, extended
+        WHERE  products.category = 'Renaissance'
+</PRE>
+<P>
+That will index at least the <CODE>code</CODE> field for MySQL. Other databases differ.
+
+<P>
+Don't forget that you must index your fields if you want fast searching
+with them as a criteria.
+
+<P>
+Here is a nice synonym for <CODE>[sql type=list ...]</CODE>:
+
+<P>
+<PRE> [new]
+ [search-region arg=&quot;
+     st=sql
+     ml=1000
+     sq=select code,title,artist,price from products where code &lt; '5'
+     &quot;]
+ &lt;PRE&gt;
+ [search-list][item-code]: [item-param title] [item-param artist] [item-param price]
+ [/search-list] &lt;/PRE&gt;
+</PRE>
+<P>
+<PRE> [/search-region]
+</PRE>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="08.00.Performance_issues.html">Up</A>&nbsp;&nbsp;<A HREF="08.03.The_browse_page_from_the_demo_.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="08.05.My_server_is_getting_loaded_How.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

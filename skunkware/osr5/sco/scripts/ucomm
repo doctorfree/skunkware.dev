@@ -1,0 +1,1096 @@
+#!/usr/local/bin/gawk -f
+# @(#) ucomm.gawk 1.1 96/05/30
+# 94/12/27 john h. dubois iii (john@armory.com)
+# 96/03/27 Let 0 or 1 args be given.
+# 96/04/01 Added &taAdLiIpP options.
+# ucomm: a generalized 'comm' that does not require the files to be sorted.
+
+### Start of setup blocks
+BEGIN {
+    Name = "ucomm"
+    Usage = "Usage: " Name " [-aAdhiIlLnox] [-<field-num>] [-t<field-sep>]\n"\
+            "             [-p<pattern>|-P<pattern>] selector[,selector...] "\
+	    "[file1 file2 ...]"
+    ARGC = Opts(Name,Usage,"aAdhiIlLnop:P:x&>t:",0)
+    if ((Err = ExclusiveOptions("p,P;l,n;a,A,d;L,d",Options)) != "") {
+	printf "Error: %s\n",Err > "/dev/stderr"
+	Err = 1
+	exit(1)
+    }
+    if ("h" in Options) {
+	printf \
+"%s: show which files lines occur in.\n"\
+"     %s takes a list of common-line selectors and a list of filenames and\n"\
+"shows lines from the files that are selected.  Selectors have the form\n"\
+"nn...  where each n is a digit or letter specifying a file number.  1\n"\
+"refers to the first file given on the command line, 2 to the second, etc.\n"\
+"The letter 'a' refers to the 10th, and 'z' to the 35th.  Each selector\n"\
+"causes lines that occur in all of the files whose numbers are in the\n"\
+"selector, and which occur only in those files, to be printed.  If the line\n"\
+"occurs in any files whose number is not in the selector, the selector will\n"\
+"not cause it to be printed, though another selector might.  File numbers\n"\
+"higher than the number of filenames given are ignored with a warning.\n"\
+"     A range of file numbers may be given as part of a selector.  For\n"\
+"example, the selector 13-c would specify file 1 and files 3 through c\n"\
+"inclusive.  $ refers to the last file on the command line.  A file number\n"\
+"of '%%' is short for 1,2,...9,a,...z; that is, it causes any line which\n"\
+"occurs in only one file to be printed.  If any other file numbers are\n"\
+"included with a '%%' selector, then any lines that occurs in all of the\n"\
+"specifically named files, plus one other, are selected.  '~' complements a\n"\
+"selector with respect to the set of all file numbers.  It can be given\n"\
+"anywhere in a selector.  If given by itself, it is equivalent to 1-$,\n"\
+"which causes any line which occurs in all files to be printed.  If any\n"\
+"other file numbers are included with a '~' selector, then any lines that\n"\
+"occur in all files except those specifically named are selected.  '*' will\n"\
+"cause all lines to be selected.  If a selector begins with '!' or '^', it\n"\
+"will suppress printing of lines that it selects even if other selectors\n"\
+"would cause them to be printed.  An example of its use would be the\n"\
+"selector '*,!~' which would print all lines except those that occur in all\n"\
+"of the files.  Note that various of the characters $~*!^ are special to\n"\
+"the shell and need to be quoted or escaped.\n"\
+"     If more than one selector is given, each output line is prefixed by\n"\
+"the selector that caused it to be printed followed by a colon and a space.\n"\
+"For example: \n"\
+"13ac: this is a line that occurs in files 1, 3, a, and c\n"\
+"The selector part of the line prefix is effectively be a list of the files\n"\
+"the line was found in.  No line is printed more than once, even if it\n"\
+"occurs more than once in a file.  The order of the output lines is not the\n"\
+"same as the order in which lines are read.\n"\
+"The file name /dev/stdin can be used for the standard input, and /dev/fd/n\n"\
+"can be used for file descriptor n.  If no filenames are given or only one\n"\
+"filename is given, no selector may be given; a single instance of each\n"\
+"line that occurs in the file or in the standard input respectively is\n"\
+"printed.\n"\
+"%s\n"\
+"Other options:\n"\
+"-[pP]<pattern>: In all input files, ignore (discard) all lines that do not\n"\
+"    (-p) or do (-P) match <pattern>, which is in the style of egrep(C).\n"\
+"-i: Ignore case when determining uniqueness of lines.\n"\
+"-I: Ignore case in pattern matches used for -[pP].\n"\
+"-h: Print this help.\n"\
+"-l: Make the selected-line prefix consist only of file numbers.  If a\n"\
+"    selector includes a range or one of the special characters [$%%~!^*],\n"\
+"    they are converted into file numbers.\n"\
+"-n: Do not prefix output lines with the selector.\n"\
+"-o: Retain line order.  In the output, lines are printed in the same order\n"\
+"    as they were first encountered in the input.  This option is expensive\n"\
+"    in terms of memory use.\n"\
+"-x: Print debugging info, including expanded versions of given selectors.\n"\
+"-<field-num>: Check only the given field number of each line when\n"\
+"    comparing them to others for uniqueness.  Fields are separated by\n"\
+"    whitespace (tabs and blanks).  If a line begins with whitespace, the\n"\
+"    first field is the string that occurs between the initial whitespace\n"\
+"    and the next instance of whitespace (or the end of the line).  In the\n"\
+"    output, by default the first instance of the line is printed.\n"\
+"The rest of the options are used only when -<field-num> is given:\n"\
+"-a: Print all unique lines selected by -<field-num>.\n"\
+"-A: Like -a, except that a blank line is printed between each set of lines\n"\
+"    that have the same field.\n"\
+"-L: Used with -a or -A; prefix each line with the numbers of the files the\n"\
+"    line was found in.\n"\
+"-d: Print only the field that is being checked, not the whole line.\n"\
+"-t<field-sep>: Set the field separator to <field-sep>.  <field-sep> is a\n"\
+"    pattern in the style of egrep(C).  If this option is given and a line\n"\
+"    begins with a string that matches the pattern, the first field is\n"\
+"    empty and the second field occurs after the initial matched characters.\n"\
+"    Thus, -t'[ \\t]+' is different from the default field separator in the\n"\
+"    way that fields on a line that begins with whitespace are numbered.\n",
+Name,Name,Usage
+	exit 0
+    }
+    if (ARGC == 3) {
+	print Name ": Wrong number of arguments.  Use -h for help.\n"\
+	Usage > "/dev/stderr"
+	exit 1
+    }
+    if (ARGC > 3)
+	NumFiles = ARGC - 2		# Skip program name & selector
+    else {
+	# If 1 arg (ARGC = 2) is given, it is a filename.
+	if (ARGC == 1)	# If 0 args, make input be stdin
+	    ARGV[2] = "/dev/stdin"
+	else
+	    ARGV[2] = ARGV[1]	# move filename to correct place
+	# If 0 or 1 args, set selector to 1 and # of files to 1
+	NumFiles = 1
+	ARGV[1] = "1"
+	ARGC = 3	# for gawk
+    }
+    if (NumFiles > 35) {	# 1-9a-z = 35
+	print "Cannot process more than 35 files." > "/dev/stderr"
+	exit 1
+    }
+    # Char n of this string is the fileno char for file n
+    AllNums = substr("123456789abcdefghijklmnopqrstuvwxyz",1,NumFiles)
+    if ((NumSel = ProcSelectors(ARGV[1],Selectors,UnSelectors)) == -1)
+	exit 1
+    if (NumSel == 0) {
+	print "No selectors." > "/dev/stderr"
+	Err = "0"
+    }
+    if (Err != "")
+	exit Err
+    ARGV[1] = "/dev/null"	# skip selector arg
+    Ordered = "o" in Options
+    if (GotPat = ("p" in Options || "P" in Options)) {
+	if ("p" in Options)
+	    Pat = Options["p"]
+	if ("P" in Options)
+	    NotPat = Options["P"]
+    }
+    if ("&" in Options) {
+	FieldNum = Options["&"]
+	WholeLine = !("d" in Options)	# So whole line will be printed
+	# If this is on, WholeLine is too
+	AllLines = "a" in Options || "A" in Options
+	SeparateLines = "A" in Options
+	PrefixEachLine = "L" in Options
+    }
+    else
+	FieldNum = 0	# Compare entire line
+    if ("t" in Options)
+	FS = Options["t"]
+    if (Debug = ("x" in Options)) {
+	print "Field number: " FieldNum
+	print "Field sep: " FS
+	print "Selectors:" > "/dev/stderr"
+	for (i in Selectors)
+	    print i > "/dev/stderr"
+	print "Exclusion selectors:" > "/dev/stderr"
+	for (i in UnSelectors)
+	    print i > "/dev/stderr"
+    }
+    IGNORECASE = "I" in Options
+    if ("i" in Options) {
+	NoCase = 1
+	# If not working with fields and case is being ignored, turn on 
+	# Ordered option because it will cause case to be saved as a side
+	# effect.
+	if (FieldNum == 0)
+	    Ordered = 1
+    }
+}
+
+# Returns the number of selectors, or -1 if a fatal error is encountered
+function ProcSelectors(SelString,Selectors,UnSelectors,
+i,NSel,Sels,Sel,c,Not,Bad,Err,NumSel) {
+    NSel = split(SelString,Sels,",")
+    for (i = 1; i <= NSel; i++) {
+	Sel = tolower(Sels[i])		# Let A-Z also work
+	if (Not = ((c = substr(Sel,1,1)) == "!" || c == "^"))
+	    Sel = substr(Sel,2)
+	if (Sel == "")	# Empty selector; ignore it
+	    continue
+	if (Sel !~ /^[-1-9a-z$%~*]+$/) {
+	    Bad = Sel
+	    gsub(/[-1-9a-z$%~*]+/,"",Bad)
+	    printf "Invalid character(s) in selector \"%s\": %s\n",
+	    Sel,Bad > "/dev/stderr"
+	    Err = 1
+	    continue
+	}
+	if (!Not)
+	    NumSel++
+	if (Not)	# Can't use ternary operator to select an array
+	    Err = ExpandSel(Sel,UnSelectors) || Err
+	else
+	    Err = ExpandSel(Sel,Selectors) || Err
+    }
+    if ("*" in UnSelect) {
+	print "* is not valid in an exclusion selector." > "/dev/stderr"
+	Err = 1
+    }
+    return Err ? -1 : NumSel
+}
+
+# Expands selector Sel into a simple selector and makes it an index of SelSet,
+# with the value being the original selector.
+# All selectors put in SelSet will consist of of a sorted sequence of valid
+# file number characters, except that the special selector '*' is stored to
+# indicate that all lines should be selected.
+function ExpandSel(Sel,SelSet,
+i,c,len,Set,Not,One,LastC,RangeStart,RangeEnd,Err,ExpSel,RangeC) {
+    Err = 0
+    len = length(Sel)
+    for (i = 1; i <= len; i++) {
+	c = substr(Sel,i,1)
+	if (c == "$")	# Replace $ with number of last file
+	    c = Num2FileChar(NumFiles)
+	if (c ~ /[1-9a-z]/) {
+	    if (!FileChar2Num(c))
+		printf \
+"Warning: selector char '%s': Not that many files given on command line.\n",
+		c > "/dev/stderr"
+	    # If we are expecting the 2nd char of a range
+	    if (RangeStart > 0) {	
+		if (!(RangeEnd = FileChar2Num(c))) {
+		    print "Invalid character in selector range: %s\n",
+		    c > "/dev/stderr"
+		    Err = 1
+		}
+		else if (RangeEnd < RangeStart) {
+		    printf "Bad range: %s-%s\n",
+		    RangeStart,RangeEnd > "/dev/stderr"
+		    Err = 1
+		}
+		else for (RangeC = RangeStart+1; RangeC <= RangeEnd; RangeC++)
+		    Set[Num2FileChar(RangeC)]
+		RangeStart = 0
+	    }
+	    else
+		Set[c]
+	}
+	# Record that % or ~ was found, for processing at the end
+	else if (c == "%")
+	    One = 1
+	else if (c == "~")
+	    Not = 1
+	else if (c == "*")
+	    SelSet[c] = Sel
+	else if (c == "-") {	# The last char was the start of a range
+	    if (!(RangeStart = FileChar2Num(LastC))) {
+		print "Invalid character in selector range: %s\n",
+		LastC > "/dev/stderr"
+		Err = 1
+	    }
+	}
+	LastC = c
+    }
+    if (Not)
+	ComplementFiles(Set)
+    if (One)
+	for (i = 1; i <= NumFiles; i++) {
+	    c = Num2FileChar(i)
+	    if (!(c in Set)) {
+		Set[c]
+		SelSet[Set2Sel(Set)] = Sel
+		delete Set[c]
+	    }
+	}
+    else {
+	ExpSel = Set2Sel(Set)
+	if (ExpSel != "")
+	    SelSet[ExpSel] = Sel
+    }
+    return Err
+}
+
+function Set2Sel(Set,  i,c,ExpSel) {
+    for (i = 1; i <= NumFiles; i++)
+	if ((c = Num2FileChar(i)) in Set)
+	    ExpSel = ExpSel c
+    return ExpSel
+}
+
+function ComplementFiles(Set,  i,c) {
+    for (i = 1; i <= NumFiles; i++) {
+	c = Num2FileChar(i)
+	if (c in Set)
+	    delete Set[c]
+	else
+	    Set[c]
+    }
+}
+
+# Convert numbers 1-35 to chars 1-9a-z
+function Num2FileChar(Num) {
+    return substr(AllNums,Num,1)
+}
+
+function FileChar2Num(C) {
+    return index(AllNums,C)
+}
+
+### Start of file processing blocks
+
+# If FileNum is not already part of Lines[Index], add it.
+function AddFileNum(Lines,Index,  FFiles) {
+	FFiles = Lines[Index]	# Get its found-files record
+	if (substr(FFiles,length(FFiles),1) != FileNum)
+	    Lines[Index] = Lines[Index] FileNum
+}
+
+ARGIND != OldInd {
+    FileNum = Num2FileChar(ARGIND-1)	# First file is arg #2
+    OldInd = ARGIND
+}
+
+GotPat {
+    if ((Pat != "" && $0 !~ Pat) || (NotPat != "" && $0 ~ NotPat))
+	next
+}
+
+# Lines are stored as indexes in Lines[].
+# The value associated with the index is the set of files that the line
+# was found in, first through last.
+# If -o is given, the line is also stored as a value in Order[],
+# with the index being an integer giving the order in which the line was found.
+{
+    Index = NoCase ? tolower($FieldNum) : $FieldNum
+    if (Index in Lines) {		# If the line/field was already seen
+	AddFileNum(Lines,Index)
+	if (AllLines) {
+	    if ($0 in TrackWholeLines) {
+		if (PrefixEachLine)
+		    AddFileNum(TrackWholeLines,$0)
+	    }
+	    else {
+		Field2Line[Index] = Field2Line[Index] "\n" $0
+		TrackWholeLines[$0] = FileNum
+	    }
+	}
+    }
+    else {
+	Lines[Index] = FileNum
+	if (Ordered)
+	    Order[++LineCt] = $FieldNum
+	if (Debug)
+	    printf "New field #%d%s: %s\n",FieldNum,
+	    Ordered ? (" (now " LineCt ")") : "",Index
+	if (WholeLine) {
+	    Field2Line[Index] = $0
+	    if (AllLines)
+		TrackWholeLines[$0] = FileNum
+	}
+    }
+}
+
+### Start of report generating blocks
+
+END {
+    if (Err != "")
+	exit Err
+    PrintExpSel = "l" in Options
+    if (!(NoSel = "n" in Options)) {		# Do not print selectors?
+	# If -n wasn't given, print selectors only if at least 2 given.
+	# If printing expanded selectors, can't rely on the value NumSel
+	# already has, since it counts e.g. % as 1 selector.
+	if (PrintExpSel) {
+	    NumSel = 0
+	    for (i in Selectors)
+		if (++NumSel == 2)
+		    break
+	}
+	NoSel = NumSel < 2
+    }
+    AllSelect = "*" in Selectors
+    if (Ordered)
+	for (i = 1; i <= LineCt; i++)
+	    CheckLine(Order[i])
+    else
+	for (Line in Lines)
+	    CheckLine(Line)
+}
+
+# If NoCase is true, the indexes in Lines[], TrackWholeLines[],
+# and Field2Line[] are in lowercase.
+function CheckLine(Line,  FFiles,nLine,iLines,i,l,Index) {
+    Index = NoCase ? tolower(Line) : Line
+    FFiles = Lines[Index]	# Get this line's found-files record
+    if ((AllSelect || FFiles in Selectors) && !(FFiles in UnSelectors)) {
+	if (SeparateLines)
+	    if (NotFirst)
+		print ""
+	    else
+		NotFirst = 1
+	if (!NoSel)
+	    printf "%s: ",
+	    AllSelect ? "*" : (PrintExpSel ? FFiles : Selectors[FFiles])
+	if (PrefixEachLine) {
+	    nLine = split(Field2Line[Index],iLines,"\n")
+	    for (i = 1; i <= nLine; i++) {
+		l = iLines[i]
+		printf "%s) %s\n",TrackWholeLines[l],l
+	    }
+	}
+	else
+	    print WholeLine ? Field2Line[Index] : Line
+    }
+}
+
+### Start of library functions
+
+### Start of ProcArgs library
+# @(#) ProcArgs 1.11 96/12/08
+# 92/02/29 john h. dubois iii (john@armory.com)
+# 93/07/18 Added "#" arg type
+# 93/09/26 Do not count -h against MinArgs
+# 94/01/01 Stop scanning at first non-option arg.  Added ">" option type.
+#          Removed meaning of "+" or "-" by itself.
+# 94/03/08 Added & option and *()< option types.
+# 94/04/02 Added NoRCopt to Opts()
+# 94/06/11 Mark numeric variables as such.
+# 94/07/08 Opts(): Do not require any args if h option is given.
+# 95/01/22 Record options given more than once.  Record option num in argv.
+# 95/06/08 Added ExclusiveOptions().
+# 96/01/20 Let rcfiles be a colon-separated list of filenames.
+#          Expand $VARNAME at the start of its filenames.
+#          Let varname=0 and -option- turn off an option.
+# 96/05/05 Changed meaning of 7th arg to Opts; now can specify exactly how many
+#          of the vars should be searched for in the environment.
+#          Check for duplicate rcfiles.
+# 96/05/13 Return more specific error values.  Note: ProcArgs() and InitOpts()
+#          now return various negatives values on error, not just -1, and
+#          Opts() may set Err to various positive values, not just 1.
+#          Added AllowUnrecOpt.
+# 96/05/23 Check type given for & option
+# 96/06/15 Re-port to awk
+# 96/10/01 Moved file-reading code into ReadConfFile(), so that it can be
+#          used by other functions.
+# 96/10/15 Added OptChars
+# 96/11/01 Added exOpts arg to Opts()
+# 96/11/16 Added ; type
+# 96/12/08 Added Opt2Set() & Opt2Sets()
+# 96/12/27 Added CmdLineOpt()
+
+# optlist is a string which contains all of the possible command line options.
+# A character followed by certain characters indicates that the option takes
+# an argument, with type as follows:
+# :	String argument
+# ;	Non-empty string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# The only difference the type of argument makes is in the runtime argument
+# error checking that is done.
+
+# The & option is a special case used to get numeric options without the
+# user having to give an option character.  It is shorthand for [-+.0-9].
+# If & is included in optlist and an option string that begins with one of
+# these characters is seen, the value given to "&" will include the first
+# char of the option.  & must be followed by a type character other than ":"
+# or ";".
+# Note that if e.g. &> is given, an option of -.5 will produce an error.
+
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-"
+# or "+" is taken to be a non-option string; like other non-option strings,
+# it stops the scanning of argv and is left in argv[].
+# An argument of "--" or "++" also stops the scanning of argv[] but is removed.
+# If an option takes an argument, the argument may either immediately
+# follow it or be given separately.
+# "-" and "+" options are treated the same.  "+" is allowed because most awks
+# take any -options to be arguments to themselves.  gawk 2.15 was enhanced to
+# stop scanning when it encounters an unrecognized option, though until 2.15.5
+# this feature had a flaw that caused problems in some cases.  See the OptChars
+# parameter to explicitly set the option-specifier characters.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in Options and its value is set to the
+# number of times it occurs in argv[].
+
+# If an option that does take an argument is given, an index with its name is
+# created in Options and its value is set to the value of the argument given
+# for it, and Options[option-name,"count"] is (initially) set to the 1.
+# If an option that takes an argument is given more than once,
+# Options[option-name,"count"] is incremented, and the value is assigned to
+# the index (option-name,instance) where instance is 2 for the second occurance
+# of the option, etc.
+# In other words, the first time an option with a value is encountered, the
+# value is assigned to an index consisting only of its name; for any further
+# occurances of the option, the value index has an extra (count) dimension.
+
+# The sequence number for each option found in argv[] is stored in
+# Options[option-name,"num",instance], where instance is 1 for the first
+# occurance of the option, etc.  The sequence number starts at 1 and is
+# incremented for each option, both those that have a value and those that
+# do not.  Options set from a config file have a value of 0 assigned to this.
+
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps left in the indices of argv[].
+# If compress is nonzero, argv[] is packed by moving its elements so that
+# they have contiguous integer indices starting with 0.
+# Option processing will stop with the first unrecognized option, just as
+# though -- was given except that unlike -- the unrecognized option will not be
+# removed from ARGV[].  Normally, an error value is returned in this case.
+# If AllowUnrecOpt is true, it is not an error for an unrecognized option to
+# be found, so the number of remaining arguments is returned instead.
+# If OptChars is not a null string, it is the set of characters that indicate
+# that an argument is an option string if the string begins with one of the
+# characters.  A string consisting solely of two of the same option-indicator
+# characters stops the scanning of argv[].  The default is "-+".
+# argv[0] is not examined.
+# The number of arguments left in argc is returned.
+# If an error occurs, the global string OptErr is set to an error message
+# and a negative value is returned.
+# Current error values:
+# -1: option that required an argument did not get it.
+# -2: argument of incorrect type supplied for an option.
+# -3: unrecognized (invalid) option.
+function ProcArgs(argc,argv,OptList,Options,compress,AllowUnrecOpt,OptChars,
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos,NumOpt,Value,HadValue,specGiven,
+NeedNextOpt,GotValue,OptionNum,Escape,dest,src,count,c,OptTerm,OptCharSet)
+{
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in OptList of the option being processed.
+# NumOpt is true if a numeric option may be given.
+    ArgsLeft = argc
+    NumOpt = index(OptList,"&")
+    OptionNum = 0
+    if (OptChars == "")
+	OptChars = "-+"
+    while (OptChars != "") {
+	c = substr(OptChars,1,1)
+	OptChars = substr(OptChars,2)
+	OptCharSet[c]
+	OptTerm[c c]
+    }
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	Arg = argv[ArgNum]
+	if (length(Arg) < 2 || !((specGiven = substr(Arg,1,1)) in OptCharSet))
+	    break	# Not an option; quit
+	if (Arg in OptTerm) {
+	    delete argv[ArgNum]
+	    ArgsLeft--
+	    break
+	}
+	ArgLen = length(Arg)
+	for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+	    Option = substr(Arg,ArgInd,1)
+	    if (NumOpt && Option ~ /[-+.0-9]/) {
+		# If this option is a numeric option, make its flag be & and
+		# its option string flag position be the position of & in
+		# the option string.
+		Option = "&"
+		Pos = NumOpt
+		# Prefix Arg with a char so that ArgInd will point to the
+		# first char of the numeric option.
+		Arg = "&" Arg
+		ArgLen++
+	    }
+	    # Find position of flag in option string, to get its type (if any).
+	    # Disallow & as literal flag.
+	    else if (!(Pos = index(OptList,Option)) || Option == "&") {
+		if (AllowUnrecOpt) {
+		    Escape = 1
+		    break
+		}
+		else {
+		    OptErr = "Invalid option: " specGiven Option
+		    return -3
+		}
+	    }
+
+	    # Find what the value of the option will be if it takes one.
+	    # NeedNextOpt is true if the option specifier is the last char of
+	    # this arg, which means that if the option requires a value it is
+	    # the next arg.
+	    if (NeedNextOpt = (ArgInd >= ArgLen)) { # Value is the next arg
+		if (GotValue = ArgNum + 1 < argc)
+		    Value = argv[ArgNum+1]
+	    }
+	    else {	# Value is included with option
+		Value = substr(Arg,ArgInd + 1)
+		GotValue = 1
+	    }
+
+	    if (HadValue = AssignVal(Option,Value,Options,
+	    substr(OptList,Pos + 1,1),GotValue,"",++OptionNum,!NeedNextOpt,
+	    specGiven)) {
+		if (HadValue < 0)	# error occured
+		    return HadValue
+		if (HadValue == 2)
+		    ArgInd++	# Account for the single-char value we used.
+		else {
+		    if (NeedNextOpt) {	# option took next arg as value
+			delete argv[++ArgNum]
+			ArgsLeft--
+		    }
+		    break	# This option has been used up
+		}
+	    }
+	}
+	if (Escape)
+	    break
+	# Do not delete arg until after processing of it, so that if it is not
+	# recognized it can be left in ARGV[].
+	delete argv[ArgNum]
+	ArgsLeft--
+    }
+    if (compress != 0) {
+	dest = 1
+	src = argc - ArgsLeft + 1
+	for (count = ArgsLeft - 1; count; count--) {
+	    ARGV[dest] = ARGV[src]
+	    dest++
+	    src++
+	}
+    }
+    return ArgsLeft
+}
+
+# Assignment to values in Options[] occurs only in this function.
+# Option: Option specifier character.
+# Value: Value to be assigned to option, if it takes a value.
+# Options[]: Options array to return values in.
+# ArgType: Argument type specifier character.
+# GotValue: Whether any value is available to be assigned to this option.
+# Name: Name of option being processed.
+# OptionNum: Number of this option (starting with 1) if set in argv[],
+#     or 0 if it was given in a config file or in the environment.
+# SingleOpt: true if the value (if any) that is available for this option was
+#     given as part of the same command line arg as the option.  Used only for
+#     options from the command line.
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Global variables: OptErr
+# Return value: negative value on error, 0 if option did not require an
+# argument, 1 if it did & used the whole arg, 2 if it required just one char of
+# the arg.
+# Current error values:
+# -1: Option that required an argument did not get it.
+# -2: Value of incorrect type supplied for option.
+# -3: Bad type given for option &
+function AssignVal(Option,Value,Options,ArgType,GotValue,Name,OptionNum,
+SingleOpt,specGiven,  UsedValue,Err,NumTypes) {
+    # If option takes a value...    [
+    NumTypes = "*()#<>]"
+    if (Option == "&" && ArgType !~ "[" NumTypes) {	# ]
+	OptErr = "Bad type given for & option"
+	return -3
+    }
+
+    if (UsedValue = (ArgType ~ "[:;" NumTypes)) {	# ]
+	if (!GotValue) {
+	    if (Name != "")
+		OptErr = "Variable requires a value -- " Name
+	    else
+		OptErr = "option requires an argument -- " Option
+	    return -1
+	}
+	if ((Err = CheckType(ArgType,Value,Option,Name,specGiven)) != "") {
+	    OptErr = Err
+	    return -2
+	}
+	# Mark this as a numeric variable; will be propogated to Options[] val.
+	if (ArgType != ":" && ArgType != ";")
+	    Value += 0
+	if ((Instance = ++Options[Option,"count"]) > 1)
+	    Options[Option,Instance] = Value
+	else
+	    Options[Option] = Value
+    }
+    # If this is an environ or rcfile assignment & it was given a value...
+    else if (!OptionNum && Value != "") {
+	UsedValue = 1
+	# If the value is "0" or "-" and this is the first instance of it,
+	# do not set Options[Option]; this allows an assignment in an rcfile to
+	# turn off an option (for the simple "Option in Options" test) in such
+	# a way that it cannot be turned on in a later file.
+	if (!(Option in Options) && (Value == "0" || Value == "-"))
+	    Instance = 1
+	else
+	    Instance = ++Options[Option]
+	# Save the value even though this is a flag
+	Options[Option,Instance] = Value
+    }
+    # If this is a command line flag and has a - following it in the same arg,
+    # it is being turned off.
+    else if (OptionNum && SingleOpt && substr(Value,1,1) == "-") {
+	UsedValue = 2
+	if (Option in Options)
+	    Instance = ++Options[Option]
+	else
+	    Instance = 1
+	Options[Option,Instance]
+    }
+    # If this is a flag assignment without a value, increment the count for the
+    # flag unless it was turned off.  The indicator for a flag being turned off
+    # is that the flag index has not been set in Options[] but it has an
+    # instance count.
+    else if (Option in Options || !((Option,1) in Options))
+	# Increment number of times this flag seen; will inc null value to 1
+	Instance = ++Options[Option]
+    Options[Option,"num",Instance] = OptionNum
+    return UsedValue
+}
+
+# Option is the option letter
+# Value is the value being assigned
+# Name is the var name of the option, if any
+# ArgType is one of:
+# :	String argument
+# ;	Non-null string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Returns null on success, err string on error
+function CheckType(ArgType,Value,Option,Name,specGiven,  Err,ErrStr) {
+    if (ArgType == ":")
+	return ""
+    if (ArgType == ";") {
+	if (Value == "")
+	    Err = "must be a non-empty string"
+    }
+    # A number begins with optional + or -, and is followed by a string of
+    # digits or a decimal with digits before it, after it, or both
+    else if (Value !~ /^[-+]?([0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)$/)
+	Err = "must be a number"
+    else if (ArgType ~ "[#<>]" && Value ~ /\./)
+	Err = "may not include a fraction"
+    else if (ArgType ~ "[()<>]" && Value < 0)
+	Err = "may not be negative"
+    # (
+    else if (ArgType ~ "[)>]" && Value == 0)
+	Err = "must be a positive number"
+    if (Err != "") {
+	ErrStr = "Bad value \"" Value "\".  Value assigned to "
+	if (Name != "")
+	    return ErrStr "variable " substr(Name,1,1) " " Err
+	else {
+	    if (Option == "&")
+		Option = Value
+	    return ErrStr "option " specGiven substr(Option,1,1) " " Err
+	}
+    }
+    else
+	return ""
+}
+
+# Note: only the above functions are needed by ProcArgs.
+# The rest of these functions call ProcArgs() and also do other
+# option-processing stuff.
+
+# Opts: Process command line arguments.
+# Opts processes command line arguments using ProcArgs()
+# and checks for errors.  If an error occurs, a message is printed
+# and the program is exited.
+#
+# Input variables:
+# Name is the name of the program, for error messages.
+# Usage is a usage message, for error messages.
+# OptList the option description string, as used by ProcArgs().
+# MinArgs is the minimum number of non-option arguments that this
+# program should have, non including ARGV[0] and +h.
+# If the program does not require any non-option arguments,
+# MinArgs should be omitted or given as 0.
+# rcFiles, if given, is a colon-seprated list of filenames to read for
+# variable initialization.  If a filename begins with ~/, the ~ is replaced
+# by the value of the environment variable HOME.  If a filename begins with
+# $, the part from the character after the $ up until (but not including)
+# the first character not in [a-zA-Z0-9_] will be searched for in the
+# environment; if found its value will be substituted, if not the filename will
+# be discarded.
+# rcfiles are read in the order given.
+# Values given in them will not override values given on the command line,
+# and values given in later files will not override those set in earlier
+# files, because AssignVal() will store each with a different instance index.
+# The first instance of each variable, either on the command line or in an
+# rcfile, will be stored with no instance index, and this is the value
+# normally used by programs that call this function.
+# VarNames is a comma-separated list of variable names to map to options,
+# in the same order as the options are given in OptList.
+# If EnvSearch is given and nonzero, the first EnvSearch variables will also be
+# searched for in the environment.  If set to -1, all values will be searched
+# for in the environment.  Values given in the environment will override
+# those given in the rcfiles but not those given on the command line.
+# NoRCopt, if given, is an additional letter option that if given on the
+# command line prevents the rcfiles from being read.
+# See ProcArgs() for a description of AllowUnRecOpt and optChars, and
+# ExclusiveOptions() for a description of exOpts.
+# Special options:
+# If x is made an option and is given, some debugging info is output.
+# h is assumed to be the help option.
+
+# Global variables:
+# The command line arguments are taken from ARGV[].
+# The arguments that are option specifiers and values are removed from
+# ARGV[], leaving only ARGV[0] and the non-option arguments.
+# The number of elements in ARGV[] should be in ARGC.
+# After processing, ARGC is set to the number of elements left in ARGV[].
+# The option values are put in Options[].
+# On error, Err is set to a positive integer value so it can be checked for in
+# an END block.
+# Return value: The number of elements left in ARGV is returned.
+# Must keep OptErr global since it may be set by InitOpts().
+function Opts(Name,Usage,OptList,MinArgs,rcFiles,VarNames,EnvSearch,NoRCopt,
+AllowUnrecOpt,optChars,exOpts,  ArgsLeft,e) {
+    if (MinArgs == "")
+	MinArgs = 0
+    ArgsLeft = ProcArgs(ARGC,ARGV,OptList NoRCopt,Options,1,AllowUnrecOpt,
+    optChars)
+    if (ArgsLeft < (MinArgs+1) && !("h" in Options)) {
+	if (ArgsLeft >= 0) {
+	    OptErr = "Not enough arguments"
+	    Err = 4
+	}
+	else
+	    Err = -ArgsLeft
+	printf "%s: %s.\nUse -h for help.\n%s\n",
+	Name,OptErr,Usage > "/dev/stderr"
+	exit 1
+    }
+    if (rcFiles != "" && (NoRCopt == "" || !(NoRCopt in Options)) &&
+    (e = InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch)) < 0)
+    {
+	print Name ": " OptErr ".\nUse -h for help." > "/dev/stderr"
+	Err = -e
+	exit 1
+    }
+    if ((exOpts != "") && ((OptErr = ExclusiveOptions(exOpts,Options)) != ""))
+    {
+	printf "%s: Error: %s\n",Name,OptErr > "/dev/stderr"
+	Err = 1
+	exit 1
+    }
+    return ArgsLeft
+}
+
+# ReadConfFile(): Read a file containing var/value assignments, in the form
+# <variable-name><assignment-char><value>.
+# Whitespace (spaces and tabs) around a variable (leading whitespace on the
+# line and whitespace between the variable name and the assignment character) 
+# is stripped.  Lines that do not contain an assignment operator or which
+# contain a null variable name are ignored, other than possibly being noted in
+# the return value.  If more than one assignment is made to a variable, the
+# first assignment is used.
+# Input variables:
+# File is the file to read.
+# Comment is the line-comment character.  If it is found as the first non-
+#     whitespace character on a line, the line is ignored.
+# Assign is the assignment string.  The first instance of Assign on a line
+#     separates the variable name from its value.
+# If StripWhite is true, whitespace around the value (whitespace between the
+#     assignment char and trailing whitespace on the line) is stripped.
+# VarPat is a pattern that variable names must match.  
+#     Example: "^[a-zA-Z][a-zA-Z0-9]+$"
+# If FlagsOK is true, variables are allowed to be "set" by being put alone on
+#     a line; no assignment operator is needed.  These variables are set in
+#     the output array with a null value.  Lines containing nothing but
+#     whitespace are still ignored.
+# Output variables:
+# Values[] contains the assignments, with the indexes being the variable names
+#     and the values being the assigned values.
+# Lines[] contains the line number that each variable occured on.  A flag set
+#     is record by giving it an index in Lines[] but not in Values[].
+# Return value:
+# If any errors occur, a string consisting of descriptions of the errors
+# separated by newlines is returned.  In no case will the string start with a
+# numeric value.  If no errors occur,  the number of lines read is returned.
+function ReadConfigFile(Values,Lines,File,Comment,Assign,StripWhite,VarPat,
+FlagsOK,
+Line,Status,Errs,AssignLen,LineNum,Var,Val) {
+    if (Comment != "")
+	Comment = "^" Comment
+    AssignLen = length(Assign)
+    if (VarPat == "")
+	VarPat = "."	# null varname not allowed
+    while ((Status = (getline Line < File)) == 1) {
+	LineNum++
+	sub("^[ \t]+","",Line)
+	if (Line == "")		# blank line
+	    continue
+	if (Comment != "" && Line ~ Comment)
+	    continue
+	if (Pos = index(Line,Assign)) {
+	    Var = substr(Line,1,Pos-1)
+	    Val = substr(Line,Pos+AssignLen)
+	    if (StripWhite) {
+		sub("^[ \t]+","",Val)
+		sub("[ \t]+$","",Val)
+	    }
+	}
+	else {
+	    Var = Line	# If no value, var is entire line
+	    Val = ""
+	}
+	if (!FlagsOK && Val == "") {
+	    Errs = Errs \
+	    sprintf("\nBad assignment on line %d of file %s: %s",
+	    LineNum,File,Line)
+	    continue
+	}
+	sub("[ \t]+$","",Var)
+	if (Var !~ VarPat) {
+	    Errs = Errs sprintf("\nBad variable name on line %d of file %s: %s",
+	    LineNum,File,Var)
+	    continue
+	}
+	if (!(Var in Lines)) {
+	    Lines[Var] = LineNum
+	    if (Pos)
+		Values[Var] = Val
+	}
+    }
+    if (Status)
+	Errs = Errs "\nCould not read file " File
+    close(File)
+    return Errs == "" ? LineNum : substr(Errs,2)	# Skip first newline
+}
+
+# Variables:
+# Data is stored in Options[].
+# rcFiles, OptList, VarNames, and EnvSearch are as as described for Opts().
+# Global vars:
+# Sets OptErr.  Uses ENVIRON[].
+# If anything is read from any of the rcfiles, sets READ_RCFILE to 1.
+function InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch,
+Line,Var,Pos,Vars,Map,CharOpt,NumVars,TypesInd,Types,Type,Ret,i,rcFile,
+fNames,numrcFiles,filesRead,Err,Values,retStr) {
+    split("",filesRead,"")	# make awk know this is an array
+    NumVars = split(VarNames,Vars,",")
+    TypesInd = Ret = 0
+    if (EnvSearch == -1)
+	EnvSearch = NumVars
+    for (i = 1; i <= NumVars; i++) {
+	Var = Vars[i]
+	CharOpt = substr(OptList,++TypesInd,1)
+	if (CharOpt ~ "^[:;*()#<>&]$")
+	    CharOpt = substr(OptList,++TypesInd,1)
+	Map[Var] = CharOpt
+	Types[Var] = Type = substr(OptList,TypesInd+1,1)
+	# Do not overwrite entries from environment
+	if (i <= EnvSearch && Var in ENVIRON &&
+	(Err = AssignVal(CharOpt,ENVIRON[Var],Options,Type,1,Var,0)) < 0)
+	    return Err
+    }
+
+    numrcFiles = split(rcFiles,fNames,":")
+    for (i = 1; i <= numrcFiles; i++) {
+	rcFile = fNames[i]
+	if (rcFile ~ "^~/")
+	    rcFile = ENVIRON["HOME"] substr(rcFile,2)
+	else if (rcFile ~ /^\$/) {
+	    rcFile = substr(rcFile,2)
+	    match(rcFile,"^[a-zA-Z0-9_]*")
+	    envvar = substr(rcFile,1,RLENGTH)
+	    if (envvar in ENVIRON)
+		rcFile = ENVIRON[envvar] substr(rcFile,RLENGTH+1)
+	    else
+		continue
+	}
+	if (rcFile in filesRead)
+	    continue
+	# rcfiles are liable to be given more than once, e.g. UHOME and HOME
+	# may be the same
+	filesRead[rcFile]
+	if ("x" in Options)
+	    printf "Reading configuration file %s\n",rcFile > "/dev/stderr"
+	retStr = ReadConfigFile(Values,Lines,rcFile,"#","=",0,"",1)
+	if (retStr > 0)
+	    READ_RCFILE = 1
+	else if (ret != "") {
+	    OptErr = retStr
+	    Ret = -1
+	}
+	for (Var in Lines)
+	    if (Var in Map) {
+		if ((Err = AssignVal(Map[Var],
+		Var in Values ? Values[Var] : "",Options,Types[Var],
+		Var in Values,Var,0)) < 0)
+		    return Err
+	    }
+	    else {
+		OptErr = sprintf(\
+		"Unknown var \"%s\" assigned to on line %d\nof file %s",Var,
+		Lines[Var],rcFile)
+		Ret = -1
+	    }
+    }
+
+    if ("x" in Options)
+	for (Var in Map)
+	    if (Map[Var] in Options)
+		printf "(%s) %s=%s\n",Map[Var],Var,Options[Map[Var]] > \
+		"/dev/stderr"
+	    else
+		printf "(%s) %s not set\n",Map[Var],Var > "/dev/stderr"
+    return Ret
+}
+
+# OptSets is a semicolon-separated list of sets of option sets.
+# Within a list of option sets, the option sets are separated by commas.  For
+# each set of sets, if any option in one of the sets is in Options[] AND any
+# option in one of the other sets is in Options[], an error string is returned.
+# If no conflicts are found, nothing is returned.
+# Example: if OptSets = "ab,def,g;i,j", an error will be returned due to
+# the exclusions presented by the first set of sets (ab,def,g) if:
+# (a or b is in Options[]) AND (d, e, or f is in Options[]) OR
+# (a or b is in Options[]) AND (g is in Options) OR
+# (d, e, or f is in Options[]) AND (g is in Options)
+# An error will be returned due to the exclusions presented by the second set
+# of sets (i,j) if: (i is in Options[]) AND (j is in Options[]).
+# todo: make options given on command line unset options given in config file
+# todo: that they conflict with.
+function ExclusiveOptions(OptSets,Options,
+Sets,SetSet,NumSets,Pos1,Pos2,Len,s1,s2,c1,c2,ErrStr,L1,L2,SetSets,NumSetSets,
+SetNum,OSetNum) {
+    NumSetSets = split(OptSets,SetSets,";")
+    # For each set of sets...
+    for (SetSet = 1; SetSet <= NumSetSets; SetSet++) {
+	# NumSets is the number of sets in this set of sets.
+	NumSets = split(SetSets[SetSet],Sets,",")
+	# For each set in a set of sets except the last...
+	for (SetNum = 1; SetNum < NumSets; SetNum++) {
+	    s1 = Sets[SetNum]
+	    L1 = length(s1)
+	    for (Pos1 = 1; Pos1 <= L1; Pos1++)
+		# If any of the options in this set was given, check whether
+		# any of the options in the other sets was given.  Only check
+		# later sets since earlier sets will have already been checked
+		# against this set.
+		if ((c1 = substr(s1,Pos1,1)) in Options)
+		    for (OSetNum = SetNum+1; OSetNum <= NumSets; OSetNum++) {
+			s2 = Sets[OSetNum]
+			L2 = length(s2)
+			for (Pos2 = 1; Pos2 <= L2; Pos2++)
+			    if ((c2 = substr(s2,Pos2,1)) in Options)
+				ErrStr = ErrStr "\n"\
+				sprintf("Cannot give both %s and %s options.",
+				c1,c2)
+		    }
+	}
+    }
+    if (ErrStr != "")
+	return substr(ErrStr,2)
+    return ""
+}
+
+# The value of each instance of option Opt that occurs in Options[] is made an
+# index of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Set(Options,Opt,Set,  count) {
+    if (!(Opt in Options))
+	return 0
+    Set[Options[Opt]]
+    count = Options[Opt,"count"]
+    for (; count > 1; count--)
+	Set[Options[Opt,count]]
+    return count
+}
+
+# The value of each instance of option Opt that occurs in Options[] that
+# begins with "!" is made an index of nSet[] (with the ! stripped from it).
+# Other values are made indexes of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Sets(Options,Opt,Set,nSet,  count,aSet,ret) {
+    ret = Opt2Set(Options,Opt,aSet)
+    for (value in aSet)
+	if (substr(value,1,1) == "!")
+	    nSet[substr(value,2)]
+	else
+	    Set[value]
+    return ret
+}
+
+# Returns true if option Opt was given on the command line.
+function CmdLineOpt(Options,Opt,  i) {
+    for (i = 1; (Opt,"num",i) in Options; i++)
+	if (Options[Opt,"num",i] != 0)
+	    return 1
+    return 0
+}
+### End of ProcArgs library

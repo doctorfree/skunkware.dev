@@ -1,0 +1,336 @@
+.\" $Header: /us/wcb/research/src/argus/argus-1.5/man/man1/RCS/services.1,v 1.2 1995/04/20 21:41:14 wcb Exp $
+.\" All rights reserved.
+.\"
+.\" Copyright (c) 1993, 1994 Carnegie Mellon University.
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby granted, 
+.\" provided that the above copyright notice appear in all copies and
+.\" that both that copyright notice and this permission notice appear
+.\" in supporting documentation, and that the name of CMU not be
+.\" used in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  
+.\" 
+.\" CMU DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+.\" ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
+.\" CMU BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR
+.\" ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+.\" WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+.\" ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\"
+.\"
+.\"
+.TH SERVICES 1 "1 January 1995"
+.SH NAME
+\fBservices\fP \- tally TCP and UDP statistics from \fBargus(8)\fP data
+.SH SYNOPSIS
+.B services
+[ -bhnEMNORTWX ]
+[
+.B \-C
+.I access-file
+]
+.br
+.ti +7
+[
+.B \-d
+.I debug-level
+] [
+.B -r
+.I argus-file
+]
+.br
+.ti +7
+[
+.B \-w
+.I output-file
+] [
+.B \-P
+.I port
+] [
+.B \-F
+.I file
+]
+.br
+.ti +7
+[
+.B \-S
+.I argus-server
+]
+.I expression
+.SH DESCRIPTION
+.IX  "services command"  ""  "\fLservices\fP \(em argus data"
+.LP
+.B Services
+presents a concise report of the occurrence and performance of the 
+TCP and UDP services encountered in an \fIargus\fP data stream.
+For each unique TCP and UDP destination port number encountered,
+\fBservices\fP prints the number of transactions, the mean (std dev) 
+source and destination bytes/packet, and the mean (std dev) 
+seconds duration for the transactions seen.
+.B Services
+reads
+.BR argus
+data from either \fIstdin\fP, an \fIargus-file\fP, or from a
+remote host running as an \fIargus-server\fP, and
+prints network transaction statistics based
+the criteria described in the 
+\fIaccess-file\fP and/or the boolean \fIexpression\fP.
+.LP
+.SH OPTIONS
+.TP 5 5
+.B \-b
+Dump the compiled transaction-matching code to standard output and stop.
+.TP 5 5
+.B \-C
+Match entries against a Cisco access control list that is contained
+in \fIaccess-file\fP.  This can be used to verify that firewalls
+based on Cisco products are working as expected.
+.B Argus
+transaction reports corresponding to network traffic that should
+be blocked by the access control definition, are reported.
+The file format is that of a single extended access-list definition.
+.TP 5 5
+.B \-d
+Print debug information relating to Cisco access control list
+transaction reporting.  When \fIdebug-level\fP is 1,
+.B services
+prints the Cisco access control list definition that would cause the
+argus datum to be rejected.  With a \fIdebug-level\fP of 2,
+.B services
+also prints the Cisco access control list definition that permits
+argus data. 
+.TP 5 5
+.B \-E
+Use transactions that have been established.
+.TP 5 5
+.B \-F
+Use \fIfile\fP as input for the filter expression.
+An additional expression given on the command line is ignored.
+.TP 5 5
+.B \-h
+Print an explanation of all the arguments. 
+.TP 5 5
+.B \-M
+Use transactions with multiple routes involved with the transaction.
+This condition exists when a transaction involves more than a single
+source and destination MAC address pair.
+.TP 5 5
+.B \-n
+No not translate host and service numbers to names. \fB-nn\fP will
+suppress translation of protocol numbers, as well.
+.TP 5 5
+.B \-N
+Use TCP transactions that closed normally.
+.TP 5 5
+.B \-O
+Use transactions that involved the use of IP options.
+.TP 5 5
+.B \-P
+Use alternate \fIport\fP when accessing remote
+.B argus
+server.  The default is port 561/tcp.
+.TP 5 5
+.B \-r
+Read from the specified \fIargus-file\fP.
+.TP 5 5
+.B \-R
+Use TCP transactions that encountered a RESET indication.
+.TP 5 5
+.B \-S
+Specify a \fIremote-argus-server\fP. 
+.TP 5 5
+.B \-T
+Use transactions that reported because of a TIMED_OUT condition.
+.TP 5 5
+.B \-w
+Write out matching data to \fIoutput-file\fP, in
+.B argus
+file format. An \fIoutput-file\fP of '-' directs 
+.B services
+to write the '\fIargus-file\fP to stdout, allowing for "chaining"
+.B services
+commands together.
+.TP 5 5
+.B \-W
+Use TCP transactions where the source or destination window was
+set to zero at some time during the transaction.
+.TP 5 5
+.B \-X
+Use TCP transactions that involved packet retransmissions.
+.TP 5 5
+.B \fIexpression\fP
+This
+.B tcpdump(1)
+expression
+specifies which transactions will be selected.  If no \fIexpression\fP
+is given, all transactions are selected.  Otherwise,
+only transactions for which \fIexpression\fP is `true' will be dumped.
+For a complete \fIexpression\fP format description, please refer to the
+.B tcpdump(1)
+man page.
+.br
+.SH EXAMPLES
+.LP
+To report all TCP services that the host electronomo provides,
+reading transaction data from \fIargus-file\fP argus.data:
+.RS
+.nf
+\fBservices -r \fIargus.data\B tcp and dst host electronomo\fP
+.fi
+.RE
+.LP
+To review the network services accessed by hosts on the network 198.257.3.0,
+using the remote 
+.B argus
+server \fIargus-host\fP.
+Note, statistics are collected silently from the remote host until a
+\fISIGHUP, SIGINT, SIGQUIT\fP or a \fISIGTERM\fP is detected, then
+they are reported to \fIstdout\fP. 
+.RS
+.nf
+\fBservices -S \fIargus-host\fB src net 198.2.3.0\fP
+.fi
+.RE
+
+.fi
+.RE
+.br
+.SH OUTPUT FORMAT
+.LP
+The following is a brief description of the output format of
+.B services.
+The general format is:
+.RE
+.RS
+.nf
+
+.sp .1
+\fI            proto  port  cons  src_stats  dst_stats  secs\fP
+.sp .1
+.fi
+.RE
+.TP 4 4
+.BI proto
+Protocol specific field that indicates either a TCP or UDP service.
+.TP 5 5
+.BI port
+This field is composed of the port number through which the service was
+provided (for instance, 25 for smtp). 
+.TP 5 5
+.BI cons
+The number of transactions seen of a specific service.
+.TP 4 4
+.BI src_stats
+The mean source bytes/packet of the service,
+and the standard deviation.
+.TP 4 4
+.BI dst_stats
+The mean destination bytes/packet of the service,
+and the standard deviation.
+.TP 3 3
+.BI secs
+The mean elapsed time of the service, and the standard deviation.
+.SH OUTPUT EXAMPLES
+These examples show typical \fBservices\fP output, and demonstrates a
+number of variations seen in \fBargus\fP data.  This \fBservices\fP
+output was generated to examine the performance of external services
+provided by the network 192.292.2.0.
+
+.ft B
+.cs B 30 4
+.ss 4
+.nf
+./services -r argus-data -nn dst net 192.292.2.0
+Total Cons            189    90.69(99.13)    138.29(130.88)    10.11(65.96)   
+        port         cons      src b/pkt       dst b/pkt         secs
+                               mean(sd)         mean(sd)       mean(sd)
+
+      tcp     21        3     9.60(3.57)      30.51(5.44)       1.91(1.32)    
+      tcp     25       22   130.18(35.05)     26.82(7.55)       6.55(6.40)    
+      udp     53       53    47.87(4.98)     129.85(65.54)      0.14(0.42)    
+      tcp     70        4     4.55(2.30)     166.23(104.26)     1.97(1.11)    
+      tcp     79        1     1.00(0.00)      43.83(0.00)       0.71(0.00)    
+      tcp     80       52    46.76(31.90)    237.70(141.62)     6.65(6.66)    
+      tcp    113        1     1.86(0.00)      13.00(0.00)       7.05(0.00)    
+      tcp    771        1     6.46(0.00)      42.00(0.00)       0.90(0.00)    
+      tcp   1095        1   346.14(0.00)      73.00(0.00)       0.82(0.00)    
+      udp   7001        4    40.00(0.00)      40.00(6.93)       0.05(0.05)    
+      udp   7003        1    52.00(0.00)     512.00(0.00)       0.01(0.00)    
+      tcp   7999        1    87.29(0.00)      92.33(0.00)       2.29(0.00)    
+      tcp   8001        9    97.91(30.66)    308.29(126.46)     1.91(1.11)    
+
+
+.fi
+.bp
+.ft R
+.in +6n
+.ll -1n
+This is an example of 
+.B services
+used for reviewing the network services provided by the host 192.292.2.34
+.in -6n
+.ll +1n
+.ft B
+.nf
+services -nnS cz host 192.292.2.34 
+Total Cons          94789   275.32(378.74)   295.12(411.67)     3.89(0.77)    
+        port         cons      src b/pkt       dst b/pkt         secs
+                               mean(sd)         mean(sd)       mean(sd)
+
+      tcp     23        1     2.17(0.00)       6.73(0.00)       1.99(0.00)
+      tcp     25        1   166.83(0.00)      34.31(0.00)       0.70(0.00)
+      udp     53       27   106.38(5.62)      34.31(0.67)       0.70(4.12)
+      tcp     79        1    87.40(0.00)      46.00(10.23)      3.41(0.00)
+      udp    111     3484    66.71(83.23)     91.00(0.87)       8.76(0.10)
+      tcp    123       29    56.25(0.02)      56.33(0.34)      23.87(9.52)
+      tcp    513        3   115.75(1.01)     106.00(2.92)       1.90(0.79)
+      udp   2049    91243   422.47(19.77)   1084.82(1.23)       5.75(11.69)
+
+.fi
+.SH AUTHORS
+.nf
+Carter Bullard (wcb@fore.com).
+Chas DiFatta (cd@sei.cmu.edu).
+Special thanks to Mark Poepping (poepping@sei.cmu.edu).
+.fi
+.SH SEE ALSO
+.BR tcpdump (1),
+.BR argus (8)
+.LP
+Postel, Jon,
+.IR "Internet Protocol",
+.SM RFC
+791,
+Network Information Center,
+.SM SRI
+International, Menlo Park, Calif.,
+May 1981.
+.LP
+Postel, Jon, 
+.IR "Internet Control Message Protocol" ,
+.SM RFC
+792,
+Network Information Center, SRI International, Menlo Park, Calif.,
+May 1981.
+.LP
+Postel, Jon, 
+.IR "Transmission Control Protocol" ,
+.SM RFC
+793,
+Network Information Center, SRI International, Menlo Park, Calif.,
+May 1981.
+.LP
+Postel, Jon,
+.IR "User Datagram Protocol" ,
+.SM RFC
+768,
+Network Information Center, SRI International, Menlo Park, Calif.,
+May 1980.
+.LP
+McCanne, Steven, and Van Jacobson,
+.IR "The BSD Packet Filter: A New Architecture for User-level Capture" ,
+Lawrwnce Berkeley Laboratory, One Cyclotron Road, Berkeley, Calif., 94720,
+December 1992.

@@ -1,0 +1,188 @@
+#!/bin/ksh
+# @(#) cbase.ksh 1.3 97/07/13
+# 11/08/90 john h. dubois iii (john@armory.com)
+# 91/02/13 cleaned up
+# 91/04/29 changed incorrect reference to xbase() to cbase()
+# 93/07/12 Added oO options and ksh input bases.
+# 94/01/01 Changed [oO] to [rR], added bBoOxX options.
+# 94/11/11 Added w, and W, and s options.
+# 95/07/25 Added i option.
+# 97/07/13 Send error messages to stderr.
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+# Usage: SplitWord wordsize value
+# Low bits are put in SplitWord[0], etc.
+# The number of words put in SplitWord[] is returned
+# (this is one more than the highest index in SplitWord[])
+typeset -i SplitWord
+function SplitWord {
+    typeset -i WordSize=$1 Value=$2 i=0 Mask ShiftMask
+
+    unset SplitWord[*]
+    ((Mask=(1<<WordSize)-1))	# Mask for getting low WordSize bits
+    # ShiftMask is used to get rid of the 1s that are shifted in for negative
+    # numbers.
+    (( ShiftMask=~(Mask<<(32-WordSize)) ))
+    while [ Value -ne 0 ]; do
+	((SplitWord[i]=Value&Mask))
+	((Value=(Value>>WordSize)&ShiftMask))
+	let i+=1
+    done
+    return $i
+}
+
+# cbase: convert C-style and ksh-style constants to decimal numbers
+# convert hex (0xn and 0Xn), octal (0n), decimal or default, ksh (b#n)
+# to decimal & print
+# Globals: if defBase is set to a positive value, it is the default base
+# to use for values that are not hex or ksh-base constants.
+# If defBase is not set, values of the form 0n are taken to be octal;
+# if it is set, they are taken to be values in the default base.
+cbase() {
+    typeset -i$obase d
+    typeset -i i words Inc
+    typeset bits out
+
+    while [ $# -gt 0 ]; do
+	if [[ defBase -gt 0 && "$1" = +([0-9a-zA-Z]) ]]; then
+	    d=$defBase#$1 || {
+		shift
+		continue
+	    }
+	else
+	    case $1 in
+		0[xX]*([0-9a-fA-F]) ) d=16#${1#0[xX]};;	# C style hex
+		0*([0-7]) ) d=8#$1;;			# C style octal
+		[1-9]*([0-9]) ) d=$1;;			# decimal default
+		+([0-9])#+([0-9]) ) d=$1;;		# ksh style base
+		*) print -ru2 -- "$name: Bad number: $1"
+		   shift
+		   continue
+		   ;;
+	    esac
+	fi
+	if [ WordSize -lt 32 ]; then
+	    SplitWord $WordSize $d
+	    words=$?
+	    if istrue BigEndian; then
+		Start=words-1
+		End=-1
+		Inc=-1
+	    else
+		Start=0
+		End=words
+		Inc=1
+	    fi
+	    bits=
+	    while [ Start -ne End ]; do
+		d=SplitWord[Start]
+		istrue nobase &&
+		bits="$bits$Sep${d#+([0-9])#}" || bits="$bits$Sep$d"
+		let Start+=Inc
+	    done
+	    out="$out ${bits#?}"	# get rid of initial Sep
+	else
+	    istrue nobase && out="$out ${d#+([0-9])#}" || out="$out $d"
+	fi
+	shift
+    done
+    [ -n "$out" ] && print -- $out
+}
+
+typeset -i obase=10 nobase=0 WordSize=32 BigEndian=0 defBase=0
+Sep=' '
+
+name=${0##*/}
+Usage=\
+"Usage: $name [-hbBoOxX] [-i<in-base>] [-[rR]<out-base>] <integer value> ..."
+
+while getopts :hr:R:bBoOxXw:W:s:i: opt; do
+    case $opt in
+    h)
+    print -r -- \
+"$name: convert integers between bases.
+$Usage
+Octal, decimal, and hexadecimal values may be given using C notation (nnn,
+0nnn, and 0xnnn/0Xnnn)  respectively).  A value may also be entered in any base
+between 2 and 2^32-1 using ksh notation (base#value, e.g. 7#33 to enter a
+value in base 7).
+If no numbers are given on the command line, they are read from the input
+until end of file is reached.
+Options:
+-h: Print this help.
+-r<out-base>: Change the output base (radix) to <base>; must be in range 2..36.
+-b: Change the output base to 2 (binary).
+-o: Change the output base to 8 (octal).
+-x: Change the output base to 16 (hex).
+-R<out-base>, -B, -O, -X: Like the lower case options, except that the output
+    will not include base specifiers.
+-i<in-base>: Change the default input base from decimal to <in-base>.  This
+    affects values not given in hex (0xnnn) or ksh (b#nnn) notation.  If -i is
+    given, values that begin with 0 are taken to be in the specified base,
+    rather than octal.
+-w<wordsize>: Change the word size to <wordsize> bits.  Any values entered
+    which have more than <wordsize> bits will be split up into multiple words.
+    The word representing the high <wordsize> bits is printed first, but the
+    word is split starting from the right, which affects the grouping of
+    bits when <wordsize> is not a power of two.
+-W<wordsize>: Like -w, but the word representing the low <wordsize> bits is
+    printed first.
+-s<sep>: Set the separator string for words split according to the w and W
+    options.  By default, the components are separated with a space."
+	exit 0
+	;;
+    i)
+	defBase=$OPTARG || exit 1
+	;;
+    [rR])
+	obase=$OPTARG || exit 1
+	;;
+    [bB])
+	obase=2
+	;;
+    [oO])
+	obase=8
+	;;
+    [xX])
+	obase=16
+	;;
+    [wW])
+	WordSize=$OPTARG || exit 1
+	if [ WordSize -lt 1 ]; then
+	    print -ru2 -- "$name: Bad word size: $OPTARG"
+	    exit 1
+	fi
+	[ $opt = w ] && BigEndian=1
+	;;
+    s)
+	Sep=$OPTARG;;
+    +?)
+	print -ru2 -- "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -ru2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -ru2 -- "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+    [[ $opt = [A-Z] ]] && nobase=1
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -gt 0 ]; then
+    cbase $*
+else
+    while read line; do
+    cbase $line
+    done
+fi

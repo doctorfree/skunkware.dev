@@ -1,0 +1,136 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# upstat: process wtmp boot time entries & generate statistics
+# @(#) upstat.gawk 2.1 96/06/18
+# 89/07 john h. dubois iii (john@armory.com) (DOS version)
+# 90/11/23 Ported to XENIX: assorted changes; mainly changed expected date
+#          format to that produced by who -a:
+#             .       system boot  Oct  5 15:51
+# 91/10/28 changed name to upstat
+# 92/01/06 added help option
+# 92/02/08 added ability to handle year spanning wtmp files
+# 96/06/18 Print correct line numbers in error messages.
+
+BEGIN {
+    if (ARGV[1] ~ "^[-+]h$") {
+	print \
+"upstat: generate uptime statistics from wtmp boot time entries.\n" \
+"Usage: upstat [-h] [who-output]\n" \
+"[who-output] should be the output of who -a.\n" \
+"If it is not given, upstat uses the output of who -a /etc/wtmp."
+	exit(0)
+    }
+    MonthList = "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec"
+    # This does not work if wtmp spans a year-end.
+    # So, assume every year is a leap year.
+    # At worst, an extra day of no boots (Feb. 29) is added.
+    #"/bin/date +%y" | getline Y
+    #if (Y % 4)
+    #    DaysList = "0 31 59 90 120 151 181 212 243 273 304 334 365"
+    #else
+	DaysList = "0 31 60 91 121 152 182 213 244 274 305 335 366"
+    split(MonthList,Months,",")
+    split(DaysList,NumDays," ")
+    for (Month in Months)
+	Days[Months[Month]] = NumDays[Month]
+    MinDiffTime = 2000000000
+    Year = 0
+    MinuteSecs = 60
+    HourSecs = MinuteSecs * 60
+    DaySecs = HourSecs * 24
+    YearSecs = DaySecs * 366
+
+    if (ARGC > 1)
+	while ((getline < ARGV[1]) == 1)
+	    ProcLine()
+    else
+	while (("exec who -a /etc/wtmp" | getline) == 1)
+	    ProcLine()
+
+    if (DisconCt || BadYearCt)
+	printf("Errors: %d time discontinuities, %d bad years.\n",
+	DisconCt,BadYearCt);
+    LogSecs = TotSec - FirstSec
+    printf("Period covered by log: %s (%s to %s)\n",
+    SecToTime(LogSecs),FirstDate,LastDateTime)
+    printf "Year-ends spanned by log: %d.\n",Year
+    printf("Number of reboots: %d.\n",BootLines)
+    printf("Number of days on which machine was rebooted: %d.\n",NumRebootDays);
+    printf("Fraction of days on which machine was rebooted: 1/%.1f.\n",
+     (1.0 * LogSecs / 86400.0)/NumRebootDays);
+    printf("Shortest period between reboots: %s (%s to %s)\n",
+    SecToTime(MinDiffTime),MinLastDate,MinDate)
+    printf("Longest period between reboots: %s (%s to %s)\n",
+    SecToTime(MaxDiffTime),MaxLastDate,MaxDate)
+    printf("Average period between reboots: %s.\n",
+     SecToTime(int(LogSecs/BootLines)));
+}
+
+function ProcLine() {
+    LineNum++
+    if (($2 != "system") || ($3 != "boot"))
+	return
+    Date = $4 " " $5
+    DateTime = Date " " $6
+    if (($4 == "Jan") && (LastDate ~ "^Dec")) {
+	Year++
+	printf "Year change on line %d: %s to %s.\n",LineNum,LastDate,Date
+    }
+    TotSec = EntryToSec(Year,$4,$5,$6)
+    DiffTime = TotSec - LastTotSec
+    LastTotSec = TotSec
+    if (DiffTime < 0) {
+	printf("Error on line %d: time discontinuity.\n",LineNum)
+	DisconCt++
+	Discon = 1
+	return
+    }
+    if (Date != LastDate)
+	NumRebootDays++;
+    BootLines++
+    if (FirstDate == "") {
+	FirstDate = DateTime
+	FirstSec = TotSec
+    }
+    else if (Discon) 
+	Discon = 0
+    else {
+	if (DiffTime < MinDiffTime) {
+	    MinDiffTime = DiffTime
+	    MinDate = DateTime
+	    MinLastDate = LastDateTime
+	}
+	if (DiffTime > MaxDiffTime) {
+	    MaxDiffTime = DiffTime;
+	    MaxDate = DateTime
+	    MaxLastDate = LastDateTime
+	}
+    }
+    LastDateTime = DateTime
+    LastDate = Date
+}
+
+function SecToTime(Seconds,  Days,Hours,Minutes,Time) {
+    Days = int(Seconds / 86400)
+    Seconds %= 86400
+    Hours = int(Seconds / 3600)
+    Seconds %= 3600
+    Minutes = int(Seconds / 60)
+    Seconds %= 60
+    if (Days)
+	Time = Days "d "
+    if (Time || Hours)
+	Time = Time Hours "h "
+    if (Time || Minutes)
+	Time = Time Minutes "m "
+    if (!Time || Seconds)
+	Time = Time Seconds "s "
+    return substr(Time,1,length(Time) - 1)
+}
+
+function EntryToSec(Year,Month,Day,HM)
+{
+    split(HM,HMArr,":")
+    return HMArr[2] * MinuteSecs + HMArr[1] * HourSecs + \
+    (Days[Month] + Day - 1) * DaySecs + Year * YearSecs
+}

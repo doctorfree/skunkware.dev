@@ -1,0 +1,122 @@
+<HTML>
+<HEAD>
+<TITLE>A bit about text source files</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="07.00.DATABASES.html">Up</A>&nbsp;&nbsp;<A HREF="07.02.MiniVend_Database_Operation.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="A_bit_about_text_source_files">A bit about text source files</A></H2>
+<P>
+MiniVend reads TAB-delimited text files to obtain your data. However,
+<STRONG>the text files are not the database</STRONG>. They are the source information for the database tables; when you change
+them, essentially you are placing text which will be <EM>imported</EM> into the database table.
+
+<P>
+Note the following directive:
+
+<P>
+<PRE>    Database  products  products.txt   TAB
+</PRE>
+<P>
+This says that the <A HREF="#item_products">products</A> table will obtain its source information from the file <CODE>products.txt</CODE>. What is done with it depends on the type of underlying database you are
+using. The different types:
+
+<DL>
+<DT><STRONG><A NAME="item_GDBM">GDBM</A></STRONG><DD>
+The database source file is checked to see if it is newer than the actual
+database file, which would be <CODE>products.gdbm</CODE>. If it is, then the database table is re-imported from the file.
+
+<P>
+You can change this behavior in a couple of ways. If you wish the file
+never to be imported unless the <CODE>.gdbm</CODE> file disappears, set the <CODE>NoImport</CODE> directive:
+
+<P>
+<PRE>    NoImport  products
+</PRE>
+<P>
+If you want it only to be imported at catalog start-up time, use the 
+<FONT SIZE=-1>IMPORT_ONCE</FONT> modifier:
+
+<P>
+<PRE>    Database products IMPORT_ONCE 1
+</PRE>
+<P>
+
+<FONT SIZE=-1>GDBM</FONT> is the default type if you have GDBM_File Perl
+module installed (as it will be on Linux).
+
+</DD><P><DT><STRONG><A NAME="item_DB_File">DB_File</A></STRONG><DD>
+The database source file is checked to see if it is newer than the actual
+database file, which would be <CODE>products.db</CODE>. If it is, then the database table is re-imported from the file.
+
+<P>
+You can change this behavior in the same way as with GDBM_File (above).
+
+<P>
+DB_File is the default type if you <STRONG>do not</STRONG> have the GDBM_File Perl module installed. This is typical on FreeBSD.
+
+<P>
+To explicitly specify DB_File as the type, you can specify it with a
+Database directive in <CODE>catalog.cfg</CODE>:
+
+<P>
+<PRE>    Database  products  DB_FILE   1
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_DBI">DBI/SQL</A></STRONG><DD>
+If a file named <CODE>products.sql</CODE> is present in the same directory as <CODE>products.txt</CODE> the database table will not be imported from 
+<FONT SIZE=-1>ASCII</FONT> source. If there is no <CODE>products.sql</CODE>, then the following will occur:
+
+<P>
+
+<FONT SIZE=-1>DBI/SQL</FONT> imports only happen at catalog configuration
+time.
+
+<OL>
+<LI>
+<P>
+MiniVend will connect to the 
+<FONT SIZE=-1>SQL</FONT> database using the specified 
+<FONT SIZE=-1>DSN.</FONT> 
+<FONT SIZE=-1>(DBI</FONT> parameter meaning ``Database Source Name''.)
+
+
+<LI>
+<P>
+The table will be dropped with 
+<FONT SIZE=-1>``DROP</FONT> 
+<FONT SIZE=-1>TABLE</FONT> products;''. This will occur without warning!
+
+
+<LI>
+<P>
+The table will be created. If there are 
+<FONT SIZE=-1>COLUMN_DEF</FONT> specifications in <CODE>catalog.cfg</CODE>, they will be used; otherwise the key (first field in the text file by
+default) will be created with a <CODE>char(16)</CODE> type and all other fields will be created as
+<CODE>char(128)</CODE>. The table creation statement will be written to the <CODE>error.log</CODE> file.
+
+<LI>
+<P>
+The text source file will be imported into the 
+<FONT SIZE=-1>SQL</FONT> database. MiniVend will place the data in as in
+the columns; you must take care of data typing yourself. This means that if
+you put ``none'' in a field, and it is defined as a numeric type, the
+database import will not succeed. If it does not, the catalog will not
+become active.
+
+</OL>
+</DD><P><DT><STRONG><A NAME="item_In">In-memory</A></STRONG><DD>
+Every time the catalog is configured, the <CODE>products.txt</CODE> file is imported into memory and forms the database. The database is not
+changed otherwise.
+
+<P>
+In-memory is the default type if there is no GDBM_File or DB_File Perl
+module installed; you can also specify it with:
+
+<P>
+<PRE>   Database   products   MEMORY   1
+</PRE>
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="07.00.DATABASES.html">Up</A>&nbsp;&nbsp;<A HREF="07.02.MiniVend_Database_Operation.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

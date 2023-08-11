@@ -1,0 +1,311 @@
+# @(#) ucd.ksh 3.3 97/07/13
+# 1991 john@armory.com
+# 92/12/22 changed to autoloaded function
+# 93/12/18 Added conversion of leading $HOME to ~
+# 94/01/07 Consider constant part of prompt when deciding how long to
+#          allow $PWDS to be.
+# 94/10/28 Added lookupdir (directory lookup capability)
+# 95/09/17 Fixed bug that prevented a directory less than -20 being given.
+#          Added debug capability.
+# 95/09/25 Search for only the first component of the given path.
+# 96/01/02 Fixed dir index range check.
+# 97/02/11 If a filename is given, cd to the directory it is in.
+# 97/07/13 3.3 Added search for dir in args if >2 are given.
+#          Let various paremeters be customized.
+#
+# Usage:
+# alias cd=ucd
+# cd -n		cd to n'th last directory
+# cd -s		cd to the last directory that contains substring s
+# cd abs-path	If a path beginning in /, ./, or ../ is given, it will be
+#		cd'd to if it is a directory.  If it is not a directory but is
+#		when the trailing path component is removed, that is cd'd to
+#		instead.  This is a convenience to let a filename be given to
+#		cd to the directory it is in without having to edit it to
+#		remove the trailing component.
+# cd non-abs-path	Standard ksh cd behaviour, except that if the path
+#		is not found in CDPATH, it is searched for in a set of
+#		directory databases (if any are set).  Directory lookup depends
+#		on the availability of the 'look' or 'nlook' utilities.  See
+#		"Directory Lookup" below for a description.
+# cd s s	Standard ksh cd behaviour (substring replacement); see ksh
+#		ksh man page.
+# cd s s s ...	If 3 or more arguments are given, each is checked in order to
+#		determine whether it is a directory.  An attempt is made to cd
+#		to the first that is a directory.  To do this for only two
+#		directories, give an extra bogus name that is not a directory,
+#		e.g. ''   Example: cd '' foo bar
+# dirs [num]	List directories in directory history list.  dirs is stored in
+#		a separate file (not this one) so that it can be autoloaded
+#		when first invoked.
+#
+# Directory Lookup:
+# Database format:
+# When this file is first sourced, if the shell variable _dirfiles is set it
+# is taken to be the names of a whitespace-separated set of directory
+# databases.  If not, a file named .dirs is searched for in the user's home
+# directory, and if it exists, is taken to be the name of a directory database.
+# The format of the directory databases is one pair of elements on each line:
+# trailing-dir-component full-path
+# If full-path does not begin with /, it is converted to an absolute path by
+# prepending it with the name of the directory that the directory database
+# resides in.
+# Example:
+# ksh lib/ksh
+# If the directory database that the above example line came from resides in
+# /u/spcecdt, the full-path is taken to be /u/spcecdt/lib/ksh.
+# Suitable directory databases can be built with the 'mkdirlist' utility.
+# Operation:
+# When a single argument that does not begin with /, ./, or ../ is given and
+# it is not found by a normal directory search (in the current directory or
+# in each component of CDPATH, if set), it will be searched for in the
+# directory databases.  The search goes like this:
+# If the directory name given exactly matches one trailing-directory-component
+# in the first directory database, the full-path will be cd'd to.  If it
+# matches more than one trailing-directory-component, the matches (up to 10)
+# are offered for interactive selection.  If there is no match, the directory
+# name given is searched for as a prefix of any trailing-dir-component, and the
+# results are treated the same way (immediate cd if one match, interactive
+# selection if more).  If there are still no matches, the next directory
+# database (if any) is searched in the same manner.
+# Putting a trailing '/' on the directory name to be searched for will
+# suppress the search for prefixes; only an exact match (to the name without
+# the trailing '/') will be accepted.
+# In all cases, the full-path returned by a match is tested for whether it
+# is an acceptable cd target; if it does not exist, is not a directory, or
+# is not executable it is skipped (not included in the matches or match count).
+# If more than one component is given (e.g. foo/bar), the first component is
+# looked up and the other components are attached to the full-path of each
+# match before it is tested for whether it is an acceptable cd target.
+#
+# Shell variables:
+#      This function sets PWDS to PWD, but with an upper limit on how
+# long it is (removing directory components from the left-hand-side as
+# neccessary), so that $PWDS can be used in PS1 instead of $PWD.
+# The maximum length of PWDS may be set at any time by setting the _ucdmaxpwds
+# variable.  The default is 50.  PWDS is trimmed to the trailing _ucdmaxpwds
+# characters of PWD, then any remaining piece of the first component is
+# removed.  Changes to _ucdmaxpwds affect PWDS the next time ucd is invoked.
+#      If UCDDEBUG is set to a non-null value, debugging information is printed.
+#      If _ucdnumdirs is set BEFORE this file is sourced (before the first time
+# ucd is invoked, if you are using FPATH), it sets the number of history slots.
+# The default and maximum is 1023 (due to ksh array limits).
+#      _ucdmaxmatch may be set at any time to the maximum number of matches
+# that should be offered for interactive selection.  More than this number of
+# matches will cause a complaint to be issued and termination of cd processing.
+# The default is 10.
+
+# This file (and ucd) can be put in $FPATH/ucd so that they will be autoloaded
+# instead of sourcing them directly from .profile or $ENV (e.g. .kshrc).
+# See the description of FPATH in the ksh man page.
+
+
+typeset -i _ucdnumdirs _dind _ucdmaxmatch _ucdmaxpwds _ucdoldmp=0
+	typeset -i _ucdi=0
+# even after typeset -i, value will be null until assigned to;
+# also, if it had a non-numeric value, will become null after typeset -i
+[ -z "$_ucdnumdirs" ] && _ucdnumdirs=1023
+[ -z "$_ucdmaxmatch" ] && _ucdmaxmatch=10
+[ -z "$_ucdmaxpwds" ] && _ucdmaxpwds=50
+
+function ucd {
+    typeset pwdhead debug
+
+    [ -n "$UCDDEBUG" ] && debug=true || debug=false
+    # Retrieve dir from history
+    if [[ $# -eq 1 && "$1" = -?* ]]; then
+	$debug && print -r -u2 "Searching directory history..."
+	if [[ "$1" = -+([0-9]) ]]; then
+	    typeset -i ind=$1
+	    if [ ind -lt -_ucdnumdirs -o ind -gt -1 ]; then
+		print -u2 \
+	"Bad dir history index ($ind); must be in the range -1..-$_ucdnumdirs."
+		return 1
+	    fi
+	    let ind=_dind+$1+1
+	    if [ ind -lt 0 ]; then let ind+=_ucdnumdirs; fi
+	    if [ -z "${_olddirs[ind]}" ]; then
+		print -u2 "No such old dir."
+		return 1
+	    fi
+	    $debug && print -u2 "Trying to cd to dir #$ind (${_olddirs[ind]})"
+	    \cd "${_olddirs[ind]}" || return $?
+	else
+	    typeset -i i=1 ind=_dind
+	    typeset dir pat=${1#-}
+
+	    $debug && print -u2 \
+	    "Searching previous dir list for a directory matching '$pat'"
+	    while [ i -le _ucdnumdirs ]; do
+		dir=${_olddirs[ind]}
+		$debug && print -n -u2 "#$ind:$dir "
+		if [[ "$dir" = ?(*$pat*|) ]]; then break; fi
+		let ind-=1
+		if [ ind -lt 0 ]; then ind=_ucdnumdirs-1; fi
+		let i+=1
+	    done
+	    $debug && print -u2 ""
+	    if [ i -gt _ucdnumdirs -o -z "$dir" ]; then
+		print -u2 "No old dir matches that pattern."
+	    else
+		\cd "$dir" || return $?
+	    fi
+	fi
+    elif [ $# -gt 2 ]; then
+	$debug && print -r -u2 "Searching args for a directory..."
+	# If more than 2 args are given, cd to the first arg that is a dir.
+	typeset d
+	for d; do
+	    [ -d "$d" ] && break
+	done
+	[ -d "$d" ] || return 1
+	\cd "$d" || return 1
+    elif [[ $# -gt 1 || "$1" = ?(.|..)/* || -z "$_dirfiles" || \
+    ! -r "$_dirfiles" ]]; then
+	# if a substitution is being done, an absolute path is given,
+	# or there is no dirlist file, do cd w/o errors discarded because it is
+	# the only thing that will be tried.
+	# If a single arg that is an absolute path is given and it is not
+	# a directory, but it is if the trailing component is stripped,
+	# cd to that instead.  This is a convenience to let a filename be
+	# given to cd to the directory it is in without having to edit it
+	# to remove the trailing component.
+	if [[ $# -eq 1 && "$1" = ?(.|..)/* && ! -d "$1" && -d "${1%%*([!/])}" ]]
+	then
+	    set -- "${1%%*([!/])}"
+	    print -u2 "ucd: changing to parent dir: $1"
+	fi
+	\cd "$@" || return 1
+    else
+	# Try plain cd first.  Discard errors because dir lookup will be
+	# attempted if dir is not in path (saving error output w/pipe uses an
+	# exec).
+	\cd "$@" 2>|/dev/null || {
+	    # If dir was not in path, try looking it up; if found, try to
+	    # cd to it.  If not found, do original cd again w/o error
+	    # output redirected, to get an error message.  Only return 1 if
+	    # this final cd fails, just in case it succeeds even though it
+	    # didn't last time.
+	    [ -n "$_look" ] && lookupdir "$1" "$debug" &&
+	    \cd "$lookupdir_ret" || \cd "$@" || return 1
+	}
+    fi
+    _dind='(_dind+1)%_ucdnumdirs'
+    _olddirs[_dind]=$OLDPWD
+    # Strip off leading $HOME
+    [[ $HOME != / && "$PWD" = $HOME?(/*) ]] &&
+    pwd="~${PWD#$HOME}" || pwd=$PWD
+    # If prompt would be too long with constant part of prompt added,
+    # get rid of some of the leading part of the path.
+    pwdhead=$pwd$cprompt
+    # If this is the first invokation of ucd, or if _ucdmaxpwds has changed,
+    # generate _ucdtail from it.
+    if [ _ucdmaxpwds -ne _ucdoldmp ]; then
+	typeset -i _ucdi=0
+	_ucdtail=
+	while [ _ucdi -lt _ucdmaxpwds ]; do
+	    _ucdtail="$_ucdtail?"
+	    let _ucdi=_ucdi+1
+	done
+	_ucdoldmp=_ucdmaxpwds
+	unset _ucdi
+    fi
+    eval pwdhead=\${pwdhead%%$_ucdtail}
+    [ -n "$pwdhead" ] && PWDS=${pwd##$pwdhead*([!/])/} || PWDS=$pwd
+    return 0
+}
+
+[ -z "$_dirfiles" -a -r $HOME/.dirs ] && _dirfiles=$HOME/.dirs
+
+# nlook is faster & less buggy than look
+if type nlook >|/dev/null; then
+    _look=nlook
+elif type look >|/dev/null; then
+    _look=look
+else
+    print -ru2 -- "ucd: look: not found.  Directory lookup disabled."
+fi
+
+# Usage: lookupdir dirname/ debugstatus  or   lookupdir dirprefix debugstatus
+# If dirname/ is given, dirname as the full last component of a path is
+# searched for.  If dirname is given, dirname is first searched for as above,
+# and if it isn't found, any last component of a path that begins with dirname
+# is searched for.  This is done for each dirlist file in turn.  If _dirfiles
+# is not set or dir is not found, failure status is returned.
+# Note that the ambiguity check is only done on a single-file basis.
+# The dir file is built by 'mkdirlist' and has this format:
+# trailing-dir-component full-path
+# lookupdir should not be called with an absolute path (one that starts with /)
+function lookupdir {
+    typeset SearchDir=$1 DirTail= debug=$2 Srch S dir file found exact=false
+    typeset -i i=0 matches
+
+    if [[ "$SearchDir" = */ ]]; then
+	exact=true
+	SearchDir=${SearchDir%/}
+    fi
+    # If dir has more than one component, split off the first component so it
+    # can be looked up.  Keep the rest (inc. / at front) so it can be added.
+    if [[ "$SearchDir" = */* ]]; then
+	DirTail=${SearchDir##*([!/])}
+	SearchDir=${SearchDir%%/*}
+	exact=true
+    fi
+    # If dirname/ was given, get rid of the / and instead use a trailing space
+    # since that is what the file contains.  If dirname is given, make the args
+    # be: first, the dirname with a trailing space (so that an exact match will
+    # be preferred), then just the dirname.
+    $exact && set -A S -- "$SearchDir " ||
+    set -A S -- "$SearchDir " "$SearchDir"
+
+    for file in $_dirfiles; do
+	for Srch in "${S[@]}"; do
+	    set -- $($_look "$Srch" "$file")
+	    i=0
+	    $debug && print -u2 "Searching dirlist '$file' for '$Srch'; got: $*"
+	    # Canonize dirs & get rid of dirs not accessible or which no longer
+	    # exist.  If the given path had more then one component, check for
+	    # accessibility of the full path.
+	    while [ $# -gt 0 ]; do
+		# If dir is relative, prefix it with dir that dir file resides
+		# in.  Discard 1 or more /'s after the last dir component since
+		# file might be //file (e.g. $HOME=/, file=//.dirs).
+		# Get rid of any ./ prefix in dir.
+		[[ "$2" = /* ]] && dir=$2 || dir=${file%%+(/)!(/)}/${2#./}
+		dir="$dir$DirTail"
+		$debug && print -u2 "Checking $dir"
+		if [ -d "$dir" -a -x "$dir" ]; then
+		    found[i]=$dir
+		    let i+=1
+		fi
+		shift 2
+	    done
+	    # If we got anything, do not search for any other search strings,
+	    # because those that come earlier are preferred.
+	    [ i -gt 0 ] && break 2
+	done
+    done
+    $debug && print -u2 "Got $i matches."
+    [ i -eq 0 ] && return 1
+    matches=i
+    if [ matches -gt 1 ]; then
+	# Adjust the number below to set the max number of dirs presented to
+	# select from.
+	if [ matches -le _ucdmaxmatch ]; then
+	    print -u2 -- \
+	"$SearchDir: ambiguous.  Enter a number to select a dir or q to skip."
+	    unset lookupdir_ret
+	    select lookupdir_ret in "${found[@]}"; do
+		break
+	    done
+	    [ -n "$lookupdir_ret" ]
+	    return $?
+	else
+	    print -u2 -- "$SearchDir: ambiguous ($matches matches)."
+	    return 1
+	fi
+    else
+	lookupdir_ret=${found[0]}
+	return 0
+    fi
+}

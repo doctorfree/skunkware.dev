@@ -1,0 +1,36 @@
+#!/bin/sh
+# @(#) newinittab.sh 1.0 94/06/27
+# 93/11/19 John H. DuBois III (john@armory.com)
+# 94/06/27 Added help.
+
+if [ $# -gt 0 ]; then
+    name=$0
+    echo \
+"$name: Build new inittab file & instruct init to read it.
+$name uses idmkinit to construct a new inittab file from the init.base and
+init.d files, copies it to /etc/inittab after saving the old inittab to
+inittab-, and then sends init a signal instructing it to read the new inittab
+file.  This allows init changes to be made to the appropriate base file &
+propogated to /etc/inittab without having to duplicate them there or build a
+new kernel."
+    exit 0
+fi
+
+if /etc/conf/bin/idmkinit; then :; else
+    echo "idmkinit failed" 1>&2
+    exit 1
+fi
+
+inittab=/etc/inittab
+newinittab=/etc/conf/cf.d/inittab
+if cp $inittab $inittab-; then :; else
+    echo "copy of inittab to inittab- failed" 1>&2
+    exit 1
+fi
+
+if cat $newinittab > $inittab; then :; else
+    echo "copy of new inittab onto /etc/inittab failed" 1>&2
+    exit 1
+fi
+
+init q

@@ -1,0 +1,165 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.6">
+ <TITLE>Linux Emulation for SCO: Implementation</TITLE>
+ <LINK HREF="lxrun-3.html" REL=next>
+ <LINK HREF="lxrun-1.html" REL=previous>
+ <LINK HREF="lxrun.html#toc2" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="lxrun-3.html">Next</A>
+<A HREF="lxrun-1.html">Previous</A>
+<A HREF="lxrun.html#toc2">Contents</A>
+<HR>
+<H2><A NAME="s2">2. Implementation</A></H2>
+
+<P>The emulator needed to handle the following major issues (detailed below):
+system call handling along with remapping of arguments, flags, return values
+and error codes; library pathname lookup and remapping; ioctl mappings for
+the various major devices and differences in the tty subsystems.
+<P>
+<H2><A NAME="ss2.1">2.1 Design goals</A>
+</H2>
+
+<P>
+<UL>
+<LI>Allow execution of Intel Linux binaries on other Intel UNIX platforms</LI>
+<LI>Exist entirely in user-space (no kernel modifications)</LI>
+<LI>No modification of the Linux binaries or libraries required</LI>
+</UL>
+<H2><A NAME="ss2.2">2.2 Difference in syscall handling</A>
+</H2>
+
+<P>System call handling is implemented differently between Linux and Intel
+UNIX System V platforms; that is each uses a different instruction
+to implement the switch to kernel mode.
+<P>Intel Unix System V uses a "lcall $0x07".  In Linux an "int $0x80" software
+interrupt instruction is used, which jumps to the  system-call-handling 
+portion of the Linux kernel. On SCO systems, "int $0x80" is an unused vector 
+and therefore causes a general protection trap resulting in a SIGSEGV
+signal. Lxrun intercepts these signals and calls the SCO equivalent of
+the system call that the Linux program attempted. In many cases this is
+a direct map or call of the equivalent native system call, in other cases
+some mapping or translation of arguments passed in and flags and error codes
+passed out is required. Where there is no equivalent system call available
+on the emulated system or the equivalent syscall mapping has not been
+implemented the system call fails and returns an errorcode of ENOSYS.
+<P>
+<H2><A NAME="ss2.3">2.3 Pathname for loading Linux libraries </A>
+</H2>
+
+<P>Because lxrun works at the system call level, any Linux shared
+libraries required by the application must be present in the
+emulation environment.  This leads to a possible filename-space
+conflict between native and Linux binaries.  To resolve this
+problem, lxrun remaps any pathnames beginning with /lib,
+/usr/lib, /usr/local/lib, or /usr/X11R6/lib by prepending them
+with a "Linux root" path.  This path is specified at compile
+time and can be overridden by setting the LINUX_ROOT environment
+variable. This remapping allows the user to install a set of
+Linux libraries in a separate directory hierarchy from the
+native system libraries, thus avoiding conflicts.
+<P>
+<H2><A NAME="ss2.4">2.4 Device major number mappings</A>
+</H2>
+
+<P>The arguments to an ioctl call alone do not provide enough
+information to remap the command number correctly.  This is
+because the same command number can have different meanings to
+different drivers.
+<P>Lxrun works around this problem by maintaining a mapping from
+open file descriptors to drivers.  On the first ioctl call to a
+new file descriptor, lxrun determines the associated major
+device number.  It compares this with a table of drivers and
+major device numbers set up at run-time.  This mapping is then
+cached to improve performance on future ioctl calls to that file
+descriptor.  Lxrun can then take the driver into consideration
+when remapping ioctl command numbers.
+<P>
+<H2><A NAME="ss2.5">2.5 Differences in kernel tty systems</A>
+</H2>
+
+<P>The following is a discourse on lxrun tty handling from Robert Lipe
+<A HREF="mailto:robertl@dgii.com">(robertl@dgii.com)</A>, the
+principal author of lxrun's tty handling code:
+<P>"The kernel tty systems are very different. The user level tty systems
+are actually quite similar, fortunately for lxrun. Most of the members
+of things like termio and struct termios are the same size, alignment, 
+and offset. Even most of the bitfields fall into place. While
+it would have been much safer to do
+<HR>
+<PRE>
+        if ( (lx_tio->c_cflag &amp; LX_CBAUD) == LX_B50)
+                tio->c_cflag |= B50;
+        if (lx_tio->c_iflag &amp; LX_ICANON) 
+                tio->c_iflag |= ICANON;
+</PRE>
+<HR>
+
+and repeat this for each of a couple hundred flags, the reality was that
+it generated horrible code that would have performed poorly and been
+a nightmare to maintain. 
+<P>The only sticky spot was that Linux has four distinctly separate
+members in c_cc (the control character array) for VMIN, VTIME, EOF, 
+and EOL. Most System V's including OpenServer (I can't recall what SVR[45] 
+does here) use the same offset and multiplex this into two bytes. In reality, 
+since they can never both be active at the same time (if ICANON is set, EOF 
+and EOL are used. If ICANON is clear, VMIN, VTIME are used) this doesn't turn
+out to be much of a issue.
+<P>[Since] TCGETA and TCSETA are by far the most frequently used, I implemented 
+them first (and their derivatives that wait and flush and the derivatives of 
+each of those for POSIX struct termios). With those 8 in hand, I started firing 
+up applications that were known to do wierd things to the tty. When elvis 
+(the Linux vi binary I had at the time) worked well enough, I submitted the 
+changes. Then, I just used more and more applications and picked up a few 
+stragglers like FIONREAD that mapped very simply. 
+<P>Are there hazards in any of this? Certainly. Each system has a few
+bits in each of the available ioctls that don't exist in the other
+system. There is some overlap. We haven't seen any real world
+failures becuase of this. The reality seems to be that the programs
+that drive serial ports to the crazy edge don't make sense to emulate
+anyway. For example, someone once asked me why Linux ecu (a kermit-like
+program) didn't work well. Since source for it is available and it
+supports OpenServer just fine, use the native binary instead. Someone
+once asked me about running Linux ppp, but that's similarly nonsensical,
+though doomed to failure for different reasons."
+<P>
+<H2><A NAME="ss2.6">2.6 Miscellaneous issues</A>
+</H2>
+
+<P>
+<UL>
+<LI> For local displays, SCO OpenServer uses ":0.0" and UnixWare uses
+"unix:0.0".  The former causes Linux X11 binaries to try to
+use shared memory, which won't work with the native X server.
+The latter causes a name lookup for the machine "unix" which
+probably fails. These two cases are detected and the DISPLAY
+is set to contain a valid machine name instead.</LI>
+<LI> Documentation is supplied in the <CODE>doc</CODE> subdirectory of the lxrun
+source. This currently consists of this document, a FAQ, a document
+describing how to get the Linux StarOffice suite to run, and the system
+call mapping table.</LI>
+<LI> Various packaging conveniences have been supplied. For instance, the
+necessary Linux shared libraries have been re-packaged in the native
+installation format. A shell script, lxfront, useful in the execution
+of Linux a.out and statically-linked ELF binaries, has been supplied.
+To use lxfront:
+<UL>
+<LI> Put lxfront and any Linux a.out or statically-linked ELF 
+binaries in /usr/local/linux/bin</LI>
+<LI> Put lxrun in /usr/local/bin</LI>
+<LI> Create links in /usr/local/bin to lxfront with the same 
+names as your Linux binaries.</LI>
+</UL>
+
+Executing these links should invoke lxrun on your Linux program.
+</LI>
+</UL>
+<P>
+<HR>
+<A HREF="lxrun-3.html">Next</A>
+<A HREF="lxrun-1.html">Previous</A>
+<A HREF="lxrun.html#toc2">Contents</A>
+</BODY>
+</HTML>

@@ -1,0 +1,1232 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# vtree: visual directory tree
+# @(#) vtree.gawk 2.1 96/12/13
+# 90/04    john h. dubois iii (john@armory.com)
+# 91/07/01 fixed bug that caused problems when dir given on command line,
+#          added some info to help, changed to 4-space indenting
+# 96/12/03 Rewrote as all-awk program, using DrawTrees lib.
+# 96/12/13 Added s option.
+
+BEGIN {
+    Name = "vtree"
+    Usage = \
+"Usage: " Name " [-hastnrAS] [-i<indent>] [-c<columns>] [-w<width>] [dir ...]"
+    rcFile = ".vtree"
+    ARGC = Opts(Name,Usage,"i>c<w>SaA1rshxt",0, "~/" rcFile ":$HOME/" rcFile,
+    "INDENT,COLUMNS,WIDTH,SPACES,ASCII,NOARROW,ONE,ROOT,SORT",
+    0,"n",0,"","1,w")
+    nIndent = 2
+    Width = 10
+
+    if ("h" in Options) {
+	printf \
+"%s: print a visual directory tree.\n"\
+"%s\n"\
+"%s draws a visual representation of the directory tree rooted at each of\n"\
+"the named directories, or the current directory if none is specified.\n"\
+"Options:\n"\
+"Some of the following options can also be set by assigning values to\n"\
+"variables in a configuration file named %s, which is searched for in the\n"\
+"invoking user's home directory and in the directory specified by the\n"\
+"environment variable UHOME, if it is set (if both files exist, values set\n"\
+"in the former take precedence).  Variables are assigned to with the\n"\
+"syntax:  varname=value  or in the case of flags, by simply putting the\n"\
+"indicated variable name in the file without a value.  Variable names are\n"\
+"given in parentheses in the option descriptions.\n"\
+"-h: Print this help.\n"\
+"-n: Do not read the configuration file.\n"\
+"The following options control the manner in which the tree is drawn:\n"\
+"-s: Sort each tree by directory names.\n"\
+"-t: Prefix each directory name with its index in the tree being printed.\n"\
+"-r: Make the displayed tree be rooted at the given directory.  Normally,\n"\
+"    the name of the directory is printed by itself before the tree is\n"\
+"    displayed in order to save display space.  (ROOT)\n"\
+"-i<indent>: The number of character positions to indent when showing the\n"\
+"    children of a directory.  The minimum and default is %d. (INDENT)\n"\
+"-c<columns>: The display width to use.  Output is truncated to <columns>\n"\
+"    columns.  The default is to use one fewer than the width of the user's\n"\
+"    terminal. If -C0 is given, the output is not truncated.  (COLUMNS)\n"\
+"-w<width>: Set the maximum number of characters that a directory name may\n"\
+"    have without being truncated.  The higher <width> is set, the lower the\n"\
+"    number of directory levels that will fit on the display.  <width> must\n"\
+"    be at least 2.  The default is %d.  (WIDTH)\n"\
+"-1: The directory tree is drawn in an alternate format (one directory name\n"\
+"    per line).  For this style, <indent> may be set to 1.  (ONE)\n"\
+"-a: Normally, the tree is drawn using box-drawing character appropriate to\n"\
+"    the type of terminal the program is invoked from.  If the terminal\n"\
+"    does not have box-drawing characters available or -a is given, the\n"\
+"    tree is drawn using ASCII characters.  (ASCII)\n"\
+"-S: Draw the tree using nothing but spaces for indentation.  (SPACES)\n"\
+"-A: Do not put an arrow to the left of each directory name.  (NOARROW)\n",
+	Name,Usage,Name,rcFile,nIndent,Width
+	exit 0
+    }
+    FS = "/"
+    if ("1" in Options)
+	Width = 0
+    if ("w" in Options && (Width = Options["w"]) < 2) {
+	printf "%s: Value given with -w must be at least 2.\n",
+	Name > "/dev/stderr"
+	exit 1
+    }
+    Debug = "x" in Options
+    Spaces = "S" in Options
+    Rooted = "r" in Options
+    Sort = "s" in Options
+    addInd = "t" in Options
+    if ("a" in Options)
+	delete ENVIRON["TERM"]
+    if (ARGC < 2) {
+	ARGV[1] = "."
+	ARGC = 2
+    }
+    SUBSEP = ","	# for debugging printing
+    if ("c" in Options)
+        maxLength = Options["c"]
+    else {
+	maxLength = tiget1("cols")
+	maxLength = (maxLength == "") ? 79 : (maxLength - 1)
+    }
+    useArrow = !("A" in Options)
+    if ("i" in Options && (nIndent = Options["i"]) < 2 && Width) {
+	printf "%s: Value given with -i must be at least 2.\n",
+	Name > "/dev/stderr"
+	exit 1
+    }
+    if (Debug)
+        print "" > "/dev/stderr"
+    for (i = 1; i < ARGC; i++)
+	doTree(ARGV[i],nIndent,Width,Spaces,maxLength,useArrow,Rooted,Sort,
+	addInd)
+}
+
+function doTree(dir,nIndent,Width,Spaces,maxLength,Arrow,Rooted,Sort,addInd,
+proc,Data,prefix,prefixes,i,indexes,d) {
+    # indexes[n] stores the index prefix for level n
+    proc = "cd " dir " && exec find . -type d -print 2>/dev/null"
+    proc | getline	# discard . line
+    if (Rooted) {
+	Data[1] = dir
+	prefix = 1 SUBSEP
+    }
+    else
+	print "Directory: " dir
+    i = 0
+    level = 2
+    while ((proc | getline) == 1) {
+	oprefix = prefix
+	oi = i
+	if (Debug)
+	    print "Read: " $0
+	d = $NF		# save this because DrawTrees may nuke current line
+	if (!Sort && !Rooted && NF == 2 && i) {
+	    # print major branch whenever a new one starts, to reduce the peak
+	    # amount of data stored
+	    list(Data,nIndent,Width,Spaces,maxLength,Arrow,Sort,addInd)
+	    split("",Data)
+	    prefix = ""
+	    i = 0
+	    level = 2
+	}
+	else if (NF != level) {
+	    if (NF < level) {	# went back
+		# Retrieve prefix/index for this level
+		prefix = prefixes[NF]
+		i = indexes[NF]
+	    }
+	    else {	# went deeper
+		# save current prefix/index for old level
+		prefixes[level] = prefix
+		indexes[level] = i
+		prefix = prefix i SUBSEP
+		i = 0
+	    }
+	    if (Debug)
+		printf \
+		"level change: %d -> %d  Prefix: %s -> %s  Index: %s -> %s\n",
+		level,NF,oprefix,prefix,oi,i
+	    level = NF
+	}
+	++i
+	Data[prefix i] = d
+	if (Debug)
+	    printf "Data[%s] = %s   Dir: %s\n",prefix i,d,$0
+    }
+    # print last major branch (or whole tree, if sorting)
+    list(Data,nIndent,Width,Spaces,maxLength,Arrow,Sort,addInd)
+    close(proc)
+}
+
+# Globals: altChars[]
+function list(Data,nIndent,Width,Spaces,maxLength,Arrow,Sort,AddInd,
+newData,addInd) {
+    if (Debug)
+	print "LIST"
+    DrawTrees(Data,nIndent,Width,altChars,Spaces,"",Arrow,maxLength,AddInd,Sort)
+}
+
+### Start of ProcArgs library
+# @(#) ProcArgs 1.10 96/11/16
+# 92/02/29 john h. dubois iii (john@armory.com)
+# 93/07/18 Added "#" arg type
+# 93/09/26 Do not count -h against MinArgs
+# 94/01/01 Stop scanning at first non-option arg.  Added ">" option type.
+#          Removed meaning of "+" or "-" by itself.
+# 94/03/08 Added & option and *()< option types.
+# 94/04/02 Added NoRCopt to Opts()
+# 94/06/11 Mark numeric variables as such.
+# 94/07/08 Opts(): Do not require any args if h option is given.
+# 94/09/23 Fixed bug that caused fail if -opt<value> given as last arg.
+# 95/01/22 Record options given more than once.  Record option num in argv.
+# 95/06/08 Added ExclusiveOptions().
+# 96/01/20 Let rcfiles be a colon-separated list of filenames.
+#          Expand $VARNAME at the start of its filenames.
+#          Let varname=0 and -option- turn off an option.
+# 96/05/05 Changed meaning of 7th arg to Opts; now can specify exactly how many
+#          of the vars should be searched for in the environment.
+#          Check for duplicate rcfiles.
+# 96/05/13 Return more specific error values.  Note: ProcArgs() and InitOpts()
+#          now return various negatives values on error, not just -1, and
+#          Opts() may set Err to various positive values, not just 1.
+#          Added AllowUnrecOpt.
+# 96/05/23 Check type given for & option
+# 96/06/15 Re-port to awk
+# 96/10/01 Moved file-reading code into ReadConfFile(), so that it can be
+#          used by other functions.
+# 96/10/15 Added OptChars
+# 96/11/01 Added exOpts arg to Opts()
+# 96/11/16 Added ; type
+
+# optlist is a string which contains all of the possible command line options.
+# A character followed by certain characters indicates that the option takes
+# an argument, with type as follows:
+# :	String argument
+# ;	Non-empty string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# The only difference the type of argument makes is in the runtime argument
+# error checking that is done.
+
+# The & option is a special case used to get numeric options without the
+# user having to give an option character.  It is shorthand for [-+.0-9].
+# If & is included in optlist and an option string that begins with one of
+# these characters is seen, the value given to "&" will include the first
+# char of the option.  & must be followed by a type character other than ":"
+# or ";".
+# Note that if e.g. &> is given, an option of -.5 will produce an error.
+
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-"
+# or "+" is taken to be a non-option string; like other non-option strings,
+# it stops the scanning of argv and is left in argv[].
+# An argument of "--" or "++" also stops the scanning of argv[] but is removed.
+# If an option takes an argument, the argument may either immediately
+# follow it or be given separately.
+# "-" and "+" options are treated the same.  "+" is allowed because most awks
+# take any -options to be arguments to themselves.  gawk 2.15 was enhanced to
+# stop scanning when it encounters an unrecognized option, though until 2.15.5
+# this feature had a bug that caused problems in some cases.  See the OptChars
+# parameter to explicitly set the option-specifier characters.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in Options and its value is set to the
+# number of times it occurs in argv[].
+
+# If an option that does take an argument is given, an index with its name is
+# created in Options and its value is set to the value of the argument given
+# for it, and Options[option-name,"count"] is (initially) set to the 1.
+# If an option that takes an argument is given more than once,
+# Options[option-name,"count"] is incremented, and the value is assigned to
+# the index (option-name,instance) where instance is 2 for the second occurance
+# of the option, etc.
+# In other words, the first time an option with a value is encountered, the
+# value is assigned to an index consisting only of its name; for any further
+# occurances of the option, the value index has an extra (count) dimension.
+
+# The sequence number for each option found in argv[] is stored in
+# Options[option-name,"num",instance], where instance is 1 for the first
+# occurance of the option, etc.  The sequence number starts at 1 and is
+# incremented for each option, both those that have a value and those that
+# do not.  Options set from a config file have a value of 0 assigned to this.
+
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps left in the indices of argv[].
+# If compress is nonzero, argv[] is packed by moving its elements so that
+# they have contiguous integer indices starting with 0.
+# Option processing will stop with the first unrecognized option, just as
+# though -- was given except that unlike -- the unrecognized option will not be
+# removed from ARGV[].  Normally, an error value is returned in this case.
+# If AllowUnrecOpt is true, it is not an error for an unrecognized option to
+# be found, so the number of remaining arguments is returned instead.
+# If OptChars is not a null string, it is the set of characters that indicate
+# that an argument is an option string if the string begins with one of the
+# characters.  A string consisting solely of two of the same option-indicator
+# characters stops the scanning of argv[].  The default is "-+".
+# argv[0] is not examined.
+# The number of arguments left in argc is returned.
+# If an error occurs, the global string OptErr is set to an error message
+# and a negative value is returned.
+# Current error values:
+# -1: option that required an argument did not get it.
+# -2: argument of incorrect type supplied for an option.
+# -3: unrecognized (invalid) option.
+function ProcArgs(argc,argv,OptList,Options,compress,AllowUnrecOpt,OptChars,
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos,NumOpt,Value,HadValue,specGiven,
+NeedNextOpt,GotValue,OptionNum,Escape,dest,src,count,c,OptTerm,OptCharSet)
+{
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in OptList of the option being processed.
+# NumOpt is true if a numeric option may be given.
+    ArgsLeft = argc
+    NumOpt = index(OptList,"&")
+    OptionNum = 0
+    if (OptChars == "")
+	OptChars = "-+"
+    while (OptChars != "") {
+	c = substr(OptChars,1,1)
+	OptChars = substr(OptChars,2)
+	OptCharSet[c]
+	OptTerm[c c]
+    }
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	Arg = argv[ArgNum]
+	if (length(Arg) < 2 || !((specGiven = substr(Arg,1,1)) in OptCharSet))
+	    break	# Not an option; quit
+	if (Arg in OptTerm) {
+	    delete argv[ArgNum]
+	    ArgsLeft--
+	    break
+	}
+	ArgLen = length(Arg)
+	for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+	    Option = substr(Arg,ArgInd,1)
+	    if (NumOpt && Option ~ /[-+.0-9]/) {
+		# If this option is a numeric option, make its flag be & and
+		# its option string flag position be the position of & in
+		# the option string.
+		Option = "&"
+		Pos = NumOpt
+		# Prefix Arg with a char so that ArgInd will point to the
+		# first char of the numeric option.
+		Arg = "&" Arg
+		ArgLen++
+	    }
+	    # Find position of flag in option string, to get its type (if any).
+	    # Disallow & as literal flag.
+	    else if (!(Pos = index(OptList,Option)) || Option == "&") {
+		if (AllowUnrecOpt) {
+		    Escape = 1
+		    break
+		}
+		else {
+		    OptErr = "Invalid option: " specGiven Option
+		    return -3
+		}
+	    }
+
+	    # Find what the value of the option will be if it takes one.
+	    # NeedNextOpt is true if the option specifier is the last char of
+	    # this arg, which means that if the option requires a value it is
+	    # the next arg.
+	    if (NeedNextOpt = (ArgInd >= ArgLen)) { # Value is the next arg
+		if (GotValue = ArgNum + 1 < argc)
+		    Value = argv[ArgNum+1]
+	    }
+	    else {	# Value is included with option
+		Value = substr(Arg,ArgInd + 1)
+		GotValue = 1
+	    }
+
+	    if (HadValue = AssignVal(Option,Value,Options,
+	    substr(OptList,Pos + 1,1),GotValue,"",++OptionNum,!NeedNextOpt,
+	    specGiven)) {
+		if (HadValue < 0)	# error occured
+		    return HadValue
+		if (HadValue == 2)
+		    ArgInd++	# Account for the single-char value we used.
+		else {
+		    if (NeedNextOpt) {	# option took next arg as value
+			delete argv[++ArgNum]
+			ArgsLeft--
+		    }
+		    break	# This option has been used up
+		}
+	    }
+	}
+	if (Escape)
+	    break
+	# Do not delete arg until after processing of it, so that if it is not
+	# recognized it can be left in ARGV[].
+	delete argv[ArgNum]
+	ArgsLeft--
+    }
+    if (compress != 0) {
+	dest = 1
+	src = argc - ArgsLeft + 1
+	for (count = ArgsLeft - 1; count; count--) {
+	    ARGV[dest] = ARGV[src]
+	    dest++
+	    src++
+	}
+    }
+    return ArgsLeft
+}
+
+# Assignment to values in Options[] occurs only in this function.
+# Option: Option specifier character.
+# Value: Value to be assigned to option, if it takes a value.
+# Options[]: Options array to return values in.
+# ArgType: Argument type specifier character.
+# GotValue: Whether any value is available to be assigned to this option.
+# Name: Name of option being processed.
+# OptionNum: Number of this option (starting with 1) if set in argv[],
+#     or 0 if it was given in a config file or in the environment.
+# SingleOpt: true if the value (if any) that is available for this option was
+#     given as part of the same command line arg as the option.  Used only for
+#     options from the command line.
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Global variables: OptErr
+# Return value: negative value on error, 0 if option did not require an
+# argument, 1 if it did & used the whole arg, 2 if it required just one char of
+# the arg.
+# Current error values:
+# -1: Option that required an argument did not get it.
+# -2: Value of incorrect type supplied for option.
+# -3: Bad type given for option &
+function AssignVal(Option,Value,Options,ArgType,GotValue,Name,OptionNum,
+SingleOpt,specGiven,  UsedValue,Err,NumTypes) {
+    # If option takes a value...
+#    printf "option=<%s> value=<%s>\n",Option,Value
+    NumTypes = "*()#<>]"
+    if (Option == "&" && ArgType !~ "[" NumTypes) {
+	OptErr = "Bad type given for & option"
+	return -3
+    }
+
+    if (UsedValue = (ArgType ~ "[:;" NumTypes)) {
+	if (!GotValue) {
+	    if (Name != "")
+		OptErr = "Variable requires a value -- " Name
+	    else
+		OptErr = "option requires an argument -- " Option
+	    return -1
+	}
+	if ((Err = CheckType(ArgType,Value,Option,Name,specGiven)) != "") {
+	    OptErr = Err
+	    return -2
+	}
+	# Mark this as a numeric variable; will be propogated to Options[] val.
+	if (ArgType != ":" && ArgType != ";")
+	    Value += 0
+	if ((Instance = ++Options[Option,"count"]) > 1)
+	    Options[Option,Instance] = Value
+	else
+	    Options[Option] = Value
+    }
+    # If this is an environ or rcfile assignment & it was given a value...
+    else if (!OptionNum && Value != "") {
+	UsedValue = 1
+	# If the value is "0" or "-" and this is the first instance of it,
+	# do not set Options[Option]; this allows an assignment in an rcfile to
+	# turn off an option (for the simple "Option in Options" test) in such
+	# a way that it cannot be turned on in a later file.
+	if (!(Option in Options) && (Value == "0" || Value == "-"))
+	    Instance = 1
+	else
+	    Instance = ++Options[Option]
+	# Save the value even though this is a flag
+	Options[Option,Instance] = Value
+    }
+    # If this is a command line flag and has a - following it in the same arg,
+    # it is being turned off.
+    else if (OptionNum && SingleOpt && substr(Value,1,1) == "-") {
+	UsedValue = 2
+	if (Option in Options)
+	    Instance = ++Options[Option]
+	else
+	    Instance = 1
+	Options[Option,Instance]
+    }
+    # If this is a flag assignment without a value, increment the count for the
+    # flag unless it was turned off.  The indicator for a flag being turned off
+    # is that the flag index has not been set in Options[] but it has an
+    # instance count.
+    else if (Option in Options || !((Option,1) in Options))
+	# Increment number of times this flag seen; will inc null value to 1
+	Instance = ++Options[Option]
+    Options[Option,"num",Instance] = OptionNum
+    return UsedValue
+}
+
+# Option is the option letter
+# Value is the value being assigned
+# Name is the var name of the option, if any
+# ArgType is one of:
+# :	String argument
+# ;	Non-null string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Returns null on success, err string on error
+function CheckType(ArgType,Value,Option,Name,specGiven,  Err,ErrStr) {
+    if (ArgType == ":")
+	return ""
+    if (ArgType == ";") {
+	if (Value == "")
+	    Err = "must be a non-empty string"
+    }
+    # A number begins with optional + or -, and is followed by a string of
+    # digits or a decimal with digits before it, after it, or both
+    else if (Value !~ /^[-+]?([0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)$/)
+	Err = "must be a number"
+    else if (ArgType ~ "[#<>]" && Value ~ /\./)
+	Err = "may not include a fraction"
+    else if (ArgType ~ "[()<>]" && Value < 0)
+	Err = "may not be negative"
+    else if (ArgType ~ "[)>]" && Value == 0)
+	Err = "must be a positive number"
+    if (Err != "") {
+	ErrStr = "Bad value \"" Value "\".  Value assigned to "
+	if (Name != "")
+	    return ErrStr "variable " substr(Name,1,1) " " Err
+	else {
+	    if (Option == "&")
+		Option = Value
+	    return ErrStr "option " specGiven substr(Option,1,1) " " Err
+	}
+    }
+    else
+	return ""
+}
+
+# Note: only the above functions are needed by ProcArgs.
+# The rest of these functions call ProcArgs() and also do other
+# option-processing stuff.
+
+# Opts: Process command line arguments.
+# Opts processes command line arguments using ProcArgs()
+# and checks for errors.  If an error occurs, a message is printed
+# and the program is exited.
+#
+# Input variables:
+# Name is the name of the program, for error messages.
+# Usage is a usage message, for error messages.
+# OptList the option description string, as used by ProcArgs().
+# MinArgs is the minimum number of non-option arguments that this
+# program should have, non including ARGV[0] and +h.
+# If the program does not require any non-option arguments,
+# MinArgs should be omitted or given as 0.
+# rcFiles, if given, is a colon-seprated list of filenames to read for
+# variable initialization.  If a filename begins with ~/, the ~ is replaced
+# by the value of the environment variable HOME.  If a filename begins with
+# $, the part from the character after the $ up until (but not including)
+# the first character not in [a-zA-Z0-9_] will be searched for in the
+# environment; if found its value will be substituted, if not the filename will
+# be discarded.
+# rcfiles are read in the order given.
+# Values given in them will not override values given on the command line,
+# and values given in later files will not override those set in earlier
+# files, because AssignVal() will store each with a different instance index.
+# The first instance of each variable, either on the command line or in an
+# rcfile, will be stored with no instance index, and this is the value
+# normally used by programs that call this function.
+# VarNames is a comma-separated list of variable names to map to options,
+# in the same order as the options are given in OptList.
+# If EnvSearch is given and nonzero, the first EnvSearch variables will also be
+# searched for in the environment.  If set to -1, all values will be searched
+# for in the environment.  Values given in the environment will override
+# those given in the rcfiles but not those given on the command line.
+# NoRCopt, if given, is an additional letter option that if given on the
+# command line prevents the rcfiles from being read.
+# See ProcArgs() for a description of AllowUnRecOpt and optChars, and
+# ExclusiveOptions() for a description of exOpts.
+# Special options:
+# If x is made an option and is given, some debugging info is output.
+# h is assumed to be the help option.
+
+# Global variables:
+# The command line arguments are taken from ARGV[].
+# The arguments that are option specifiers and values are removed from
+# ARGV[], leaving only ARGV[0] and the non-option arguments.
+# The number of elements in ARGV[] should be in ARGC.
+# After processing, ARGC is set to the number of elements left in ARGV[].
+# The option values are put in Options[].
+# On error, Err is set to a positive integer value so it can be checked for in
+# an END block.
+# Return value: The number of elements left in ARGV is returned.
+# Must keep OptErr global since it may be set by InitOpts().
+function Opts(Name,Usage,OptList,MinArgs,rcFiles,VarNames,EnvSearch,NoRCopt,
+AllowUnrecOpt,optChars,exOpts,  ArgsLeft,e) {
+    if (MinArgs == "")
+	MinArgs = 0
+    ArgsLeft = ProcArgs(ARGC,ARGV,OptList NoRCopt,Options,1,AllowUnrecOpt,
+    optChars)
+    if (ArgsLeft < (MinArgs+1) && !("h" in Options)) {
+	if (ArgsLeft >= 0) {
+	    OptErr = "Not enough arguments"
+	    Err = 4
+	}
+	else
+	    Err = -ArgsLeft
+	printf "%s: %s.\nUse -h for help.\n%s\n",
+	Name,OptErr,Usage > "/dev/stderr"
+	exit 1
+    }
+    if (rcFiles != "" && (NoRCopt == "" || !(NoRCopt in Options)) &&
+    (e = InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch)) < 0)
+    {
+	print Name ": " OptErr ".\nUse -h for help." > "/dev/stderr"
+	Err = -e
+	exit 1
+    }
+    if ((exOpts != "") && ((OptErr = ExclusiveOptions(exOpts,Options)) != ""))
+    {
+	printf "%s: Error: %s\n",Name,OptErr > "/dev/stderr"
+	Err = 1
+	exit 1
+    }
+    return ArgsLeft
+}
+
+# ReadConfFile(): Read a file containing var/value assignments, in the form
+# <variable-name><assignment-char><value>.
+# Whitespace (spaces and tabs) around a variable (leading whitespace on the
+# line and whitespace between the variable name and the assignment character) 
+# is stripped.  Lines that do not contain an assignment operator or which
+# contain a null variable name are ignored, other than possibly being noted in
+# the return value.  If more than one assignment is made to a variable, the
+# first assignment is used.
+# Input variables:
+# File is the file to read.
+# Comment is the line-comment character.  If it is found as the first non-
+#     whitespace character on a line, the line is ignored.
+# Assign is the assignment string.  The first instance of Assign on a line
+#     separates the variable name from its value.
+# If StripWhite is true, whitespace around the value (whitespace between the
+#     assignment char and trailing whitespace on the line) is stripped.
+# VarPat is a pattern that variable names must match.  
+#     Example: "^[a-zA-Z][a-zA-Z0-9]+$"
+# If FlagsOK is true, variables are allowed to be "set" by being put alone on
+#     a line; no assignment operator is needed.  These variables are set in
+#     the output array with a null value.  Lines containing nothing but
+#     whitespace are still ignored.
+# Output variables:
+# Values[] contains the assignments, with the indexes being the variable names
+#     and the values being the assigned values.
+# Lines[] contains the line number that each variable occured on.  A flag set
+#     is record by giving it an index in Lines[] but not in Values[].
+# Return value:
+# If any errors occur, a string consisting of descriptions of the errors
+# separated by newlines is returned.  In no case will the string start with a
+# numeric value.  If no errors occur,  the number of lines read is returned.
+function ReadConfigFile(Values,Lines,File,Comment,Assign,StripWhite,VarPat,
+FlagsOK,
+Line,Status,Errs,AssignLen,LineNum,Var,Val) {
+    if (Comment != "")
+	Comment = "^" Comment
+    AssignLen = length(Assign)
+    if (VarPat == "")
+	VarPat = "."	# null varname not allowed
+    while ((Status = (getline Line < File)) == 1) {
+	LineNum++
+	sub("^[ \t]+","",Line)
+	if (Line == "")		# blank line
+	    continue
+	if (Comment != "" && Line ~ Comment)
+	    continue
+	if (Pos = index(Line,Assign)) {
+	    Var = substr(Line,1,Pos-1)
+	    Val = substr(Line,Pos+AssignLen)
+	    if (StripWhite) {
+		sub("^[ \t]+","",Val)
+		sub("[ \t]+$","",Val)
+	    }
+	}
+	else {
+	    Var = Line	# If no value, var is entire line
+	    Val = ""
+	}
+	if (!FlagsOK && Val == "") {
+	    Errs = Errs \
+	    sprintf("\nBad assignment on line %d of file %s: %s",
+	    LineNum,File,Line)
+	    continue
+	}
+	sub("[ \t]+$","",Var)
+	if (Var !~ VarPat) {
+	    Errs = Errs sprintf("\nBad variable name on line %d of file %s: %s",
+	    LineNum,File,Var)
+	    continue
+	}
+	if (!(Var in Lines)) {
+	    Lines[Var] = LineNum
+	    if (Pos)
+		Values[Var] = Val
+	}
+    }
+    if (Status)
+	Errs = Errs "\nCould not read file " File
+    close(File)
+    return Errs == "" ? LineNum : substr(Errs,2)	# Skip first newline
+}
+
+# Variables:
+# Data is stored in Options[].
+# rcFiles, OptList, VarNames, and EnvSearch are as as described for Opts().
+# Global vars:
+# Sets OptErr.  Uses ENVIRON[].
+# If anything is read from any of the rcfiles, sets READ_RCFILE to 1.
+function InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch,
+Line,Var,Pos,Vars,Map,CharOpt,NumVars,TypesInd,Types,Type,Ret,i,rcFile,
+fNames,numrcFiles,filesRead,Err,Values,retStr) {
+    split("",filesRead,"")	# make awk know this is an array
+    NumVars = split(VarNames,Vars,",")
+    TypesInd = Ret = 0
+    if (EnvSearch == -1)
+	EnvSearch = NumVars
+    for (i = 1; i <= NumVars; i++) {
+	Var = Vars[i]
+	CharOpt = substr(OptList,++TypesInd,1)
+	if (CharOpt ~ "^[:;*()#<>&]$")
+	    CharOpt = substr(OptList,++TypesInd,1)
+	Map[Var] = CharOpt
+	Types[Var] = Type = substr(OptList,TypesInd+1,1)
+	# Do not overwrite entries from environment
+	if (i <= EnvSearch && Var in ENVIRON &&
+	(Err = AssignVal(CharOpt,ENVIRON[Var],Options,Type,1,Var,0)) < 0)
+	    return Err
+    }
+
+    numrcFiles = split(rcFiles,fNames,":")
+    for (i = 1; i <= numrcFiles; i++) {
+	rcFile = fNames[i]
+	if (rcFile ~ "^~/")
+	    rcFile = ENVIRON["HOME"] substr(rcFile,2)
+	else if (rcFile ~ /^\$/) {
+	    rcFile = substr(rcFile,2)
+	    match(rcFile,"^[a-zA-Z0-9_]*")
+	    envvar = substr(rcFile,1,RLENGTH)
+	    if (envvar in ENVIRON)
+		rcFile = ENVIRON[envvar] substr(rcFile,RLENGTH+1)
+	    else
+		continue
+	}
+	if (rcFile in filesRead)
+	    continue
+	# rcfiles are liable to be given more than once, e.g. UHOME and HOME
+	# may be the same
+	filesRead[rcFile]
+	if ("x" in Options)
+	    printf "Reading configuration file %s\n",rcFile > "/dev/stderr"
+	retStr = ReadConfigFile(Values,Lines,rcFile,"#","=",0,"",1)
+	if (retStr > 0)
+	    READ_RCFILE = 1
+	else if (ret != "") {
+	    OptErr = retStr
+	    Ret = -1
+	}
+	for (Var in Lines)
+	    if (Var in Map) {
+		if ((Err = AssignVal(Map[Var],
+		Var in Values ? Values[Var] : "",Options,Types[Var],
+		Var in Values,Var,0)) < 0)
+		    return Err
+	    }
+	    else {
+		OptErr = sprintf(\
+		"Unknown var \"%s\" assigned to on line %d\nof file %s",Var,
+		Lines[Var],rcFile)
+		Ret = -1
+	    }
+    }
+
+    if ("x" in Options)
+	for (Var in Map)
+	    if (Map[Var] in Options)
+		printf "(%s) %s=%s\n",Map[Var],Var,Options[Map[Var]] > \
+		"/dev/stderr"
+	    else
+		printf "(%s) %s not set\n",Map[Var],Var > "/dev/stderr"
+    return Ret
+}
+
+# OptSets is a semicolon-separated list of sets of option sets.
+# Within a list of option sets, the option sets are separated by commas.  For
+# each set of sets, if any option in one of the sets is in Options[] AND any
+# option in one of the other sets is in Options[], an error string is returned.
+# If no conflicts are found, nothing is returned.
+# Example: if OptSets = "ab,def,g;i,j", an error will be returned due to
+# the exclusions presented by the first set of sets (ab,def,g) if:
+# (a or b is in Options[]) AND (d, e, or f is in Options[]) OR
+# (a or b is in Options[]) AND (g is in Options) OR
+# (d, e, or f is in Options[]) AND (g is in Options)
+# An error will be returned due to the exclusions presented by the second set
+# of sets (i,j) if: (i is in Options[]) AND (j is in Options[]).
+# todo: make options given on command line unset options given in config file
+# todo: that they conflict with.
+function ExclusiveOptions(OptSets,Options,
+Sets,SetSet,NumSets,Pos1,Pos2,Len,s1,s2,c1,c2,ErrStr,L1,L2,SetSets,NumSetSets,
+SetNum,OSetNum) {
+    NumSetSets = split(OptSets,SetSets,";")
+    # For each set of sets...
+    for (SetSet = 1; SetSet <= NumSetSets; SetSet++) {
+	# NumSets is the number of sets in this set of sets.
+	NumSets = split(SetSets[SetSet],Sets,",")
+	# For each set in a set of sets except the last...
+	for (SetNum = 1; SetNum < NumSets; SetNum++) {
+	    s1 = Sets[SetNum]
+	    L1 = length(s1)
+	    for (Pos1 = 1; Pos1 <= L1; Pos1++)
+		# If any of the options in this set was given, check whether
+		# any of the options in the other sets was given.  Only check
+		# later sets since earlier sets will have already been checked
+		# against this set.
+		if ((c1 = substr(s1,Pos1,1)) in Options)
+		    for (OSetNum = SetNum+1; OSetNum <= NumSets; OSetNum++) {
+			s2 = Sets[OSetNum]
+			L2 = length(s2)
+			for (Pos2 = 1; Pos2 <= L2; Pos2++)
+			    if ((c2 = substr(s2,Pos2,1)) in Options)
+				ErrStr = ErrStr "\n"\
+				sprintf("Cannot give both %s and %s options.",
+				c1,c2)
+		    }
+	}
+    }
+    if (ErrStr != "")
+	return substr(ErrStr,2)
+    return ""
+}
+
+### End of ProcArgs library
+### Start of tinfo lib
+# @(#) tinfo 1.0 96/11/30
+# altInit(): Get alternate character set terminfo capabilities.
+# term, noerror: see tiget().
+# tinfo: contains the acsc capability, and any of the enacs, smacs, and rmacs
+# capabilities that are defined for the terminal.  Each is indexed by its
+# capability name.  enacs is used to enable the alternate character set;
+# smacs starts it; rmacs ends it.  acsc is the mapping of vt100 alternate
+# character codes to those appropriate for the given terminal.
+# AltMap is the acsc string broken down with each alternate character indexed
+# by its vt100 equivalent.  num is an ordered list of the vt100 characters
+# indexed starting with 1, for applications that need to know what order they
+# were given in.
+# The global _macs[] is set up with _macs[0] = rmacs & _macs[1] = smacs, for
+# use by altPrint().
+# The alternate characters and their indexes (vt100 equivalents) are:
+# 0  solid square block		a  checker board	f  degree symbol
+# g  plus/minus			h  board of squares	j  lower right corner
+# k  upper right corner		l  upper left corner	m  lower left corner
+# n  plus			q  horizontal line	t  left tee
+# u  right tee			v  bottom tee		w  top tee
+# x  vertical line		+  arrow pointing right	.  arrow pointing down
+# -  arrow pointing up		,  arrow pointing left	`  diamond
+# ~  bullet			I  lantern symbol	o  scan line 1
+# s  scan line 9
+function altInit(tinfo,term,noerror,AltMap,num,  ret,caplist,acsc,len,j,i) {
+    if (ret = tiget("acsc",tinfo,term)) {
+	# All other types of errors cause tput to print an informative message
+	# to stderr, which is not redirected.
+	if (!noerror && ret == 1)
+	    print "Terminal has no acsc capability." > "/dev/stderr"
+	return ret
+    }
+    caplist = "enacs,smacs,rmacs"
+    tiget(caplist,tinfo,term)
+    acsc = tinfo["acsc"]
+    len = length(acsc)
+    j = 0
+    for (i = 1; i < len; i += 2)
+	AltMap[num[++j] = substr(acsc,i,1)] = substr(acsc,i+1,1)
+    if ("rmacs" in tinfo)
+	_macs[0] = tinfo["rmacs"]
+    if ("smacs" in tinfo)
+	_macs[1] = tinfo["smacs"]
+}
+
+# altPrint: Print characters in either the alternate or standard character set.
+# string is the string to print.
+# alt should be 1 if string is in the alternate character set; 0 if in the
+# standard character set.
+# tinfo contains the smacs and rmacs strings, if needed.
+# altPrint keeps track of whether the terminal is in the standard or alternate
+# character set, and issues smacs and rmacs as needed.
+# It should always be called with alt false at the end of program execution to
+# ensure that the terminal is left in the standard character set.
+# Globals: The character set is tracked in _altPrintSet
+function altPrint(string,alt,tinfo) {
+    if (alt != _altPrintSet) {
+	printf "%s%s",_macs[alt],string
+	_altPrintSet = alt
+    }
+    else
+	printf "%s",string
+}
+
+# tiget: get terminfo capabilities.
+# capnames is a comma-separated list of terminfo capabilities to get.
+# Each capability is put in tinfo[], indexed by capability name.
+# If term is passed, it is the terminal type to get the capabilities for.
+# If not, the value of the environment variable TERM is used.
+# If noerror is true, error messages are suppressed.
+# Return value: the exit status of the last tput, or -1 if term is not passed
+# and there is no TERM environment variable.
+function tiget(capnames,tinfo,term,noerror,  cmd,RS,ret,names,capname,i) {
+    if (term == "")
+	if ("TERM" in ENVIRON)
+	    term = ENVIRON["TERM"]
+	else
+	    return -1
+    split(capnames,names,",")
+    RS = ""	# this makes the record separator be "\n\n", which hopefully
+		# is not very common in terminfo capabilities
+    for (i = 1; i in names; i++) {
+	capname = names[i]
+	cmd = "exec tput -T " term " " capname
+	if (noerror)
+	    cmd = cmd " 2>/dev/null"
+	cmd | getline
+	if (!(ret = close(cmd)))
+	    # printf interprets many of the escape chars in the same manner that
+	    # the terminfo library does... not perfect, but better than nothing
+	    tinfo[capname] = sprintf($0)
+    }
+    return ret
+}
+
+function tiget1(capname,term,noerror,  capnames) {
+    delete tinfo[capname]
+    tiget(capname,tinfo,term,noerror)
+    return tinfo[capname]
+}
+### End of tinfo lib
+### Start of DrawTrees lib
+# @(#) DrawTrees 1.0 96/11/30
+#      Data[] is a tree of data to draw.  The indexes consist of one or more
+# integer values separated by SUBSEP.  The "depth" of the element determines
+# how many integers (dimensions) are contained in the index.  For each set
+# of node siblings, the integer describing the varying dimension varies from
+# 1 through n where n is the number of siblings.  This shows the indexes
+# used for the elements of a small tree with depth 3:
+# 1----+-1,1--+-1,1,1
+#      |      |-1,2,2
+#      |      \-1,2,3
+#      \-1,2--+-1,2,1
+#             \-1,2,2
+# 2------2,1--+-2,1,1
+#             \-2,2,2
+#       ^----^--see below
+#      The values of the elements are lines of data which constitute the
+# nodes of the tree.
+#      By default, the tree is drawn with each node on a separate line. 
+# Offset is the horizonal offset of each child from its parent.  It must be
+# at least 1.  If Width is non-0, the tree is drawn with the first child of
+# each parent immediately to the right of its parent.  Width is the number
+# of characters allocated to the node data for each level.  If the data for
+# an interior node is longer than Width, the value is truncated to Width-1
+# characters and a left-tee is appended to indicate the truncation, so Width
+# should be at least two.  If this style is used, Offset is the number of
+# characters of additional horizontal separation to use after the "split
+# point"; in the example tree above, Width is set to 1, causing the addition
+# of the characters at the positions marked by ^ on the "see below" line.
+#      The tree is drawn using box-drawing characters appropriate to the
+# terminal if they are available, and a default set of ASCII characters if
+# not.
+# If AltChars[] contains all of the following elements, they are used to draw
+# the tree.  I is the index to use; A is the ASCII default.
+# I A Description
+# x | Vertical bar
+# q - Horizontal bar
+# m \ bottom left corner
+# w + Top tee 
+# t } Left tee
+# + > Right arrow (optional)
+# ~ * Bullet (optional)
+# If AltChars[] does not contain all of these elements and the alternate
+# character set it used, AltChars[] is returned filled in with the
+# characters used to draw the tree.  The same array can then be passed back
+# to DrawTrees(), avoiding the need for it to use tput again to get the
+# terminal's alternate character set capabilities.
+# If Spaces is true, indentation is done with spaces only; the effect is to
+# set all of the above characters to be a space.
+# If term is passed, it overrides the TERM environment variable.  Pass "dumb"
+# to force the ASCII values to be used.  
+# If the terminal has a right-arrow character defined and useArrow is true,
+# it is used for the branch character to the left of node data.
+# If maxLength is non-0, output lines are truncated to maxLength characters.
+# If AddInd is true, in the output each value is preceded by its index.
+# If Sort is true, the tree is sorted by the lexicographical values of its
+# elements, and the qsort library must be included in the program.
+function DrawTrees(Data,Offset,Width,AltChars,Spaces,term,useArrow,maxLength,
+AddInd,Sort,
+i,tinfo,Strings,smacs,rmacs,BranchIndent,BlankIndent,bTail,veBar,hoBar,bLeft,
+topTee,lTee,arrow,bullet,WidthBar,OffsetBar) {
+    if (Spaces) {
+	veBar = hoBar = bLeft = topTee = lTee = arrow = " "
+	bullet = "*"
+    }
+    else {
+	if ("x" in AltChars && "q" in AltChars && "m" in AltChars && \
+	"w" in AltChars && "t" in AltChars) {
+	    tinfo["smacs"] = AltChars["smacs"]
+	    tinfo["rmacs"] = AltChars["rmacs"]
+	    if ("enacs" in AltChars)
+		tinfo["enacs"] = AltChars["enacs"]
+	}
+	else
+	    altInit(tinfo,term,1,AltChars)
+	if ("x" in AltChars && "q" in AltChars && "m" in AltChars && \
+	"w" in AltChars && "t" in AltChars) {
+	    AltChars["smacs"] = smacs = Strings["smacs"] = tinfo["smacs"]
+	    AltChars["rmacs"] = rmacs = Strings["rmacs"] = tinfo["rmacs"]
+	    if ("enacs" in tinfo) {
+		printf "%s",tinfo["enacs"]
+		AltChars["enacs"] = tinfo["enacs"]
+	    }
+	    veBar = AltChars["x"]
+	    hoBar = AltChars["q"]
+	    bLeft = AltChars["m"]
+	    topTee = AltChars["w"]
+	    lTee = AltChars["t"]
+	    arrow = "+" in AltChars ? AltChars["+"] : hoBar
+	    bullet = "~" in AltChars ? AltChars["~"] : lTee
+	}
+	else {
+	    # Do not attempt mixing of alt & regular char sets for tree drawing
+	    veBar = "|"
+	    hoBar = "-"
+	    bLeft = "\\"
+	    topTee = "+"		# {
+	    lTee = "}"
+	    arrow = ">"
+	    bullet = "*"
+	}
+    }
+    # b: blank indent.  Preceded by newline, followed by branch char.
+    # v: indent that includes a vertical branch on the left:  "|    "
+    #    Preceded by newline or whitespace; followed by branch char.
+    # l: lower left horizontal branch indent.                 "\--->"
+    #    Preceded by newline or whitespace; followed by node data.
+    # t: left tee horizontal branch indent.                   "}--->"
+    #    Preceded by newline or whitespace; followed by node data.
+    # p: Node padding.  Must be adjusted to fit, so is not
+    #    surrounded by smacs/rmacs.  Preceded by node data; followed by branch.
+    # n: Internode branch.  Preceded by branch; followed by node data.  "-->"
+    # tn: Teed internode branch.  Preceded b/branch; followed b/node data."+->"
+    # c: Truncation character.  Followed by branch.
+    # lt: Line truncation character.
+    for (i = Offset + Width; i > 0; i-=1) {
+	BlankIndent = BlankIndent " "
+	BranchIndent = BranchIndent hoBar
+    }
+    WidthIndent = substr(BlankIndent,1,Width)
+    OffsetIndent = substr(BranchIndent,1,Offset)
+    if (BranchIndent != "")
+	bTail = useArrow ? arrow : hoBar
+    Strings["c"] = smacs lTee
+    Strings["lt"] = smacs bullet rmacs
+    Strings["p"] = BranchIndent
+    Strings["n"] = substr(BranchIndent,1,Offset-1) bTail rmacs
+    Strings["tn"] = topTee substr(BranchIndent,1,Offset-2) bTail rmacs
+
+    Strings["b"] = BlankIndent
+    Strings["v"] = WidthIndent smacs veBar rmacs substr(BlankIndent,1,Offset-1)
+    Strings["l"] = WidthIndent smacs bLeft substr(OffsetIndent,3) bTail rmacs
+    Strings["t"] = WidthIndent smacs lTee  substr(OffsetIndent,3) bTail rmacs
+
+    dtTraverse(Data,"",Strings,0,"",Width,maxLength,Offset+Width,AddInd,Sort)
+}
+
+# dtTraverse(): Traverse and print a subtree.
+# Data: as described for DrawTrees().
+# catind: index into Data[] for the parent of this node, followed by a SUBSEP
+#    char.
+# level: The depth of this node, with tree roots at level 0.
+# branch: An indentation string to print the vertical components of the
+#    branches of the siblings of the parents of this node.
+# Return value: 1 if 
+function dtTraverse(Data,catind,Strings,level,branch,Width,Length,levelWidth,
+AddInd,Sort,
+i,ind,siblings,children,nbranch,len,s,subLength,value,k,Arr) {
+    if (Length && (subLength = Length - levelWidth) < 1)
+	# Make sure subLength does not end up 0, which indicates no limit
+	subLength = -1
+    if (Sort) {
+	# build a subtree level to sort
+	for (i = 1; (ind = catind i) in Data; i++)
+	    Arr[ind] = Data[ind]
+	qsortArbIndByValue(Arr,k)
+    }
+    for (i = 1; (ind = catind i) in Data; i++) {
+	if (level) {	# Draw indentation string
+	    siblings = (catind (i+1)) in Data
+	    if (!Width || i != 1)
+		# If parent has not already drawn indent string
+		printf "%s",branch Strings[siblings ? "t" : "l"]
+	}
+	if (Sort)
+	    ind = k[i]
+	children = (ind,1) in Data
+	# Print node data
+	value = Data[ind]
+	if (AddInd)
+	    value = ind ":" value
+	if (Width && children) {
+	    if (subLength == -1) # Won't be able to show children; indicate
+		printf "%.*s%s\n",Length-1,value,Strings["lt"]
+	    else {
+		if ((len = length(value)) > Width)
+		    printf "%.*s%s",Width-1,value,Strings["c"] # truncate
+		else
+		    printf "%s%s%.*s",value,Strings["smacs"], Width-len,
+		    Strings["p"]	# pad on right
+		# If this node has children, print offset branch
+		printf "%s",Strings[((ind,2) in Data) ? "tn" : "n"]
+	    }
+	}
+	else if (Length)
+	    printf "%.*s\n",Length,value
+	else
+	    print value
+	if (children && subLength != -1) {
+	    if (level)
+		nbranch = branch Strings[siblings ? "v" : "b"]
+	    dtTraverse(Data,ind SUBSEP,Strings,level+1,nbranch,Width,subLength,
+	    levelWidth,AddInd,Sort)
+	}
+    }
+}
+
+### End of DrawTrees lib
+### Begin qsort routines
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k[] are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its elements.
+# The return value is the number of elements in the arrays (n).
+function qsortArbIndByValue(Arr,k,  ArrInd,ElNum) {
+    ElNum = 0
+    for (ArrInd in Arr)
+	k[++ElNum] = ArrInd
+    qsortSegment(Arr,k,1,ElNum)
+    return ElNum
+}
+
+# Sort a segment of an array.
+# Arr[] contains data with arbitrary indices.
+# k[] has indices 1..nelem, with the indices of arr[] as values.
+# This function sorts the elements of arr that are pointed to by
+# k[start..end], swapping the values of elements of k[] so that
+# when this function returns arr[k[start..end]] will be in order.
+function qsortSegment(Arr,k,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((end - start) == 1) {
+	if (Arr[tmps = k[start]] > Arr[tmpe = k[end]]) {
+	    k[start] = tmpe
+	    k[end] = tmps
+	}
+	return
+    }
+    # Make sure comparisons act on these as numbers
+    left = start+0
+    right = end+0
+    sepval = Arr[k[int((left + right) / 2)]]
+    # Make every element <= sepval be to the left of every element > sepval
+    while (left < right) {
+	while (Arr[k[left]] < sepval)
+	    left++
+	while (Arr[k[right]] > sepval)
+	    right--
+	if (left < right) {
+	    tmp = k[left]
+	    k[left++] = k[right]
+	    k[right--] = tmp
+	}
+    }
+    if (left == right)
+	if (Arr[k[left]] < sepval)
+	    left++
+	else
+	    right--
+    if (start < right)
+	qsortSegment(Arr,k,start,right)
+    if (left < end)
+	qsortSegment(Arr,k,left,end)
+}
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its indices.
+# The return value is the number of elements in the arrays (n).
+# If the indexes are numeric, Numeric should be true, so that they can be
+# compared as such rather than as strings.  Numeric indexes do not have to be
+# contiguous.
+function qsortByArbIndex(Arr,k,Numeric,  ArrInd,ElNum) {
+    ElNum = 0
+    if (Numeric)
+	# Indexes do not preserve numeric type, so must be forced
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd+0
+    else
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd
+    qsortNumIndByValue(k,1,ElNum)
+    return ElNum
+}
+
+# Arr is an array of elements with contiguous numeric indexes to be sorted
+# by value.
+# start and end are the starting and ending indexes of the range to be sorted.
+function qsortNumIndByValue(Arr,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((start - end) == 1) {
+	if ((tmps = Arr[start]) > (tmpe = Arr[end])) {
+	    Arr[start] = tmpe
+	    Arr[end] = tmps
+	}
+	return
+    }
+    left = start+0
+    right = end+0
+    sepval = Arr[int((left + right) / 2)]
+    while (left < right) {
+	while (Arr[left] < sepval)
+	    left++
+	while (Arr[right] > sepval)
+	    right--
+	if (left <= right) {
+	    tmp = Arr[left]
+	    Arr[left++] = Arr[right]
+	    Arr[right--] = tmp
+	}
+    }
+    if (start < right)
+	qsortNumIndByValue(Arr,start,right)
+    if (left < end)
+	qsortNumIndByValue(Arr,left,end)
+}
+
+### End qsort routines

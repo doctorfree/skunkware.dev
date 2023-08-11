@@ -1,0 +1,57 @@
+MetaPKG CDMT Backend Notes
+==========================
+
+This backend produces output for the Custom Distribution Mastering Toolkit,
+or CDMT, the native packaging format for SCO OpenServer.
+
+Command Line Options
+====================
+
+The CDMT backend adds one mandatory command linew option:
+-E vendor
+  Sets the text for the default CDMT `vendor'. This is used when ejecting
+  all dependencies and pre-requisites.
+
+The CDMT backend adds 4 optional command line options:
+
+-H
+  By default, the CDMT backend will convert symbolic links into additional
+  `exportPath' entries for the target of the symbolic link. Under almost
+  all circumstances, this will produce the most reliable package and
+  provides the most useful information to the user. This option changes
+  that default behaviour and will instead `harden' the symbolic links, by
+  converting them into hard links, one file to another, using the LINK
+  file type.
+
+-h
+  This option only has meaning if used in conjuction with the -H option
+  described above. It further modifies the default handling of symbolic
+  links by preventing them from being `hardened'. This will result in the
+  backend producing true symbolic links in the package, using the SYML
+  file type. This is almost always the wrong thing to do, as SYML records
+  are handled poorly by custom, and not removed when the package that
+  contains them is removed. There is almost no circumstance I can conceive
+  of where you would need this, but the option is there if you discover one.
+
+-l
+  Usually, if MetaPKG encounters hard links in a package, it will eject a
+  warning message that will prevent package generation unless the -W option
+  is also specified. This is due to the fact that it is impossible to
+  discern, from the filesystem, which of two hard links is the real primary
+  file and which is the link to it. Using this option will allow you to
+  silence that warning. However, you are encouraged to use the control
+  file instead, and use the convert() directive for hard links. This option
+  applies to all hard links encountered by MetaPKG. Using the control file,
+  it is possible to silence the warning for a specific set of hard linked
+  files using the linkok() function. This is the prefered approach.
+
+-e
+  The CDMT backend will, by default, produce input files that are as terse
+  as possible, relying on the fact that the default mode, owner and group
+  for files and directories are 0755/bin/bin for directories and 0444/bin/bin
+  for normal files. The backend will produce files that define this, by
+  setting the defaults in the config file. However, if you intend to use
+  MetaPKG to generate CDMT input files that will then be used inside another
+  package, perhaps with different defaults, then you can use this option
+  to eject explicit mode, owner and group attributes for all files and
+  directories. This produces more verbose, but more transportable files.

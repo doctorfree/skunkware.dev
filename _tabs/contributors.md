@@ -1,7 +1,7 @@
 ---
 # the default layout is 'page'
 icon: fas fa-info-circle
-order: 3
+order: 2
 ---
 
 In the beginning it was just me but soon there were many contributors

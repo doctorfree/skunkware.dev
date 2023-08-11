@@ -1,0 +1,209 @@
+<HTML>
+<HEAD>
+<TITLE>SORTING</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<A HREF="index.html"><B>Index</B></A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html"><B>Previous:</B> PRODUCT PRICING</A>&nbsp;&nbsp;&nbsp;<A HREF="16.00.SHIPPING.html"><B>Next:</B> SHIPPING</A><HR><H1><A NAME="SORTING">SORTING</A></H1>
+<P>
+MiniVend has standard sorting options for sorting the search lists, loop
+lists, and item lists based on the contents of database fields. In
+addition, adds list slices for limiting the displayed entries based on a
+start value and chunk size (or start and end value, from which a chunk size
+is determined). All accept a standard format sort tag which must be
+directly after the list call:
+
+<P>
+<PRE>    [loop 4 3 2 1]
+    [sort -2 +2]
+        [loop-code]
+    [/loop]
+ 
+    [search-list]
+    [sort products:category:f]
+        [item-price] [item-description]&lt;BR&gt;
+    [/search-list]
+ 
+    [item-list]
+    [sort products:price:rn]
+        [item-price] [item-code]&lt;BR&gt;
+    [/item-list]
+ 
+    [tag each products]
+    [sort products:category products:title]
+    [loop-field category] [loop-field title] &lt;BR&gt;
+    [/tag]
+</PRE>
+<P>
+All sort situations -- <CODE>[search list]</CODE> , <CODE>[loop list]</CODE> , <CODE>[tag each table]</CODE>, and
+<CODE>[item-list]</CODE>, take options of the form:
+
+<P>
+<PRE>  [sort database:field:option* -n +n =n-n ... ]
+</PRE>
+<DL>
+<DT><STRONG>database</STRONG><DD>
+<P>
+The MiniVend database identifier. This must be supplied, and should
+normally be 'products' if you are using the default name for the database.
+
+<DT><STRONG>field</STRONG><DD>
+<P>
+The field (column) of the database to be sorted on.
+
+<DT><STRONG><A NAME="item_option">option</A></STRONG><DD>
+<P>
+None, any, or combinations of the options:
+
+<P>
+<PRE>  f   case-insensitive sort (folded) (mutually exclusive of n)
+  n   numeric order (mutually exclusive of f)
+  r   reverse sort
+</PRE>
+<DT><STRONG><A NAME="item__n">-n</A></STRONG><DD>
+<P>
+The starting point of the list to be displayed, beginning at 1 for the
+first entry.
+
+<DT><STRONG><A NAME="item__n">+n</A></STRONG><DD>
+<P>
+The number of entries to display in this list segment.
+
+<DT><STRONG><A NAME="item__n_n">=n-n</A></STRONG><DD>
+<P>
+The starting and ending point of the list display -- this is an alternative
+to <CODE>-n</CODE> and +n. You should specify in only one form -- if both are specified the
+last one will take effect.
+
+<DT><STRONG><A NAME="item__">...</A></STRONG><DD>
+<P>
+Don't really put <CODE>...</CODE> in. This just means that you may specify as many sort levels as you wish.
+Lots of sort levels with large databases will be quite slow.
+
+</DL>
+<P>
+Multiple levels of sort are supported, and you can cross database
+boundaries on different sort levels. Cross-database sorts on the same level
+are not supported, so if you use multiple product databases you will have
+to sort with embedded Perl. This is actually a feature in some cases, since
+you can then display all items in a <CODE>used</CODE> database before or after your new ones in <A HREF="#item_products">products</A>.
+
+<P>
+Examples, all based on the <A HREF="#item_simple">simple</A> demo:
+
+<DL>
+<DT><STRONG><A NAME="item_Loop">Loop list</A></STRONG><DD>
+<P>
+<PRE>    [loop 00-0011 19-202 34-101 99-102]
+    [sort products:title]
+        [loop-code] [loop-field title]&lt;BR&gt;
+    [/loop]
+ 
+Will display:
+</PRE>
+<P>
+<PRE>    34-101 Family Portrait
+    00-0011 Mona Lisa
+    19-202 Radioactive Cats
+    99-102 The Art Store T-Shirt
+</PRE>
+<P>
+If you instead do:
+
+<P>
+<PRE>    [loop 00-0011 19-202 34-101 99-102]
+    [sort products:title -3 +2]
+        [loop-code] [loop-field title]&lt;BR&gt;
+    [/loop]
+ 
+you will see:
+</PRE>
+<P>
+<PRE>    19-202 Radioactive Cats
+    99-102 The Art Store T-Shirt
+</PRE>
+<P>
+The tag <CODE>[sort products:title =3-4]</CODE> is equivalent to the above.
+
+<DT><STRONG><A NAME="item_Search">Search list</A></STRONG><DD>
+<P>
+
+<FONT SIZE=-1>A</FONT> search of all products (i.e. <A
+HREF="http://yoursystem.com/cgi-bin/simple/scan/ra=yes):">http://yoursystem.com/cgi-bin/simple/scan/ra=yes):</A>
+
+
+<P>
+<PRE>    [search-list]
+    [sort products:artist products:title:rf]
+        [item-field artist] [item-field title]&lt;BR&gt;
+    [/search-list]
+ 
+will display:
+</PRE>
+<P>
+<PRE>    Gilded Frame
+    Grant Wood American Gothic
+    Jean Langan Family Portrait
+    Leonardo Da Vinci Mona Lisa
+    Salvador Dali Persistence of Memory
+    Sandy Skoglund Radioactive Cats
+    The Art Store The Art Store T-Shirt
+    Vincent Van Gogh The Starry Night
+    Vincent Van Gogh Sunflowers
+</PRE>
+<P>
+Note the reversed order of the title for <EM>Van Gogh</EM>, and the presence of the accessory item <EM>Gilded Frame</EM> at the front of the list (it has no artist field, and as such sorts first).
+
+<P>
+Adding a slice option:
+
+<P>
+<PRE>    [search-list]
+    [sort products:artist products:title:rf =6-10]
+        [item-field artist] [item-field title]&lt;BR&gt;
+    [/search-list]
+ 
+will display:
+</PRE>
+<P>
+<PRE>    Sandy Skoglund Radioactive Cats
+    The Art Store The Art Store T-Shirt
+    Vincent Van Gogh The Starry Night
+    Vincent Van Gogh Sunflowers
+</PRE>
+<P>
+If the end value/chunk size exceeds the size of the list, only the elements
+that exist will be displayed, starting from the start value.
+
+<DT><STRONG><A NAME="item_Shopping">Shopping cart</A></STRONG><DD>
+<P>
+<PRE>    [item-list]
+    [sort products:price:rn]
+        [item-price] [item-code]&lt;BR&gt;
+    [/item-list]
+ 
+will display the items in your shopping cart sorted on their price, with
+the most expensive shown first. (Note that this is based on the database field,
+and doesn't take quantity price breaks or discounts into effect.) B&lt;NOTE:&gt; You 
+cannot sort on modifier values or quantities.
+</PRE>
+<DT><STRONG><A NAME="item_Complete">Complete database contents</A></STRONG><DD>
+<P>
+<PRE>    [tag each products]
+    [sort products:category products:title]
+    [loop-field category] [loop-field title] &lt;BR&gt;
+    [/tag]
+</PRE>
+<P>
+
+<FONT SIZE=-1>A</FONT> two level sort, that will sort products based first
+on their category then on their title within the category.
+
+</DL>
+<P>
+Note that large lists may take some time to sort -- if you have a product
+database with many thousands of items, it is not recommended that you use
+the <CODE>[tag each products]</CODE> sort unless you are planning on caching or statically building your pages.
+
+<P>
+<HR>
+<UL></UL><BR><HR><A HREF="index.html"><B>Index</B></A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html"><B>Previous:</B> PRODUCT PRICING</A>&nbsp;&nbsp;&nbsp;<A HREF="16.00.SHIPPING.html"><B>Next:</B> SHIPPING</A></BODY></HTML>

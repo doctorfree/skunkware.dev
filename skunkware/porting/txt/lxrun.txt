@@ -1,0 +1,858 @@
+  Linux Emulation for SCO
+  Ronald Joe Record (rr@sco.com), SSCCOO
+  Michael Hopkirk (hops@sco.com), SSCCOO
+  Steve Ginzburg (steven@ugcs.caltech.edu), CCaalliiffoorrnniiaa IInnssttii--
+  ttuuttee ooff TTeecchhnnoollooggyy
+  May 8, 1998
+
+  This paper describes some of the rationale and implementation deci-
+  sions for lxrun, an Intel Linux emulator, plus how to get, build, con-
+  figure and run it; what some of the current and future development
+  issues and enhancements are and the current status of the project.
+  There is not much difference between the execution environment
+  required by Linux binaries and binaries for other Intel UNIX plat-
+  forms, the main one being the way in which system calls are handled.
+  For example, in Linux an "int $0x80" instruction is used, which jumps
+  to the system-call-handling portion of the Linux kernel. On SCO sys-
+  tems, "int $0x80" is an unused vector and therefore causes a general
+  protection trap resulting in a SIGSEGV signal. Lxrun intercepts these
+  signals and calls the SCO equivalent of the system call that the Linux
+  program attempted. It also remaps some ioctls, flags, return values
+  and error codes. Using lxrun, a Linux binary can be run on a non-Linux
+  platform with little performance penalty. Lxrun can also take advan-
+  tage of the lower overhead in some Linux libraries, occasionally
+  resulting in improved performance over native binaries. No kernel mod-
+  ifications are necessary.
+  ______________________________________________________________________
+
+  Table of Contents
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  1. Introduction
+
+     1.1 What is lxrun ?
+     1.2 Why should I use lxrun ?
+
+  2. Implementation
+
+     2.1 Design goals
+     2.2 Difference in syscall handling
+     2.3 Pathname for loading Linux libraries
+     2.4 Device major number mappings
+     2.5 Differences in kernel tty systems
+     2.6 Miscellaneous issues
+
+  3. Development Issues
+
+     3.1 Direct execution of Linux ELF binaries
+     3.2 SIGSEGV vs. software interrupt kernel module
+     3.3 Performance enhancements
+
+  4. System Call Mapping
+
+     4.1 Directly mapped system calls
+     4.2 System calls with a non-stub emulation function
+     4.3 Partial implementations
+     4.4 Unimplemented system calls
+
+  5. Getting started
+
+     5.1 How do I get lxrun ?
+     5.2 Building lxrun from source
+     5.3 Installing the emulation system
+     5.4 Installing Linux applications
+     5.5 Error messages
+     5.6 If you come across an unsupported binary
+
+  6. Web Presence
+
+  7. Authors and Contributors
+
+  8. About This Document
+
+
+
+  ______________________________________________________________________
+
+  11..  IInnttrroodduuccttiioonn
+
+
+  11..11..  WWhhaatt iiss llxxrruunn ??
+
+  Lxrun is an emulator that allows the execution of Intel Linux binaries
+  on Intel UNIX(R) platforms. The currently supported platforms are SCO
+  OpenServer 5 (UNIX SVR3), SCO UnixWare 2.x (UNIX SVR4) and SCO
+  UnixWare 7 (UNIX SVR5).
+
+  Lxrun works by remapping system calls on the fly. Since lxrun does its
+  work at the system call level, it requires copies of the Linux dynamic
+  loader (ld-linux.so.*) and whatever Linux shared libraries are
+  required by the program being run. The current development release of
+  lxrun consists of approximately 6000 lines of code (146 Kilobytes).
+
+  Most programs that do not rely on Linux-specific quirks or deal
+  directly with hardware should work under lxrun.  Users of lxrun have
+  reported success with raplayer (RealAudio client), xquake, the
+  StarOffice suite, gcc (the GNU C compiler), smbclient, the AC3D
+  modeller and a myriad of smaller applications and utilities.
+
+
+  11..22..  WWhhyy sshhoouulldd II uussee llxxrruunn ??
+
+  The original impetus for writing lxrun was to be able to run Netscape
+  Navigator 1.x on SCO OpenServer. When Netscape ported Navigator to SCO
+  platforms, the need was obviated. Later, work was resumed in an
+  attempt to run Adobe Acrobat Reader on OpenServer. The body of system
+  call mappings in lxrun grew gradually as users modified it to work
+  with more and more applications. By this process, lxrun became quite
+  robust, able to handle sophisticated X11, audio, and networking
+  applications.
+
+  Lxrun promotes the interoperability of Linux with other UNIX and UNIX-
+  like platforms. This improves the user's ability to combine the best
+  aspects of available operating systems. For example, it allows a user
+  to combine Linux's large freeware application base with SCO's:
+
+
+  +o  Large robust filesystem support
+
+  +o  Large installed base
+
+  +o  Renowned and Industry-proven scalability
+
+  +o  Enterprise applications base
+
+  +o  Installed Enterprise server deployment
+
+  +o  Network Computer / "Any Client" deployment of applications
+
+  +o  Ability to distribute and execute applications via Tarantella
+     <http://tarantella.sco.com/>
+
+  +o  Robust DOS/Windows '95 emulation capabilities
+
+  +o  Free UNIX <http://www.sco.com/offers/> offer makes for extremely
+     inexpensive robust UNIX workstation
+
+  +o  SVR5 enhancements
+
+  +o  Up to 64GB of main memory
+
+  +o  1 TB File Systems and disk partitions
+
+  +o  1 TB file sizes
+
+  +o  Up to 76,800 TB of total storage supported
+
+  +o  Up to 32 CPUs supported
+
+  +o  Support for I2O Peripherals
+
+  +o  64-bit technology
+
+  +o  Advanced Clustering Support for up to 4 nodes
+
+  +o  Hot Pluggable Disk and Tape Drives
+
+  +o  Disk Mirroring and Spanning
+
+  +o  Hot Plug PCI
+
+  +o  Multi-path I/O
+
+  +o  Real-time Data Management
+
+  +o  UPS Monitoring
+
+  +o  Centralized, on-line backup
+
+  +o  Journaling File Systems for improved data recovery
+
+  Every UNIX vendor could construct such a "Why you should use my
+  platform" list.  Lxrun allows the user to leverage the large base of
+  precompiled Linux software without restricting the choice of platform.
+
+
+  22..  IImmpplleemmeennttaattiioonn
+
+  The emulator needed to handle the following major issues (detailed
+  below): system call handling along with remapping of arguments, flags,
+  return values and error codes; library pathname lookup and remapping;
+  ioctl mappings for the various major devices and differences in the
+  tty subsystems.
+
+
+  22..11..  DDeessiiggnn ggooaallss
+
+
+  +o  Allow execution of Intel Linux binaries on other Intel UNIX
+     platforms
+
+  +o  Exist entirely in user-space (no kernel modifications)
+
+  +o  No modification of the Linux binaries or libraries required
+
+  22..22..  DDiiffffeerreennccee iinn ssyyssccaallll hhaannddlliinngg
+
+  System call handling is implemented differently between Linux and
+  Intel UNIX System V platforms; that is each uses a different
+  instruction to implement the switch to kernel mode.
+
+  Intel Unix System V uses a "lcall $0x07".  In Linux an "int $0x80"
+  software interrupt instruction is used, which jumps to the  system-
+  call-handling portion of the Linux kernel. On SCO systems, "int $0x80"
+  is an unused vector and therefore causes a general protection trap
+  resulting in a SIGSEGV signal. Lxrun intercepts these signals and
+  calls the SCO equivalent of the system call that the Linux program
+  attempted. In many cases this is a direct map or call of the
+  equivalent native system call, in other cases some mapping or
+  translation of arguments passed in and flags and error codes passed
+  out is required. Where there is no equivalent system call available on
+  the emulated system or the equivalent syscall mapping has not been
+  implemented the system call fails and returns an errorcode of ENOSYS.
+
+
+  22..33..  PPaatthhnnaammee ffoorr llooaaddiinngg LLiinnuuxx lliibbrraarriieess
+
+  Because lxrun works at the system call level, any Linux shared
+  libraries required by the application must be present in the emulation
+  environment.  This leads to a possible filename-space conflict between
+  native and Linux binaries.  To resolve this problem, lxrun remaps any
+  pathnames beginning with /lib, /usr/lib, /usr/local/lib, or
+  /usr/X11R6/lib by prepending them with a "Linux root" path.  This path
+  is specified at compile time and can be overridden by setting the
+  LINUX_ROOT environment variable. This remapping allows the user to
+  install a set of Linux libraries in a separate directory hierarchy
+  from the native system libraries, thus avoiding conflicts.
+
+
+  22..44..  DDeevviiccee mmaajjoorr nnuummbbeerr mmaappppiinnggss
+
+  The arguments to an ioctl call alone do not provide enough information
+  to remap the command number correctly.  This is because the same
+  command number can have different meanings to different drivers.
+
+  Lxrun works around this problem by maintaining a mapping from open
+  file descriptors to drivers.  On the first ioctl call to a new file
+  descriptor, lxrun determines the associated major device number.  It
+  compares this with a table of drivers and major device numbers set up
+  at run-time.  This mapping is then cached to improve performance on
+  future ioctl calls to that file descriptor.  Lxrun can then take the
+  driver into consideration when remapping ioctl command numbers.
+
+
+  22..55..  DDiiffffeerreenncceess iinn kkeerrnneell ttttyy ssyysstteemmss
+
+  The following is a discourse on lxrun tty handling from Robert Lipe
+  (robertl@dgii.com), the principal author of lxrun's tty handling code:
+
+  "The kernel tty systems are very different. The user level tty systems
+  are actually quite similar, fortunately for lxrun. Most of the members
+  of things like termio and struct termios are the same size, alignment,
+  and offset. Even most of the bitfields fall into place. While it would
+  have been much safer to do
+
+  ______________________________________________________________________
+          if ( (lx_tio->c_cflag & LX_CBAUD) == LX_B50)
+                  tio->c_cflag |= B50;
+          if (lx_tio->c_iflag & LX_ICANON)
+                  tio->c_iflag |= ICANON;
+  ______________________________________________________________________
+
+
+  and repeat this for each of a couple hundred flags, the reality was
+  that it generated horrible code that would have performed poorly and
+  been a nightmare to maintain.
+
+  The only sticky spot was that Linux has four distinctly separate
+  members in c_cc (the control character array) for VMIN, VTIME, EOF,
+  and EOL. Most System V's including OpenServer (I can't recall what
+  SVR[45] does here) use the same offset and multiplex this into two
+  bytes. In reality, since they can never both be active at the same
+  time (if ICANON is set, EOF and EOL are used. If ICANON is clear,
+  VMIN, VTIME are used) this doesn't turn out to be much of a issue.
+
+  [Since] TCGETA and TCSETA are by far the most frequently used, I
+  implemented them first (and their derivatives that wait and flush and
+  the derivatives of each of those for POSIX struct termios). With those
+  8 in hand, I started firing up applications that were known to do
+  wierd things to the tty. When elvis (the Linux vi binary I had at the
+  time) worked well enough, I submitted the changes. Then, I just used
+  more and more applications and picked up a few stragglers like
+  FIONREAD that mapped very simply.
+
+  Are there hazards in any of this? Certainly. Each system has a few
+  bits in each of the available ioctls that don't exist in the other
+  system. There is some overlap. We haven't seen any real world failures
+  becuase of this. The reality seems to be that the programs that drive
+  serial ports to the crazy edge don't make sense to emulate anyway. For
+  example, someone once asked me why Linux ecu (a kermit-like program)
+  didn't work well. Since source for it is available and it supports
+  OpenServer just fine, use the native binary instead. Someone once
+  asked me about running Linux ppp, but that's similarly nonsensical,
+  though doomed to failure for different reasons."
+
+  22..66..  MMiisscceellllaanneeoouuss iissssuueess
+
+
+  +o  For local displays, SCO OpenServer uses ":0.0" and UnixWare uses
+     "unix:0.0".  The former causes Linux X11 binaries to try to use
+     shared memory, which won't work with the native X server.  The
+     latter causes a name lookup for the machine "unix" which probably
+     fails. These two cases are detected and the DISPLAY is set to
+     contain a valid machine name instead.
+
+  +o  Documentation is supplied in the doc subdirectory of the lxrun
+     source. This currently consists of this document, a FAQ, a document
+     describing how to get the Linux StarOffice suite to run, and the
+     system call mapping table.
+
+  +o  Various packaging conveniences have been supplied. For instance,
+     the necessary Linux shared libraries have been re-packaged in the
+     native installation format. A shell script, lxfront, useful in the
+     execution of Linux a.out and statically-linked ELF binaries, has
+     been supplied.  To use lxfront:
+
+  +o  Put lxfront and any Linux a.out or statically-linked ELF binaries
+     in /usr/local/linux/bin
+
+  +o  Put lxrun in /usr/local/bin
+
+  +o  Create links in /usr/local/bin to lxfront with the same names as
+     your Linux binaries.
+
+     Executing these links should invoke lxrun on your Linux program.
+
+
+  33..  DDeevveellooppmmeenntt IIssssuueess
+
+
+
+  33..11..  DDiirreecctt eexxeeccuuttiioonn ooff LLiinnuuxx EELLFF bbiinnaarriieess
+
+  Rather than running Linux binaries with the lxrun front-end, it is
+  possible to turn lxrun into a program interpreter, ld-linux.so.* - the
+  Linux runtime linker. The path of the interpreter is actually embedded
+  in every dynamic linked ELF executable - for standard UnixWare /
+  OpenServer ELF it is /usr/lib/libc.so.1, and for Linux it is /lib/ld-
+  linux.so.1 (or, ld-linux.so.2 for executables linked with GNU libc
+  v2).
+
+  The direct execution of Linux binaries in this manner is in the latest
+  development releases of lxrun. At the time of this writing, support
+  for this model of execution is available on UnixWare platforms only.
+  SCO OpenServer places some rather strict limitations on what a program
+  interpreter can be.  Overcoming these restrictions is a current
+  development topic.
+
+  The following discourse, from Mike Davidson (md@sco.com) the author of
+  lxrun, details some of the issues involved in the direct execution
+  model:
+
+  "It's actually quite simple to build a version of lxrun which can be
+  used as the initial program interpreter for Linux binaries.  There
+  are, however, a couple of problems:
+
+  +o  runtime linkers are usually ELF shared objects which don't have a
+     fixed load address, and which have to do some rather delicate data
+     relocations when they first start up - I avoided this issue by
+     making the ld-linux.so.* version of lxrun be an actual ELF
+     executable (rather than a shared library) bound to a fixed address
+     which does not conflict with the addresses used by normal Linux
+     binaries - while this is a bit of a kludge it works perfectly well
+
+  +o  the interpreter program loaded by the kernel cannot itself require
+     an interpreter - what this means is that if the program interpreter
+     wants to do any dynamic loading of shared libraries it has to do it
+     for itself - this isn't too much of a problem on OpenServer since
+     you can just do a static link of everything that lxrun needs into a
+     single binary - unfortunately this doesn't work on UnixWare 7 since
+     libsocket is _o_n_l_y available as a shared library.
+
+     I think that there is a way round this, but I haven't had time to
+     try it out yet. Essentially it looks something like this:
+
+  +o  ld-linux.so.* is created as a dynamic linked shared object with
+     appropriate dependencies on other shared libraries (ie at least
+     /usr/lib/libc.so.1 and /usr/lib/libsocket.so.1)
+
+  +o  when ld-linux.so.* is loaded by the kernel and gets control, the
+     _f_i_r_s_t thing that it does is to fix up enough of it's own data
+     relocations in order to be able to run
+
+  +o  once that is done, it maps /usr/lib/libc.so.1 (ie the normal system
+     runtime linker and standard library) into memory, fakes up a
+     suitable aux vector and invokes the normal runtime linker, while
+     pretending to be a normal executable program (this involves a lot
+     of trickery - you have to fake up an appropriate set of program
+     headers to give to the runtime linker, you have to fix up entries
+     in .dynamic, .dynsym and .rel.* to reflect the actual address that
+     ld-linux.so.* is actually loaded at, and you have to provide a fake
+     entry point address so that the system runtime linker will give
+     control back to ld-linux.so.* in the right place ....)
+
+  +o  if all of that works, then ld-linux.so.* proceeds as normal, and
+     now maps in the Linux runtime linker and passes control to it
+
+     I realise that this all sounds hideously complicated, but all of
+     the alternatives that I can think of are worse in some way.
+
+  At first I thought that we could avoid this by just porting a version
+  of the Linux runtime linker to run native on UNIX, but this looks like
+  it may be more trouble than it is worth - while the Linux runtime
+  linker is quite well written it has to deal with some rather
+  unpleasant limitations in the GNU tools - in particular it looks as if
+  GNU ld doesn't support the equivalent of our -Bsymbolic option which
+  makes writing the startup code for a runtime linker almost impossible
+  (in fact the Linux runtime linker startup routine is just one massive
+  function that uses nothing but local variables and which does all of
+  it's system calls with chunks of inline assembler)."
+
+
+  33..22..  SSIIGGSSEEGGVV vvss.. ssooffttwwaarree iinntteerrrruupptt kkeerrnneell mmoodduullee
+
+  Consideration was given to implementing a software interrupt kernel
+  module rather than relying on the "int $0x80" segmentation violation.
+  Rather than sacrifice the elegance and portability of a "non-kernel"
+  Linux emulation strategy, Mike Davidson has suggested that:
+
+       This probably isn't really necessary. Assuming that we are
+       really only interested in Linux ELF (and _n_o_t Linux a.out) we
+       can use the dynamic linker to "preload" the Linux runtime
+       compatibility library in such a way that almost all of the
+       system calls will be intercepted and handled directly by the
+       compatibility library without ever going down to an actual
+       "int $0x80" instruction.
+
+  33..33..  PPeerrffoorrmmaannccee eennhhaanncceemmeennttss
+
+  Thus far, performance has not been an issue as very little negative
+  impact has been detected.  The main cost of running a Linux
+  application under lxrun is the overhead of catching the segmentation
+  violation (int $0x80), fixing up the structures/errors/returns, and
+  mapping the system call.  Since much of what lxrun does is done in the
+  normal course of executing a system call natively, the SIGSEGV
+  intercept is the main overhead.
+
+  In order to avoid catching SIGSEGV for every system call, current
+  lxrun development plans on implementing a "pre-load" of the "Linux
+  runtime compatibility library" (see the previous subsection). With the
+  direct execution of Linux ELF binaries described above, it is possible
+  to pre-load this library on startup. That is, the binary has already
+  been identified as a Linux ELF binary since it is attempting to load
+  /lib/ld-linux.so.1. This "fake" program interpreter knows it will have
+  to map system calls so, rather than waiting for the SIGSEGV to trigger
+  the mapping, the program interpreter can "pre-map". Thus, system calls
+  made by the Linux ELF binary under the control of such a program
+  interpreter would not cause general protection traps. In this
+  scenario, nearly all of the performance overhead of running Linux
+  binaries with lxrun is eliminated.
+
+
+  44..  SSyysstteemm CCaallll MMaappppiinngg
+
+  Lxrun emulates or maps most commonly-used system calls for which
+  native equivalents exist. Unimplemented calls return an error
+  indication and set ENOSYS.
+
+  The files doc/SysCallTable* list tables of supported, partially
+  supported, and unsupported system calls. The SyscallScript utility run
+  (against the source) will regenerate the text and HTML versions of
+  this file. An on-line copy of the currently supported system calls is
+  available at
+  <http://www.sco.com/skunkware/emulators/SyscallTable.html>.
+
+
+  44..11..  DDiirreeccttllyy mmaappppeedd ssyysstteemm ccaallllss
+
+  The following system calls are mapped directly:
+
+  _e_x_i_t_(_) _f_o_r_k_(_) _c_r_e_a_t_(_) _l_i_n_k_(_) _u_n_l_i_n_k_(_) _c_h_d_i_r_(_) _t_i_m_e_(_) _m_k_n_o_d_(_) _c_h_m_o_d_(_)
+  _c_h_o_w_n_(_) _l_s_e_e_k_(_) _g_e_t_p_i_d_(_) _s_e_t_u_i_d_(_) _g_e_t_u_i_d_(_) _s_t_i_m_e_(_) _a_l_a_r_m_(_) _p_a_u_s_e_(_)
+  _u_t_i_m_e_(_) _a_c_c_e_s_s_(_) _n_i_c_e_(_) _s_y_n_c_(_) _r_e_n_a_m_e_(_) _m_k_d_i_r_(_) _r_m_d_i_r_(_) _d_u_p_(_) _t_i_m_e_s_(_)
+  _s_e_t_g_i_d_(_) _g_e_t_g_i_d_(_) _g_e_t_e_u_i_d_(_) _g_e_t_e_g_i_d_(_) _s_e_t_p_g_i_d_(_) _u_m_a_s_k_(_) _c_h_r_o_o_t_(_)
+  _d_u_p_2_(_) _g_e_t_p_p_i_d_(_) _g_e_t_p_g_r_p_(_) _s_e_t_s_i_d_(_) _s_e_t_r_e_u_i_d_(_) _s_e_t_r_e_g_i_d_(_)
+  _s_e_t_h_o_s_t_n_a_m_e_(_) _g_e_t_t_i_m_e_o_f_d_a_y_(_) _s_e_t_t_i_m_e_o_f_d_a_y_(_) _s_y_m_l_i_n_k_(_) _r_e_a_d_l_i_n_k_(_)
+  _t_r_u_n_c_a_t_e_(_) _f_t_r_u_n_c_a_t_e_(_) _f_c_h_m_o_d_(_) _f_c_h_o_w_n_(_) _s_e_t_i_t_i_m_e_r_(_) _g_e_t_i_t_i_m_e_r_(_)
+  _f_s_y_n_c_(_) _s_e_t_d_o_m_a_i_n_n_a_m_e_(_) _g_e_t_p_g_i_d_(_) _f_c_h_d_i_r_(_) _s_y_s_f_s_(_) _g_e_t_d_e_n_t_s_(_) _r_e_a_d_v_(_)
+  _w_r_i_t_e_v_(_) _g_e_t_s_i_d_(_)
+
+  44..22..  SSyysstteemm ccaallllss wwiitthh aa nnoonn--ssttuubb eemmuullaattiioonn ffuunnccttiioonn
+
+  For the following system calls, lxrun either provides some remapping
+  of arguments, return values, and error codes, or in cases where an
+  analogous native call does not exist, emulates the call using native
+  library functions.
+
+  _n_o_s_y_s_(_) _r_e_a_d_(_) _w_r_i_t_e_(_) _o_p_e_n_(_) _c_l_o_s_e_(_) _w_a_i_t_p_i_d_(_) _e_x_e_c_v_e_(_) _o_l_d_s_t_a_t_(_)
+  _p_t_r_a_c_e_(_) _o_l_d_f_s_t_a_t_(_) _k_i_l_l_(_) _p_i_p_e_(_) _b_r_k_(_) _s_i_g_n_a_l_(_) _f_c_n_t_l_(_) _o_l_d_u_n_a_m_e_(_)
+  _s_i_g_a_c_t_i_o_n_(_) _s_g_e_t_m_a_s_k_(_) _s_s_e_t_m_a_s_k_(_) _s_i_g_s_u_s_p_e_n_d_(_) _s_i_g_p_e_n_d_i_n_g_(_)
+  _s_e_t_r_l_i_m_i_t_(_) _g_e_t_r_l_i_m_i_t_(_) _g_e_t_g_r_o_u_p_s_(_) _s_e_t_g_r_o_u_p_s_(_) _o_l_d___s_e_l_e_c_t_(_)
+  _o_l_d_l_s_t_a_t_(_) _u_s_e_l_i_b_(_) _r_e_a_d_d_i_r_(_) _m_m_a_p_(_) _m_u_n_m_a_p_(_) _g_e_t_p_r_i_o_r_i_t_y_(_)
+  _s_e_t_p_r_i_o_r_i_t_y_(_) _s_o_c_k_e_t_c_a_l_l_(_) _s_y_s_l_o_g_(_) _s_t_a_t_(_) _l_s_t_a_t_(_) _f_s_t_a_t_(_) _u_n_a_m_e_(_)
+  _i_o_p_l_(_) _w_a_i_t_4_(_) _s_y_s_i_n_f_o_(_) _i_p_c_(_) _s_i_g_r_e_t_u_r_n_(_) _n_e_w_u_n_a_m_e_(_) _m_p_r_o_t_e_c_t_(_)
+  _s_i_g_p_r_o_c_m_a_s_k_(_) _p_e_r_s_o_n_a_l_i_t_y_(_) ___l_l_s_e_e_k_(_) _s_e_l_e_c_t_(_)
+
+
+  44..33..  PPaarrttiiaall iimmpplleemmeennttaattiioonnss
+
+  The following system calls are partially emulated:
+
+  _i_o_c_t_l_(_) _i_o_p_e_r_m_(_) _f_d_a_t_a_s_y_n_c_(_)
+
+
+  44..44..  UUnniimmpplleemmeenntteedd ssyysstteemm ccaallllss
+
+  The list of unimplemented system calls is as follows:
+
+  _m_o_u_n_t_(_) _u_m_o_u_n_t_(_) _g_e_t_r_u_s_a_g_e_(_) _s_w_a_p_o_n_(_) _r_e_b_o_o_t_(_) _s_t_a_t_f_s_(_) _f_s_t_a_t_f_s_(_)
+  _v_h_a_n_g_u_p_(_) _i_d_l_e_(_) _v_m_8_6_(_) _s_w_a_p_o_f_f_(_) _c_l_o_n_e_(_) _m_o_d_i_f_y___l_d_t_(_) _a_d_j_t_i_m_e_x_(_)
+  _c_r_e_a_t_e___m_o_d_u_l_e_(_) _i_n_i_t___m_o_d_u_l_e_(_) _d_e_l_e_t_e___m_o_d_u_l_e_(_) _g_e_t___k_e_r_n_e_l___s_y_m_s_(_)
+  _q_u_o_t_a_c_t_l_(_) _b_d_f_l_u_s_h_(_) _s_e_t_f_s_u_i_d_(_) _s_e_t_f_s_g_i_d_(_) _f_l_o_c_k_(_) _m_s_y_n_c_(_) _s_y_s_c_t_l_(_)
+  _m_l_o_c_k_(_) _m_u_n_l_o_c_k_(_) _m_l_o_c_k_a_l_l_(_) _m_u_n_l_o_c_k_a_l_l_(_) _s_c_h_e_d___s_e_t_p_a_r_a_m_(_)
+  _s_c_h_e_d___g_e_t_p_a_r_a_m_(_) _s_c_h_e_d___s_e_t_s_c_h_e_d_u_l_e_r_(_) _s_c_h_e_d___g_e_t_s_c_h_e_d_u_l_e_r_(_)
+  _s_c_h_e_d___y_i_e_l_d_(_) _s_c_h_e_d___g_e_t___p_r_i_o_r_i_t_y___m_a_x_(_) _s_c_h_e_d___g_e_t___p_r_i_o_r_i_t_y___m_i_n_(_)
+  _s_c_h_e_d___r_r___g_e_t___i_n_t_e_r_v_a_l_(_)
+
+
+  55..  GGeettttiinngg ssttaarrtteedd
+
+
+  55..11..  HHooww ddoo II ggeett llxxrruunn ??
+
+  Lxrun is currently distributed as a component of SSCCOO SSkkuunnkkwwaarree
+  <http://www.sco.com/skunkware/>, a free CD-ROM containing hundreds of
+  megabytes of pre-compiled and pre-packaged software for SCO platforms.
+  A Skunkware CD-ROM can be obtained via <http://www.sco.com/offers/>
+  and, beginning in 1998, all operating systems released by SCO will
+  contain a Skunkware CD-ROM in the shrink-wrapped product. Lxrun may
+  also be obtained via the SCO Skunkware web site at
+  <http://www.sco.com/skunkware/emulators/>.  All SCO Skunkware software
+  is freely redistributable.
+
+
+  55..22..  BBuuiillddiinngg llxxrruunn ffrroomm ssoouurrccee
+
+  Detailed instructions on building lxrun from source, configuring the
+  build, installing the emulation system and additional run-time
+  components, installing a Linux binary, runtime environment variables,
+  and error messages are contained in the file INSTALL in the lxrun
+  source distribution and on-line in the lxrun FAQ
+  <http://www.sco.com/skunkware/emulators/lxrun/FAQ.html>.
+
+  The lxrun source distribution contains a Makefile with support for
+  compilation on SCO OpenServer 5, UnixWare 2.x, and UnixWare 7. The
+  Makefile uses the output of "uname -r" to determine the platform. As
+  additional platform support is added this will need to be augmented or
+  the configuration modified to use autoconfig.
+
+  To build lxrun on one of the supported platforms, it is only necessary
+  to issue the command "make". The command "make install" will both
+  build lxrun and copy the resulting binaries and documentation into
+  $(DESTDIR) which is set by default to the ./dist directory.
+
+  As a convenience this distribution includes a script called lxfront
+  which can be used with a symbolic link (see below) to provide a
+  wrapper around the invocation of lxrun the Linux binary name allowing
+  them to be run directly.
+
+  Starting with lxrun 0.9.0 the build of lxrun will produce an ld-
+  linux.so.1 as well as the lxrun binary. The ld-linux.so.1 is installed
+  in /lib on the target system and provides support for direct execution
+  of Linux binaries, thus deprecating the need for the lxrun binary
+  front-end except for the execution of Linux a.out binaries.
+
+  The lxrun source has the following capability ifdefs:
+
+  +o  DDEEFF__LLIINNUUXX__RROOOOTT - Default root directory name for lxrun to searching
+     under for any native Linux files.  Specifically when a Linux
+     library tries to load a dynamic library, lxrun remaps the pathname
+     to somewhere below this directory.  The value specified here
+     becomes the internal default which can be overridden by the
+     LINUX_ROOT environment variable.  Set in Makefile with make macro
+     LXROOT.  Default value is "/usr/local/linux"
+
+  +o  TTRRAACCEE - Flag for making a version of lxrun that emits system call
+     traces (to file /tmp/lxrun.nnn (where "nnn" is the process pid.))
+     This can be used for tracing a binaries use of an unimplemented
+     system call or other runtime problems. Its not enabled bu default
+     since it slows down the operation of lxrun and produces large log
+     files.  (build should be augmented to make a variantly named lxrun
+     binary with this on regardless).  Set in Makefile with make macro
+     TRACE.  Default is disabled (off)
+
+  +o  EELLFF__DDEEBBUUGG - Flag to enable output to stderr of debug traces for the
+     ELF loader capability of lxrun. Outputs ELF Header information,
+     interpreter remap values and open, load, mmap, mprotect
+     values/status (should be modified to be integrated with TRACE
+     logging) Set in Makefile via make macro DBG.  Default is disabled
+     (off)
+
+  +o  UUNNIIDDIIRREECCTTIIOONNAALL__PPIIPPEESS - Flag to enable use of unidirectional pipes
+     (pipe() ) instead of bidirectional pipes (socketpair()) for the
+     pipe() syscall emulation on platforms where pipes are not
+     bidirectional.  Not referenced in Makefile.  Default is disabled
+     (emulation will use bidirectional pipes)
+
+  +o  NNOO__DDIISSPPLLAAYY__HHAACCKK - Flag to disable remapping of DISPLAY variable
+     from a local server specification to a full hostname specification.
+     This remapping is done (by default) to address some problems with
+     local connections on OSr5 (at least) to some X servers.  Not
+     referenced in Makefile.  Default is disabled (remapping will be
+     done)
+
+  +o  LLXXRRUUNN__AAUUTTOO__PPAATTHH__BBEEHHAAVVIIOORR - if enabled makes lxrun search for the
+     Linux binary to be run in the normal PATH rather than in the
+     (expected) absolute pathname given.  Not referenced in Makefile.
+     Default is disabled (off)
+
+  +o  EELLFFMMAARRKK__HHAACCKK - enables detection of binaries marked (with elfmark)
+     as Linux binaries (mark value "LXRN" as an unsigned long).  Not
+     referenced in Makefile.  Default is disabled (off) - status is
+     experimental.
+
+  Platform defines for OpenServer 5 (OSR5), UnixWare 2.x (UNIXWARE) and
+  UnixWare 7 (GEMINI) are automatically setup in the Makefile.
+
+
+  55..33..  IInnssttaalllliinngg tthhee eemmuullaattiioonn ssyysstteemm
+
+  Lxrun expects to find all its (Linux) library files in a normal root
+  hierarchy rooted under a single place called the LINUX_ROOT.  Unless
+  respecified in the build this defaults internally in lxrun to
+  /usr/local/linux.
+
+  You can respecify or change it at runtime with the environment
+  variable LINUX_ROOT (wherever it ends up this must be the place the
+  Linux libraries are placed under).
+
+  "make install" will install the built binary (lxrun) into
+  /usr/local/bin, lxfront into $LINUX_ROOT/bin, and the lxrun program
+  interpreter ld-linux.so.1 into /lib. The HTML documents describing
+  lxrun are placed in /usr/local/man/html/lxrun.
+
+
+  55..44..  IInnssttaalllliinngg LLiinnuuxx aapppplliiccaattiioonnss
+
+
+  With lxrun 0.9.0 and later, Linux ELF binaries can be installed
+  anywhere in the standard execution path (e.g. /usr/local/bin). See
+  section ``Direct execution of Linux ELF binaries'' for details on how
+  this is done. Further, Linux applications distributed in RPM format
+  can be installed using either a native RPM port or the Linux RPM run
+  under the control of lxrun. Some additional arguments to RPM may be
+  necessary. For instance, a native port of RPM for SCO OpenServer is
+  available at  <http://www.sco.com/skunkware/osr5/sysadmin/rpm/>).
+  Using the SCO OpenServer RPM it is necessary to invoke RPM as follows:
+
+      rpm --nodeps --ignorearch --ignoreos --prefix /usr/local ...
+
+
+  The Skunkware distribution of RPM for OpenServer includes a shell
+  script front-end rpm4sco which inserts these arguments for you.
+
+  Linux a.out and statically linked ELF binaries should be installed in
+  /usr/local/linux/bin and symbolic links by the name of the binary
+  created from /usr/local/bin to the lxfront shell script in
+  /usr/local/linux/bin.
+
+
+  55..55..  EErrrroorr mmeessssaaggeess
+
+  linuxemul: fatal error: program load failed: No such file or directory
+
+  Indicates that the Linux binary couldn't run (either lxrun could't
+  find the Linux binary or the Linux binary couldn't find the dynamic
+  linker) It probably means your LINUX_ROOT environment variable isn't
+  set up correctly or you don't have the required minimum Linux
+  libraries.
+
+  progname: can't load library 'some_library_name.so'
+
+  Indicates you're missing a shared library that is needed to run a
+  particular binary.  You can either try to find a compiled version of
+  the library from a Linux ftp site (such as
+  <ftp://sunsite.unc.edu/pub/Linux/libs/>) or if you have access to a
+  running Linux system, you can copy the library directly.  You should
+  put the library in $LINUX_ROOT/lib on your host system
+  (/usr/localLinuxlib by default on a SCO system ).
+
+  myprog: can't resolve symbol '__iob'
+  myprog: can't resolve symbol '__iob'
+  myprog: can't resolve symbol '__ctype'
+
+  Indicates that the Linux dynamic loader found a native SCO library and
+  is using it instead of the corresponding Linux binary.  (You can find
+  out exactly which library is causing the problem by examining the
+  lxrun.log file produced by a debugging version of lxrun.)
+
+  This will only occur if you have native libraries installed that have
+  the same names as a dependant Linux binary.  If you have XFree86
+  installed, the /usr/X11R6/lib libraries are common culprits.
+
+  The best solution is to make sure no native libraries are available
+  anywhere under the directory pointed to by $LINUX_ROOT.
+
+
+  55..66..  IIff yyoouu ccoommee aaccrroossss aann uunnssuuppppoorrtteedd bbiinnaarryy
+
+
+  1. Go to  <http://www.sco.com/skunkware> and make sure you have the
+     most recent version of lxrun.  If not, download the latest one and
+     try it.  We are updating lxrun with new system calls all the time.
+
+  2. Recompile lxrun with the TRACE option enabled.  (This requires
+     modifying one line in the Makefile.)  This will cause lxrun to
+     produce a history of all system calls used by the binary as it was
+     run (similar to the "truss" and "trace" commands).  The trace dump
+     will be created in a file called "/tmp/lxrun.nnn" where "nnn" is
+     the process id.
+
+  3. Try to narrow down exactly which system call failed.  Most likely,
+     the failure will be due to a system call that has not yet been
+     implemented in lxrun.
+
+  4. Implement the system call mapping.  This is usually pretty easy to
+     do.  The vast majority of lxrun's code does mappings of this sort,
+     so you can pick out almost any source file to see how it is done.
+     Chances are, the system call you need to remap is already in one of
+     the lxrun source files, but its code looks something like this:
+
+     int lx_flock()          { errno=ENOSYS; return -1; }
+
+     This means that you're the first person who has gotten around to
+     mapping that particular system call.
+
+  5. After making your modification, recompile lxrun and see if it
+     works.  You may have to remap more than one system call to get your
+     binary working!
+
+  6. E-mail your changes to skunkware@sco.com.  This way, we can put
+     your changes into the next release of lxrun.
+
+  7. If steps 1-5 seem beyond your programming ability, contact
+     skunkware@sco.com.  and maybe one of the Skunkware team will have
+     time to give you a hand with it.  Make sure to tell us exactly what
+     program you're having trouble with, and if possible, tell us where
+     you got it.
+
+
+  66..  WWeebb PPrreesseennccee
+
+  The lxrun web site is at
+  <http://www.sco.com/skunkware/emulators/lxrun/>.  Lxrun source is
+  available at <ftp://ftp.sco.com/skunkware/src/emulators>.
+
+  Any source changes made (augmentation or bug fixes) doc changes
+  feature requests, questions or problem reports should be mailed to
+  skunkware@sco.com
+
+
+  77..  AAuutthhoorrss aanndd CCoonnttrriibbuuttoorrss
+
+  The original author of lxrun was Michael Davidson, an engineer at SCO.
+  Major initial followup work was done by Robert Lipe and Steve
+  Ginzburg.  Andrew Gallatin ported it to Solaris/x86 and the rest of
+  the cast includes Bela Lubkin, John W. Temples, Mike Hopkirk, Ralf
+  Gelfand, Ronald Joe Record and Udo Monk.
+
+  Contributors to this document included Michael Davidson, Michael
+  Hopkirk, Robert Lipe, Steve Ginzburg and the principal author - Ronald
+  Record.
+
+
+  88..  AAbboouutt TThhiiss DDooccuummeenntt
+
+  This document was created using SGML-Tools 1.0.6 in conjunction with
+  TeX, Version 3.14159 (Web2C 7.2) running on an SCO UnixWare 7
+  platform.
+
+  The source to this document is maintained at
+  <http://www.sco.com/skunkware/emulators/lxrun/lxrun.sgml>.  A Makefile
+  and formatted varieties of this document are also available at
+  <http://www.sco.com/skunkware/emulators/lxrun/>. For instance, you
+  will find a postscript version at
+  <http://www.sco.com/skunkware/emulators/lxrun/ps/lxrun.ps>.
+
+  This document is Copyright (C) 1998 by Ronald Joe Record.  All rights
+  reserved. Permission to use, copy, and distribute this document for
+  any purpose and without fee is hereby granted, provided that the above
+  copyright notice appear in all copies and that both that copyright
+  notice and this permission notice appear in supporting documentation.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

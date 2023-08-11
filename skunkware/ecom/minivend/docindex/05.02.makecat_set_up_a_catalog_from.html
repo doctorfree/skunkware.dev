@@ -1,0 +1,172 @@
+<HTML>
+<HEAD>
+<TITLE>makecat -- set up a catalog from a template</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="05.00.QUICK_START.html">Up</A>&nbsp;&nbsp;<A HREF="05.01.The_Catalog_Directory.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="05.03.Setting_up_multiple_catalogs.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="makecat_set_up_a_catalog_from">makecat -- set up a catalog from a template</A></H2>
+<P>
+The supplied <CODE>makecat</CODE> script, which is in the MiniVend program directory
+<CODE>bin</CODE>, is designed to set up a catalog based on your server configuration. It interrogates the user for parameters like the directories to use, 
+<FONT SIZE=-1>URL</FONT> to base the catalog in, 
+<FONT SIZE=-1>HTTP</FONT> server definitions, and file ownership. It is self-documenting in that it asks verbose questions and gives relevant examples.
+
+
+<P>
+The <CODE>makecat</CODE> script needs a template catalog to operate on. The
+<EM>simple</EM> and <EM>basic</EM> demo templates are distributed with MiniVend. You can also look for older
+demo catalogs (mostly for ideas) at <CODE>ftp.minivend.com</CODE>.
+
+<P>
+<STRONG>IMPORTANT NOTE:</STRONG> You only make a catalog once. All further configuration is done by editing
+the files within the <EM>catalog directory</EM>.
+
+<P>
+
+<FONT SIZE=-1>A</FONT> catalog template contains an image of a configured
+catalog. The best way to see what the makecat program does is to configure
+the simple demo and then run a recursive <CODE>diff</CODE> on the template and configured catalog directories:
+
+<P>
+<PRE>  diff -r mvend/simple catalogs/simple
+</PRE>
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> <CODE>diff</CODE> is usually only available on 
+<FONT SIZE=-1>UNIX.</FONT>
+
+<P>
+You will see that the files are mostly the same, except that certain macro
+strings have been replaced with the answers you gave to the script. For
+example, if you answered <CODE>www.mydomain.com</CODE> at the prompt for server name, then you would see this difference in the
+catalog.cfg file:
+
+<P>
+<PRE>    # template
+    Variable SERVER_NAME  __MVC_SERVERNAME__
+</PRE>
+<P>
+<PRE>    # configured catalog
+    Variable SERVER_NAME  www.mydomain.com
+</PRE>
+<P>
+The macro string 
+<FONT SIZE=-1>__MVC_SERVERNAME__</FONT> was substituted with the answer to
+the question about server name. In the same way, other variables are
+substituted, and include (at least):
+
+<P>
+<PRE>    MVC_BASEDIR      MVC_IMAGEDIR
+    MVC_CATROOT      MVC_IMAGEURL
+    MVC_CATUSER      MVC_MAILORDERTO
+    MVC_CGIBASE      MVC_MINIVENDGROUP
+    MVC_CGIDIR       MVC_MINIVENDUSER
+    MVC_CGIURL       MVC_SAMPLEHTML
+    MVC_DEMOTYPE     MVC_SAMPLEURL
+    MVC_DOCUMENTROOT MVC_VENDROOT
+    MVC_ENCRYPTOR
+</PRE>
+<P>
+(Not all of these are present in the simple or sample templates, and quite a few more may be defined.) In fact, any environment variable that is set and begins with 
+<FONT SIZE=-1>MVC_</FONT> will be substituted for by the
+ <CODE>makecat</CODE>
+script. So if you wanted to set up a configurable parameter to customize the 
+<FONT SIZE=-1>COMPANY</FONT> variable in catalog.cfg, you could run a pre-qualifying script that set the environment variable 
+<FONT SIZE=-1>MVC_COMPANY</FONT> and then place in the catalog.cfg file:
+
+
+<P>
+<PRE>    Variable   COMPANY   __MVC_COMPANY__
+</PRE>
+<P>
+All files within a template directory are substituted for macros, not just
+the catalog.cfg file. There are two special directories named <CODE>html</CODE> and <CODE>images</CODE>. These will be recursively copied to the directories defined as SampleHTML
+and ImageDir.
+
+<P>
+<STRONG>IMPORTANT NOTE:</STRONG> The template directory is located in the MiniVend software directory, i.e.
+where <CODE>minivend.cfg</CODE> resides. You normally do not edit files in the template directory. If you
+want to try creating your own template, it is recommended that you name it
+something besides simple and copy the <A HREF="#item_simple">simple</A> demo directory to it as a starting point. Templates are normally placed in
+the MiniVend base directory, but can be located anywhere -- the script will
+prompt you for location if it cannot find a template.
+
+<P>
+In addition to the standard parameters prompted for by MiniVend, and the
+standard catalog creation procedure, you may define four other files in the <A HREF="#item_config">config</A> directory of the template:
+
+<P>
+<PRE>    additional_fields  -- file with more parameters for macro substitution
+    additional_help    -- extended description for the additional_fields
+    precopy_commands   -- commands passed to the system prior to catalog copy
+    postcopy_commands  -- commands passed to the system after catalog copy
+</PRE>
+<P>
+All files are paragraph-based; in other words, a blank line (with no
+spaces) terminates the individual setting.
+
+<P>
+The <EM>additional_fields</EM> file contains:
+
+<P>
+<PRE>    PARAM
+    The prompt. Set PARAM to?
+    The default value of PARAM
+</PRE>
+<P>
+This would cause a question during makecat:
+
+<P>
+<PRE>    The prompt. Set PARAM to?.....[The default value of PARAM]
+</PRE>
+<P>
+If the <EM>additional_help</EM> file is present, you can give additional instructions for 
+<FONT SIZE=-1>PARAM.</FONT>
+
+<P>
+<PRE>    PARAM
+    These are additional instructions for PARAM, and they
+    may span multiple lines up to the first blank line.
+</PRE>
+<P>
+The prompt would now be:
+
+<P>
+<PRE>    These are additional instructions for PARAM, and they
+    may span multiple lines up to the first blank line.
+</PRE>
+<P>
+<PRE>    The prompt. Set PARAM to?.....[The default value of PARAM]
+</PRE>
+<P>
+If the file <EM>config/precopy_commands</EM> exists, it will be read as a command followed by the prompt/help value.
+
+<P>
+<PRE>    mysqladmin create __MVC_CATALOGNAME__
+    We need to create an SQL database for your Minivend
+    database tables.
+</PRE>
+<P>
+This will cause the prompt:
+
+<P>
+<PRE>    We need to create an SQL database for your Minivend
+    database tables.
+     
+    Run command &quot;mysqladmin create simple&quot;?
+</PRE>
+<P>
+If the response is ``y'' or ``yes'', then the command will be run by passing it through the Perl <CODE>system()</CODE> function. As with any of the additional configuration files, 
+<FONT SIZE=-1>MVC_PARAM</FONT> macro substitution is done on the command and help. Obviously you must have proper permissions for the command.
+
+
+<P>
+The file <EM>config/postcopy_commands</EM> is exactly the same as <EM>precopy_commands</EM>
+except you are prompted <EM>after</EM> the catalog files are copied and macro substitution is performed on all
+files.
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="05.00.QUICK_START.html">Up</A>&nbsp;&nbsp;<A HREF="05.01.The_Catalog_Directory.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="05.03.Setting_up_multiple_catalogs.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

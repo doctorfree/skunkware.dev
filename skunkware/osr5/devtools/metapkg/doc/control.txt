@@ -1,0 +1,976 @@
+This file describes the MetaPKG control script language. It was last
+updated for MetaPKG Version 2.0.0.
+
+The file is a simple text file, usually with one command or "function"
+per line (although complex functions, which are discussed below, can
+span multiple lines). Lines that begin with a '#' character are comment
+lines and are ignored. Keywords are not case sensitive. Thus, CLIENT,
+ClIEnt and client are all equivalent.
+
+Each non-comment line can be one of exactly two things:
+a) A simple function, or
+b) a complex function.
+
+A "simple function" always has the form:
+  function (parm1, parm2, ...)
+
+More specifically, a simple function is the name of the function, followed
+by an open parenthesis, followed by zero or more comma separated areguments,
+followed by a close parenthesis.  Simple functions can optionally be
+terminated with a semicolon.  For example:
+
+   print ("This is a simple function")
+   addexport ("/foo/bar", TRUE);
+   keeplink ();
+
+A complex function always has the form:
+  function (parm1, parm2, ...) {
+    simple_or_complex_function
+    ...
+    simple_or_complex_function
+  }
+
+Specifically, a complex function is the name of the function, followed by
+an open parenthesis, followed by a comma separated list of arguments, a
+close parenthesis, an open brace, a list of zero or more other valid
+complex or simple functions, and a final close brace.  For example:
+
+  component ("foo", "1.2.3", "Component foo") {
+    print ("In component foo");
+    file ("/foo/bar") {
+      mode (0644)
+      owner ("bin");
+      group ("bin")
+    }
+  }
+
+Data types
+==========
+
+Strings
+  Many functions take strings as their arguments.  Strings are always
+  enclosed in "double quotes". Anywhere a string is valid, you can also
+  refer to a macro or environment variable value, by using the syntax
+  ${NAME}. You can reference multiple variables in a single string.
+  Strings can also contain the following special escape characters:
+  \"  - insert a litteral quote
+  \\  - insert a litteral backslash
+  \$  - insert a litteral dollar sign
+
+  Examples:
+    "This is a simple string"
+    "This references a ${MACRO}"
+    "Version ${MAJOR}.${MINOR}.${PATCH}"
+    "A string with litteral \\ and \" characters"
+
+Integers
+  Integers are simply sequences of digits. If the number begins with a
+  0, then it is an octal number. If it begins with a '+' then it is forced
+  to be a decimal number. If it begins with any other number, then MetaPKG
+  will treat it as an octal number if it consists solely of the digits
+  0 through 7, or a decimal number if it contains the digits 8 or 9.
+
+  Examples:
+  123       # Octal 123
+  128       # Decimal 128
+  0644      # Octal 644
+  +123      # Decimal 123
+
+Booleans
+  Boolean values set boolean true of false values. `TRUE', `YES' or `Y' all
+  evaluate to boolean true, and `FALSE', `NO' or `N' all evaluate to
+  boolean false.
+
+Access Type
+  Files and directories can have differnt access types, depending on the
+  way the file is used. MetaPKG recognises two access types: config files
+  and static files. Config files are files whose contents are expected
+  to be changed by the system administrator or as part of normal usage.
+  Static files are files whose contents should not change. Not all backends
+  differentiate between these two types. There are several synonyms for
+  the various access types, so that packaging terminology for different
+  packaging systems is approximately preserved.
+  `CONFIG', `CLIENT', `VARIABLE' and `VOLATILE' all refer to config files, and
+  `STATIC', `SERVER' and `PRECIOUS' all refer to static files.
+
+  Examples:
+  access (STATIC);
+  addexport ("/foo/bar", CLIENT);
+
+Availability
+  Files and directories can also be defined to have different availability
+  options. Not all backend drivers support these keywords. Files can either
+  be made available early in the installation process, or at the normal
+  time (which varies according to different packaging systems). The keywords
+  `EARLY' and `REGPHASE' indicate a file is to be made available earlier than
+  normal, and `NORMAL' and `EXPPHASE' indicate it is to be made available
+  at the normal time, as defined by the packaging tool.  There are certain
+  special circumstances where you want to prevent a file from being visible
+  to the system, in which case you can mark the file as being private. The
+  keywords `PRIVATE', `NONE' and `NEVER' indicate this.
+
+  Examples:
+  phase (EARLY);
+  phase (NEVER);
+  phase (NORMAL);
+
+There are many functions that the MetaPKG language supports. The following
+discussion breaks them down into the following logical groupings:
+o  Global functions
+o  Conditional functions
+o  Initialization functions
+o  File and Directory functions
+o  Package functions
+o  Component functions
+o  Product functions
+
+Global functions
+================
+
+These are functions that can appear anywhere, either at the global level,
+or inside any other complex function.
+
+print (string)
+  Displays the specified STRING verbatim
+
+exec (string)
+  Executes the specified STRING as a system command
+
+shell (string)
+  Executes the specified STRING via the Korn shell -c option
+
+script (string1, string2)
+  Executes the script specified by STRING2, via the Korn shell. STRING1
+  is a delimiter that will mark the start and end of the script. The script
+  also has access to many different internal variables:
+  METAPKG_BASEDIR
+    The base root directory that the script is executed in
+  METAPKG_DISTDIR
+    The root of the actual distribution tree (BASEDIR/dist)
+  METAPKG_PKGDIR
+    The current full directory name for the generated packaging files
+  METAPKG_PRODUCT
+    The current product code (-P command line option)
+  METAPKG_COMPONENT
+    The main component code (-P command line option)
+  METAPKG_DESCRIPTION
+    The product description (-D command line option)
+  METAPKG_VERSION
+    The product version (-V command line option)
+  METAPKG_VENDOR
+    The current vendor code
+  METAPKG_BACKEND
+    The currently selected backend driver (if any)
+
+  If the script is being executed from within a package() complex function,
+  the following additional variables are available:
+  METAPKG_THISPKG_SUBDIR
+    The full path to the current package root
+  METAPKG_THISPKG_DESC
+    The description for the current package
+  METAPKG_THISPKG_NAME
+    The name of the current package
+
+  If the script is being executed within a component() complex function, the
+  following additional variables are available:
+  METAPKG_THISCMPNT_NAME
+    The name of the current component
+  METAPKG_THISCMPNT_DESC
+    The description of the current component
+  METAPKG_THISCMPNT_VERSION
+    The version number of the current component
+
+  Example:
+  script ("@@@@",
+  @@@@
+  echo "Processing $METAPKG_PRODUCT"
+  # Lots of shell script code
+  @@@@);
+
+error (string)
+  Displays the specified STRING as an error message and aborts the script
+  processing and exits the program.
+
+warning (string)
+  Displays the specified STRING as a warning message.
+
+include (string)
+  Includes the contents of the file named by STRING as if it had appeared
+  at the point of the include keyword. If the file referenced is not an
+  absolute path, then the file is searched for in the same directory as the
+  main control script. Nested includes are not supported.
+
+Conditional Functions
+=====================
+
+These functions are used to conditionally process parts of a script.
+They are all related to testing the value or precense of macros.
+Macros can either be defined in the script, or on the command line
+using the -M option. See the invocation guide for details. All of the
+condition test functions must be terminated with an `endif' keyword.
+The general format of the conditional functions is:
+
+  condition
+    functions
+    functions
+    ...
+  endif
+
+You can also include an inverse condition block, using the `else' keyword:
+
+  condition
+    functions
+    functions
+  else
+    functions
+    functions
+  endif
+
+Conditionals can appear absolutely anywhere in the script. If the condition
+evaluates to boolean false, then none of the functions until the enclosing
+`endif' (or the code between `else' and `endif') will be executed.
+
+define (name,value)
+  Define a new macro called NAME, and give it the specified VALUE.
+  Both parameters are strings. Command line macros are always set
+  first, before the control script is executed. The control script
+  can override command-line specified macro values.
+
+ifdef (name)
+  Conditional function that evaluates to true if the specified macro
+  NAME is defined, even if its value is simply the empty string.
+
+ifndef (name)
+  The reciprocal of `ifdef'. Evaluates to boolean true if the macro
+  NAME is not defined.
+
+ifeq (name,value)
+  Evaluates to boolean true if the macro NAME has the specified VALUE.
+  The comparison is case-sensitive. The macro must be defined.
+
+ifneq (name,value)
+  The reciprocal of `ifeq'. Evaluates to boolean true if the macro NAME
+  has anything other than the specified VALUE. The macro must be defined.
+  
+  Examples:
+  ifeq ("OSNAME", "OSR5")
+    define ("OSOK", "1")
+  else
+    ifeq ("OSNAME", "OSR6")
+      define ("OSOK", "1")
+    else
+      ifeq ("OSNAME", "UW7")
+        define ("OSOK", "1")
+      endif
+    endif
+  endif
+
+  ifndef ("OSOK")
+    error ("Invalid or missing OSNAME: `${OSNAME}'")
+  endif
+
+  # This example is a little more interesting because the value that is
+  # being checked is itself the value of another macro.
+  ifeq ("BUILDOS", "${OSNAME}")
+    print ("BUILDOS is the same as OSNAME")
+  endif
+
+  # If you really wanted to get exotic, you could use one macro name to
+  # define the name of another macro name whose value you want to check
+  # against a third macro:
+  define ("MACRO_TO_TEST", "TEST1")
+  define ("TEST1", "SomeThing")
+  ifneq ("${MACRO_TO_TEST}", "${TESTVAL}")
+    # Actually checks the value of TEST1 for whatever is stored in TESTVAL
+    printf ("Not OK")
+  endif
+
+Initialization Functions
+========================
+
+The initialization functions typically appear at the very top of a script,
+and must appear at the global level, not inside other complex functions
+(although they can of course appear within conditionals). These functions
+are used to programatically set command line options, and to check on the
+MetaPKG environment.
+
+want (major [,minor [, patch] ])
+want (name, major [,minor [, patch] ])
+  This should almost always be the first non-comment line of a script.
+  It tells MetaPKG exactly what version of the program the script requires
+  in order to execute correctly. The function takes one, two or three
+  integers, or a string followed by one, two or three integers. The
+  integer values are the major, minor and patch level of MetaPKG,
+  respectively. For example, if you have a script that requires any
+  version of MetaPKG in the 2.x.x or later series, you would use:
+    want (2)
+  If you wanted to ensure that at least version 2.1 was being used:
+    want (2, 1)
+  And last, if you wanted to ensure that version 2.1.3 or any later
+  version be used:
+    want (2, 1, 3)
+
+  The second form of the function takes as its first argument the name
+  of a backend driver. In this case, the check is performed on the
+  backend driver version, not the main program version. The backend
+  driver versions are not the same as the main program version. For
+  example:
+    want (2)                 # Want at least version 2 of MetaPKG
+    want ("cdmt", 1, 1)      # Want at least version 1.1 of the CDMT backend
+    want ("pkgadd", 3, 1, 1) # Want version 3.1.1 or later of the pkgadd
+                             # backend driver.
+
+set (string, string)
+  Sets the parameter named by the first STRING to the second STRING.
+  Even though the second argument is a STRING, its value may need to
+  evaluate to an integer for some options. The following table lists
+  the parameters that can be set, and their type (S for string,
+  I for integer). Note that the variable names are the same as the
+  long option name.
+
+  Type  Name                    Command line equivalent
+   S    version                 -V
+   S    description             -D
+   S    product-code            -P
+   S    component-code          -C
+   S    pkgadd-category         -U (pkgadd backend only)
+   I    flat-mode               -f
+   I    installed-perms         -i
+   I    component-mode          -c
+   I    all-early               -r
+   I    dont-harden-symlinks    -h (CDMT backend only)
+   I    dont-export-symlinks    -H (CDMT backend only)
+   I    hard-links-ok           -l (CDMT backend only)
+   I    all-variable            -v
+   I    all-static              -s
+   I    include-man-source      -m
+
+backend (name)
+  Selects the backend specified by NAME as the backend to use. 
+
+prepare (string) { prep_functions }
+  This complex function is used to prepare the distribution tree for
+  processing. It is run before actual directory scanning begins in the
+  main program. The only argument is the name of the preparation phase,
+  and can be any string. It is used simply to inform the user what is
+  happening. Inside the prepare function, you can use a number of
+  special purpose functions, as well as all global and conditional
+  functions. The special purpose functions are:
+
+  auto_compress_texinfo ()
+    This function will instruct MetaPKG to scan each file in the distribution
+    to check to see if it is a TeXinfo file. If it is, and it is not
+    compressed, then MetaPKG will automatically compress the page using
+    the command `gzip -9'. You can thwart this behaviour on the command line
+    using the -I autotexi option. See the invocation guide for details.
+
+  auto_format_mansource ()
+    This function instructs MetaPKG to look in the distribution for
+    unformatted manual pages, and if found, to automatically format them.
+    This function actually works one directory at a time, and checks to
+    see if the directory contains such manual pages. If it does, it then
+    processes all files within that directory. This function is extremely
+    smart, and will correctly deal with symlinked files, man pages that
+    include others, etc. You can prevent this function from running by
+    using the -I automan command line option. See the invocation guide
+    for details. Manual pages are formatted using the following command:
+    groff -P -c -s -t -Tascii -mandoc. You can redefine this command
+    using the REMAN_FORMAT environment variable.
+
+  compress_texinfo (string)
+    This function will explicitly compress all TeXinfo files in the
+    specified directory. It is esentially the function that the
+    auto_compress_texinfo() function calls for each directory that
+    it finds uncompressed TeXinfo files in. You can prevent this
+    function from having any effect by using the -I texinfo command
+    line option.
+
+  format_mansource (string)
+    Explicitly format the manual pages in the specified directory. This
+    is what auto_format_mansource() calls for each directory it finds
+    unformatted manual pages in. You can prevent this function from having
+    any effect by using the -I reman command line option.
+
+  auto_strip (strip, mcs [, string])
+    STRIP and MCS are both boolean values. This function instructs MetaPKG
+    to run the `strip' command (if STRIP is true) on all executables,
+    shared libraries, archives and object files. If MCS is true, then
+    also run the `mcs -d' command. An option third argument, which is a
+    STRING, is a string that is to be added to every such file using the
+    `mcs -a' option. This is useful for branding distributions.
+
+  exists (string, boolean)
+    This function is used to check to ensure that the file or directory
+    specified by the STRING exists. If it does not, the BOOLEAN second
+    argument indicates whether or not this signals an error or simply a
+    warning. If set to FALSE, then a warning is printed. If set to TRUE,
+    then an error is printed and processing stops. It is useful to have
+    such checks to ensure that the distribution is valid before actually
+    processing all of the directories, or doing the auto strip and formatting
+    functions described above. Typically, these would appear after a script()
+    function that actually massages and prepares the distribution tree.
+
+  remove (string)
+    This function instructs MetaPKG to remove the specified file from its
+    lists, and to act as if the file was not present in the filesystem at
+    all. It does NOT physically remove the file. This function is most
+    useful for conditionally removing some files based on macro values,
+    or simply for ignoring certain files. Note that the STRING specified
+    must be an exact match for the file, and the file name is relative
+    to the top of the distribution directory. Please note that this
+    function behaves slightly differently if it is included inside a
+    package() function. In that context, the path is relative to the
+    root dirctory of the package, and only affects files inside that
+    package. See below for more details.
+
+  removeany (wildcard)
+  removeany (wildcard) {
+    except (string)
+    except (string) ...
+  }
+    Behaves identically to the remove() function above, but instead of
+    taking an actual file name as an argument, accepts a standard shell
+    wildcard pattern. Any files which match the wildcard are removed
+    except when using the second syntax, in which you can specify a list
+    of exceptions, which are also standard shell wildcard patterns.
+
+  There is very little need for having more than one prepare() function
+  in a script, although you can of course do so if it is appropriate for
+  your package. The example below shows the recommended bare minimum
+  for a prepare script, and should ideally be used for every product you
+  create with MetaPKG:
+
+  prepare ("Setting up ...") {
+    script ("@@@@",
+      @@@@
+      # Lots of shell script code to prepare the dist tree
+      @@@@ );
+    removeany ("*.bak");
+    removeany ("*.a") {
+      except ("*/libfoo.a");
+      except ("*/libbar.a");
+    }
+    auto_compress_texinfo ();
+    auto_format_mansource ();
+    auto_strip (TRUE, TRUE);
+  }
+
+allfiles (wildcard [, pathmatch])
+  This is a complex function. Its body can contain any of the file functions
+  defined in the section on file functions below. The WILDCARD specified is
+  a standard shell wildcard. Any file which matches the wildcard will have
+  the attributes defined in the function body associated with it. Please note
+  that if this function appears inside a package() complex function,
+  described below, and a file matches a wildcard defined by allfiles() in
+  both a package() function and a global allfiles(), the attributes defined
+  in the package() function take precedence. If allfiles() appears at the
+  global level, then every single file in the distribution is matched against
+  it, which can be time consuming, so use this sparingly.
+  There is an interesting relationship between allfiles() and the addexport()
+  function, described below. If you use the addexport() function within an
+  allfiles() function, you can use special printf-like formatting options
+  in the addexport() string.
+
+  Example:
+  allfiles ("*.a") {
+    except ("libc.a");
+    mode (0644);
+    access (VARIABLE);
+  }
+
+  allfiles ("/usr/include/*.h") {
+    mode (0444);
+    access (STATIC);
+  }
+
+  New in 2.1.0: The allfiles() directive can take an optional extra argument,
+  the string 'pathmatch', which will change the way in which names are
+  matched. If the 'pathmatch' option is specified, then any '/' characters
+  in the wildcard must be explicitly matched. The default (i.e no
+  'pathmatch' argument was specified) is to treat the '/' character as any
+  other character, which means that a '*' will match it.
+
+alldirs (wildcard [, pathmatch])
+  This is a complex function identical in intent to allfiles() above, but
+  it applies only to directory entries.
+
+mandir (path)
+  MetaPKG usually excludes manual page source files from distributions
+  and includes only the formatted ones. It has a built in list of
+  usual man page source directories that it searches inside for source
+  files to ignore. This function allows you to add a non-standard
+  directory specified by PATH to the list of directory names that
+  contain such files. The PATH must be an absolute pathname, but it is
+  interpreted as being relative to the top of the current package (or
+  the top of the distribution tree if running in flat mode).
+
+File and Directory Functions
+============================
+
+At the global level, using the allfiles() or alldirs() complex functions,
+or inside a package() function using the file() and directory() functions,
+you can perform various functions on files and directories. These functions
+must all appear within allfile() / file() or alldirs() / directory() complex
+functions.
+
+owner (string)
+  Sets file file to be owned by the specified owner. Usually, MetaPKG is
+  left alone to decide who the correct owner is (which is almost always
+  "bin"), but this function can be used to set a specific owner for the
+  file or directory in question.
+
+group (string)
+  Sets the file or directory to be owned by the specified group. As with
+  the owner() function above, MetaPKG usually determines the best group
+  ownership, but this function can be used to set an explicit group.
+
+mode (number)
+  Sets the file to have the permissions specified by the NUMBER. This is
+  the same argument that you would give to the `chmod' command if you were
+  using numeric modes. Although you do not strictly need to do so, as all
+  modes are by definition octal numbers, it is safest to preceed the number
+  with a `0' to ensure the parser picks it up as an octal number. See the
+  section at the top of this file for a discussion on integer numbers.
+
+access (type)
+  Sets the file access TYPE. The TYPE must be one of the access types
+  defined at the top of this file on data types. To summarize in context
+  here though, the type should be one of `CLIENT', `VARIABLE', `CONFIG'
+  or `VOLATILE' for files that are expected to change, or `SERVER',
+  `STATIC' or `PRECIOUS' if they are not. This keyword is also valid
+  in the package function, decribed below.
+
+export (phase)
+phase (phase)
+sequence (phase)
+availability (phase)
+available (phase)
+  These functions are all synonyms for the same thing. They all set the
+  file availability, as described at the top of this file in the section
+  on data types. To summarize, `EARLY' and `REGPHASE' make a file available
+  to the system early on during package processing, `NORMAL' and `EXPPHASE'
+  make it available during the normal course of events, and `NONE', `NEVER'
+  and `PRIVATE' indicate the file is not to be made publically available,
+  but instead remain private to the packaging system. Not all backend
+  drivers obey this keyword, as not all packaging systems have the notion
+  of a phased install. This is usually only used with files.
+
+  Special note: This option has a very special meaning for the CDMT backend
+  when used with directories. Under normal circumstances, a directory is
+  not exported, only the individual files within it are. However, there are
+  times when you want to export the entire directory rather than exporting
+  each individual file. This should only ever be done if you can guarantee
+  that no other component will ever need to add files under the directory,
+  and that all the files within it are either all `SERVER' or all `CLIENT'
+  files. Setting this keyword *at all* for a directory will export the
+  entire directory, and none of the contents below it.
+
+  Please also note that this keyword is valid at the package level. See
+  below for details.
+
+ssoprivate ()
+pkgprivate ()
+  These two functions are provided for backwards compatibility with
+  the original `mkcdmt' program, and are equivalent to setting the
+  phase to `PRIVATE' using the export/phase function above.
+
+except (string [, pathmatch])
+exclude (string [, pathmatch])
+  This is most useful isnide an allfiles() or alldirs() function, but it can
+  be useful inside a normal directory() function too. What it does is add
+  the specified STRING (which is a regular shell wildcard pattern) to a
+  list of exceptions to the allfiles() or alldirs() wildcard. For example,
+  you may wish to set up an allfiles() for all header files, but for some
+  reason you do not want to process the header files in X11/*. You could
+  exclude those headers using the except() function. As MetaPKG examines
+  files and directories, it checks to see if it matches an allfiles() or
+  alldirs() wildcard. If it does, then it checks to see if the file matches
+  any of the except() wildcards. Only if it fails this second match does the
+  allfiles() or alldirs() apply to the file.
+
+  There is one other time that except() is very useful, and that is with
+  a directory() function that also uses exportall(). In this case, except()
+  is used to match for files under that directory to exclude. However,
+  be aware that if you do not use a recursive exportall(), then you cannot
+  match any files below the very top level directory (i.e only the files
+  that are direct children of the directory containing exportall() are
+  matched against the except() list).
+
+  New in 2.1.0: The except() directive can take an optional extra argument,
+  the string 'pathmatch', which will change the way in which names are
+  matched. If the 'pathmatch' option is specified, then any '/' characters
+  in the wildcard must be explicitly matched. The default (i.e no
+  'pathmatch' argument was specified) is to treat the '/' character as any
+  other character, which means that a '*' will match it.
+
+addexport (name, phase)
+  This adds the specified file NAME as an additional export for the file, and
+  the file will be exported in the specified PHASE. See the section on
+  data types at the top of this file for the valid values of PHASE. Also
+  note that since you are adding an export, the `NONE' or `PRIVATE'
+  phases make no sense, and are not valid. You must chose an actual
+  phase. Note that with the CDMT backend, if you use this keyword for
+  a directory, then it will export the directory and not the individual
+  file contents underneath it. 
+  If you use addexport() within an allfiles() or alldirs() complex
+  function, MetaPKG allows you use use printf-like formatting characters
+  in the file NAME. The name, as specified, is passed through the C function
+  sprintf, and is given the following 8 arguments:
+    1.  The file or directory name
+    2.  The parent directory name (relative to the package root)
+    3.  The full file/directory path relative to the package root
+    4.  The package name
+    5.  The absolute package root directory
+    6.  The absolute distribution root directory
+    7.  The absolute path to the file or directory
+    8.  The absolute path to the parent directory
+  You can use sprintf's positional argument notation to use any of these
+  arguments as you see fit. Consider the following example:
+
+  allfiles ("/usr/X11R6/lib/lib*.so") {
+    addexport ("/usr/lib/%s", REGPHASE)
+  }
+  
+  This will do exactly what you expect. It will create an additional
+  export to /usr/lib of all files that match the pattern. So for example,
+  the file `/usr/X11R6/lib/libX11.so' will also be exported as the file
+  `/usr/lib/libX11.so'. Another example, this time making use of more
+  than one argument:
+
+  allfiles ("/usr/lib/locale/LC_MESSAGES/*") {
+    addexport ("/opt/lang/%2$s/msg/%1$s")
+  }
+
+  For the file `/usr/lib/locale/LC_MESSAGES/foo.cat', for example, the
+  following additiona export will be used:
+  `/opt/lang/usr/lib/locale/LC_MESSAGES/msg/foo.cat'.
+
+  This type of usage is very uncommon. The first example was what the
+  feature was primarily added for.
+
+flags (string)
+  This is currently only obeyed by the CDMT backend. It is used to set
+  specific flags for a file or directory. The string is inserted into
+  the generated files verbatim.
+
+exportlinks ()
+  This function instructs the CDMT backend to always use multiple
+  exportPath directives for files with too many symbolic or hard
+  links. Custom has a bug where a file with more than 128 hard links
+  to it causes it to dump core. This function will force the use of
+  multiple exportPath lines rather than converting to hard links,
+  if the link hardening option (-H) is being used.
+
+exportok ()
+  This option instructs MetaPKG to be silent about warnings where
+  a directory is exported and you attempt to export a child of that
+  directory too. Usually this is not what you want but there are
+  occasions where it is necessary. Dont use this function until you
+  are sure you want to silence the warning.
+
+linkok()
+  Instructs MetaPKG to stifle the warning about hard links for the
+  containing file.
+
+exportall (name, phase [,bool])
+phaseall (name, phase [,bool])
+sequenceall (name, phase [,bool])
+availabilityall (name, phase [,bool])
+availableall (name, phase [,bool])
+  These functions are all synonyms for the same thing. This function
+  is only valid for directories. It will instruct MetaPKG to export
+  all of the contents of the directory to another directory specified
+  by NAME. The contents are exported in the specified PHASE. The optional
+  third argument, which defaults to TRUE, is a boolean option that indicates
+  whether or not the function should be recursive. If it is not recursive,
+  then only the contents of the actual directory, and none of its children,
+  will be exported. If any of the entries in the directory are subdirectories,
+  and you select boolean FALSE, then those directories will be exported
+  wholesale. This option is most useful if you want to export the contents
+  of a directory to more than one location. It is only obeyed by the CDMT
+  backend. As a convenience, for readability, the word 'recursive' can be
+  used as an alias for boolean TRUE, and 'nonrecursive' or 'norecurse' can
+  be used as an alias for boolean FALSE.
+
+convert (name, phase)
+  This function is used to convert hard links into soft links. In general,
+  soft links are prefered, because there is an obvious visual relationship
+  between the two files that is missing with hard links. The specified
+  NAME must be a file in the current package. The file that this functions
+  appears in will be converted to a symbolic link to NAME. If you are
+  using the CDMT backend and no command line flags prevent it, this will
+  actually be implemented as an additional export for NAME to the file
+  in which this function appears. Please note that this function is only
+  valid for files. The file will be exported in the specified PHASE.
+
+Package Functions
+=================
+
+You use the package() function to define a new package. Packages are
+logical groupings within a component, and components are logical
+groupings within a product. MetaPKG is constructed in such a way that
+each package must be in a directory by itself. You can not use files
+from one directory in more than one package. Typically, each package
+directory is the result of a `make install' command.  The package
+function is a complex function, and has the form:
+
+package (subdir, description, name [,string]) { package_functions }
+  SUBDIR is the name of the subdirectory that contains the package,
+  and is always relative to the root distribution directory. Thus,
+  if your root distribution directory was `/u/tmp/mystuff/dist' and
+  you used a SUBDIR argument of "/foo", then the absolute path for
+  the contents of the package are at `/u/tmp/mystuff/dist/foo'.
+  The DESCRIPTION is exactly what it says, the description of the
+  package, and the NAME is the short, internal name of the package.
+  The NAME is used by either other packages or by components to
+  refer to this package.  Different backends place different restrictions
+  on the package name. The function can also take an optional extra
+  fourth argument which is backend specific. See the backend documentation
+  for details on whether or not it is required.
+
+Usually, MetaPKG assumes that each subdirectory under the main distribution
+directory is a new package. However, for very simple packages, this may not
+be the case, and the `dist/' direction simply contains one package. If this
+is the case, you should invoke MetaPKG in `flat' mode, using the -f option.
+However, you may still need to define a package, even in a flat hierarchy,
+in order to set attributes like the package description, name and to
+include file and directory overrides. In such cases, always use the string
+"/" to refer to a flat hierarchy.
+
+Packages can contain other packages. If you are defining a container
+package that will contain other packages (or even other container
+packages), use the empty string "" as the package name. In this case,
+about the only thing that makes sense inside the package is a list of
+sub-packages. See the subpackage() function below for details.
+
+Packages are where the majority of file() and directory() functions will
+appear.  These are the functions that set various file and directory
+attributes and control the visibility and availability of files. However,
+there are other functions that can appear within the package() complex
+function. The full list of valid functions (other than the normal global
+and conditional functions) inside a package complex function is:
+
+file (name) { file_functions }
+  This is used to set the attributes for the specified file NAME. The
+  NAME must be an absolute path, relative to the top of the package
+  directory.
+
+directory (name) { directory_functions }
+  This is used to set the attributes for the specified directory NAME.
+  As with the file() function, this must be an absolute path relative
+  to the top of the package directory.
+
+symlink (FILE, name) { symlink_functions }
+symlink (DIRECTORY, name) { symlink_functions }
+  This function is used to indicate that the file or directory specified
+  by NAME is a symbolic link and should be preserved as such. In its
+  default mode, MetaPKG will attempt to convert symbolic links to
+  multiple exports when the CDMT backend is used. However, there are
+  times when you really want a symbolic link to remain that way. However,
+  be aware that Custom has a bug with regards to symbolic links, in that
+  it will not remove them when a package is removed, so use this function
+  sparingly.  The `FILE' and `DIRECTORY' first argument is the litteral
+  word `FILE' or `DIRECTORY'.
+  Not all file functions are valid within a symlink complex function.
+  Only the following functions are valid: export(), addexport(), access(),
+  flags(), and exportok().
+
+  Examples:
+  symlink (FILE, "/usr/lib/libfoo.so") {}
+  symlink (DIRECTORY, "/usr/lib/mystuff") {
+    addexport ("/var/adm/mystuff", EXPPHASE)
+  }
+
+target (name [, bool])
+  This is almost the inverse of symlink() above. It is used to specify that
+  the target NAME is expected to have symlinks pointing to it, which are
+  to be preserved as symlinks (and that that is OK). Only obeyed by the
+  CDMT backend. The optional second argument, which defaults to FALSE,
+  indicates whether or not the files or directories that point to this target
+  should be preserved as symlinks. If set to TRUE, they are preserved as
+  symlinks. If set to FALSE, then the CDMT backend -h and -H semantics are
+  applied (by default, the links pointing to the target will become multiple
+  additional exports).
+
+remove (name)
+  Removes the file or directory NAME from the list of files open for
+  consideration by the main program logic. This does *NOT* remove the
+  file from the filesystem. However, MetaPKG acts as if that had in
+  fact happened. NAME is an absolute path relative to the top of the
+  package root directory.
+
+removeany (wildcard [, pathmatch])
+  Identical in intent to the remove() function above, but instead uses
+  a wildcard, against which all files in the package are matched. Uses
+  standard shell wildcard syntax.
+
+  New in 2.1.0: The removeany() directive can take an optional extra argument,
+  the string 'pathmatch', which will change the way in which names are
+  matched. If the 'pathmatch' option is specified, then any '/' characters
+  in the wildcard must be explicitly matched. The default (i.e no
+  'pathmatch' argument was specified) is to treat the '/' character as any
+  other character, which means that a '*' will match it.
+
+requires (string [,string])
+  This function is valid at the package, component and global level. This
+  discussion focuses only on its role at the package level. This function
+  instructs the packaging system to always include the package specified
+  in the STRING argument to be installed if the current package is installed.
+  This is how you control inter-package dependencies. The package listed
+  here must reside in the same component as the containing package. To
+  reference external packages or components as dependencies, use the
+  dependency() keyword below. Some backend drivers may require an optional
+  second argument, which is usually the description.
+
+dependency (string [,string])
+  This function creates a dependency on a package or component that is
+  external to the current component. The STRING specified must be a
+  valid component or package name for the backend driver selected. Some
+  backends require that each external dependency is described, which is
+  what the second STRING parameter is used for. For backends that to not
+  require or use the description, it will cause no problems to provide
+  it, so you should get into the habbit of always doing so. See the
+  individual backend documentation for how this value is used.
+
+upgrades (string [,string])
+  This function is used by the backend driver to control package upgrades.
+  The exact value of the STRING varies from backend to backend, and must
+  be valid for the backend selected. See the individual backend documentation
+  for how this value is used. Some backends may require an optional extra
+  argument, which is usually the description of the component being upgraded.
+
+replaces (string [, description])
+  This function instructs MetaPKG that the package replaces a differently
+  named package in another component. The description, which is required
+  by the pkgadd backend but optional in the CDMT backend, describes the
+  package being replaced. The difference between an upgrade and a replacement
+  is subtle. An upgrade changes the same package to a later version. A
+  replacement renames the package, but provides the same functionality.
+  See the backend documentation for the exact details.
+
+subpackage (string [,string])
+  Indicates that the package in the given STRING is a sub-package of this
+  one. Not all backends may support sub-packages, so be sure to read the
+  backend specific documentation on how this function is used. This is
+  most commonly used when you have created a container package and you
+  want to group actual packages in that container. Some backends may require
+  an additional extra string, which is usually the description of the
+  subpackage.
+
+verbatim (string)
+  Inserts the specified STRING into the generated package files verbatim.
+  This function can also be used at the component and global levels, in
+  which case the STRING is inserted into the component of product files,
+  respectively.
+
+export (phase)
+phase (phase)
+sequence (phase)
+availability (phase)
+available (phase)
+  Provides a mechanism for overriding the -s or -v command line options on
+  a package by package basis. You can not use the `PRIVATE' phase with this
+  function.  This sets the default phase for all files in the package, but
+  does not override specific phasing options set with the phase() function
+  for individual files or directories.
+
+access (type)
+  Sets the file access TYPE. The TYPE must be one of the access types
+  defined at the top of this file on data types. To summarize in context
+  here though, the type should be one of `CLIENT', `VARIABLE', `CONFIG'
+  or `VOLATILE' for files that are expected to change, or `SERVER',
+  `STATIC' or `PRECIOUS' if they are not. When used at the package level
+  like this, it provides a mechanism for overriding the -r command line
+  option. This sets the default access type for all files and directories
+  in the package, but does not override specific access option set with
+  the access() function for individual files or directories.
+
+allfiles(wildcard [,pathmatch]) { file_functions }
+alldirs(wildcard [,pathmatch]) { directory_functions }
+  These two complex functions are used to set attributes and control files
+  and directories using wildcards. The attributes set by an allfiles() or
+  alldirs() function will be overridden by specific file() or directory()
+  functions. When setting file and directory attributes, MetaPKG uses the
+  most specific information available. Thus, an individual file() or
+  directory() function has the highest precedence, the allfiles() or
+  alldirs() function within a package has the next highest, and last,
+  any allfiles() or alldirs() at the global level has the lowest precedence.
+
+  New in 2.1.0: allfiles() and alldirs() can take an optional extra argument,
+  the string 'pathmatch', which will change the way in which names are
+  matched. If the 'pathmatch' option is specified, then any '/' characters
+  in the wildcard must be explicitly matched. The default (i.e no
+  'pathmatch' argument was specified) is to treat the '/' character as any
+  other character, which means that a '*' will match it.
+
+Component Functions
+===================
+
+The component() function is used to group together one or more packages
+defined by either the package() function or defined automatically by
+MetaPKG when the main distribution directory is scanned. Unless otherwise
+instructed by a control script or command line options, MetaPKG only
+creates a single component, which includes all the packages. There are
+two ways that you can control this. The first is using the -c command
+line option. This tells MetaPKG to create a new component containing
+a single package for each package directory found that was not otherwise
+contained in a component by the control script. The other way is to
+explicitly create components using the control file's component() function.
+
+component (name, version, description, [string]) { component_functions }
+  This complex function is how you define a component. The component
+  NAME must be unique on the installed system, and it must not be the
+  same as any package or product names. The VERSION is the component
+  version and must conform to any conventions dictated by the backend
+  driver. See the backend specific documentation for details. The
+  DESCRIPTION is just what it says, a description of the component.
+  The component() function can contain a number of functions, each of
+  which is discussed below, as well as global and conditional functions.
+  Each component created my contain at least one package. The component
+  function can take an optional fourth argument, which some backend
+  drivers require. For example, the pkgadd driver requires this argument
+  to be the package category.
+
+The actual functions that appear inside the component() complex function
+are a subset of the functions described above for the package() function.
+They all behave in mostly the same way, except that they apply at the
+component scope rather than the package scope. The valid functions inside
+a component() function are: replaces(), upgrades(), requires(),
+dependency(), subpackage() and verbatim(). The main difference between
+these functions at the component level is that the subpackage() function
+is not optional. A component must have at least one subpackage.
+
+Product Functions
+=================
+
+The product functions appear in the control file as global functions.
+That is becuase the product has global scope. They are not contained
+within a product() complex function as components and packages are.
+Aside from the other normal global functions, there are only a few
+product specific functions. The verbatim() function is the same as
+it is for package functions, it inserts the specified string into
+the product file verbatim. The requires() function has the same
+syntax as it does for packages, but has a slightly different semantic
+meaning at the product level. At his level, the requires() keyword
+lists the packages or components that must always be installed when
+the product is installed. The syntax of the string varies from backend
+to backend, so please check the backend specific documentation for
+details. The only additional function not previous discussed is the
+vendor() function.
+
+vendor (string)
+  This function sets the name of the product vendor. Each backend uses
+  this value differently, so you must ensure that the contents of the
+  STRING are valid for the chosen backend.
+
+Techniques and Conventions
+==========================
+
+The MetaPKG control file is fairly powerful, and there are many things
+you can do within it. This section discusses some techniques that make
+for very efficient, multi-format packaging. The primary focus of these
+techniques is to show how the same control file can be used for covering
+the two most common backends: CDMT and pkgadd. The techniques shown here
+can be easily extended to cover other backends as they are added to
+MetaPKG.
+

@@ -1,0 +1,162 @@
+#!/bin/ksh
+#
+# "@(#)kdm.rc.src 1.4 94/08/11
+#
+# This version of the kdm.rc script can be used on the UnixWare(TM) 
+# operating system to initiate tasks such as starting the kdm 
+# process. 
+#
+#  (c) Copyright 1997  The Santa Cruz Operation, Inc.
+#  (c) Copyright 1993, 1994 Hewlett-Packard Company
+#  (c) Copyright 1993, 1994 International Business Machines Corp.
+#  (c) Copyright 1993, 1994 Sun Microsystems, Inc.
+#  (c) Copyright 1993, 1994 Unix System Labs, Inc., a subsidiary of
+#      Novell, Inc.
+#
+# When placed in the /etc/rc2.d directory and named appropriately, such as 
+# "S99kdm", this script will automatically start the kdm window 
+# after the UnixWare(TM) system boots to its multi-user level.
+#
+
+RCSCRIPT=/etc/rc2.d/S99kdm
+
+mode=$1
+
+usage_error() {
+      echo "  $0 start             	(start kdm process)"
+      echo "  $0 stop              	(stop kdm process)"
+      echo "  $0 reset             	(reset kdm process)"
+
+      echo " "
+}
+
+if [ ! -d /usr/bin ]
+then			# /usr not mounted
+	exit 1
+fi
+
+
+set `LANG=C LC_ALL=C /usr/bin/id`
+
+
+if [ $1 != "uid=0(root)" ]; then
+        echo "$0: must be run as root"
+        exit 1
+fi
+
+grep=/usr/bin/grep
+ps=/usr/bin/ps
+cut=/usr/bin/cut
+awk=/usr/bin/awk
+
+#
+# Find login server pid from the process tree
+#
+login_server_pid()
+{
+
+# In following grep for "kdm" processes, explictly exclude any matches 
+# on this shell file named "kdm.rc"
+
+  $ps -u 0 -l | $grep -v kdm. | $grep kdm | $cut -c1-24 | $awk '{print $4 " " $5}' |
+  while read pid ppid; do
+    parent_login_ps=`$ps -p $ppid | $grep kdm`
+    if [ -z "$parent_login_ps" ]; then
+      echo "$pid"
+      break
+    fi
+  done
+}
+
+# The X server is refusing to die when kdm goes away
+# so we will explicitly do a kill on it.
+xserver_pid()
+{
+
+  $ps -u 0 -l | $grep Xsco | $cut -c1-24 | $awk '{print $4 " " $5}' |
+  while read pid ppid; do
+    if [ "$ppid" = "$1" ]; then
+      echo "$pid"
+      break
+    fi
+  done
+}
+
+case "$mode" in
+
+'start')
+
+	if [ -x /usr/local/kde/bin/kdm ] ; then
+		/usr/local/kde/bin/kdm -daemon
+	fi
+	;;
+
+
+'stop') 	
+#       get kdm pid
+
+        kdm_pid=`login_server_pid`
+        x_pid=`xserver_pid $kdm_pid`
+
+#       kill kdm process
+
+        if [ "$kdm_pid" != "" ] ; then
+             /usr/bin/kill $kdm_pid
+
+             if [ "$x_pid" != "" ] ; then
+		/usr/bin/kill $x_pid
+
+# need to send 2 kill signals to Xserver
+		/usr/bin/kill $x_pid
+
+
+	     fi
+
+#           reset keyboard back to ascii mode
+
+            if [ -x /usr/openwin/bin/kbd_mode ] ; then
+                 /usr/openwin/bin/kbd_mode -a
+            fi
+        fi
+	;;
+
+'reset') 	
+#       get kdm pid
+
+        kdm_pid=`login_server_pid`
+
+#       reset kdm process
+
+
+        if [ "$kdm_pid" != "" ] 
+        then
+             /usr/bin/kill -HUP $kdm_pid
+        fi
+	;;
+
+enable)
+        if [ -h $RCSCRIPT ] ; then
+                echo "KDM is already enabled."
+        else
+                echo "Enabling KDM ... \c"
+		rm -f $RCSCRIPT
+                ln -s /etc/kdm $RCSCRIPT
+                echo "done."
+        fi
+	exit 0
+        ;;
+
+disable)
+        echo "Disabling KDM ... \c"
+        rm -f $RCSCRIPT
+        echo "done."
+	exit 0
+        ;;
+
+*)
+	usage_error
+	exit 1
+	;;
+esac
+
+exit 0

@@ -1,0 +1,223 @@
+<HTML>
+<HEAD>
+<TITLE>Custom Order Routing</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="18.00.TRACKING_AND_BACKEND_ORDER_ENTRY.html">Up</A>&nbsp;&nbsp;<A HREF="18.02.Database_Tracking.html">&lt;&lt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Custom_Order_Routing">Custom Order Routing</A></H2>
+<P>
+MiniVend can send order emails and perform custom credit card charges
+and/or logging for each individual item. The <EM>Route</EM> directive is used to control this behavior, along with the <CODE>mv_order_route</CODE> item attribute and <CODE>mv_order_route</CODE> form variable.
+
+<P>
+Routes are established with the Route directive, which is similar to the
+Locale directive. Each route is like a locale, in that you can set
+key-value pairs. Here is an example setting:
+
+<P>
+<PRE>    Route  VEN  pgp_key         0x67798115
+    Route  VEN  email           orders@minivend.com
+    Route  VEN  reply           service@minivend.com
+    Route  VEN  encrypt         1
+    Route  VEN  encrypt_program &quot;/usr/bin/pgpe -fat -q -r %s&quot;
+    Route  VEN  report          etc/report_mail
+</PRE>
+<P>
+This route would be used whenever the value <CODE>VEN</CODE> was contained in the form variable <CODE>mv_order_route</CODE>.
+
+<P>
+The last route that is defined provides the defaults for all other routes.
+For example, if <A HREF="#item_encrypt_program">encrypt_program</A> is set there then the same value will be the default for all routes.
+
+<P>
+The attributes that can be set are:
+
+<DL>
+<DT><STRONG><A NAME="item_attach">attach</A></STRONG><DD>
+Determines whether the order report should be attached to the main order report email. This is useful if you must print certain items separately from others, perhaps for 
+<FONT SIZE=-1>FAX</FONT> to a fulfilment house.
+
+
+</DD><P><DT><STRONG><A NAME="item_counter">counter</A></STRONG><DD>
+The location of a counter file which should be used instead of <CODE>OrderCounter</CODE> for this route. It will generate a different value for <CODE>mv_order_number</CODE> for the route.
+
+</DD><P><DT><STRONG><A NAME="item_credit_card">credit_card</A></STRONG><DD>
+Determines whether credit card encryption should be done for this order.
+Either this or <A HREF="#item_encrypt">encrypt</A> should always be set.
+
+</DD><P><DT><STRONG><A NAME="item_cybermode">cybermode</A></STRONG><DD>
+If this is set, enables <EM>CyberCash</EM> for the route. You can also set the variables 
+<FONT SIZE=-1>CYBER_CONFIGFILE,</FONT> 
+<FONT SIZE=-1>CYBER_SECRET,</FONT> and all other normal 
+<FONT SIZE=-1>CYBERCASH</FONT> variables. For example:
+
+
+<P>
+<PRE>    Route VEN cybermode         mauthonly
+    Route VEN CYBER_CONFIGFILE  config/vendor1_cfg
+    Route VEN CYBER_VERSION     3.2
+</PRE>
+</DD><P><DT><STRONG>email</STRONG><DD>
+The email <CODE>address(es)</CODE> where the order should be sent. Set just
+like the <EM>MailOrderTo</EM> directive, which is also the default.
+
+</DD><P><DT><STRONG><A NAME="item_encrypt">encrypt</A></STRONG><DD>
+Whether the <STRONG>entire order</STRONG> should be encrypted with the <STRONG>encrypt_program</STRONG>. If <A HREF="#item_credit_card">credit_card</A> is set, then the credit card will first be encrypted, then the entire order
+encrypted.
+
+</DD><P><DT><STRONG><A NAME="item_encrypt_program">encrypt_program</A></STRONG><DD>
+The encryption program incantaton which should be used. Set identically to
+the <EM>EncryptProgram</EM> directive, except that <CODE>%s</CODE> will be replaced with the <A HREF="#item_pgp_key">pgp_key</A>. Default is <CODE>pgpe -fat -r %s</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item_errors_to">errors_to</A></STRONG><DD>
+Sets the <CODE>Errors-To:</CODE> email header so that bounced orders will go to the proper address. Default
+is the same as <EM>MailOrderTo</EM>.
+
+</DD><P><DT><STRONG><A NAME="item_increment">increment</A></STRONG><DD>
+Whether the order number should be incremented as a result of this result.
+Default is not to increment, as the order number should usually be the same
+for different routes within the same customer order.
+
+</DD><P><DT><STRONG><A NAME="item_individual_track">individual_track</A></STRONG><DD>
+
+<FONT SIZE=-1>A</FONT> <EM>directory</EM> where individual order tracking files will be placed. The file name will
+correspond to the value of <CODE>mv_order_number</CODE>. This can be useful for batching orders via download.
+
+</DD><P><DT><STRONG><A NAME="item_individual_track_ext">individual_track_ext</A></STRONG><DD>
+The extension that will be added to the file name for <A HREF="#item_individual_track">individual_track</A>. Must contain a period (<CODE>.</CODE>) if that is desired.
+
+<P>
+<PRE>    individual_track_ext     .pgp
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_pgp_cc_key">pgp_cc_key</A></STRONG><DD>
+The 
+<FONT SIZE=-1>PGP</FONT> key <EM>selector</EM> that is used to determine which public key is used for encryption of credit cards only. With 
+<FONT SIZE=-1>PGP</FONT> 5 and 6, you can see appropriate values by using the command
+ <CODE>pgpk -l</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item_pgp_key">pgp_key</A></STRONG><DD>
+The 
+<FONT SIZE=-1>PGP</FONT> key <EM>selector</EM> that is used to determine which public key is used for encryption. If <A HREF="#item_pgp_cc_key">pgp_cc_key</A> is set, that key will be used for credit card encryption instead of <A HREF="#item_pgp_key">pgp_key</A>. With 
+<FONT SIZE=-1>PGP</FONT> 5 and 6, you can see appropriate values by using
+the command <CODE>pgpk -l</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item_profile">profile</A></STRONG><DD>
+The custom order profile which should be performed to check the order. If
+it fails, then the route will not be performed. See <EM>OrderProfile</EM> and <EM>mv_order_profile</EM>.
+
+</DD><P><DT><STRONG><A NAME="item_receipt">receipt</A></STRONG><DD>
+The receipt page that should be used for this routing. This only makes
+sense if <STRONG>supplant</STRONG> is set for the route.
+
+</DD><P><DT><STRONG><A NAME="item_report">report</A></STRONG><DD>
+The report page that should be used for this routing. If <A HREF="#item_attach">attach</A> is defined, then the contents of the report will be placed in a 
+<FONT SIZE=-1>MIME</FONT> attachment in the main order report.
+
+</DD><P><DT><STRONG><A NAME="item_reply">reply</A></STRONG><DD>
+The <CODE>Reply-To</CODE> header that should be set. Default is the same as <A HREF="#item_email">email</A>.
+
+<P>
+If there are only word characters (A-Za-z0-9 and underscore) then it
+describes a MiniVend variable name where the address can be found.
+
+</DD><P><DT><STRONG><A NAME="item_supplant">supplant</A></STRONG><DD>
+Whether this route should supplant the main order report. If set, the <EM>AsciiTrack</EM> operation will use this route and the normal MiniVend order email sequence
+will not be performed.
+
+</DD><P><DT><STRONG><A NAME="item_track">track</A></STRONG><DD>
+The name of a file which should be used for tracking. If the
+<A HREF="#item_supplant">supplant</A> attribute is set, then the normal order tracking will be used as well.
+
+</DD><P><DT><STRONG>track</STRONG><DD>
+
+<FONT SIZE=-1>A</FONT> number representing the mode to change either <A HREF="#item_track">track</A> or
+<A HREF="#item_individual_track">individual_track</A> files to.
+
+</DD><P></DL>
+<P>
+An individual item routing causes all items labeld with that route to be
+placed in a special sub-cart which will be used for the order report. This
+means that the <CODE>[item-list] LIST [/item-list]</CODE> will only contain those items, allowing operations to be performed on
+subsets of the complete order.
+
+<P>
+Here is an example of an order routing:
+
+<P>
+<PRE>    Route  HARD  pgp_key          0x67798115
+    Route  HARD  email            hardgoods@minivend.com
+    Route  HARD  reply            service@minivend.com
+    Route  HARD  encrypt          1
+    Route  HARD  encrypt_program  &quot;/usr/bin/pgpe -fat -q -r %s&quot;
+    Route  HARD  report           etc/report_mail
+                                 
+    Route  SOFT  email            &quot;&quot;
+    Route  SOFT  profile          create_download_link
+    Route  SOFT  empty            1
+</PRE>
+<P>
+<PRE>    Route  main  cybermode        mauthonly
+    Route  main  CYBER_VERSION    3.2
+    Route  main  CYBER_CONFIGFILE etc/cybercash.cfg
+    Route  main  pgp_key          0x67798115
+    Route  main  email            orders@minivend.com
+    Route  main  reply            service@minivend.com
+    Route  main  encrypt          1
+    Route  main  encrypt_program  &quot;/usr/bin/pgpe -fat -q -r %s&quot;
+    Route  main  report           etc/report_all
+ 
+To tell MiniVend that order routing is in effect, the variable
+mv_order_route is set on the B&lt;final&gt; order submission form:
+</PRE>
+<P>
+<PRE>    &lt;INPUT TYPE=&quot;hidden&quot; NAME=&quot;mv_order_route&quot; VALUE=&quot;main&quot;&gt;
+</PRE>
+<P>
+To set the order routing for individual items, some method of determining
+their status must be made and the <CODE>mv_order_route</CODE>
+attribute must be set. This could be set at the time of the item being
+placed in the basket, or you can have a database field called <CODE>goods_type</CODE> set to the appropriate value. We will use this Perl routine on the final
+order form:
+
+<P>
+<PRE> [perl arg=carts interpolate=1]
+    my $string = &lt;&lt;'EOF';
+ [item-list][item-code]  [item-field goods_type]
+ [/item-list]
+ EOF
+    my @items;
+    my %route;
+    @items = grep /\S/, split /\n+/, $string;
+    for(@items) {
+        my ($code, $keycode) = split /\t/, $_;
+       $route{$code} = $keycode;
+    }
+    my $cart = $Carts-&gt;{'main'};
+    my $item;
+    foreach $item ( @{ $Carts-&gt;{'main'} } ) {
+        $item-&gt;{mv_order_route} = $route{$item-&gt;{'code'}} || undef;
+    }
+    return '';
+ [/perl]
+</PRE>
+<P>
+Now the individual items are labeled with a <CODE>mv_order_route</CODE> value which will cause their inclusion in the appropriate order routing.
+
+<P>
+Upon submission of the order form, any item labeled <CODE>HARD</CODE> will be accumulated and sent to the email address <CODE>hardgoods@minivend.com</CODE>, where presumably the item will be pulled from inventory and shipped.
+
+<P>
+Any item labeled <CODE>SOFT</CODE> will be passed to the order profile
+<CODE>create_download_link</CODE>, which will place it in a staging area for customer download. (This would
+be supported by a link on the receipt, perhaps by reading a value set in
+the profile).
+
+<P>
+The <CODE>main</CODE> order routing will use CyberCash to charge the order, and will be
+completely encrypted for emailing.
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="18.00.TRACKING_AND_BACKEND_ORDER_ENTRY.html">Up</A>&nbsp;&nbsp;<A HREF="18.02.Database_Tracking.html">&lt;&lt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

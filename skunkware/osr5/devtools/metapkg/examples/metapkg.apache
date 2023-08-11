@@ -1,0 +1,462 @@
+#! /usr/bin/metapkg -p
+# MetaPKG control file for package: Apache
+#
+# Requires at least version 2.0.1 of MetaPKG
+want (2,0,1);
+# Requires version 1.0.5 or later of the CDMT backend
+want ("cdmt", 1, 0, 5);
+# Requires version 1.0.1 or later of the PKGADD backend
+want ("pkgadd", 1, 0, 1);
+
+# Set various product versions for description purposes
+define ("APACHEVER", "1.3.33");
+define ("VERSUFFIX", "Fa");
+define ("GWXDESC", "Supplemental Graphics, Web and X11 Libraries");
+define ("APACHEDESC", "Apache Web Server");
+define ("PERLDESC", "Perl 5.8.7");
+define ("PERLEXTDESC", "Perl 5.8.7 Extensions");
+define ("APACHE_C", "${APACHEDESC} ${APACHEVER}");
+define ("AXKIT_C", "AxKit XML Toolkit for Apache/perl");
+define ("MODPERL_C", "Perl Support for Apache");
+define ("MODSSL_C", "Secure Sockets Layer (SSL) Support for Apache");
+define ("PERLASP_C", "ASP Support for Apache/Perl");
+define ("PHP4_C", "PHP4 Hypertext Processor");
+
+set ("product-code", "APACHE");
+set ("description", "${APACHEDESC} ${APACHEVER}");
+set ("version", "${APACHEVER}${VERSUFFIX}");
+set ("component-mode", 1);
+set ("all-early", 1);
+
+ifndef ("APACHEOS")
+  error ("APACHEOS not set - must be one of OSR5, OSR6 or UW7");
+endif
+
+ifeq ("APACHEOS", "OSR5")
+  define ("APACHEOK", "1");
+  define ("DEPVENDOR", "SCO:");
+endif
+
+ifeq ("APACHEOS", "OSR6")
+  define ("APACHEOK", "1");
+  define ("DEPVENDOR", "SCO:");
+endif
+
+ifeq ("APACHEOS", "UW7")
+  define ("APACHEOK", "1");
+  backend ("pkgadd");
+  set ("pkgadd-category", "application");
+  define ("PKGADD", "1");
+  define ("DEPVENDOR", "");
+else
+  backend ("cdmt");
+  set ("dont-harden-symlinks", 0);
+  set ("dont-export-symlinks", 0);
+endif
+
+ifneq ("APACHEOK", "1")
+  error ("APACHEOS=${APACHEOS} not recognised - must be one of OSR5, OSR6 or UW7");
+endif
+
+prepare ("Setting up") {
+  script ("@@@@",
+@@@@
+[ -n "$DEBUG" ] && set -x
+origpwd=`pwd`
+apdir=Apache/usr/lib/apache
+
+[ -z "$HANDOFFS" ] && {
+  echo "ERROR: \$HANDOFFS not set. Set to directory that contains the"
+  echo "       *.apache handoffs files"
+  exit 1
+}
+
+# Deal with handoffs first
+[ -d Apache/etc ] || mkdir Apache/etc
+[ -f Apache/etc/apache ] || {
+  cp $HANDOFFS/etc.apache Apache/etc/apache
+  chmod 755 Apache/etc/apache
+}
+
+if [ "$APACHEOS" = "OSR5" ]; then
+  doctar=$HANDOFFS/osr5doc.tar.apache
+elif [ "$APACHEOS" = "OSR6" ]; then
+  doctar=$HANDOFFS/osr6doc.tar.apache
+fi
+
+[ -n "$doctar" ] && {
+  cd Apache/usr
+  tar xf $doctar
+  cd $origpwd
+}
+
+if [ "$APACHEOS" = "UW7" ]; then
+  cp -f $HANDOFFS/confuw7.apache $apdir/conf/httpd.conf.default
+elif [ "$APACHEOS" = "OSR6" ]; then
+  cp -f $HANDOFFS/confosr6.apache $apdir/conf/httpd.conf.default
+else
+  cp -f $HANDOFFS/confosr5.apache $apdir/conf/httpd.conf.default
+fi
+
+if [ -d $apdir/htdocs-default ]; then
+  if [ "$APACHEOS" = "OSR6" ]; then
+    rm -f $apdir/htdocs-default/index.*
+    cp -f $HANDOFFS/index.osr6.apache $apdir/htdocs-default/index.html
+  else
+    cp -f $HANDOFFS/index.apache $apdir/htdocs-default/index.html.en
+  fi
+elif [ -d $apdir/htdocs ]; then
+  if [ "$APACHEOS" = "OSR6" ]; then
+    rm -f $apdir/htdocs/index.*
+    cp -f $HANDOFFS/index.osr6.apache $apdir/htdocs/index.html
+  else
+    cp -f $HANDOFFS/index.apache $apdir/htdocs/index.html.en
+  fi
+fi
+
+[ "$APACHEOS" = "UW7" ] || {
+  for cp in Apache AxKit modperl modssl perlASP php4; do
+    [ -d $cp/cntl ] || mkdir -p $cp/cntl
+
+    [ -f $cp/cntl/cqs ] || {
+      if [ "$APACHEOS" = "OSR5" ]; then
+	cp -f $HANDOFFS/common/cqs.osr5 $cp/cntl/cqs
+      else
+	cp -f $HANDOFFS/common/cqs.osr6 $cp/cntl/cqs
+      fi
+      chmod 755 $cp/cntl/cqs
+    }
+
+    [ -f $cp/cntl/badver ] || {
+      if [ "$APACHEOS" = "OSR5" ]; then
+        cp -f $HANDOFFS/common/badver.osr5 $cp/cntl/badver
+      else
+        cp -f $HANDOFFS/common/badver.osr6 $cp/cntl/badver
+      fi
+      chmod 755 $cp/cntl/badver
+    }
+
+    [ "$APACHEOS" = "OSR5" ] && {
+      [ -f $cp/cntl/need646 ] || {
+        cp -f $HANDOFFS/common/need646 $cp/cntl/need646
+        chmod 755 $cp/cntl/need646
+      }
+
+      [ -f $cp/cntl/needMP3 ] || {
+        cp -f $HANDOFFS/common/needMP3 $cp/cntl/needMP3
+        chmod 755 $cp/cntl/needMP3
+      }
+    }
+
+    [ -f $HANDOFFS/ccs.${cp}.apache ] && {
+      [ -f $cp/cntl/ccs ] || {
+        cp -f $HANDOFFS/ccs.${cp}.apache $cp/cntl/ccs
+        chmod 755 $cp/cntl/ccs
+      }
+    }
+  done
+}
+
+[ "$APACHEOS" = "OSR5" ] && {
+  [ -f Apache/cntl/ccs ] || {
+    cp -f $HANDOFFS/ccs.Apache.osr5.apache Apache/cntl/ccs
+    chmod 755 Apache/cntl/ccs
+  }
+}
+
+[ "$APACHEOS" = "OSR6" ] && {
+  [ -f Apache/cntl/ccs ] || {
+    cp -f $HANDOFFS/ccs.Apache.osr6.apache Apache/cntl/ccs
+    chmod 755 Apache/cntl/ccs
+  }
+}
+
+[ "$APACHEOS" = "UW7" ] && {
+  [ -d Apache/cntl ] || mkdir -p Apache/cntl
+  [ -d modssl/cntl ] || mkdir -p modssl/cntl
+  [ -d php4/cntl ] || mkdir -p php4/cntl
+  cp -f $HANDOFFS/postinstall.Apache.apache Apache/cntl/postinstall
+  cp -f $HANDOFFS/postinstall.modssl.apache modssl/cntl/postinstall
+  cp -f $HANDOFFS/postinstall.php4.apache php4/cntl/postinstall
+}
+
+do_desc() {
+[ -n "$DEBUG" ] && set -x
+  [ -f $1/cntl/cmpnt.desc ] || {
+    cat > $1/cntl/cmpnt.desc <<EOF
+CMPNTCHECK=$1
+CMPNTNAME=$1
+CMPNTDESC="$2"
+EOF
+    chmod 444 $1/cntl/cmpnt.desc
+  }
+}
+
+[ -d php4/usr/lib/apache/manual/images ] || {
+  mkdir -p php4/usr/lib/apache/manual/images
+}
+[ -f php4/usr/lib/apache/manual/images/php.gif ] || {
+  cp $HANDOFFS/php.gif.apache php4/usr/lib/apache/manual/images/php.gif
+  chmod 444 php4/usr/lib/apache/manual/images/php.gif
+}
+
+cp -f $HANDOFFS/php.ini.apache php4/usr/lib/php/php.ini-dist
+chmod 444 php4/usr/lib/php/php.ini-dist
+
+[ -d modperl/usr/lib/apache/manual/images ] || {
+  mkdir -p modperl/usr/lib/apache/manual/images
+}
+[ -f modperl/usr/lib/apache/manual/images/mod_perl.gif ] || {
+  cp $HANDOFFS/mod_perl.gif.apache modperl/usr/lib/apache/manual/images/mod_perl.gif
+  chmod 444 php4/usr/lib/apache/manual/images/php.gif
+}
+
+# Now for installed tree manipulations
+[ -d Apache/usr/lib/apache/htdocs ] && {
+  mv Apache/usr/lib/apache/htdocs Apache/usr/lib/apache/htdocs-default
+}
+
+[ -d modssl/usr/lib/apache/libexec ] || {
+  mkdir -p modssl/usr/lib/apache/libexec
+  mkdir -p modssl/usr/lib/apache/conf
+  mkdir -p modssl/usr/lib/apache/manual/images
+  mkdir -p modssl/usr/lib/apache/manual/mod
+  mv Apache/usr/lib/apache/libexec/libssl.so modssl/usr/lib/apache/libexec
+  mv Apache/usr/lib/apache/manual/images/mod_ssl_sb.gif modssl/usr/lib/apache/manual/images
+  mv Apache/usr/lib/apache/manual/images/openssl_ics.gif modssl/usr/lib/apache/manual/images
+  mv Apache/usr/lib/apache/manual/mod/mod_ssl modssl/usr/lib/apache/manual/mod
+  mv Apache/usr/lib/apache/conf/ssl.* modssl/usr/lib/apache/conf
+}
+
+[ -f modssl/usr/lib/apache/conf/ssl.csr/server.csr ] && {
+  mv modssl/usr/lib/apache/conf/ssl.csr/server.csr modssl/usr/lib/apache/conf/ssl.csr/snakeoil.csr
+}
+
+[ -d php4/etc ] || {
+  mkdir php4/etc
+  mv -f php4/usr/etc/pear.conf php4/etc
+  rmdir php4/usr/etc
+  exdir=php4/usr/lib/php/extensions/non-debug-non-zts-20020429
+  [ -d $exdir ] && {
+    mv $exdir/* $exdir/..
+    rmdir $exdir
+  }
+}
+
+[ "$APACHEOS" = "UW7" ] || {
+  do_desc Apache "$APACHE_C"
+  do_desc AxKit "$AXKIT_C"
+  do_desc modperl "$MODPERL_C"
+  do_desc modssl "$MODSSL_C"
+  do_desc perlASP "$PERLASP_C"
+  do_desc php4 "$PHP4_C"
+}
+
+@@@@ );
+  auto_strip (TRUE, TRUE);
+  auto_compress_texinfo ();
+  auto_format_mansource ();
+}
+
+package ("/Apache", "${APACHE_C}", "APACHE") {
+  directory ("/usr/lib/apache/conf") {
+    access (CLIENT);
+  }
+
+  directory ("/usr/lib/apache/conf/cf.d") {
+    access (CLIENT);
+  }
+
+  directory ("/usr/lib/apache/htdocs-default") {
+    export (EXPPHASE);
+  }
+
+  ifeq ("APACHEOS", "OSR6")
+    file ("/usr/lib/apache/htdocs-default/index.html") {
+      mode (755);
+    }
+  endif
+
+  file ("/usr/lib/apache/bin/suexec") {
+    owner ("root");
+    group ("bin");
+    mode (4711);
+  }
+
+  file ("/usr/lib/apache/cgi-bin/printenv") {
+    mode (755);
+  }
+
+  file ("/usr/lib/apache/cgi-bin/test-cgi") {
+    mode (755);
+  }
+
+  file ("/etc/apache") {
+    owner ("bin");
+    group ("bin");
+    mode (711);
+    access (SERVER);
+    ifeq ("APACHEOS", "UW7")
+      addexport ("/usr/sbin/apache", FALSE);
+    endif
+  }
+
+  remove ("/usr/lib/apache/conf/httpd.conf");
+  remove ("/usr/lib/apache/conf/access.conf");
+  remove ("/usr/lib/apache/conf/srm.conf");
+  remove ("/usr/lib/apache/conf/magic");
+  remove ("/usr/lib/apache/conf/mime.types");
+}
+
+package ("/modssl", "${MODSSL_C}", "MODSSL") {
+  directory ("/usr/lib/apache/conf") {
+    access (CLIENT);
+  }
+
+  directory ("/usr/lib/apache/conf/ssl.key") {
+    access (CLIENT);
+    mode (700);
+  }
+
+  directory ("/usr/lib/apache/conf/ssl.crl") {
+    access (CLIENT);
+  }
+
+  directory ("/usr/lib/apache/conf/ssl.csr") {
+    access (CLIENT);
+  }
+
+  directory ("/usr/lib/apache/conf/ssl.crt") {
+    access (CLIENT);
+  }
+
+  directory ("/usr/lib/apache/conf/ssl.prm") {
+    access (CLIENT);
+  }
+
+  remove ("/usr/lib/apache/conf/ssl.crt/server.crt");
+  removeany ("/usr/lib/apache/conf/ssl.crt/*.0");
+  removeany ("/usr/lib/apache/conf/ssl.crt/*.1");
+  remove ("/usr/lib/apache/conf/ssl.key/server.key");
+}
+
+package ("/modperl", "${MODPERL_C}", "MODPERL") {
+  remove ("/usr/lib/perl5/5.8");
+}
+
+package ("/perlASP", "${PERLASP_C}", "PERLASP") {
+  remove ("/usr/lib/perl5/5.8");
+}
+
+package ("/AxKit", "${AXKIT_C}", "AXKIT") {
+  remove ("/usr/lib/perl5/5.8");
+}
+
+package ("/php4", "${PHP4_C}", "PHP4") {
+  remove ("/usr/lib/php/.lock");
+  remove ("/usr/lib/php/.filemap");
+  remove ("/usr/lib/php/test");
+  remove ("/usr/lib/apache/conf");
+  ifneq ("APACHEOS", "OSR5")
+    remove ("/usr/lib/php/extensions/mysql.so");
+    remove ("/usr/lib/php/extensions/pgsql.so");
+  endif
+  directory ("/usr/lib/php/.registry") {
+    access (CLIENT);
+  }
+}
+
+component ("Apache", "1.3.33${VERSUFFIX}", "${APACHE_C}") {
+  subpackage ("APACHE");
+  upgrades ("^1\\\\.3\\\\.19.*");
+  upgrades ("^1\\\\.3\\\\.22.*");
+  upgrades ("^1\\\\.3\\\\.24.*");
+  upgrades ("^1\\\\.3\\\\.26.*");
+  upgrades ("^1\\\\.3\\\\.27.*");
+  upgrades ("^1\\\\.3\\\\.27.*");
+  upgrades ("^1\\\\.3\\\\.28.*");
+  upgrades ("^1\\\\.3\\\\.28.*");
+  upgrades ("^1\\\\.3\\\\.29.*");
+  upgrades ("^1\\\\.3\\\\.31.*");
+  upgrades ("^1\\\\.3\\\\.33[A-E][a-z]");
+  dependency ("${DEPVENDOR}gwxlibs", "${GWXDESC}");
+  ifeq ("APACHEOS", "UW7")
+    verbatim ("i postinstall=../../dist/Apache/cntl/postinstall");
+  endif
+}
+
+component ("modssl", "2.8.22${VERSUFFIX}", "${MODSSL_C}") {
+  subpackage ("MODSSL");
+  upgrades ("^2\\\\.8\\\\.0.*");
+  upgrades ("^2\\\\.8\\\\.1.*");
+  upgrades ("^2\\\\.8\\\\.2[01][A-Z][a-z]");
+  upgrades ("^2\\\\.8\\\\.22[A-E][a-z]");
+  dependency ("${DEPVENDOR}gwxlibs", "${GWXDESC}");
+  dependency ("${DEPVENDOR}Apache", "${APACHEDESC}");
+  ifeq ("APACHEOS", "UW7")
+    verbatim ("i postinstall=../../dist/modssl/cntl/postinstall");
+  endif
+}
+
+component ("modperl", "1.29.1${VERSUFFIX}", "${MODPERL_C}") {
+  subpackage ("MODPERL");
+  upgrades ("^1\\\\.25\\\\.0.*");
+  upgrades ("^1\\\\.26\\\\.0.*");
+  upgrades ("^1\\\\.27\\\\.0.*");
+  upgrades ("^1\\\\.27\\\\.1.*");
+  upgrades ("^1\\\\.28\\\\.0.*");
+  upgrades ("^1\\\\.29\\\\.0.*");
+  upgrades ("^1\\\\.29\\\\.1[A-E][a-z]");
+  dependency ("${DEPVENDOR}gwxlibs", "${GWXDESC}");
+  dependency ("${DEPVENDOR}Apache", "${APACHEDESC}");
+  dependency ("${DEPVENDOR}perl", "${PERLDESC}");
+  dependency ("${DEPVENDOR}perlext", "${PERLEXTDESC}");
+}
+
+component ("php4", "4.4.0${VERSUFFIX}", "${PHP4_C}") {
+  subpackage ("PHP4");
+  upgrades ("^4\\\\.0\\\\..*");
+  upgrades ("^4\\\\.1\\\\..*");
+  upgrades ("^4\\\\.2\\\\..*");
+  upgrades ("^4\\\\.3\\\\..*");
+  dependency ("${DEPVENDOR}gwxlibs", "${GWXDESC}");
+  dependency ("${DEPVENDOR}Apache", "${APACHEDESC}");
+  ifeq ("APACHEOS", "UW7")
+    verbatim ("i postinstall=../../dist/php4/cntl/postinstall");
+  endif
+}
+
+component ("perlASP", "2.59${VERSUFFIX}", "${PERLASP_C}") {
+  subpackage ("PERLASP");
+  upgrades ("^2\\\\.39.*");
+  upgrades ("^2\\\\.53.*");
+  upgrades ("^2\\\\.55.*");
+  upgrades ("^2\\\\.57.*");
+  dependency ("${DEPVENDOR}gwxlibs", "${GWXDESC}");
+  dependency ("${DEPVENDOR}Apache", "${APACHEDESC}");
+  dependency ("${DEPVENDOR}perl", "${PERLDESC}");
+  dependency ("${DEPVENDOR}perlext", "${PERLEXTDESC}");
+  dependency ("${DEPVENDOR}modperl", "${MODPERL_C}");
+}
+
+component ("AxKit", "1.62${VERSUFFIX}", "${AXKIT_C}") {
+  subpackage ("AXKIT");
+  upgrades ("^1\\\\.6$");
+  upgrades ("^1\\\\.61$");
+  upgrades ("^1\\\\.61[a-z]$");
+  upgrades ("^1\\\\.62[a-z]$");
+  upgrades ("^1\\\\.62[A-E][a-z]$");
+  dependency ("${DEPVENDOR}gwxlibs", "${GWXDESC}");
+  dependency ("${DEPVENDOR}Apache", "${APACHEDESC}");
+  dependency ("${DEPVENDOR}perl", "${PERLDESC}");
+  dependency ("${DEPVENDOR}perlext", "${PERLEXTDESC}");
+  dependency ("${DEPVENDOR}modperl", "${MODPERL_C}");
+}
+
+#
+# Global requirement - these make their way into the product file as the
+# minimum list of components the user can install.
+#
+requires ("Apache");
+requires ("modperl");
+

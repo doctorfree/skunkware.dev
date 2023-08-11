@@ -1,0 +1,744 @@
+--- ./db/dist/Makefile.in.osr5	2003-01-18 14:04:52.000000000 +0000
++++ ./db/dist/Makefile.in	2003-09-26 18:48:08.000000000 +0000
+@@ -56,7 +56,7 @@
+ CCLINK=		@MAKEFILE_CCLINK@
+ 
+ LDFLAGS=	@LDFLAGS@
+-LIBS=		@LIBS@
++LIBS=		@LIBS@ -lsocket
+ LIBSO_LIBS=	@LIBSO_LIBS@
+ 
+ libdb=		libdb.a
+--- ./db/rpc_client/client.c.osr5	2003-01-18 14:05:11.000000000 +0000
++++ ./db/rpc_client/client.c	2003-09-26 18:48:08.000000000 +0000
+@@ -14,6 +14,7 @@
+ #ifdef HAVE_RPC
+ #ifndef NO_SYSTEM_INCLUDES
+ #include <sys/types.h>
++#include <sys/time.h>
+ 
+ #ifdef HAVE_VXWORKS
+ #include <rpcLib.h>
+--- ./db/rpc_client/db_server_clnt.c.osr5	2003-01-18 14:05:11.000000000 +0000
++++ ./db/rpc_client/db_server_clnt.c	2003-09-26 18:48:08.000000000 +0000
+@@ -8,6 +8,7 @@
+ 
+ #ifndef NO_SYSTEM_INCLUDES
+ #include <rpc/rpc.h>
++#include <sys/time.h>
+ 
+ #include <strings.h>
+ #endif
+--- ./lib/fs.c.osr5	2003-03-03 19:38:56.000000000 +0000
++++ ./lib/fs.c	2003-09-26 18:48:09.000000000 +0000
+@@ -7,6 +7,13 @@
+ #include <rpmmacro.h>	/* XXX for rpmGetPath */
+ #include "debug.h"
+ 
++#ifdef _SCO_DS
++#include <sys/fstyp.h>
++#include <sys/fsid.h>
++#include <sys/statfs.h>
++#include <sys/types.h>
++#endif
++
+ /*@-usereleased -onlytrans@*/
+ 
+ struct fsinfo {
+@@ -144,6 +151,12 @@
+     int i;
+     const char * mntdir;
+     int rdonly = 0;
++#ifdef _SCO_DS
++    struct statfs * scomount = NULL;
++    char typebuf[FSTYPSZ];
++    extern int sysfs (int, int, char *);
++
++#endif
+ 
+ #   if GETMNTENT_ONE || GETMNTENT_TWO
+     our_mntent item;
+@@ -192,6 +205,17 @@
+ 	    mntdir = mounts[nextMount++].f_mntonname;
+ #	endif
+ 
++#ifdef _SCO_DS
++	if (statfs(mntdir, scomount, sizeof (struct statfs), 0) == -1) {
++	    rpmError(RPMERR_STAT, _("failed to statfs %s: %s\n"), mntdir,
++			strerror(errno));
++
++	    freeFilesystems();
++	    return 1;
++	}
++        sysfs (GETFSTYP, (int)(scomount->f_fstyp), typebuf);
++        if (typebuf != NFS) {
++#endif
+ 	if (stat(mntdir, &sb)) {
+ 	    rpmError(RPMERR_STAT, _("failed to stat %s: %s\n"), mntdir,
+ 			strerror(errno));
+@@ -209,6 +233,10 @@
+ 	filesystems[numFilesystems].dev = sb.st_dev;
+ 	filesystems[numFilesystems].mntPoint = xstrdup(mntdir);
+ 	filesystems[numFilesystems].rdonly = rdonly;
++#ifdef _SCO_DS
++        }
++#endif
++
+ #if 0
+ 	rpmMessage(RPMMESS_DEBUG, _("%5d 0x%04x %s %s\n"),
+ 		numFilesystems,
+--- ./lib/getdate.y.osr5	2001-09-24 21:53:15.000000000 +0000
++++ ./lib/getdate.y	2003-09-26 18:48:09.000000000 +0000
+@@ -62,7 +62,7 @@
+ #undef timezone /* needed for sgi */
+ #endif
+ 
+-#if defined(HAVE_SYS_TIMEB_H)
++#if defined(HAVE_SYS_TIMEB_H) || defined(_SCO_DS)
+ #include <sys/timeb.h>
+ #else
+ /*
+--- ./lib/signature.c.osr5	2003-03-03 16:21:13.000000000 +0000
++++ ./lib/signature.c	2003-09-26 18:48:09.000000000 +0000
+@@ -18,6 +18,11 @@
+ #include "header_internal.h"
+ #include "debug.h"
+ 
++#ifdef _SCO_DS
++#include <unistd.h>
++extern char **environ;
++#endif
++
+ /*@access FD_t@*/		/* XXX ufdio->read arg1 is void ptr */
+ /*@access Header@*/		/* XXX compared with NULL */
+ /*@access entryInfo @*/		/* XXX rpmReadSignature */
+--- ./file/Makefile.am.osr5	2003-01-24 19:41:56.000000000 +0000
++++ ./file/Makefile.am	2003-09-26 18:48:09.000000000 +0000
+@@ -26,7 +26,7 @@
+ noinst_PROGRAMS =	file
+ 
+ file_SOURCES =	file.c
+-file_LDFLAGS =	-all-static
++file_LDFLAGS =
+ file_LDADD =	libfmagic.la
+ 
+ man_MAGIC = magic.@fsect@
+--- ./file/Makefile.in.osr5	2003-03-07 19:17:08.000000000 +0000
++++ ./file/Makefile.in	2003-09-26 18:48:09.000000000 +0000
+@@ -121,7 +121,7 @@
+ noinst_PROGRAMS = file
+ 
+ file_SOURCES = file.c
+-file_LDFLAGS = -all-static
++file_LDFLAGS =
+ file_LDADD = libfmagic.la
+ 
+ man_MAGIC = magic.@fsect@
+@@ -310,7 +310,7 @@
+ DEFS = @DEFS@
+ DEFAULT_INCLUDES =  -I. -I$(srcdir) -I.
+ LDFLAGS = @LDFLAGS@
+-LIBS = @LIBS@
++LIBS = @LIBS@ -lgetopt
+ depcomp = $(SHELL) $(top_srcdir)/depcomp
+ am__depfiles_maybe = depfiles
+ @AMDEP_TRUE@DEP_FILES = ./$(DEPDIR)/apprentice.Plo \
+--- ./popt/configure.osr5	2003-03-07 19:16:17.000000000 +0000
++++ ./popt/configure	2003-09-26 18:48:09.000000000 +0000
+@@ -6224,7 +6224,7 @@
+ 
+   if test "$GCC" = yes; then
+     lt_cv_prog_cc_wl='-Wl,'
+-    lt_cv_prog_cc_static='-static'
++    lt_cv_prog_cc_static=''
+ 
+     case $host_os in
+     aix*)
+@@ -12761,7 +12761,7 @@
+   rpathdirs=
+   ltrpathdirs=
+   names_already_handled=
+-  names_next_round='intl '
++  names_next_round='gnuintl '
+   while test -n "$names_next_round"; do
+     names_this_round="$names_next_round"
+     names_next_round=
+@@ -13090,8 +13090,8 @@
+     done
+   fi
+ 
+-          echo "$as_me:$LINENO: checking for GNU gettext in libintl" >&5
+-echo $ECHO_N "checking for GNU gettext in libintl... $ECHO_C" >&6
++          echo "$as_me:$LINENO: checking for GNU gettext in libgnuintl" >&5
++echo $ECHO_N "checking for GNU gettext in libgnuintl... $ECHO_C" >&6
+ if test "${gt_cv_func_gnugettext1_libintl+set}" = set; then
+   echo $ECHO_N "(cached) $ECHO_C" >&6
+ else
+--- ./popt/Makefile.am.osr5	2003-03-06 23:16:43.000000000 +0000
++++ ./popt/Makefile.am	2003-09-26 18:48:09.000000000 +0000
+@@ -36,7 +36,7 @@
+ include_HEADERS = popt.h
+ 
+ usrlibdir = $(libdir)@MARK64@
+-usrlib_LTLIBRARIES = libpopt.la
++usrlib_LTLIBRARIES = libpopt.la -lgnuintl
+ libpopt_la_SOURCES = popt.c findme.c poptparse.c poptconfig.c popthelp.c
+ 
+ man_MANS = popt.3
+--- ./popt/Makefile.in.osr5	2003-03-07 19:16:14.000000000 +0000
++++ ./popt/Makefile.in	2003-09-26 18:48:09.000000000 +0000
+@@ -155,7 +155,7 @@
+ include_HEADERS = popt.h
+ 
+ usrlibdir = $(libdir)@MARK64@
+-usrlib_LTLIBRARIES = libpopt.la
++usrlib_LTLIBRARIES = libpopt.la -lgnuintl
+ libpopt_la_SOURCES = popt.c findme.c poptparse.c poptconfig.c popthelp.c
+ 
+ man_MANS = popt.3
+--- ./rpmio/fts.h.osr5	2003-01-18 16:13:17.000000000 +0000
++++ ./rpmio/fts.h	2003-09-26 18:48:09.000000000 +0000
+@@ -51,7 +51,7 @@
+ # define	_LARGEFILE64_SOURCE
+ #endif
+ 
+-#if defined(sun)
++#if defined(sun) || defined(_SCO_DS)
+ # define _D_EXACT_NAMLEN(d) ((d)->d_reclen)
+ #endif
+ 
+--- ./rpmio/fts.c.osr5	2003-01-18 16:13:17.000000000 +0000
++++ ./rpmio/fts.c	2003-09-26 18:48:09.000000000 +0000
+@@ -53,6 +53,13 @@
+ #   define _STAT_VER		0
+ #   define __fxstat64(_stat_ver, _fd, _sbp)	fstat((_fd), (_sbp))
+ #endif
++#if defined(_SCO_DS)
++#   define __errno_location()	(&errno)
++#   define dirfd(dirp)		-1
++#   define stat64		stat
++#   define _STAT_VER		0
++#   define __fxstat64(_stat_ver, _fd, _sbp)	fstat((_fd), (_sbp))
++#endif
+ #if defined(sun)
+ #   define __errno_location()	(&errno)
+ #   define dirfd(dirp)		-1
+--- ./rpmio/rpmrpc.c.osr5	2003-02-28 16:24:09.000000000 +0000
++++ ./rpmio/rpmrpc.c	2003-09-26 18:48:09.000000000 +0000
+@@ -1289,9 +1289,11 @@
+ #if !defined(hpux) && !defined(sun)
+     dp->d_off = 0;		/* W2DO? */
+ /*@-boundsread@*/
++#if !defined(_SCO_DS)
+     dp->d_type = dt[i];
+ /*@=boundsread@*/
+ #endif
++#endif
+ 
+     strncpy(dp->d_name, av[i], sizeof(dp->d_name));
+ /*@+voidabstract@*/
+--- ./rpmio/Makefile.am.osr5	2003-03-07 00:17:07.000000000 +0000
++++ ./rpmio/Makefile.am	2003-09-26 18:48:09.000000000 +0000
+@@ -31,7 +31,7 @@
+ librpmio_la_LDFLAGS = -release 4.1 -L/var/tmp/rpm-root$(usrlibdir) \
+ 	$(top_builddir)/file/libfmagic.la \
+ 	@WITH_ZLIB_LIB@ \
+-	-lrt -lpthread
++	-lpthread
+ librpmio_la_LIBADD = $(BEECRYPTLOBJS)
+ librpmio_la_DEPENDENCIES = .created
+ 
+--- ./rpmio/Makefile.in.osr5	2003-03-07 19:17:35.000000000 +0000
++++ ./rpmio/Makefile.in	2003-09-26 18:48:09.000000000 +0000
+@@ -237,7 +237,7 @@
+ librpmio_la_LDFLAGS = -release 4.1 -L/var/tmp/rpm-root$(usrlibdir) \
+ 	$(top_builddir)/file/libfmagic.la \
+ 	@WITH_ZLIB_LIB@ \
+-	-lrt -lpthread
++	-lpthread
+ 
+ librpmio_la_LIBADD = $(BEECRYPTLOBJS)
+ librpmio_la_DEPENDENCIES = .created
+--- ./rpmdb/fprint.c.osr5	2002-07-08 14:21:27.000000000 +0000
++++ ./rpmdb/fprint.c	2003-09-26 18:48:09.000000000 +0000
+@@ -10,6 +10,14 @@
+ #include "fprint.h"
+ #include "debug.h"
+ 
++#ifdef _SCO_DS
++#include <limits.h>
++#endif
++
++#ifndef PATH_MAX
++#define PATH_MAX 256
++#endif
++
+ fingerPrintCache fpCacheCreate(int sizeHint)
+ {
+     fingerPrintCache fpc;
+--- ./rpmdb/Makefile.in.osr5	2003-03-07 19:17:35.000000000 +0000
++++ ./rpmdb/Makefile.in	2003-09-26 18:48:09.000000000 +0000
+@@ -265,7 +265,7 @@
+ rpmdb_archive_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_archive.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ 
+ rpmdb_checkpoint_SOURCES = 
+@@ -273,7 +273,7 @@
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_checkpoint.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_log.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ 
+ rpmdb_deadlock_SOURCES = 
+@@ -281,7 +281,7 @@
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_deadlock.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_log.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ 
+ rpmdb_dump_SOURCES = 
+@@ -289,7 +289,7 @@
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_dump.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ 
+ rpmdb_load_SOURCES = 
+@@ -297,14 +297,14 @@
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_load.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ 
+ rpmdb_printlog_SOURCES = 
+ rpmdb_printlog_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_printlog.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ 
+ rpmdb_recover_SOURCES = 
+@@ -312,7 +312,7 @@
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_recover.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ 
+ rpmdb_stat_SOURCES = 
+@@ -320,7 +320,7 @@
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_stat.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ 
+ rpmdb_svc_SOURCES = 
+@@ -330,7 +330,7 @@
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_server_util.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/gen_db_server.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_log.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ 
+ rpmdb_upgrade_SOURCES = 
+@@ -338,7 +338,7 @@
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_upgrade.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ 
+ rpmdb_verify_SOURCES = 
+@@ -346,7 +346,7 @@
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_verify.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ 
+ # XXX TODO: figger why .created addition here dinna work
+--- ./rpmdb/Makefile.am.osr5	2003-03-07 00:11:58.000000000 +0000
++++ ./rpmdb/Makefile.am	2003-09-26 18:48:09.000000000 +0000
+@@ -87,55 +87,55 @@
+ rpmdb_archive_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_archive.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ rpmdb_checkpoint_SOURCES =
+ rpmdb_checkpoint_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_checkpoint.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_log.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ rpmdb_deadlock_SOURCES =
+ rpmdb_deadlock_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_deadlock.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_log.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ rpmdb_dump_SOURCES =
+ rpmdb_dump_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_dump.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ rpmdb_load_SOURCES =
+ rpmdb_load_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_load.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ rpmdb_printlog_SOURCES =
+ rpmdb_printlog_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_printlog.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ rpmdb_recover_SOURCES =
+ rpmdb_recover_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_recover.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ rpmdb_stat_SOURCES =
+ rpmdb_stat_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_stat.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ rpmdb_svc_SOURCES =
+ rpmdb_svc_LDADD = \
+@@ -144,21 +144,21 @@
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_server_util.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/gen_db_server.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_log.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ rpmdb_upgrade_SOURCES =
+ rpmdb_upgrade_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_upgrade.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ rpmdb_verify_SOURCES =
+ rpmdb_verify_LDADD = \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/db_verify.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_cache.lo \
+ 	$(top_builddir)/$(WITH_DB_SUBDIR)/util_sig.lo \
+-	librpmdb.la
++	librpmdb.la -lgnuintl
+ 
+ clean-local:
+ 	rm -f $(DB3LOBJS) *.o .created db.h
+--- ./python/Makefile.am.osr5	2003-03-05 20:24:00.000000000 +0000
++++ ./python/Makefile.am	2003-09-26 18:48:09.000000000 +0000
+@@ -46,13 +46,13 @@
+ noinst_PROGRAMS = poptmodule.so
+ 
+ rpmmodule_so_SOURCES =
+-rpmmodule_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-soname,rpmmodule.so
++rpmmodule_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-h,rpmmodule.so
+ 
+ _rpmdb_so_SOURCES = _rpmdb.c
+-_rpmdb_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-soname,_rpmdb.so
++_rpmdb_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-h,_rpmdb.so
+ 
+ poptmodule_so_SOURCES = poptmodule.c
+-poptmodule_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-soname,poptmodule.so
++poptmodule_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-h,poptmodule.so
+ 
+ noinst_LTLIBRARIES = librpmmodule.la
+ librpmmodule_la_SOURCES = rpmmodule.c header-py.c \
+--- ./python/Makefile.in.osr5	2003-03-07 19:17:34.000000000 +0000
++++ ./python/Makefile.in	2003-09-26 18:48:09.000000000 +0000
+@@ -252,13 +252,13 @@
+ noinst_PROGRAMS = poptmodule.so
+ 
+ rpmmodule_so_SOURCES = 
+-rpmmodule_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-soname,rpmmodule.so
++rpmmodule_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-h,rpmmodule.so
+ 
+ _rpmdb_so_SOURCES = _rpmdb.c
+-_rpmdb_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-soname,_rpmdb.so
++_rpmdb_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-h,_rpmdb.so
+ 
+ poptmodule_so_SOURCES = poptmodule.c
+-poptmodule_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-soname,poptmodule.so
++poptmodule_so_LDFLAGS = $(mylibs) $(LIBS) -shared -Wl,-h,poptmodule.so
+ 
+ noinst_LTLIBRARIES = librpmmodule.la
+ librpmmodule_la_SOURCES = rpmmodule.c header-py.c \
+--- ./tools/debugedit.c.osr5	2003-03-04 21:07:38.000000000 +0000
++++ ./tools/debugedit.c	2003-09-26 18:55:32.000000000 +0000
+@@ -20,8 +20,7 @@
+ #define _FILE_OFFSET_BITS 64
+ 
+ #include <assert.h>
+-#include <byteswap.h>
+-#include <endian.h>
++#include <sys/byteorder.h>
+ #include <errno.h>
+ #include <error.h>
+ #include <limits.h>
+@@ -33,7 +32,6 @@
+ #include <fcntl.h>
+ #include <popt.h>
+ 
+-#include <gelf.h>
+ #include <dwarf.h>
+ 
+ #include "hashtab.h"
+--- ./tools/Makefile.in.osr5	2003-03-07 19:17:37.000000000 +0000
++++ ./tools/Makefile.in	2003-09-26 19:10:54.000000000 +0000
+@@ -237,7 +237,7 @@
+ 
+ 
+ pkgbindir = @RPMCONFIGDIR@
+-pkgbin_PROGRAMS = debugedit javadeps rpmcache rpmdeps rpmfile
++pkgbin_PROGRAMS = javadeps rpmcache rpmdeps rpmfile
+ 
+ bin_PROGRAMS = rpmgraph
+ 
+@@ -251,10 +251,10 @@
+ 
+ #rpmcache_LDFLAGS =	$(staticLDFLAGS)
+ rpmdeps_SOURCES = rpmdeps.c
+-rpmdeps_LDADD = $(top_builddir)/build/librpmbuild.la
++rpmdeps_LDADD = $(top_builddir)/build/librpmbuild.la -lgnuintl
+ 
+ rpmfile_SOURCES = rpmfile.c
+-rpmfile_LDADD = $(top_builddir)/rpmio/librpmio.la
++rpmfile_LDADD = $(top_builddir)/rpmio/librpmio.la -lgnuintl
+ 
+ #rpmfile_LDFLAGS =	$(staticLDFLAGS)
+ rpmgraph_SOURCES = rpmgraph.c
+@@ -273,7 +273,7 @@
+ noinst_PROGRAMS = convertdb1$(EXEEXT) dump$(EXEEXT) dumpdb$(EXEEXT) \
+ 	rpmarchive$(EXEEXT) rpmheader$(EXEEXT) rpmlead$(EXEEXT) \
+ 	rpmsignature$(EXEEXT)
+-pkgbin_PROGRAMS = debugedit$(EXEEXT) javadeps$(EXEEXT) rpmcache$(EXEEXT) \
++pkgbin_PROGRAMS = javadeps$(EXEEXT) rpmcache$(EXEEXT) \
+ 	rpmdeps$(EXEEXT) rpmfile$(EXEEXT)
+ PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS) $(pkgbin_PROGRAMS)
+ 
+--- ./tools/Makefile.am.osr5	2003-03-04 21:30:31.000000000 +0000
++++ ./tools/Makefile.am	2003-09-26 19:11:07.000000000 +0000
+@@ -31,7 +31,7 @@
+ 	convertdb1 dump dumpdb rpmarchive rpmheader rpmlead rpmsignature
+ 
+ pkgbindir = @RPMCONFIGDIR@
+-pkgbin_PROGRAMS = debugedit javadeps rpmcache rpmdeps rpmfile
++pkgbin_PROGRAMS = javadeps rpmcache rpmdeps rpmfile
+ 
+ bin_PROGRAMS =	rpmgraph
+ 
+@@ -45,7 +45,7 @@
+ #rpmcache_LDFLAGS =	$(staticLDFLAGS)
+ 
+ rpmdeps_SOURCES =	rpmdeps.c
+-rpmdeps_LDADD =		$(top_builddir)/build/librpmbuild.la
++rpmdeps_LDADD =		$(top_builddir)/build/librpmbuild.la -lgnuintl
+ #rpmdeps_LDFLAGS =	$(staticLDFLAGS)
+ 
+ rpmfile.c: $(top_builddir)/file/file.c
+@@ -53,7 +53,7 @@
+ 	ln -s $< $@
+ 
+ rpmfile_SOURCES =	rpmfile.c
+-rpmfile_LDADD =		$(top_builddir)/rpmio/librpmio.la
++rpmfile_LDADD =		$(top_builddir)/rpmio/librpmio.la -lgnuintl
+ #rpmfile_LDFLAGS =	$(staticLDFLAGS)
+ 
+ rpmgraph_SOURCES =	rpmgraph.c
+--- ./configure.osr5	2003-03-07 19:17:41.000000000 +0000
++++ ./configure	2003-09-26 18:48:09.000000000 +0000
+@@ -1,4 +1,4 @@
+-#! /bin/sh
++#! /bin/bash
+ # Guess values for system-dependent variables and create Makefiles.
+ # Generated by GNU Autoconf 2.57.
+ #
+@@ -85,7 +85,7 @@
+ 
+ # The user is always right.
+ if test "${PATH_SEPARATOR+set}" != set; then
+-  echo "#! /bin/sh" >conf$$.sh
++  echo "#! /bin/bash" >conf$$.sh
+   echo  "exit 0"   >>conf$$.sh
+   chmod +x conf$$.sh
+   if (PATH="/nonexistent;."; conf$$.sh) >/dev/null 2>&1; then
+@@ -253,7 +253,7 @@
+ 
+ 
+ # Check that we are running under the correct shell.
+-SHELL=${CONFIG_SHELL-/bin/sh}
++SHELL=${CONFIG_SHELL-/bin/bash}
+ 
+ case X$ECHO in
+ X*--fallback-echo)
+@@ -337,7 +337,7 @@
+     elif (test -f /bin/ksh || test -f /bin/ksh$ac_exeext) &&
+ 	 test "X$CONFIG_SHELL" != X/bin/ksh; then
+       # If we have ksh, try running configure again with it.
+-      ORIGINAL_CONFIG_SHELL=${CONFIG_SHELL-/bin/sh}
++      ORIGINAL_CONFIG_SHELL=${CONFIG_SHELL-/bin/bash}
+       export ORIGINAL_CONFIG_SHELL
+       CONFIG_SHELL=/bin/ksh
+       export CONFIG_SHELL
+@@ -379,7 +379,7 @@
+ 	if test "$prev" != 'sed 50q "$0"'; then
+ 	  echo_test_string=`eval $prev`
+ 	  export echo_test_string
+-	  exec ${ORIGINAL_CONFIG_SHELL-${CONFIG_SHELL-/bin/sh}} "$0" ${1+"$@"}
++	  exec ${ORIGINAL_CONFIG_SHELL-${CONFIG_SHELL-/bin/bash}} "$0" ${1+"$@"}
+ 	else
+ 	  # Oops.  We lost completely, so just stick with echo.
+ 	  echo=echo
+@@ -415,7 +415,7 @@
+ subdirs=
+ MFLAGS=
+ MAKEFLAGS=
+-SHELL=${CONFIG_SHELL-/bin/sh}
++SHELL=${CONFIG_SHELL-/bin/bash}
+ 
+ # Maximum number of lines to put in a shell here document.
+ # This variable seems obsolete.  It should probably be removed, and
+@@ -467,7 +467,7 @@
+ # include <unistd.h>
+ #endif"
+ 
+-ac_subdirs_all="$ac_subdirs_all popt beecrypt zlib elfutils file db3"
++ac_subdirs_all="$ac_subdirs_all popt beecrypt zlib file db3"
+ ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS build build_cpu build_vendor build_os host host_cpu host_vendor host_os target target_cpu target_vendor target_os INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA PACKAGE VERSION ACLOCAL AUTOCONF AUTOMAKE AUTOHEADER MAKEINFO AMTAR install_sh STRIP ac_ct_STRIP INSTALL_STRIP_PROGRAM AWK SET_MAKE CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT DEPDIR am__include am__quote AMDEP_TRUE AMDEP_FALSE AMDEPBACKSLASH CCDEPMODE CPP EGREP CXX CXXFLAGS ac_ct_CXX CXXDEPMODE AS RPMUSER RPMUID RPMGROUP RPMGID CTAGS CSCOPE LDFLAGS_STATIC LDFLAGS_NPTL FIXPERMS MKDIR MKDIR_P U ANSI2KNR LN_S ECHO RANLIB ac_ct_RANLIB LIBTOOL AR ac_ct_AR BZIP2BIN __CAT __CHGRP __CHMOD __CHOWN __CP __CPIO __FILE __GPG __GREP GZIPBIN UNZIPBIN __ID __ID_U __INSTALL __MAKE __MKDIR __MV __PATCH __PERL PGPBIN __PYTHON __RM __RSH __SED __SSH __TAR __LD __NM __OBJCOPY __OBJDUMP __STRIP WITH_ZLIB_SUBDIR WITH_ZLIB_INCLUDE WITH_ZLIB_LIB WITH_ELFUTILS_SUBDIR WITH_LIBELF_INCLUDE WITH_LIBELF_LIB WITH_LIBDWARF_INCLUDE WITH_DB_SUBDIR WITH_INTERNAL_DB DBLIBSRCS DBLIBOBJS libdb3 libdb3a WITH_BZIP2 MKINSTALLDIRS MSGFMT GMSGFMT XGETTEXT MSGMERGE ALLOCA GLIBC21 LIBICONV LTLIBICONV INTLBISON USE_NLS BUILD_INCLUDED_LIBINTL USE_INCLUDED_LIBINTL CATOBJEXT INTLOBJS DATADIRNAME INSTOBJEXT GENCAT INTL_LIBTOOL_SUFFIX_PREFIX INTLLIBS LIBINTL LTLIBINTL POSUB LIBOBJS WITH_PYTHON_SUBDIR WITH_PYTHON_SUBPACKAGE WITH_PYTHON_VERSION __DOXYGEN WITH_APIDOCS_TARGET WITH_APIDOCS __CHOWN_RHF __CHGRP_RHF ROOT_GROUP varprefix tmpdir MARK64 RPMCANONCOLOR RPMCANONARCH RPMCANONVENDOR RPMCANONOS LOCALEDIR LIBDIR RPMCONFIGDIR SYSCONFIGDIR MACROFILES LIBRPMRC_FILENAME VENDORRPMRC_FILENAME LIBRPMALIAS_FILENAME FINDREQUIRES FINDPROVIDES testdir INCPATH LIBMISC RPM OBJDUMP subdirs LTLIBOBJS'
+ ac_subst_files=''
+ 
+@@ -3997,7 +3997,7 @@
+ AS=${AS-as}
+ 
+ if test "$ac_cv_c_compiler_gnu" = yes; then
+-    CFLAGS="$CFLAGS -D_GNU_SOURCE -D_REENTRANT -Wall -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wno-char-subscripts"
++    CFLAGS="$CFLAGS -D_GNU_SOURCE -Wall -Wpointer-arith -Wstrict-prototypes -Wmissing-prototypes -Wno-char-subscripts"
+ fi
+ export CFLAGS
+ 
+@@ -4758,6 +4758,7 @@
+ if test X"$GCC" = Xyes ; then
+ 	case "$target" in
+ 		*-*-solaris*)	LDFLAGS_STATIC="-static";;
++		*-*-sco3.2v5*)  LDFLAGS_STATIC="";; # Build dynamic on OSR5
+ 		*-*-hpux*)	LDFLAGS_STATIC="-static";;
+ 		*-*-sysv5uw*)   LDFLAGS_STATUS="-static";; # Unixware has no shared libthread.
+ 		*-*-*)		LDFLAGS_STATIC="-all-static";;
+@@ -4765,6 +4766,7 @@
+ elif test X"$CC" = Xcc ; then
+ 	case "$target" in
+ 		*-*-linux*)	LDFLAGS_STATIC="-all-static";;
++		*-*-sco3.2v5*)  LDFLAGS_STATIC="";; # Build dynamic on OSR5
+ 		*-*-freebsd*)	LDFLAGS_STATIC="-all-static";;
+ 		*-*-osf*)	LDFLAGS_STATIC="";; # OSF5 has no shared pthreads libs
+ 		*-*-aix*)	LDFLAGS_STATIC="-static";;  # -Wl,-bnso doesn't seem to work...
+@@ -8440,8 +8442,9 @@
+ 
+ sco3.2v5*)
+   version_type=osf
+-  soname_spec='${libname}${release}.so$major'
+-  library_names_spec='${libname}${release}.so$versuffix ${libname}${release}.so$major $libname.so'
++# soname_spec='${libname}${release}.so$major'
++  soname_spec='${libname}.so$major'
++  library_names_spec='${libname}${release}.so$versuffix ${libname}.so$major $libname.so'
+   shlibpath_var=LD_LIBRARY_PATH
+   ;;
+ 
+@@ -15873,7 +15876,7 @@
+ else
+ 
+     CC="$CC" GCC="$GCC" LDFLAGS="$LDFLAGS" LD="$LD" with_gnu_ld="$with_gnu_ld" \
+-    ${CONFIG_SHELL-/bin/sh} "$ac_aux_dir/config.rpath" "$host" > conftest.sh
++    ${CONFIG_SHELL-/bin/bash} "$ac_aux_dir/config.rpath" "$host" > conftest.sh
+     . ./conftest.sh
+     rm -f ./conftest.sh
+     acl_cv_rpath=done
+@@ -17083,7 +17086,7 @@
+   rpathdirs=
+   ltrpathdirs=
+   names_already_handled=
+-  names_next_round='intl '
++  names_next_round='gnuintl '
+   while test -n "$names_next_round"; do
+     names_this_round="$names_next_round"
+     names_next_round=
+@@ -17412,8 +17415,8 @@
+     done
+   fi
+ 
+-          echo "$as_me:$LINENO: checking for GNU gettext in libintl" >&5
+-echo $ECHO_N "checking for GNU gettext in libintl... $ECHO_C" >&6
++          echo "$as_me:$LINENO: checking for GNU gettext in libgnuintl" >&5
++echo $ECHO_N "checking for GNU gettext in libgnuintl... $ECHO_C" >&6
+ if test "${gt_cv_func_gnugettext1_libintl+set}" = set; then
+   echo $ECHO_N "(cached) $ECHO_C" >&6
+ else
+@@ -17644,7 +17647,7 @@
+ 
+ 
+ if test X$gt_cv_func_gettext_libintl = Xyes ; then
+-    LIBS="-lintl $LIBS"
++    LIBS="-lgnuintl $LIBS"
+ fi
+ 
+ echo "$as_me:$LINENO: checking for ANSI C header files" >&5
+@@ -23323,7 +23326,7 @@
+ 
+ 
+ 
+-subdirs="$subdirs popt beecrypt zlib elfutils file db3"
++subdirs="$subdirs popt beecrypt zlib file db3"
+ 
+ 
+                                                                                                                                                                                                                                                                                                                                                               ac_config_files="$ac_config_files Doxyfile Makefile rpmrc macros platform rpmpopt rpm.spec rpmio/Makefile rpmdb/Makefile lib/Makefile build/Makefile scripts/Makefile scripts/brp-redhat scripts/macros.perl scripts/macros.php scripts/macros.python tools/Makefile tests/Makefile tests/rpmrc tests/macros tests/hello-test/Makefile misc/Makefile intl/Makefile po/Makefile.in doc/Makefile doc/manual/Makefile doc/fr/Makefile doc/ja/Makefile doc/ko/Makefile doc/pl/Makefile doc/ru/Makefile doc/sk/Makefile python/Makefile python/rpmdb/Makefile python/test/Makefile"
+@@ -23525,7 +23528,7 @@
+ 
+ # The user is always right.
+ if test "${PATH_SEPARATOR+set}" != set; then
+-  echo "#! /bin/sh" >conf$$.sh
++  echo "#! /bin/bash" >conf$$.sh
+   echo  "exit 0"   >>conf$$.sh
+   chmod +x conf$$.sh
+   if (PATH="/nonexistent;."; conf$$.sh) >/dev/null 2>&1; then

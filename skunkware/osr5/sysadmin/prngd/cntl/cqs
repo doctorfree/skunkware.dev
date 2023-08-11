@@ -1,0 +1,31 @@
+#!/bin/sh
+
+CMT="PRNGD Pseudo Account" 
+
+chkprng() {
+    echo "ADD=1" > /tmp/chk$$
+    awk ' BEGIN { FS=":" } { print $1 } ' $1 | while read f
+    do
+        [ "$f" = "prngd" ] && echo "ADD=" > /tmp/chk$$
+    done
+}
+
+addgrpprng() {
+    groupadd prngd
+}
+
+addusrprng() {
+    useradd -g prngd -d /usr/local/etc/prngd -s /bin/sh -c "$CMT" prngd
+    passwd prngd
+}
+
+chkprng /etc/group
+. /tmp/chk$$
+[ "$ADD" ] && addgrpprng
+chkprng /etc/passwd
+. /tmp/chk$$
+[ "$ADD" ] && {
+    addusrprng
+}
+rm -f /tmp/chk$$
+

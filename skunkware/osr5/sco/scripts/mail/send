@@ -1,0 +1,170 @@
+#!/usr/local/bin/gawk -f
+#!/u/johnd/bin/gawk -f
+# @(#) send.gawk 1.9 94/04/23
+# 91/02/26 john h. dubois iii (john@armory.com)
+# 91/04/25 added ability to handle multiple files, and progress report
+# 91/04/30 added help and ability to read stdin
+# 91/05/28 changed to use hostname instead of hard coded host name;
+#          removed hard coding of destination;
+#          fixed test for readability and X-Name of stdin
+# 91/07/22 changed to use env. variable SEND
+# 91/09/29 fixed to strip off entire directory component of filename
+# 91/11/08 added -u option; added splitting into MAXMAILMSG-size pieces
+# 92/05/03 Moved all code inside of awk script; changed to #!awk script
+# 92/05/11 Modified to not silently send an empty message (header only)
+#          when a file can not be read.  Now prints an error message & 
+#          does not send anything.
+# 92/11/22 Added -o option.
+# 94/03/09 Use gawk so - options can be given
+# 94/04/23 Use .sendrc
+
+BEGIN {
+    rcfile = ".sendrc"
+    if (ARGV[1] ~ "^[-+]h") {
+	print \
+"send: send files by mail.\n" \
+"Syntax: send [-uho] [user] <file1> <file2> ...\n" \
+"If no file names are given, the standard input will be read.  The files\n" \
+"are sent by mail to the specified user.  If the first argument contains\n" \
+"a '@' or a '!', it is taken to be the name of the user to send the files\n" \
+"to.  Otherwise, the user is taken from the environment variable SEND, or\n"\
+"if it is not set, the file .sendrc in the invoking user's home directory.\n"\
+"The mail will have a subject of \"%%recfile%%\" and the header will\n" \
+"contain an extra field \"X-Name\" which gives the name of the file with\n" \
+"any directories removed from it, or with the name \"stdin\" if the\n" \
+"standard input was read for the file.  If the environment variable\n" \
+"MAXMAILMSG is set, the file will be split into multiple pieces, each with\n" \
+"a size less than or equal to MAXMAILMSG.  The first piece will have\n" \
+"the same X-Name that an unsplit file would.  The rest of the pieces\n" \
+"will have successive integers appended to the name, starting with 2.\n"\
+"Options:\n" \
+"-h: Print this help.\n" \
+"-u: Uuencode the file before sending.  The X-Name will be the original\n" \
+"    filename with \".u\" appended.  If the file is split, the sequence\n" \
+"    number will be appended after the \".u\".\n" \
+"-o: Send one file with a destination name different than the source name.\n" \
+"    Either one or two file names should be given.  The second or only name\n" \
+"    gives the name that the file should have at the destination.\n" \
+"    If one name is given, the file to send is read from stdin."
+	exit(0)
+    }
+
+    MaxSize = ENVIRON["MAXMAILMSG"]
+    USER = ENVIRON["USER"]
+    NAME = ENVIRON["NAME"]
+    Date = strftime("%c")
+#    "date" | getline Date
+    "hostname" | getline HostName
+
+    if (MaxSize == "")
+	MaxSize = 2000000000
+
+    ArgInd = 1
+    while (ArgInd < ARGC && ARGV[ArgInd] ~ "^[-+]") {
+	if (ARGV[ArgInd] ~ "u")
+	    UUEnc = 1
+	if (ARGV[ArgInd] ~ "o")
+	    OneFile = 1
+	ArgInd++
+    }
+
+    if (ARGV[ArgInd] ~ "[@!]")
+	Dest = ARGV[ArgInd++]
+    else if ("SEND" in ENVIRON)
+	Dest = SEND
+    else if ("HOME" in ENVIRON) {
+	rc = ENVIRON["HOME"] "/" rcfile
+	if ((getline line < rc) == 1)
+	    Dest = line
+	close(rc)
+    }
+    if (Dest == "") {
+	print "No destination.  Exiting."
+	exit(1)
+    }
+
+    ProtoHeader = \
+    "From: " USER "@" HostName " (" NAME ")\n" \
+    "To: " Dest "\n" \
+    "Subject: %%recfile%%\n" \
+    "Date: " Date "\n" \
+    "X-Name: "
+
+    if (OneFile) {
+	DestFileName = ARGV[--ARGC]
+	if (ArgInd > ARGC) {
+	    print "No destination filename given with +o.  Exiting."
+	    exit 1
+	}
+	if ((ARGC - ArgInd) > 1) {
+	    print "Too many filenames given with +o option.  Exiting."
+	    exit 1
+	}
+    }
+
+    if (ArgInd >= ARGC) {
+	if (SendFile("/dev/stdin",DestFileName,ProtoHeader))
+	    printf "Error reading stdin\n"
+    }
+    else
+	for (; ArgInd < ARGC; ArgInd++)
+	    if (SendFile(ARGV[ArgInd],DestFileName,ProtoHeader))
+		printf "Error reading %s\n",ARGV[ArgInd]
+}
+
+function SendFile(File,RemoteName,ProtoHeader,  ret,DestFile) {
+    # RemoteName is the name the (possily uuencoded) file will be saved to at 
+    # the remote end.
+    # DestFile is the name the file will be given at the remote end
+    # (after uudecoding, if it is to be uuencoded).
+    # File is the name of the file being read.
+
+    # Remove path
+    DestFile = File
+    sub(".*/","",DestFile)
+    if (RemoteName == "") {
+	RemoteName = DestFile
+	if (UUEnc)
+	    RemoteName = RemoteName ".u"
+    }
+    if (UUEnc)
+	UUAct = " uuencoded"
+    printf "Sending \"%s\"%s as \"%s\"...\n",File,UUAct,RemoteName
+    Header = ProtoHeader RemoteName
+    FirstHeader = Header "\n\n"
+    CharsWritten = 0
+
+    # BSD sh has no -x test
+    MailProc = \
+    "m=/usr/lib/mail/execmail;[ -f $m ]||m=/usr/lib/sendmail;exec $m " Dest
+
+    SequenceNum = 1
+
+    # Print header into mailproc after reading file to ensure that
+    # no mailproc is started up if file can not be read
+    if (UUEnc)
+	while ((ret = ("uuencode " File " " DestFile | getline Line)) == 1) {
+	    ProcLine(FirstHeader Line)
+	    FirstHeader = ""
+	}
+    else
+	while ((ret = (getline Line < File)) == 1) {
+	    ProcLine(FirstHeader Line)
+	    FirstHeader = ""
+	}
+    close(MailProc)
+    return ret
+}
+
+function ProcLine(Line) {
+    CharsWritten += length(Line) + 1
+    # adding 0 to MaxSize neccessary for BSD awk
+    if (CharsWritten > (MaxSize + 0)) {
+	close(MailProc)
+	printf "Sending part %d...\d",++SequenceNum
+	printf Header SequenceNum "\n\n" "%s\n",Line | MailProc
+	CharsWritten = length(Line) + length(Header) + 3
+    }
+    else
+	printf "%s\n",Line | MailProc
+}

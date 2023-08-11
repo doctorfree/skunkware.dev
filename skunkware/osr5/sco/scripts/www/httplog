@@ -1,0 +1,3112 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# @(#) httplog.gawk 3.1 97/04/30
+# 94/07/18 John H. DuBois III (john@armory.com)  (based on ftplog program)
+# 94/08 - 94/09 Added r option.
+# 94/09/23 Added Total line for processed reports, and adRnONq options.
+# 94/10/03 Added L option.
+# 94/11/02 Fixed d option.
+# 94/12/26 Do progress dots only if they will go to a tty.
+# 95/03/24 Added support for new httpd log format.
+# 95/04/15 Turn on -R automatically.  Added yiTD options.
+# 95/07/19 Added S option.
+# 96/01/27 Added rcfile processing, f pseudo-option
+# 96/01/29 Create entire mail message so that Content-type header can be added.
+# 96/02/10 Added X-HTTPReport-Levels header and u option.
+# 96/05/09 Make mail subject be a single word (HTTP_Report) so that it can be
+#          more easily selected from a .maildelivery file
+# 96/07/20 Added g option and tag processing.
+# 96/10/12 Make t option work again.
+# 97/02/04 Skip failed requests.  Read standard input if logfiles named.
+#          Added ABekKI options.  Let record number be given with -x.
+# 97/02/11 Print full line num instead of last digit for progress indication.
+# 97/02/17 Report # of records skipped.  Added "allhits" user report option.
+#          Added C option.  Convert control chars to symbolic form in lots of
+#          stuff read from logfile & printed by debug code.
+# 97/02/28 Added U option.
+# 97/03/20 Added Y option.
+# 97/04/09 Fixed header printing.  Do not convert + to space in URLs.
+# 97/04/20 Added E option.
+# 97/04/30 Fixed E option.
+
+BEGIN {
+    Setup()
+    # Need to allow >1 space for reprocessing output
+    FS = "[ ]+"
+}
+
+# Global vars initialized in Setup():
+# Name		Name of this program.
+# Width		Screen width.
+# Options[]	Options set from command line.
+# Debug		Whether debugging is turned on.
+# Truncate	Whether to truncate objects to 1st path component.
+# MostAccessed	Show most accessed page under each dir.
+# Reprocess	Process output of previous httplog runs.
+# IGNORECASE	Set to 1 so that case is ignored in pattern matches.
+# Progress	Whether progress characters should be printed.
+# Subject	Subject of mail sent to users (not yet used).
+# ObjPattern	Pattern that objects must match.
+# HostPattern	Pattern that host names must match.
+# NotObjPattern	Pattern that objects must not match.
+# NotHostPattern	Pattern that host names must not match.
+# TrackObjects	Track object accesses.
+# TrackHosts	Track hosts.  Only one of TrackObjects or TrackHosts may be on.
+# HTMLout	Produce HTML-formatted output.
+# Interval	Counting interval.
+# Counting	Doing access counting.
+# CountHosts	Report the number of different hosts that accessed each object,
+#               rather than the total number of accesses of each object.
+# UseSubmit	Use submit to inject mail into the queue.
+# Setup() also calls MailRepSetup(), which sets additional vars.
+
+function Setup(  RUsage,Usage,ConfigFile,rcFile,DefLevel,Tag) {
+    
+    Name = "httplog"
+    rcFile = "." Name
+    Width = 79
+    Sender = "www"
+    Subject = "HTTP_Report"			# Subject of mail sent to users
+    RUsage = \
+Name " -r [-dtPU] [-l<default-report-level>] [-c<config-file>] [-s<subject>]\n"\
+"   [-u<hostname>] [-L<level-set>] [-M<mail-address>] [-w<width>] [-g<tag>]\n"\
+"   [-x[rec#:]level] [logfile ...]"
+    Usage = "Usage:\n" \
+Name " [-aAbCdDeIkKpqhRHyS] [-[oO]<object-pat>] [-[nN]<hostname-pat>]\n"\
+"   [-w<width>] [-u<hostname>] [-i<interval>] [-T<periods>] [-x[rec#:]level]\n"\
+"   [logfile ...]\n" RUsage
+    # Can't use gawk flags fFmWv.  f is a pseudo-opt for FILES.
+    # iTD are the interval graphing options.
+    # rPMstlLcY are the report-all options.
+    # adpqyR are the regular-report-only options.
+    # Unused option letters: GjJQVXzZ
+    ARGC = \
+    Opts(Name,Usage,"aAbBc;dDeE;f;i;kKl:L;n;N;o;O;pPqs:ST)u;Uw<yYCg:hHIM;rRtx;",
+    0,"~/" rcFile ":$UHOME/" rcFile ":/etc/default/httplog",
+    "MOSTACCESSED,ALLACCESSES,NOHEADER,LOGBYTES,MAPFILE,TOPLEVEL,BYDAY,"\
+    "LOGFAILED,MAILFROM,FILES,INTERVAL,NOTRACKLAST,BYTESORT,DEFLEVEL,LEVELS,"\
+    "HOSTPAT,NOTHOSTPAT,OBJECT,NOTOBJECT,NOPROGRESS,PROGRESS,BYHOST,SUBJECT,"\
+    "NUMHOST,PERIODS,HOSTNAME,CONGLOMUSERS,WIDTH,HTML,USESUBMIT",
+    0,"",0,"","a,d,q,y,C;o,O;n,N;rPMstlLc,adpqyR,iTD")
+
+    # The following are used only for allreport mode
+    ConfigFile = "/etc/default/httpreport"	# Main config file
+    userMapfile = ".httpreport"			# Per-user report config file
+    DefLevel = "none"	# Default report level for users who have no rcfile
+    # The valid report levels, and the order they will appear in reports
+
+    if ("h" in Options) {
+	printf \
+"%s: Generate access report from the httpd logfile.\n"\
+"%s\n"\
+"For each object accessed, a line is printed detailing the number of times\n"\
+"it was accessed, the time of the last access, the remote host that the\n"\
+"access was made from, and the object accessed.  Output is sorted by the\n"\
+"number of times each file was accessed.  If no logfiles are given, one or\n"\
+"more default logfiles are read if they have been defined.  The default\n"\
+"logfile can be set by assigning a value to the variable FILES in one of\n"\
+"the configuration files described below.  The value should be a\n"\
+"comma-separated list of files to process.\n"\
+"Options:\n"\
+"Some of the following options can also be set by assigning values to\n"\
+"variables in a configuration file.  Three configuration files are read, in\n"\
+"order: a file named %s in the invoking user's home directory; a file\n"\
+"named %s in the directory specified by the environment variable UHOME\n"\
+"(if it is set); and the file /etc/default/httplog.  Variables are assigned\n"\
+"to with the syntax:  varname=value  or in the case of flags, by simply\n"\
+"putting the indicated variable name in the file without a value.\n"\
+"A variable assigned to in one of these files will override values assigned\n"\
+"to the same variable in one of the files read after it.  To turn off an\n"\
+"option and prevent it from being set in a file read later, assign it a\n"\
+"value of 0.  e.g. if BYHOST is set in /etc/default/httplog, BYHOST=0 in\n"\
+"a %s file will override it.  Flag options can be turned off on the\n"\
+"command line by following them immediately with '-', e.g. -n- to turn off\n"\
+"the n option in such a way that it cannot be turned on in a config file.\n"\
+"Variable names appear in parentheses in the option descriptions.\n"\
+"-a: For each first-directory-component that is part of any object, display\n"\
+"    only the most-accessed object that appears below it. (MOSTACCESSED)\n"\
+"-d: Truncate objects to their first directory component before processing.\n"\
+"    Objects that begin with /~ and do not have any further directory\n"\
+"    components are grouped under the listing for '/~'.  Other Objects that\n"\
+"    do not have at least one directory component are grouped under the\n"\
+"    listing for '/'.  (TOPLEVEL)\n"\
+"-C: Generate total counts (accesses and bytes transferred) only, without\n"\
+"    generating a per-URL report.  This can also be used with -x1 as a\n"\
+"    fast(er) check of logfiles for errors.\n"\
+"-I: Read the standard input.  This can also be specified by giving a\n"\
+"    filename of /dev/stdin.\n"\
+"-[oO]<object-pat>: Process only objects that match (o) or do not match (O)\n"\
+"    pattern <object-pat>. (OBJECT, NOTOBJECT)\n"\
+"-[nN]<hostname-pat>: Process only objects accessed from a host whose name\n"\
+"    matches (n) or does not match (N) <hostname-pat>. (HOSTPAT, NOTHOSTPAT)\n"\
+"    The patterns given with [oOnN] are not implicitely anchored at the\n"\
+"    beginning or end.\n"\
+"-h: Print this help.\n"\
+"-b: Do not print a header.  (NOHEADER)\n"\
+"-e: Count failed HTTP requests (those with HTTP response codes of 4xx and\n"\
+"    5xx).  Normally, they are skipped.  (LOGFAILED)\n"\
+"-R: Reprocess the output of previous runs of %s.  In order for dates to be\n"\
+"    interpreted correctly, if more than one old run is processed, they\n"\
+"    should be given in order of the time periods they cover.  %s\n"\
+"    will normally automatically recognize its output and turn on the -R\n"\
+"    option; an explicit -R is only needed if the output header has been\n"\
+"    modified or removed.\n"\
+"-p: Do not print progress numbers when reading logfile. (NOPROGRESS)\n"\
+"-S: Report the number of different hosts that accessed each object, or if\n"\
+"    -q is also given, the number different objects accessed by each host,\n"\
+"    rather than the total number of accesses of each object or host.\n"\
+"    (NUMHOST)\n"\
+"-q: Track requesting hostnames rather than objects.  (BYHOST)\n"\
+"-k: Do not keep track of the time of last access and the last host that\n"\
+"    accessed an object (or, if -q is given, the last object accessed by a\n"\
+"    host).  (NOTRACKLAST)\n"\
+"-A: Generate a report that, for each object, includes a time and hostname\n"\
+"    for each access.  (ALLACCESSES)\n"\
+"-B: Record & display the total number of bytes transferred for each URL\n"\
+"    or, if -q is given, host.  This option is only available if the\n"\
+"    neccessary informatio is recorded in the logfile.  (LOGBYTES)\n"\
+"-K: Sort output by bytes transferred instead of access count.  (SORTBYTES)\n"\
+"-w<width>: Set the screen width to <width>.  The host field is truncated\n"\
+"    if neccessary to make the line <width> or fewer characters long.  Use\n"\
+"    0 to prevent any truncation.  The default is %d.  (WIDTH)\n"\
+"-r: Run reports for all users.  Use -H for a description of this mode.\n"\
+"-x<[record-number:]level>: Turn on debugging at level <level>, which should\n"\
+"    be an integer greater than 0.  If record-number is given, debugging at\n"\
+"    the given level is not turned on until record the given record number\n"\
+"    is reached.  Example: -x59500:10\n"\
+"-y: Produce HTML output.  Items in the Object field get hrefs, etc. (HTML)\n"\
+"-u: Set the hostname used in generating the URLs for the -y option, and\n"\
+"    for generating HTML reports requested by users when -r is used.  By\n"\
+"    default, the network hostname of the local system is used. (HOSTNAME)\n"\
+"\n"\
+"The rest of the options are used for generating reports on the total\n"\
+"number of accesses over various periods.  The accesses counted may be\n"\
+"restricted by the -[oOnN] options.  The output of each is a tabular\n"\
+"listing of times and counts.  They may be used with each other, in which\n"\
+"case multiple tables are produced.  The only other options that they may\n"\
+"be used with are oOnNbpx.\n"\
+"-i<interval>: Report accesses for each <interval> period.  <interval> is\n"\
+"    given as an integer followed by the letter d, h, or m to indicate\n"\
+"    days, hours, or minutes.  Example: -i12h  (INTERVAL)\n"\
+"-T<periods>: Report accesses by time of day, for each <periods> fraction\n"\
+"    of a day.  (PERIODS)\n"\
+"-D: Report accesses by day of week.  (BYDAY)\n",
+	Name,Usage,rcFile,rcFile,rcFile,Name,Name,Width
+	Err = "0"
+    }
+    if ("H" in Options) {
+	printf \
+"%s -r: mail reports of http accesses to users.\n"\
+"Usage:\n"\
+"%s\n"\
+"%s -r examines the http access log and generates reports based on it,\n"\
+"which are mailed to the users responsible for particular http-accessible\n"\
+"files.  The default is for no report to be sent.  To get a report, users\n"\
+"may put the following in a file named %s in their home directories\n"\
+"(%s must be a real file; symbolic links are ignored):\n"\
+"raw       Raw http access log data, with one line for each access.\n"\
+"standard  Summary with one line for each file accessed, inc. access count.\n"\
+"wide      This gives the standard report without lines being truncated,\n"\
+"	  as is usually done to make them fit an 80-column screen.\n"\
+"allhits  For each object, the number of accesses and the object name is\n"\
+"         printed, followed by a time and hostname for each access.\n"\
+"html	   Like wide, but HTML-formatted (as in the -y option).\n"\
+"Multiple report levels may be specified, spread over one or more lines.\n"\
+"All of the requested reports will be sent.\n"\
+"Report levels may be prefixed with a tag (separated from the level name by\n"\
+"a colon), in which case a report at the given level will only be sent if\n"\
+"the tag name is given with the -g option.  If any level has a matching\n"\
+"tag, then only the levels with matching tags will be set up.  If no\n"\
+"matching tags are found, then all of the levels without tags are set up. \n"\
+"If -g is not given, then all of levels without tags are sent.  Example: If\n"\
+"-gmonthly is given and \"monthly:standard raw monthly:html\" appears in a\n"\
+"user's configuration file, the user will get standard and html reports. \n"\
+"For the same configuration file, if -gdaily is given, the user will get a\n"\
+"raw report, since no daily tag appears in the configuration file.\n"\
+"     The operation of %s -r as a whole is determined by the master\n"\
+"configuration file %s.  This file maps patterns to user\n"\
+"names and must exist.  The master configuration file should contain lines\n"\
+"of the form:\n"\
+"Pattern  Address[,...]  [Report-level,...]\n"\
+"     Pattern is an egrep(C)-style regular expression to match the pathname\n"\
+"of an object that may be accessed.  It is not anchored; begin it with ^ to\n"\
+"force a match to start at the beginning of the path.\n"\
+"     Address is the email address of the user that reports of accesses that\n"\
+"match this pattern should be sent to.  Accesses that match a pattern can\n"\
+"be included in the reports sent to multiple users by giving a comma-\n"\
+"separated list of email addresses for Address.  If Pattern and Address\n"\
+"both contain an embedded %%s, then the %%s in Pattern will be used to\n"\
+"match anything up to the next '/', and the %%s in Address will be replaced\n"\
+"with whatever was matched by it.  This can be used to send reports to a\n"\
+"set of users or aliases whose names will be embedded in URLs.  If %%s\n"\
+"substitution is used, the name of the local user whose %s file should\n"\
+"be used to determine the levels for a report is taken to be the part that\n"\
+"%%s matches, not the Address field after the %%s in it has been substituted\n"\
+"for.\n"\
+"     Reports is a comma-separated list of report levels.  If given, it\n"\
+"overrides the default of %s.  It in turn is overridden if a user requests\n"\
+"particular report levels in a %s file.\n"\
+"     Reports are sent for all patterns that match, not just the first.\n"\
+"     Lines that begin with # are comments and are ignored.\n"\
+"     Example mapping file:\n"\
+"######\n"\
+"# report accesses of objects in users' home pages to the users\n"\
+"^/~%%s/	%%s\n"\
+"# Report cgi-bin & tests accesses to spcecdt\n"\
+"^/(cgi-bin|tests)/      spcecdt\n"\
+"# report all transfers other than user home pages to webmaster\n"\
+"^/[^~]	webmaster standard\n"\
+"######\n"\
+"The w option can be used to set the screen width for the 'standard'\n"\
+"report level.  The n option can be used but probably shouldn't be.\n"\
+"Options specific to -r:\n"\
+"-P: Print progress numbers.  (PROGRESS)\n"\
+"-M<mail-address>: Mail all reports to <mail-address> (for testing).\n"\
+"-s<subject>: Set the subject used in mail.  The default is '%s'.\n"\
+"    (SUBJECT)\n"\
+"-E<sender-address>: Make report mail come from <sender-address>.  The\n"\
+"    default is \"%s\".  (MAILFROM)\n"\
+"-Y: Use \"submit\" (the MMDF mail injection command) to submit messages\n"\
+"    to the mail queue.  This allows special options to be given to the\n"\
+"    mail system; in particular, options are passed that prevent the mail\n"\
+"    from being returned if the local mail system cannot deliver it.  If -Y\n"\
+"    is not used, mail is injected by invoking \"sendmail\".  (USESUBMIT)\n"\
+"-t: Test only; do not actually mail anything.\n"\
+"-g<tag>: Set the report level tag.\n"\
+"-l<default-report-level>: Set the default report level to something other\n"\
+"    than %s.  A comma-separated list of levels can be given.  This is over-\n"\
+"    ridden by values given in the systemwide mapfile and in user config\n"\
+"    files.  (DEFLEVEL)\n"\
+"-L<level-set>: Only generate reports at levels that are named in the comma-\n"\
+"    separated list.  Requests for reports at other levels are ignored.\n"\
+"    ignored.  This can be useful for e.g. monthly cumulative reports, for\n"\
+"    which raw reports might be unwanted or too large to process.  (LEVELS)\n"\
+"-U: If multiple users have the same home directory and there is a\n"\
+"    configuration file in the directory, all report data generated as\n"\
+"    a result of %%s substitution is sent only to the first user with that\n"\
+"    home directory listed in the password file.  Example:\n"\
+"    Users spcecdt and john both have home directory /u/spcecdt, and there\n"\
+"    is a configuration file in that directory.  spcecdt is listed first in\n"\
+"    /etc/passwd.  A %%s line in the master configuration file causes a\n"\
+"    report on all accesses of objects that begin with /~username/ to be\n"\
+"    sent to username.  In this case, accesses of /~john/ will be reported\n"\
+"    to spcecdt instead of john.  (CONGLOMUSERS)\n"\
+"-c<map-file>: Use <map-file> instead of %s.  (MAPFILE)\n",
+    Name,RUsage,Name,userMapfile,userMapfile,Name,ConfigFile,
+    userMapfile,DefLevel,userMapfile,Subject,Sender,DefLevel,ConfigFile
+	Err = "0"
+    }
+    if (Err != "")
+	exit Err
+    if ("x" in Options) {
+	Debug = Options["x"]
+	if (Debug ~ /^[1-9][0-9]*$/)
+	    printf "Debugging set to level %d\n",Debug > "/dev/stderr"
+	else if (Debug ~ /^[1-9][0-9]*:[1-9][0-9]*$/) {
+	    split(Debug,elem,":")
+	    StartDebug = elem[1]
+	    DebugValue = elem[2]
+	    Debug = 0
+	    printf "At record %d, debug level will be set to %d.\n",
+	    StartDebug,DebugValue > "/dev/stderr"
+	}
+	else {
+	    printf "%s: Bad value given with -x: %s\n",
+	    Name,Debug > "/dev/stderr"
+	    Err = 1
+	    exit 1
+	}
+    }
+    CountOnly = "C" in Options
+    noBad = !("e" in Options)
+    if ("I" in Options)
+	ARGV[ARGC++] = "/dev/stdin"
+    else if (ARGC < 2)
+	if ("f" in Options) {
+	    numFiles = split(Options["f"],Files,",")
+	    for (i = 1; i <= numFiles; i++)
+		ARGV[i] = Files[i]
+	    ARGC = numFiles + 1
+	}
+	else {
+	    printf "%s: No input files named.\n",Name > "/dev/stderr"
+	    Err = 1
+	    exit 1
+	}
+    if (Debug) {
+	print "Files to be processed:" > "/dev/stderr"
+	for (i = 1; i <= ARGC; i++)
+	    print ARGV[i] > "/dev/stderr"
+    }
+    if ("w" in Options)
+	Width = Options["w"]
+    Truncate = "d" in Options
+    MostAccessed = "a" in Options
+    UseSubmit = "Y" in Options
+    if ("E" in Options)
+	Sender = Options["E"]
+    Reprocess = "R" in Options
+    CountHosts = "S" in Options
+    TrackObjects = !(TrackHosts = ("q" in Options))
+    DoHeader = !("b" in Options)
+    LogBytes = "B" in Options || CountOnly
+    SortBytes = "K" in Options
+    AllAccesses = "A" in Options
+    TrackLast = !("k" in Options || AllAccesses)
+    if (CountOnly)
+	TrackObjects = TrackHosts = TrackLast = DoHeader = 0
+    if (HTMLout = ("y" in Options))
+	Width = 0
+    if ("g" in Options)
+	Tag = Options["g"]
+    if ("r" in Options) {
+	if (MailRepSetup(ConfigFile,userMapfile,DefLevel,Tag,"U" in Options)) {
+	    Err = 1
+	    exit 1
+	}
+    }
+    else	# Do progress numbers only if they would go to a tty
+	Progress = !("p" in Options) && system("test -t 2") == 0
+    IGNORECASE = 1
+    if ("o" in Options || "O" in Options || "n" in Options || "N" in Options) {
+	if ("o" in Options)
+	    ObjPattern = Options["o"]
+	if ("n" in Options)
+	    HostPattern = Options["n"]
+	if ("O" in Options)
+	    NotObjPattern = Options["O"]
+	if ("N" in Options)
+	    NotHostPattern = Options["N"]
+	PatternGiven = 1
+    }
+    if ("y" in Options || "r" in Options) {
+	if ("u" in Options)
+	    URLpref = Options["u"]
+	else {
+	    CmdReadLine("hostname")
+	    URLpref = $0
+	}
+	URLpref = "http://" URLpref
+	if (Debug)
+	    print "URL prefix is " URLpref > "/dev/stderr"
+    }
+    if ("i" in Options) {
+	Interval = Options["i"]
+	IntervalUnits = substr(Interval,length(Interval),1)
+	Interval += 0
+	if (IntervalUnits !~ /^[dhm]$/) {
+	    printf \
+	    "Invalid unit '%s' given with -i option.  Must be one of [dhm].\n",
+	    IntervalUnits > "/dev/stderr"
+	    Err = 1
+	    exit(1)
+	}
+	if (Interval == 0) {
+	    printf "Invalid value '%s' given with -i option.\n",
+	    Interval > "/dev/stderr"
+	    Err = 1
+	    exit(1)
+	}
+	if (IntervalUnits == "d")
+	    Interval *= 86400
+	else if (IntervalUnits == "h")
+	    Interval *= 3600
+	else if (IntervalUnits == "m")
+	    Interval *= 60
+	if (Debug)
+	    printf "Interval is %d seconds.\n",Interval > "/dev/stderr"
+    }
+    if ("T" in Options) {
+	DayFracs = Options["T"]
+	BucketSecs = 86400/DayFracs
+    }
+    DoDayOfWeek = "D" in Options
+    if (Interval || DayFracs || DoDayOfWeek) {
+	MkMonth2Num()
+	MakeTZOffset()
+	Counting = 1
+    }
+    if (Debug)
+	print "Done with setup." > "/dev/stderr"
+}
+
+# Setup actions needed only for allreports mode.
+# Global vars initialized here:
+# ReportAll	Tells other functions that multiple users are being rept on.
+# Test		If no mail should be sent.
+# Subject	Subject of mail sent to users (not yet used).
+# LevelOrder	Comma-sep list of valid report levels.
+# LevelSet[]	Set of valid report levels.
+# ChkRaw	If some raw report is requested.
+# AllAccesses	If anyone requested an "allhits" report.
+# RawSet[]	A set which contains only "raw", to be passed to Log()
+# See ReadConf() for a description of Users[] Patterns[] Prefixes[]
+# See LevelFixup() for a description of MaybeRaw[] MaybeNotRaw[]
+# See ReadUserConfigs() for a description of UserSpec[] UserLevelSet[]
+function MailRepSetup(ConfigFile,userMapfile,DefLevel,Tag,ConglomReports,
+i,NumRawUser,NumRawConf,NumPat,AllAddrs,LevelLists,LevelCount) {
+    #   NumRawUser is the number of users who requested a raw report,
+    # passed to LevelFixup so that if it is nonzero, %s report lines can be
+    # marked as possibly requiring a raw report.
+    #   NumRawConf is the number of patterns that may result in a raw report.
+    # It and NumRawUser are used to determine whether any log lines should be
+    # checked to determine if they should be attached to any raw reports.
+
+    ReportAll = 1		# More than one user is being reported on
+    # In allreport mode, print progress numbers only if P is given.
+    Progress = ("P" in Options)
+    Test = "t" in Options		# Do not mail anything.
+    if ("s" in Options)			# Subject of mail sent to users.
+	Subject = Options["s"]
+    if ("c" in Options)			# Systemwide config file
+	ConfigFile = Options["c"]
+    LevelOrder = "standard,wide,html,allhits,none,raw"
+    MakeSet(LevelSet,LevelOrder,",")	# Valid report levels
+    if ("L" in Options) {
+	if (CheckLevels(Options["L"],LevelSet,AcceptLevels) < 1)
+	    return 1
+    }
+    else
+	CopySet(LevelSet,AcceptLevels)
+    # Always accept 'none', so that it can be used as the level for %s lines
+    # that don't have any accepted level in the default.
+    AcceptLevels["none"]
+    if ("l" in Options) {		# Change the default level
+	DefLevel = Options["l"]
+	if (CheckLevels(Options["L"],LevelSet) == -1)
+	    return 1
+    }
+    # Read systemwide config file
+    if ((NumPat = ReadConf(ConfigFile,DefLevel,Patterns,Users,
+    Prefixes,LevelLists,AllAddrs)) < 0)
+	return 1
+    # Read user config files beforehand to optimize data collection.
+    # That way we do not need to keep allhits data if noone requests it,
+    # and only need to keep raw report data around for users who request it.
+    ReadUserConfigs(UserSpec,UserLevelSet,userMapfile,AcceptLevels,
+    !IsEmpty(Prefixes),AllAddrs,Tag,LevelCount,ConglomReports,UserMap)
+    NumRawUser = LevelCount["raw"]
+    AllAccesses = "allhits" in LevelCount && LevelCount["allhits"] > 0
+    if ((NumRawConf = LevelFixup(UserSpec,NumRawUser,MaybeRaw,MaybeNotRaw,
+    LevelSet,AcceptLevels,ConfigFile,Levels,NumPat,LevelLists)) == -1)
+	return 1
+    if (NumRawConf > 0 || NumRawUser > 0) {
+	ChkRaw = 1
+	if (Debug)
+	    print "Raw logging is on." > "/dev/stderr"
+    }
+    RawSet["raw"]
+    if (Debug) {
+	for (i = 0; i < NumPat; i++) {
+	    printf "Pattern %d: <%s>  Levels: <%s>",
+	    i,Patterns[i],LevelLists[i] > "/dev/stderr"
+	    if (i in Users)
+		printf "  User: <%s>",Users[i] > "/dev/stderr"
+	    if (i in Prefixes)
+		printf "  Prefix: <%s>",Prefixes[i] > "/dev/stderr"
+	    if (i in MaybeRaw)
+		printf "  MaybeRaw" > "/dev/stderr"
+	    if (i in MaybeNotRaw)
+		printf "  MaybeNotRaw" > "/dev/stderr"
+	    print "" > "/dev/stderr"
+	}
+    }
+}
+
+function MkMonth2Num(  Month) {
+    split("Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",Months,",")
+    for (Month in Months)
+	Month2Num[Months[Month]] = sprintf("%02d",Month)
+}
+
+# Sets global TZOffset to the number of seconds that need to be substracted
+# from the local date (without time of day) to give an epoch time.
+# TZOffset can also be added to systime() before doing %86400 to get the
+# current day number in the local timezone.
+# Note that TZOffset is only correct if the given date is in the same DST
+# phase as the current date.
+# 95/03/26 Calculate TZOffset more accurately.
+function MakeTZOffset(  t) {
+    t = systime()
+    TZOffset = strftime("%H",t)*3600+strftime("%M",t)*60+strftime("%S",t) - \
+    t%86400
+    if (strftime("%j",0) != "001")
+	TZOffset -= 24*3600
+}
+
+# Convert a numeric timezone to a number of seconds.
+# Example: converts -0830 to -30600
+function TZ2sec(NTimezone) {
+    if (NTimezone < 0) {
+	NTimezone = substr(NTimezone,2)
+	Mult = -1
+    }
+    else
+	Mult = 1
+    return (substr(NTimezone,1,2)*3600+substr(NTimezone,3,2)*60)*Mult
+}
+
+# Converts comma-separated level list Levels to lower case,
+# splits it into LevelSet, and checks it against GoodLevels.
+# Returns -1 on success, else number of levels.
+# Filename is the file that Levels was read from, for error messages.
+# If not given, it is not included.
+function CheckLevels(Levels,GoodLevels,LevelSet,Filename,
+LevElem,Level,NumLevels,i,RealLev) {
+    RealLev = 0
+    NumLevels = split(Levels,LevElem,",")
+    split("",LevelSet)		# clear LevelSet
+    for (i = 1; i <= NumLevels; i++) {
+	Level = LevElem[i]
+	if (!(Level in GoodLevels)) {
+	    if (Filename == "")
+		printf "Bad level '%s'.  Exiting.\n",Level > "/dev/stderr"
+	    else
+		printf \
+		"Error in config file '%s': bad level '%s'.  Exiting.\n",
+		Filename,Level > "/dev/stderr"
+	    return -1
+	}
+	else if (!(Level in LevelSet)) {
+	    LevelSet[Level]
+	    RealLev++
+	}
+    }
+    return RealLev
+}
+
+# Input vars:
+# ConfigFile is the master configuration file to read.
+# The configuration file has this format:
+# pattern       recipient[,...]       [report-level,...]
+# DefLevel is a list of levels.  Lines that have no report-levels specified
+# will default to these levels.
+#
+# Output vars: 
+# AllAddrs[] is made the set of all addresses that reports may
+# be sent to (all recipient names found), for use by ReadUserConfigs() in
+# finding the configuration files for those recipients.
+# All of the rest of these arrays are indexed 0..(numPatterns-1):
+# Patterns[] contains the pattern that the data for each index applies to.
+# In the case of %s substitutions, Patterns[] will contain the given pattern
+# with the %s replaced by "[^/]*", since that is what the %s stands in for.
+# Users[] contains the email address of the user who should gets reports of
+#     matches to this pattern.
+# Prefixes[] contains the part of a path that comes before the user name for
+#     patterns that apply to more than one user (%s lines).
+# LevelLists[] contains the default report level for matches to this pattern.
+#
+# Return value: <0 for error.  If no error, returns the number of entries
+#     put in the arrays.
+function ReadConf(ConfigFile,DefLevel,Patterns,Users,Prefixes,
+LevelLists,AllAddrs,  ret,Pattern,User,LineNum,UserElem,i,LevList) {
+    NumPat = 0
+    while ((ret = (getline < ConfigFile)) == 1) {
+	LineNum++
+	if ($0 ~ /^#/)		# Comment
+	    continue
+	if (NF < 2) {
+	    printf \
+	    "Error on line %d of config file %s: Not enough fields:\n%s\n",
+	    LineNum,ConfigFile,$0
+	    return -1
+	}
+	if (Debug)
+	    printf "Config line: <%s>\n",$0 > "/dev/stderr"
+	Pattern = $1
+	User = $2
+	# Generate a separate entry for each user.
+	# This is faster than splitting later for each match because in
+	# most cases there will only be one.
+	split(User,UserElem,",")
+	for (i in UserElem) {
+	    User = UserElem[i]
+	    if (Debug)
+		printf "  User: %s\n",User > "/dev/stderr"
+	    if (NF > 2) {
+		$1 = $2 = ""
+		LevList = $0
+		gsub("[ \t]+","",LevList)
+	    }
+	    else
+		LevList = DefLevel
+
+	    # Convert %s line
+	    if (Pattern ~ /%s/ && User ~ /%s/) {
+		Prefixes[NumPat] = Pattern
+		sub(/%s.*/,"",Prefixes[NumPat])
+		sub("%s","[^/]*",Pattern)
+		# Make User consisting solely of %s a special case
+		# (by not recording in it Users[]),
+		# for a little speedup when processing logfile.
+		if (User != "%s")
+		    Users[NumPat] = User
+	    }
+	    else
+		Users[NumPat] = User
+	    Patterns[NumPat] = Pattern
+	    LevelLists[NumPat] = LevList
+	    AllAddrs[User]
+
+	    NumPat++
+	}
+    }
+    if (ret) {
+	printf "Error reading config file '%s'.  Exiting.\n",ConfigFile > \
+	"/dev/stderr"
+	return -1
+    }
+    return NumPat
+}
+
+# Input variables:
+# UserSpec[] contains the list of report levels given by each user who 
+#     requests specific levels.
+# RawSpec is true if any users requested a raw report.
+# LevelSet[] is the set of valid level names.
+# AcceptLevels[] is the set of levels that reports may be requested at.
+# ConfigFile is the name of the config file that was read.
+# NumPat is the number of elements in Patterns[].
+# LevelLists[] contains the default report level for matches to the pattern
+# with the same index in Patterns[].
+
+# Global variables:
+# Users[] contains the email address of the user who should gets reports of
+#     matches to this pattern.
+# Prefixes[] contains the part of a path that comes before the user name for
+#     patterns that apply to more than one user.
+# Patterns[] contains the pattern that the data for each index applies to.
+
+# Output variables:
+# MaybeRaw[] contains the indexes of any patterns that may result in a raw
+#     report line.
+# MaybeNotRaw[] contains the indexes of any patterns that may result in a
+#     non-raw report line.
+# An index (i,Level) is made in Levels[] for each report level Level requested
+# for pattern i.
+
+# Return value: the number of patterns that result in a raw report.
+
+function LevelFixup(UserSpec,RawSpec,MaybeRaw,MaybeNotRaw,LevelSet,
+AcceptLevels,ConfigFile,Levels,NumPat,LevelLists,
+Level,LevList,PatLevels,NumRaw) {
+    for (i = 0; i < NumPat; i++) {
+	if (i in Users && Users[i] in UserSpec) {
+	    LevelLists[i] = LevList = UserSpec[Users[i]]
+	    if (Debug)
+		printf "Changed report level for pattern %d to %s\n",
+		i,LevList > "/dev/stderr"
+	}
+	else {
+	    LevList = LevelLists[i]
+	    if (Debug)
+		printf "Kept report level for pattern %d at default of %s\n",
+		i,LevList > "/dev/stderr"
+	}
+	if ((CheckLevels(LevList,LevelSet,PatLevels,ConfigFile)) == -1)
+	    return -1
+	# If this level uses %s substitution, and no levels in it are accepted,
+	# then add "none" (which is always accepted) to its list of levels,
+	# because some user may have specified a level that is accepted.
+	if (i in Prefixes && Intersection(PatLevels,AcceptLevels) == 0)
+	    PatLevels["none"]
+	for (Level in PatLevels) {
+	    if (!(Level in AcceptLevels))
+		continue
+	    # If this level is raw, or uses %s sustitution and any user
+	    # requested a raw report, then it may result in a raw report
+	    # line.
+	    if (Level == "raw" || RawSpec > 0 && (i in Prefixes)) {
+		MaybeRaw[i]
+		if (Level == "raw")
+		    NumRaw++
+	    }
+	    # If this level isn't raw, or uses %s substitution, it may result
+	    # in a non-raw report line.
+	    if (Level != "raw" || (i in Prefixes))
+		MaybeNotRaw[i]
+	    Levels[i,Level]
+	}
+    }
+    return NumRaw
+}
+
+# Find all user config files.
+# Any user with a config file is made an index of UserSpec, with the value
+# being the list of report levels requested.
+# Also, for each level a user requests a report at, (User,Level) is made
+# an index of UserLevelSet[].
+# AllAddrs[] is the set of all addresses that reports may be sent to.
+# If no %s substitutions were called for in the master configuration file,
+# user configuration files are only searched for in the home directories of
+# the users given in AllAddrs[].
+# Tag is a tag that a level may be prefixed with (separated from it by a
+# colon).  If Tag is given and any levels prefixed by it are found in a user's
+# config file, only those levels are set up for the user.  Otherwise, even if
+# Tag is given, all levels that do not have a tag are set up.
+# LevelCount[] is returned with the number of users who requested a report at
+# each level.  E.g., LevelCount["raw"] is the number of users who requested a
+# raw report.
+# If ConglomReports is true, than the second & later instances of a particular
+# home directory found cause an entry added to UserMap, mapping the user whose
+# home directory it is to the first user who had that home directory.
+# Information for these users is still recorded in the rest of the arrays,
+# since ConglomReports applies only to implicit user names generated from %s
+# substitution.
+function ReadUserConfigs(UserSpec,UserLevelSet,userMapfile,GoodLevels,PctSUsed,
+AllAddrs,Tag,LevelCount,ConglomReports,UserMap,
+Cmd,User,Home,ConfFile,i,oIgnCase,Level,UserLevels,Elem,GotTag,Count) {
+    oIgnCase = IGNORECASE
+    IGNORECASE = 1
+    # Use sh to get config file list because it can check for symlinks &
+    # non-regular files... a weak attempt at security
+    if (PctSUsed)
+	# If any %s lines were given, get config files for all users
+	Cmd = \
+"IFS=:\n"\
+"while read user p u g n homedir s\n"\
+"do\n"\
+"    UserConfigFile=$homedir/" userMapfile "\n"\
+"    if [ -f $UserConfigFile -a ! -L $UserConfigFile ]; then\n"\
+"	echo $user $homedir\n"\
+"    fi\n"\
+"done < /etc/passwd"
+    else {
+	# If no %s lines were given, get config files only for users mentioned
+	# in global config file; much faster on a system with many users.
+	FS = ":"
+	while ((getline < "/etc/passwd") == 1)
+	    if ($1 in AllAddrs)
+		Cmd = Cmd " " $1 " " $6
+	close("/etc/passwd")
+	FS = "[ \t]+"
+	if (Debug)
+	    print "User/homedir list: " Cmd > "/dev/stderr"
+	Cmd = \
+"set -- " Cmd "\n"\
+"while [ $# -ge 2 ]; do\n"\
+"    UserConfigFile=$2/" userMapfile "\n"\
+"    [ -f $UserConfigFile -a ! -L $UserConfigFile ] && echo $1 $2\n"\
+"    shift;shift\n"\
+"done"
+    }
+
+    # Read files at the same time that the filelist is being generated so that
+    # it will be harder to take advantage of the window
+    while ((Cmd | getline) == 1) {
+	User = $1
+	Home = $2
+	if (ConglomReports)
+	    if (Home in Home2User) {
+		UserMap[User] = Home2User[Home]
+		if (Debug)
+		    printf "Implicit %%s reports for %s go to %s\n",User,
+		    Home2User[Home] > "/dev/stderr"
+	    }
+	    else
+		Home2User[Home] = User
+	if (Debug)
+	    printf "%s has a config file.\n",User > "/dev/stderr"
+	ConfFile = Home "/.httpreport"
+	split("",UserLevels)	# clear out the array.
+	GotTag = Count = 0
+	while ((ret = (getline < ConfFile)) == 1) {
+	    for (i = 1; i <= NF; i++) {
+		Level = tolower($i)
+		if (split(Level,Elem,":") > 1) {
+		    if (Debug)
+			printf "Tag is <%s>, level is <%s>\n",Elem[1],
+			Elem[2] > "/dev/stderr"
+		    if (Tag == "" || Elem[1] != Tag) {
+			if (Debug)
+			    printf "Skipping non-matching tag <%s>\n",
+			    Elem[1] > "/dev/stderr"
+			continue
+		    }
+		    if (!GotTag) {
+			# User gave a tag that matches the report being run,
+			# so clear out anything else that has accumulated.
+			if (Debug)
+			    printf "Removing %d untagged level(s)\n",
+			    Count > "/dev/stderr"
+			split("",UserLevels)
+			GotTag = 1
+			Count = 0
+		    }
+		    Level = Elem[2]
+		}
+		# If user previously specified a tag that matches the report
+		# being run, and this level has no tag, skip it.
+		else if (GotTag) {
+		    if (Debug)
+			printf "Skipping untagged level <%s>\n",
+			Level > "/dev/stderr"
+		    continue
+		}
+		# Just ignore anything not in GoodLevels.  Nothing obvious to
+		# do about bad levels except mail a warning to users, which
+		# is liable to just result in bloated mailboxes.  Also, for
+		# now the -L option causes the list of good levels passed
+		# to this function to be reduced.
+		if (Level in GoodLevels) {
+		    if (Debug)
+			printf "Saving level <%s>\n", Level > "/dev/stderr"
+		    UserLevels[++Count] = Level
+		}
+	    }
+	}
+	for (i = 1; i in UserLevels; i++) {
+	    Level = UserLevels[i]
+	    UserLevelSet[User,Level]
+	    if (User in UserSpec)
+		UserSpec[User] = UserSpec[User] "," Level
+	    else
+		UserSpec[User] = Level
+	    LevelCount[Level]++
+	    if (Debug)
+		printf "%s gets a report for level '%s'.\n",
+		User,Level > "/dev/stderr"
+	}
+	if (Debug && ret)
+	    printf "Could not read config file '%s'.\n",
+	    ConfFile > "/dev/stderr"
+	close(ConfFile)
+    }
+    close(Cmd)
+    IGNORECASE = oIgnCase
+}
+
+# Returns 1 if Set is empty, 0 if not.
+function IsEmpty(Set,  i) {
+    for (i in Set)
+	return 0
+    return 1
+}
+
+# MakeSet: make a set from a list.
+# An index with the name of each element of the list
+# is created in the given array.
+# Input variables: 
+# Elements is a string containing the list of elements.
+# Sep is the character that separates the elements of the list.
+# Output variables:
+# Set is the array.
+# Return value: the number of elements added to the set.
+function MakeSet(Set,Elements,Sep,  i,Num,Names) {
+    Num = split(Elements,Names,Sep)
+    for (i = 1; i <= Num; i++)
+	Set[Names[i]]
+    return Num
+}
+
+##### End of setup functions.
+##### Start of logging functions.
+
+# YMD2day(year,month,day-of-month) returns the number of days that passed from 
+# 1970 Jan 1 to the given date.
+# All parameters should be given in numeric form.
+# If year < 70, it is assumed to be part of the 2000 century
+# If year in (70..99), 1900.
+# Globals: sets and uses MDays[]
+function YMD2day(Year,Month,Day,   LeapDays) {
+    if ((Year+0) < 70)
+	Year += 100
+    else if ((Year+0) >= 100)
+	Year -= 1900
+    # Year is now the number of years since 1900.
+    LeapDays = int((Year - 68) / 4)
+    if (Month <= 2 && Year % 4 == 0)
+	LeapDays -= 1
+    if (!MDays[2])
+	split("0 31 59 90 120 151 181 212 243 273 304 334 365",MDays)
+    return (Year - 70) * 365 + MDays[Month + 0] + Day - 1 + LeapDays
+}
+
+# Strip args from cgi accesses
+# Globals: none.
+function CGIstrip(Object) {
+    if (Object ~ "^/cgi-bin/") {
+	Object = substr(Object,10)
+	sub("[/?].*","",Object)
+	Object = "/cgi-bin/" Object
+    }
+    return Object
+}
+
+# Input variables:
+# Object is the object to try matches against.
+# MaybeRept[] contains the indexes of each pattern that may result in a
+#     report line (for optimization).
+# LevelsToLog[] is the set of levels to log.
+# Data is the data to be stored in Reports[] for matches.
+#
+# Output variables:
+# Report data are put in Reports[email-addr,Level,1..n]
+# The extra index of 1..n is used rather than just appending strings because
+# string concatenation becomes very expensive in awk.
+# Global UserLevelSet[email-addr,Level] contains the current highest highest
+#     index used in Reports, for tracking the index.  The indexes of ReptLevels
+#     are also used to allow iteration over the indexes of Reports[].
+# MailNames[email-addr] contains the set of all email-addrs that reports will
+#     be sent to, for iterating over the contents of ReptLevels[].
+#
+# Globals used:
+# Patterns[] contains the pattern that the data for each index applies to.
+# Users[] contains the email address of the user who should gets reports of
+#     matches to this pattern.
+# Prefixes[] contains the part of a path that comes before the user name for
+#     patterns that apply to more than one user.
+# UserSpec[] contains the names of users who have specified what report levels
+#     they want.
+# UserLevelSet[] contains a User,Level index for each report level that a user
+#     requested.
+# Levels[] contains the report levels for each pattern.
+# UserMap[addr] may remap certain implicit email addresses (produced by %s
+#     substitution) to others.
+
+# For each index in MaybeRept[], the pattern with that index is checked for a
+# match against Object.  If matched, the login name and user name are derived
+# from it using Users[] and Prefixes[].
+# Then, for each level that is being logged at this stage, if the user
+# requested a report at that level, the data is added to the report for that
+# level for the user.
+function Log(Object,MaybeRept,Reports,LevelsToLog,Data,
+Level,User,Login,i,LEnd) {
+    for (i in MaybeRept) {
+	if (Object ~ Patterns[i]) {
+	    # Get login name and email address.
+	    if (i in Prefixes) {	# If doing a %s substitution...
+		# Get rid of the part that matches the prefix
+		match(Object,Prefixes[i])
+		Login = substr(Object,RLENGTH+1)
+		# Get rid of everything from the next / onward
+		if (LEnd = index(Login,"/"))
+		    Login = substr(Login,1,LEnd-1)
+		if (Login in UserMap) {
+		    if (Debug > 1)
+			printf "Redirecting report for %s to %s\n",
+			Login,UserMap[Login] > "/dev/stderr"
+		    Login = UserMap[Login]
+		}
+		# Login is now the user-name part of the object.
+		if (i in Users) {
+		    # Subsitute what's left into the email address format
+		    # string contained in Users[]
+		    User = Users[i]
+		    sub("%s",Login,User)
+		}
+		else
+		    # The special case of no entry in Users[] indicates that 
+		    # the email address is just the user-name.
+		    User = Login
+	    }
+	    else 	# If not doing a %s substitution...
+		Login = User = Users[i]
+	    # Login is a local user name who might have an entry in UserSpec[].
+	    # User is the email address that a report should be sent to.
+	    for (Level in LevelsToLog) {
+		# If user requested specific levels & did not include this one,
+		# or user didn't request specific levels and this level is not
+		# in the default set of levels for this pattern, skip it.
+		if (Login in UserSpec) {
+		    if (!((Login,Level) in UserLevelSet))
+			continue
+		}
+		else if (!((i,Level) in Levels))
+		    continue
+		Reports[User,Level,++UserLevelSet[User,Level]] = Data
+		MailNames[User]
+		if (Debug > 1)
+		    printf "Report on '%s' at level '%s' goes to '%s'.\n",
+		    Object,Level,User > "/dev/stderr"
+	    }
+	}
+    }
+}
+
+# Return date in the form: MMM dd hh:mm
+# Old format:
+#  3  4     5     6
+#	  1  2  3
+# Feb 19 17:53:27 1995
+# New format:
+#	   4              5
+#   2  3   4    5 6  7     8
+# [15/Mar/1995:18:00:30 -0800] 
+# [15/Mar/1995:18:00:30] 
+# Globals:
+# NewFormat
+function Date(  E) {
+    if (Reprocess)
+	return sprintf("%s %2d %5s",$2,$3,$4)
+    else if (NewFormat) {
+	split($4,E,"[][/: ]")
+	return sprintf("%s %2d %2s:%2s",E[3],E[2],E[5],E[6])
+    }
+    else
+	return sprintf("%s %2d %5s",$3,$4,substr($5,1,5))
+}
+
+# Returns the time the current entry was made, as though it occured in the
+# current timezone.  This is done instead of adding the timezone offset
+# (which would make the returned value be a 'real' UNIX time) because we
+# want to dump entries into buckets/intervals based on the time in the local
+# timezone.
+function EntryTime(  E,Time) {
+    if (NewFormat) {
+	split($4,E,"[][/: ]")
+	Time = YMD2day(E[4],Month2Num[E[3]],E[2])*86400 + E[5]*3600 + E[6]*60
+    }
+    else {
+	split($5,E,":")
+	Time = YMD2day($6,Month2Num[$3],$4)*86400 + E[1]*3600 + E[2]*60
+    }
+    if (Debug > 5)
+	printf "Entry time is %s for %s\n",strftime("%c",Time-TZOffset),
+	Uncontrol($0) > "/dev/stderr"
+    if (NR == 1)
+	FirstTime = Time
+    LastTime = Time
+    return Time
+}
+
+# Do the work common to processing new data and reprocessing processed data.
+# Uses globals:
+# Object	object logged
+# Truncate	Whether to truncate objects to 1st path component.
+# TrackObjects	Track object accesses.
+# TrackHosts	Track hosts.
+# PatternGiven, ObjPattern, NotObjPattern, HostPatter, NotHostPattern
+# Progress	Print progress numbers.
+# Sets globals:
+# LastRemote[] to what the last access of the object or host was
+# Index to the index that the info about this access should be logged under
+# Return value: 0 if there should be no further processing (used instead of
+# doing a 'next' here to avoid gawk memory leak).
+function Common(  SStart) {
+    if (PatternGiven && (ObjPattern != "" && Object !~ ObjPattern ||
+    NotObjPattern != "" && Object ~ NotObjPattern ||
+    NotHostPattern != "" && Host ~ NotHostPattern ||
+    HostPattern != "" && Host !~ HostPattern)) {
+	if (Debug > 2)
+	    printf \
+	    "Skipping record; object or host does not match pattern:\n"\
+	    "%s\n",Uncontrol($0) > "/dev/stderr"
+	NotMatch++
+	return 0
+    }
+    if (Progress && ++pCount == 1000) {
+	printf "\r%d",NR > "/dev/stderr"
+	pCount = 0
+    }
+    if (Counting)
+	return 1
+    if (Truncate) {
+	# Require object to have a / other than the initial one
+	if (SStart = match(Object,"./"))
+	    # Truncate before the second /
+	    Object = substr(Object,1,SStart)
+	else if (substr(Object,1,2) == "/~")
+	    Object = "/~"
+	else
+	    Object = "/"
+    }
+    if (TrackObjects) {
+	Index = Object
+	if (TrackLast)
+	    LastRemote[Index] = Host
+    }
+    else if (TrackHosts) {
+	Index = Host
+	if (TrackLast)
+	    LastRemote[Index] = Object
+    }
+    else if (CountOnly)
+	Index = "TOTAL"
+    return 1
+}
+
+NR == StartDebug {
+    Debug = DebugValue
+}
+
+Debug > 9 {
+    printf "Record %d: %s\n",NR,Uncontrol($0) > "/dev/stderr"
+}
+
+# Example lines from "old" httpd log:
+#      1              2   3   4    5       6    7     8			9
+# Requesting-host    Date			Op   URL		Version
+# deeptht.armory.com [Sat Feb 19 17:53:27 1994] GET  /~spcecdt/arm.html HTTP/1.0
+# sgil301.cern.ch    [Mon Jul 18 07:35:42 1994] POST /cgi-bin/purity-test/NumQuest=100/Name=Sex100 HTTP/1.0
+# netcom5.netcom.com [Sun May 22 00:17:16 1994] get  /u/css1217/index.html
+# pentlan.stir.ac.uk [Wed May 25 01:17:29 1994] HEAD /~zap/nc/nc.html HTTP/1.0
+
+# New transfer log format:
+# (see http://hoohoo.ncsa.uiuc.edu/docs/setup/httpd/TransferLog.html)
+# host rfc931 authuser [DD/Mon/YYYY:hh:mm:ss] "method resource protocol" status-code bytes-sent referer agent
+# rfc391, authuser, status-code, and bytes-sent are replaced with '-' if they
+# are not available.
+# resource is liable to consist of multiple words, and even a newline
+# occasionally, which makes part of it appear to be a new record.  This is
+# dealt with by ignoring methods other than GET, POST, and HEAD (which also
+# skips uninteresting methods like OPTIONS).
+# Both resource and referrer are liable to contain embedded double quotes.
+# Spinner logs are liable to be completely missing the host field, thus
+# starting with the space that separates the first field from the second.
+# This is OK because FS is set to a pattern that causes the empty first field
+# to still count as a field.
+
+# Example:
+#   1      2 3             4           5      6  7    8+      9+  10+  11+ 12+
+# x.mv.com - - [15/Mar/1995:18:00:30 -0800] "GET / HTTP/1.0" 200 34110 ref agn
+#    1       2   3           4              5  6    7+      8+   9+  11+ 12+
+# x.mv.com blort - [15/Mar/1995:18:00:30] "GET / HTTP/1.0" 200 34110 ref agn
+
+# Header of processed output:
+# http accesses, Apr 13 01:18 to Apr 13 18:15.
+
+# Determine datafile type.  This must come before the Reprocess block, since it
+# does reprocessing autorecognition.
+NR == 1 {
+    # Use ~ for field 1 so it will match regardless of case; format changed
+    if ($1 ~ "http" && $2 == "accesses,") {
+	if (Debug)
+	    print "Datafile is old output." > "/dev/stderr"
+	Reprocess = 1
+	if (Counting) {
+	    print "Cannot use old output file for interval counting." \
+	    > "/dev/stderr"
+	    exit(1)
+	}
+	MinFields = 6
+	NotRecs++
+    }
+    else {
+	if (NewFormat = ($4 ~ /^\[/)) {
+	    if (Debug)
+		print "Datafile is in the new format." > "/dev/stderr"
+	    if ($4 == "[")
+		print "Warning: datafile has no dates?!" > "/dev/stderr"
+	    if ($4 ~ /\]$/) {
+		if (Debug)
+		    print "Datafile has no timezone field." > "/dev/stderr"
+		Op_i = 5
+		URL_i = 6
+		Bytes_i = 9
+		if (noBad)
+		    SC_i_start = 8
+		MinFields = 9
+	    }
+	    else {
+		if (Debug)
+		    print "Datafile has a timezone field." > "/dev/stderr"
+		Op_i = 6
+		URL_i = 7
+		Bytes_i = 10
+		if (noBad)
+		    SC_i_start = 9
+		MinFields = 10
+	    }
+	    MakeSet(Methods,"\"GET,\"POST,\"HEAD",",")
+	    # Codes actually used by spinner:
+	    # 200 Success
+	    # 302 Redirect (spinner sends this for both explicitly set
+	    #     redirects and to redirect /~foo to /~foo/index.html)
+	    # 304 Not Modified
+	    # 404 Not Found
+	    # 403 Forbidden
+	    # 500 Internal Error
+	    MakeSet(StatusCodes,
+    "200,201,202,203,204,400,401,402,403,404,500,501,502,503,301,302,303,304",
+	    ",")
+	}
+	else {
+	    if (Debug)
+		print "Datafile is in the old format." > "/dev/stderr"
+	    Op_i = 7
+	    URL_i = 8
+	    MakeSet(Methods,"GET,POST,HEAD",",")
+	    LogBytes = 0
+	    MinFields = 8
+	}
+	StartDate = Date()
+    }
+    Host_i = 1
+    if (Debug)
+	printf "Method index: %d\n",Op_i > "/dev/stderr"
+}
+
+Reprocess && $2 != "Total" {
+    sub("^ +","")
+
+    # Check for header, total line, etc.
+    # Header line: http accesses, Sep 23 00:15 to Sep 23 08:06.
+    # Log lines:
+    # count mon  d time   host                bytes?   object
+    #     1  2   3  4      5                     6?        6/7
+    #    11 Feb  1 15:47  becnet51.becnet.com  99999   /robots.txt
+    if (($1 + 0) == 0) {
+	# Since dates are not in order in processed output, get them from
+	# the old headers.
+	if ($6 == "to") {
+	    if (Debug)
+		printf "Got log interval line.\n" > "/dev/stderr"
+	    if (StartDate == "")
+		StartDate = sprintf("%s %2d %5s",$3,$4,$5)
+	    EndDate = sprintf("%s %2d %5s",$7,$8,substr($9,1,5))
+	    NotRecs++
+	    next
+	}
+	else if ($1 == "Num" && $NF == "Object") {
+	    if (NF == 6 || NF == 7)
+		GotLast = 1
+	    else if (NF == 2 || NF == 3)
+		TrackLast = 0
+	    else {
+		printf \
+    "%s: Unrecognized output-file format - %d fields in header.  Exiting.\n",
+		Name,NF > "/dev/stderr"
+		exit 1
+	    }
+	    if (!(NF == 3 || NF == 7))
+		LogBytes = 0
+	    NotRecs++
+	    next
+	}
+	if (Debug)
+	    printf "Skipping record: wrong number of fields (%d);"\
+	    " presumably header/trailer line:\n%s\n",
+	    NF,Uncontrol($0) > "/dev/stderr"
+	WrongNumFields++
+	next
+    }
+    # Set these for Common()
+    Object = $NF
+    if (GotLast)
+	Host = $5
+
+    if (Common()) {
+	if (LogBytes && $(NF-1) ~ /^[0-9]+$/)
+	    Bytes[Index] += $(NF - 1)
+	Count[Index] += $1
+	if (TrackLast)
+	    LastXferDate[Index] = Date()
+    }
+    next
+}
+
+# For each access line, the count of the object accessed in incremented, and
+# the line is added to the raw logs of any users who have requested a raw log.
+NF >= MinFields && toupper($Op_i) in Methods {
+    # Skip failed requests.
+    # Search for response code starting at SC_i_start.  If object contains
+    # embedded spaces, response code will be shifted to a higher field.
+    if (SC_i_start) {
+    # Check up through field NF - 1; some logs do not contain referrer or agent
+	for (SC_i = SC_i_start; SC_i < NF; SC_i++) {
+	    if (Debug > 6 && SC_i > SC_i_start)
+		printf "Record %d: searching field %d for status...\n",
+		NR,SC_i > "/dev/stderr"
+	    if ($SC_i ~ /^[0-9][0-9][0-9]$/)
+		break
+	}
+	if (Debug) {
+	    if (Debug > 1 && SC_i > SC_i_start)
+		printf "Record %d: found status (%s) in field %d, not %d\n",
+		NR,$SC_i,SC_i,SC_i_start > "/dev/stderr"
+	    if (!($SC_i in StatusCodes))
+		printf "Record %d: Unknown status code: %s\n%s\n",
+		NR,$SC_i,$0 > "/dev/stderr"
+	}
+	if (SC_i == NF || $SC_i ~ /^[45]/) {
+	    if (SC_i == NF) {
+		if (Debug > 2)
+		    printf "Skipping record %d: couldn't find status:\n%s\n",
+		    NR,Uncontrol($0) > "/dev/stderr"
+		NoStatus++
+	    }
+	    else
+		HTTPFailCount++
+	    next
+	}
+	Bytes_i = SC_i+1
+    }
+    Object = UnWeb(CGIstrip($URL_i),1)
+    Host = $Host_i
+
+    if (!Common())
+	next
+
+    if (Counting) {
+	ETime = EntryTime()
+	if (DayFracs)
+	    DayFracLog[int(ETime%86400/BucketSecs)]++
+	if (DoDayOfWeek)
+	    # Jan 1 1969 was a Wednesday.  Add 3 to make that be at index 3.
+	    DayOfWeekLog[(int(ETime/86400)+3)%7]++
+	if (Interval) {
+	    IntLog[int(ETime/Interval)]++
+	    if (Debug)
+		printf "Incrementing bucket %d\n",int(ETime/Interval) \
+		> "/dev/stderr"
+	}
+	next
+    }
+    if (!CountHosts) {
+	if (Debug > 2 && !(Index in Count))
+	    printf "New index (total now %d): %s\n",
+	    ++numInd,Uncontrol(Index) > "/dev/stderr"
+	Count[Index]++
+    }
+    else if (!((Object,Host) in TrackPairs)) {
+	TrackPairs[Object,Host]
+	Count[Index]++
+    }
+    else if (Debug)
+	printf "Already saw %s accessed from %s\n",Uncontrol(Object),
+	Uncontrol(Host) > "/dev/stderr"
+    EndDate = Date()
+    if (AllAccesses)
+	Accesses[Object] = Accesses[Object] "\n\t" EndDate " " Host
+    if (TrackLast)
+	LastXferDate[Index] = EndDate
+    if (ChkRaw)
+	Log(Object,MaybeRaw,Reports,RawSet,$0)
+    if (LogBytes && $Bytes_i ~ /^[0-9]+$/)
+	Bytes[Index] += $Bytes_i
+    next
+}
+
+Debug {
+    printf \
+"Record %d skipped; not enough fields or wrong method.\n"\
+"%d fields; method index = %d; method = <%s>.  Line follows:\n%s\n",
+    NR,NF,Op_i,Uncontrol($Op_i),Uncontrol($0) > "/dev/stderr"
+    WrongNumFields++
+}
+
+##### End of logging functions.
+##### Start of report generating functions.
+
+END {
+    if (Err != "")
+	exit Err
+    if (Progress && NR >= 1000)
+	printf "\r%d\n",NR > "/dev/stderr"
+    if (Debug) {
+	print "Finished reading input." > "/dev/stderr"
+	printf \
+"Records skipped:\n"\
+"%6d header/trailer lines.\n"\
+"%6d failed transfer records.\n"\
+"%6d host/object pattern reject.\n"\
+"%6d wrong number of fields or uncounted method field.\n"\
+"%6d status field not found.\n",
+	NotRecs,HTTPFailCount,NotMatch,WrongNumFields,NoStatus > "/dev/stderr"
+    }
+    if (Counting) {
+	if (Interval) {
+	    PrintIntervalData()
+	    ReptPrinted = 1
+	}
+	if (DayFracs) {
+	    if (ReptPrinted)
+		print ""
+	    PrintBuckets(DayFracLog,DayFracs-1,BucketSecs,"time of day",
+	    FirstTime,LastTime)
+	    ReptPrinted = 1
+	}
+	if (DoDayOfWeek) {
+	    if (ReptPrinted)
+		print ""
+	    PrintBuckets(DayOfWeekLog,6,86400,"day of week",FirstTime,LastTime)
+	}
+	exit(0)
+    }
+    # Sort all objects by access count once, so that it doesn't have to be
+    # done for each user.
+    if (Debug)
+	print "Sorting..." > "/dev/stderr"
+    if (LogBytes && SortBytes)
+	Num = qsortArbIndByValue(Bytes,k)
+    else
+	Num = qsortArbIndByValue(Count,k)
+    if (Debug)
+	printf "Sorted %d object(s).\n",Num > "/dev/stderr"
+    if (ReportAll) {
+	CopySet(LevelSet,NotRawSet)
+	SubtractSet(NotRawSet,RawSet)
+	delete NotRawSet["none"]
+	if (Num > 0) {
+	    # Generate the non-raw reports to be sent to users.
+	    for (i = Num; i >= 1; i--) {
+		Object = k[i]
+		Log(Object,MaybeNotRaw,Reports,NotRawSet,i)
+		if (LogBytes && (Object in Bytes) && Bytes[Object] > MaxBytes)
+		    MaxBytes = Bytes[Object]
+	    }
+	    # Mail reports to users.
+	    GenReports(UserLevelSet,MailNames,Count[k[Num]],MaxBytes,UseSubmit,
+	    Sender)
+	}
+    }
+    else {
+	if (Num > 0) {
+	    if (LogBytes)
+		for (i = 1; i <= Num; i++)
+		    if (k[i] in Bytes && (Bytes[k[i]]+0) > MaxBytes)
+			MaxBytes = b
+	    Header = MkHeader(StartDate,EndDate,Width,Count[k[Num]],MaxBytes,
+	    TrackLast)
+	    if (Debug)
+		printf "Got header: %s\n",Header > "/dev/stderr"
+	    if (DoHeader) {
+		# The ObjPattern stuff is here mainly so the feature wherein
+		# the user's name is included in the title can be partially
+		# tested without -r
+		if (ObjPattern ~ "\\^/~[a-z][-a-z0-9]+/$") {
+		    User = substr(ObjPattern,4)
+		    sub("/","",User)
+		}
+		else
+		    User = ""
+		print Title(StartDate,EndDate,HTMLout,User)
+		print Header
+	    }
+	    Total = 0
+	    if (MostAccessed) {
+		for (i = Num; i >= 1; i--) {
+		    Object = k[i]
+		    if (SStart = match(Object,"./")) {
+			# Truncate before the second /
+			BaseDir = substr(Object,1,SStart)
+			if (!(BaseDir in BaseDirs)) {
+			    BaseDirs[BaseDir]
+			    print FormatLine(i,HTMLout,AllAccesses,TrackLast)
+			}
+		    }
+		}
+	    }
+	    else if (CountOnly)
+		for (i = Num; i >= 1; i--)
+		    FormatLine(i)
+	    else
+		for (i = Num; i >= 1; i--)
+		    print FormatLine(i,HTMLout,AllAccesses,TrackLast)
+	    if (Debug)
+		printf "Done with object records.\n" > "/dev/stderr"
+	    if (!("b" in Options))
+		print Trailer(CountLen,Total,NR - Total - NotRecs,TotalBytes,
+		HTMLout)
+	}
+	else
+	    print "No http transfers."
+    }
+}
+
+function PrintBuckets(Data,MaxBucket,BucketPeriod,PeriodName,FirstTime,LastTime,
+  i) {
+    printf "Accesses by %s, from %s to %s\n",
+    PeriodName,strftime("%y/%m/%d %T",FirstTime-TZOffset),
+    strftime("%y/%m/%d %T",LastTime-TZOffset)
+    for (i = 0; i <= MaxBucket; i++)
+	printf "%d %d\n",i,Data[i]
+}
+
+# Globals: Interval, FirstTime, LastTime, IntLog[]
+function PrintIntervalData(  i,LTime) {
+    printf "Accesses for each interval of %d seconds,\nfrom %s to %s\n",
+    Interval,strftime("%y/%m/%d %T",FirstTime-TZOffset),
+    strftime("%y/%m/%d %T",LastTime-TZOffset)
+    LTime = int(LastTime/Interval)
+    for (i = int(FirstTime/Interval); i <= LTime; i++)
+	printf "%s %d\n",strftime("%y/%m/%d %T",i*Interval-TZOffset),IntLog[i]
+}
+
+# Format & return the object whose information is stored at index i
+# Also adds its count to Total & its byte count to TotalBytes
+# HTML: Format line as HTML
+# Globals used:
+# Format, TotWidth, Count[], LastXferDate[], LastRemote[], Total,
+# URLpref
+function FormatLine(i,HTML,AllAccesses,TrackLast,  Object,s) {
+    Object = k[i]
+    if (Debug > 2)
+	printf "Formatting line for object: %s\n",
+	Uncontrol(Object) > "/dev/stderr"
+    Total += Count[Object]
+    if (LogBytes && Object in Bytes)
+	TotalBytes += Bytes[Object]
+    if (HTML)
+	s = sprintf(Format,Count[Object],
+	TrackLast ? LastXferDate[Object] : "",
+	TrackLast ? LastRemote[Object] : "",
+	LogBytes ? (Object in Bytes ? sprintf("%.18g",Bytes[Object]) : "-") \
+	: "",
+	"<a href=" URLpref Object ">" Object "</a>")
+    else
+	s = substr(sprintf(Format,Count[Object],
+	TrackLast ? LastXferDate[Object] : "",
+	TrackLast ? LastRemote[Object] : "",
+	LogBytes ? (Object in Bytes ? sprintf("%.18g",Bytes[Object]) : "-") \
+	: "",Object),
+	1,TotWidth)
+    if (AllAccesses)
+	s = s Accesses[Object]
+    return s
+}
+
+# Variables:
+# StartDate, EndDate: start and end of log, in string form.
+# Width: line length.
+# MaxNum: Highest count for any object.
+# MaxBytes: Highest byte count for any object.
+# Return value: A format string for printing data lines.
+# Global variables:
+# TotWidth is set to the max line length.
+# CountLen is set to the width of the Count field.
+function MkHeader(StartDate,EndDate,Width,MaxNum,MaxBytes,TrackLast,
+BytesFmt,BytesLen,RemoteLen) {
+    CountLen = max(length(sprintf("%s",MaxNum)),3)
+    if (LogBytes) {
+	BytesLen = max(length(sprintf("%.18g",MaxBytes)),5)
+	BytesFmt = "%" BytesLen "s "
+	BytesLen++
+	if (Debug)
+	    printf "Maximum byte value: %.18g\n",MaxBytes > "/dev/stderr"
+    }
+    else
+	BytesFmt = "%.0s"
+    if (Width == 0)
+	RemoteLen = 24
+    else {
+	RemoteLen = Width - 55 - BytesLen
+	if (RemoteLen < 0)
+	    RemoteLen = 0
+    }
+    if (TrackLast)
+	Format = \
+	"%" CountLen "s %12s  %-" RemoteLen "." RemoteLen "s " BytesFmt "%s"
+    else
+	Format = "%" CountLen "s%.0s%.0s " BytesFmt "%s"
+    if (Width == 0)
+	RemoteLen = TotWidth = 1000
+    else
+	TotWidth = Width
+
+    if (Debug)
+	printf "Total width: %s\n",TotWidth > "/dev/stderr"
+    if (TrackObjects)
+	return sprintf(Format,"Num","Last Xfer","Last Host","Bytes","Object")
+    else
+	return sprintf(Format,"Num","Last Xfer","Host","Bytes","Last Object")
+}
+
+# Emit HTML ASCII title (not column headers).
+function Title(StartDate,EndDate,HTML,User,  hdr,URL,ttl) {
+    # This won't be correct in cases where a user is sent a report
+    # that includes info for accesses outside their page, but it's
+    # about the best that can be done.
+    if (User !~ "^[a-z][-a-z0-9]+$")
+	User = ""
+    hdr = sprintf("HTTP accesses%s, %s to %s",
+    (User != "") ? " for " User : "",StartDate,EndDate)
+    if (HTML) {
+	ttl = (User == "") ? hdr : \
+	sprintf("HTTP accesses for <a href=" URLpref "/~" User "/>" \
+	User "</a>, %s to %s",StartDate,EndDate)
+	return "<HTML>\n<HEAD>\n<title>" hdr "</title>\n</HEAD>\n<BODY>\n"\
+	"<h2>" ttl "</h2><pre>"
+    }
+    else
+	return hdr
+}
+
+function Trailer(CountLen,TotalAcc,Ignored,TotalBytes,HTML,  Bytes,iInfo) {
+    if (Debug && LogBytes)
+	printf "%.18g bytes xferred.  Generating trailer...\n",
+	TotalBytes > "/dev/stderr"
+    if (LogBytes)
+	Bytes = sprintf(" (%sB transferred)",i2emet(TotalBytes,6,1,0,1))
+    if (Ignored >= 0)
+	iInfo = sprintf("; %d records skipped.",Ignored)
+    if (HTML)
+	return \
+	sprintf("</pre>\n<hr><h1>Total Accesses: %d%s%s</h1>\n</BODY>\n</HTML>",
+	TotalAcc,Bytes,iInfo)
+    else 
+	return sprintf("%*d Total Accesses%s%s",CountLen,TotalAcc,Bytes,iInfo)
+}
+
+# Input variables:
+# Levs[1..n]: The report levels to check whether a user wants.
+# Addr: The name of the user to generate a level list for.
+# ReptLevels[] contains a User,Level index for each report level that a user
+#     requested.
+# Output variables:
+# LevSet[]: The set of levels requested by the user.
+# Return value: space-separated list of report levels requested by user.
+function MakeLevList(Levs,LevSet,Addr,ReptLevels,  LevNum,LevList,Level) {
+    for (LevNum = 1; LevNum in Levs; LevNum++) {
+	Level = Levs[LevNum]
+	if (Level != "none" && (Addr,Level) in ReptLevels) {
+	    LevList = LevList " " Level
+	    LevSet[Level]
+	}
+    }
+    return substr(LevList,2)
+}
+
+function InitReportMail(recipient,subject,Fields,UseSubmit,Sender,
+To,Cc,Bcc,Order,SubmitOpts) {
+#    return sprintf("mail -s '%s' %s",subject,recipient)
+    To[1] = recipient
+    Fields["From"] = Sender " (HTTP Report Daemon)"
+    SubmitOpts["t"]	# trust author specification
+    SubmitOpts["q"]	# do not return undelivered mail
+    SubmitOpts["z"]	# do not warn about undelivered mail
+    return InitMail(To,Cc,Bcc,Fields,Order,subject,Sender,UseSubmit,SubmitOpts)
+}
+
+# Globals used:
+# Width, LevelOrder, StartDate, EndDate, Width, Reports[], Test, Debug,
+# Options, Subject, Total, TotalBytes
+function GenReports(ReptLevels,MailNames,MaxNum,MaxBytes,UseSubmit,Sender,
+i,Level,NumLines,Addr,Levs,LevNum,Header,Line,Cmd,AccLine,testMailAddr,HTMLout,
+DidTitle,LevSet,ExtraHeaders,LevList,AllAcc,HeaderOrder) {
+    split(LevelOrder,Levs,",")
+    testMailAddr = "M" in Options
+    # For each user who is to get a report
+    for (Addr in MailNames) {
+	# If html is the only level requested, add appropriate headers.
+	if ((LevList = MakeLevList(Levs,LevSet,Addr,ReptLevels)) == "html") {
+	    ExtraHeaders["MIME-Version"] = "1.0"
+	    ExtraHeaders["Content-Type"] = "text/html; charset=us-ascii"
+	    HeaderOrder[1] = "MIME-Version"
+	    HeaderOrder[2] = "Content-Type"
+	}
+	else
+	    split("",ExtraHeaders)
+        ExtraHeaders["X-HTTPReport-Levels"] = LevList
+	if (!Test) {
+	    Cmd = InitReportMail(testMailAddr ? Options["M"] : Addr,
+	    Subject (testMailAddr ? " [for " Addr "]" : ""),ExtraHeaders,
+	    UseSubmit,Sender)
+	}
+	DidTitle = 0
+	# For each level that can be requested
+	for (LevNum = 1; LevNum in Levs; LevNum++) {
+	    if ((Level = Levs[LevNum]) == "none")
+		continue
+	    HTMLout = (Level == "html")
+	    # If the user is to get a report at this level...
+	    if ((Addr,Level) in ReptLevels) {
+		AllAcc = (Level == "allhits")
+
+		# "b" option means to not print a header.
+		# We want a header to be printed at the start of the reports,
+		# and also want an HTML format header if an HTML report was
+		# requested.
+		if ((!DidTitle || HTMLout) && !Test && !("b" in Options)) {
+		    AccLine = Title(StartDate,EndDate,HTMLout,Addr)
+		    if (Debug)
+			print AccLine > "/dev/stderr"
+		    print AccLine | Cmd
+		    DidTitle = 1
+		}
+
+		if (Debug)
+		    printf "%s report for %s:\n",Level,Addr > "/dev/stderr"
+		NumLines = ReptLevels[Addr,Level]
+		if (Level == "raw")
+		    for (i = 1; i <= NumLines; i++) {
+			Line = Reports[Addr,Level,i]
+			if (Debug)
+			    print Line > "/dev/stderr"
+			if (!Test)
+			    print Line | Cmd
+		    }
+		else {
+		    Total = 0
+		    TotalBytes = 0
+		    Header = MkHeader(StartDate,EndDate,
+		    (Level == "wide" || HTMLout) ? 0 : Width,MaxNum,MaxBytes,
+		    !AllAcc)
+		    if (!Test && !("b" in Options))
+			print Header | Cmd
+		    if (Debug)
+			print Header > "/dev/stderr"
+		    for (i = 1; i <= NumLines; i++) {
+			Line = FormatLine(Reports[Addr,Level,i],HTMLout,AllAcc,
+			!AllAcc)
+			if (Debug)
+			    print Line > "/dev/stderr"
+			if (!Test)
+			    print Line | Cmd
+		    }
+		    if (!Test && !("b" in Options))
+			print Trailer(CountLen,Total,-1,TotalBytes,HTMLout) | \
+			Cmd
+		}
+		if (Debug)
+		    print "" > "/dev/stderr"
+		if (!Test)
+		    print "" | Cmd
+	    }
+	    else if (Debug)
+		printf "%s report for %s: none.\n",Level,Addr > "/dev/stderr"
+	}
+	if (!Test)
+	    close(Cmd)
+    }
+}
+
+function max(a,b) {
+    if (a > b)
+	return a
+    else
+	return b
+}
+
+# Deletes any elements that are in both Minuend and Subtrahend from Minuend.
+function SubtractSet(Minuend,Subtrahend,  Elem) {
+    for (Elem in Subtrahend)
+	delete Minuend[Elem]
+}
+
+function CopySet(From,To,  Elem) {
+    for (Elem in From)
+	To[Elem]
+}
+
+function Intersection(A,B,Inter,  Elem,Count) {
+    for (Elem in A)
+	if (Elem in B) {
+	    Inter[Elem]
+	    Count++
+	}
+    return Count
+}
+
+# @(#) CmdReadLine 95/09/04
+# Run Command, read a single line of output from it, then close it.
+# If Verbose is true, a complaint is issued if the read fails.
+# Output is returned in $*
+# The return value from getline is returned.  It will be 1 on a successful
+# read; 0 if no lines were read due because the command produced no output
+# or could not be run.  ERRNO is never set since pipes are run by a shell.
+function CmdReadLine(Command,Verbose,  ret) {
+    if (Debug) {
+	print "* Issuing command: " Command "\n"\
+	      "* Waiting for single line of output..." > "/dev/stderr"
+    }
+    ret = Command | getline
+    if (Verbose && ret != 1)
+	printf "Read from pipe '%s' failed\n",Command
+    # close doesn't return a value under awk, only gawk
+    close(Command)
+    if (Debug)
+	print "* Output: " $0 > "/dev/stderr"
+    return ret
+}
+### Begin utty,id routines
+
+# utty: find ttys a user is logged in on.
+# For each tty User is logged in on, an element is created in TTYs[].
+# The index is the name of the tty, with a leading "/dev/".
+# The value is set to 1 if the user is writable on that tty, 0 if not.
+# The number of ttys the user is logged in on is returned.
+function utty(User,TTYs,  Cmd,Count) {
+    Cmd = "exec who -T"
+    Count = 0
+    while ((Cmd | getline) == 1)
+	if ($1 == User) {
+	    if ($2 == "+")
+		TTYs[$3] = 1
+	    else
+		TTYs[$3] = 0
+	    Count++
+	}
+    close(Cmd)
+    return Count
+}
+
+# id returns the user name of the user who owns the current process.
+# In the array IDs, elements are set as follows:
+# uid: numeric user id
+# gid: numeric group id
+# group: group name, if any
+# user: user name, if any
+function id(IDs,  Cmd,line,elem) {
+    Cmd = "exec id"
+    Cmd | getline line
+    split(line,elem,"[()=]")
+    close(Cmd)
+    IDs["user"] = elem[3]
+    IDs["gid"] = elem[5]
+    IDs["group"] = elem[6]
+    return IDs["uid"] = elem[2]
+}
+
+### End utty,id routines
+### Start of ProcArgs library
+# @(#) ProcArgs 1.11 96/12/08
+# 92/02/29 john h. dubois iii (john@armory.com)
+# 93/07/18 Added "#" arg type
+# 93/09/26 Do not count -h against MinArgs
+# 94/01/01 Stop scanning at first non-option arg.  Added ">" option type.
+#          Removed meaning of "+" or "-" by itself.
+# 94/03/08 Added & option and *()< option types.
+# 94/04/02 Added NoRCopt to Opts()
+# 94/06/11 Mark numeric variables as such.
+# 94/07/08 Opts(): Do not require any args if h option is given.
+# 95/01/22 Record options given more than once.  Record option num in argv.
+# 95/06/08 Added ExclusiveOptions().
+# 96/01/20 Let rcfiles be a colon-separated list of filenames.
+#          Expand $VARNAME at the start of its filenames.
+#          Let varname=0 and -option- turn off an option.
+# 96/05/05 Changed meaning of 7th arg to Opts; now can specify exactly how many
+#          of the vars should be searched for in the environment.
+#          Check for duplicate rcfiles.
+# 96/05/13 Return more specific error values.  Note: ProcArgs() and InitOpts()
+#          now return various negatives values on error, not just -1, and
+#          Opts() may set Err to various positive values, not just 1.
+#          Added AllowUnrecOpt.
+# 96/05/23 Check type given for & option
+# 96/06/15 Re-port to awk
+# 96/10/01 Moved file-reading code into ReadConfFile(), so that it can be
+#          used by other functions.
+# 96/10/15 Added OptChars
+# 96/11/01 Added exOpts arg to Opts()
+# 96/11/16 Added ; type
+# 96/12/08 Added Opt2Set() & Opt2Sets()
+# 96/12/27 Added CmdLineOpt()
+
+# optlist is a string which contains all of the possible command line options.
+# A character followed by certain characters indicates that the option takes
+# an argument, with type as follows:
+# :	String argument
+# ;	Non-empty string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# The only difference the type of argument makes is in the runtime argument
+# error checking that is done.
+
+# The & option is a special case used to get numeric options without the
+# user having to give an option character.  It is shorthand for [-+.0-9].
+# If & is included in optlist and an option string that begins with one of
+# these characters is seen, the value given to "&" will include the first
+# char of the option.  & must be followed by a type character other than ":"
+# or ";".
+# Note that if e.g. &> is given, an option of -.5 will produce an error.
+
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-"
+# or "+" is taken to be a non-option string; like other non-option strings,
+# it stops the scanning of argv and is left in argv[].
+# An argument of "--" or "++" also stops the scanning of argv[] but is removed.
+# If an option takes an argument, the argument may either immediately
+# follow it or be given separately.
+# "-" and "+" options are treated the same.  "+" is allowed because most awks
+# take any -options to be arguments to themselves.  gawk 2.15 was enhanced to
+# stop scanning when it encounters an unrecognized option, though until 2.15.5
+# this feature had a flaw that caused problems in some cases.  See the OptChars
+# parameter to explicitly set the option-specifier characters.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in Options and its value is set to the
+# number of times it occurs in argv[].
+
+# If an option that does take an argument is given, an index with its name is
+# created in Options and its value is set to the value of the argument given
+# for it, and Options[option-name,"count"] is (initially) set to the 1.
+# If an option that takes an argument is given more than once,
+# Options[option-name,"count"] is incremented, and the value is assigned to
+# the index (option-name,instance) where instance is 2 for the second occurance
+# of the option, etc.
+# In other words, the first time an option with a value is encountered, the
+# value is assigned to an index consisting only of its name; for any further
+# occurances of the option, the value index has an extra (count) dimension.
+
+# The sequence number for each option found in argv[] is stored in
+# Options[option-name,"num",instance], where instance is 1 for the first
+# occurance of the option, etc.  The sequence number starts at 1 and is
+# incremented for each option, both those that have a value and those that
+# do not.  Options set from a config file have a value of 0 assigned to this.
+
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps left in the indices of argv[].
+# If compress is nonzero, argv[] is packed by moving its elements so that
+# they have contiguous integer indices starting with 0.
+# Option processing will stop with the first unrecognized option, just as
+# though -- was given except that unlike -- the unrecognized option will not be
+# removed from ARGV[].  Normally, an error value is returned in this case.
+# If AllowUnrecOpt is true, it is not an error for an unrecognized option to
+# be found, so the number of remaining arguments is returned instead.
+# If OptChars is not a null string, it is the set of characters that indicate
+# that an argument is an option string if the string begins with one of the
+# characters.  A string consisting solely of two of the same option-indicator
+# characters stops the scanning of argv[].  The default is "-+".
+# argv[0] is not examined.
+# The number of arguments left in argc is returned.
+# If an error occurs, the global string OptErr is set to an error message
+# and a negative value is returned.
+# Current error values:
+# -1: option that required an argument did not get it.
+# -2: argument of incorrect type supplied for an option.
+# -3: unrecognized (invalid) option.
+function ProcArgs(argc,argv,OptList,Options,compress,AllowUnrecOpt,OptChars,
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos,NumOpt,Value,HadValue,specGiven,
+NeedNextOpt,GotValue,OptionNum,Escape,dest,src,count,c,OptTerm,OptCharSet)
+{
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in OptList of the option being processed.
+# NumOpt is true if a numeric option may be given.
+    ArgsLeft = argc
+    NumOpt = index(OptList,"&")
+    OptionNum = 0
+    if (OptChars == "")
+	OptChars = "-+"
+    while (OptChars != "") {
+	c = substr(OptChars,1,1)
+	OptChars = substr(OptChars,2)
+	OptCharSet[c]
+	OptTerm[c c]
+    }
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	Arg = argv[ArgNum]
+	if (length(Arg) < 2 || !((specGiven = substr(Arg,1,1)) in OptCharSet))
+	    break	# Not an option; quit
+	if (Arg in OptTerm) {
+	    delete argv[ArgNum]
+	    ArgsLeft--
+	    break
+	}
+	ArgLen = length(Arg)
+	for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+	    Option = substr(Arg,ArgInd,1)
+	    if (NumOpt && Option ~ /[-+.0-9]/) {
+		# If this option is a numeric option, make its flag be & and
+		# its option string flag position be the position of & in
+		# the option string.
+		Option = "&"
+		Pos = NumOpt
+		# Prefix Arg with a char so that ArgInd will point to the
+		# first char of the numeric option.
+		Arg = "&" Arg
+		ArgLen++
+	    }
+	    # Find position of flag in option string, to get its type (if any).
+	    # Disallow & as literal flag.
+	    else if (!(Pos = index(OptList,Option)) || Option == "&") {
+		if (AllowUnrecOpt) {
+		    Escape = 1
+		    break
+		}
+		else {
+		    OptErr = "Invalid option: " specGiven Option
+		    return -3
+		}
+	    }
+
+	    # Find what the value of the option will be if it takes one.
+	    # NeedNextOpt is true if the option specifier is the last char of
+	    # this arg, which means that if the option requires a value it is
+	    # the next arg.
+	    if (NeedNextOpt = (ArgInd >= ArgLen)) { # Value is the next arg
+		if (GotValue = ArgNum + 1 < argc)
+		    Value = argv[ArgNum+1]
+	    }
+	    else {	# Value is included with option
+		Value = substr(Arg,ArgInd + 1)
+		GotValue = 1
+	    }
+
+	    if (HadValue = AssignVal(Option,Value,Options,
+	    substr(OptList,Pos + 1,1),GotValue,"",++OptionNum,!NeedNextOpt,
+	    specGiven)) {
+		if (HadValue < 0)	# error occured
+		    return HadValue
+		if (HadValue == 2)
+		    ArgInd++	# Account for the single-char value we used.
+		else {
+		    if (NeedNextOpt) {	# option took next arg as value
+			delete argv[++ArgNum]
+			ArgsLeft--
+		    }
+		    break	# This option has been used up
+		}
+	    }
+	}
+	if (Escape)
+	    break
+	# Do not delete arg until after processing of it, so that if it is not
+	# recognized it can be left in ARGV[].
+	delete argv[ArgNum]
+	ArgsLeft--
+    }
+    if (compress != 0) {
+	dest = 1
+	src = argc - ArgsLeft + 1
+	for (count = ArgsLeft - 1; count; count--) {
+	    ARGV[dest] = ARGV[src]
+	    dest++
+	    src++
+	}
+    }
+    return ArgsLeft
+}
+
+# Assignment to values in Options[] occurs only in this function.
+# Option: Option specifier character.
+# Value: Value to be assigned to option, if it takes a value.
+# Options[]: Options array to return values in.
+# ArgType: Argument type specifier character.
+# GotValue: Whether any value is available to be assigned to this option.
+# Name: Name of option being processed.
+# OptionNum: Number of this option (starting with 1) if set in argv[],
+#     or 0 if it was given in a config file or in the environment.
+# SingleOpt: true if the value (if any) that is available for this option was
+#     given as part of the same command line arg as the option.  Used only for
+#     options from the command line.
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Global variables: OptErr
+# Return value: negative value on error, 0 if option did not require an
+# argument, 1 if it did & used the whole arg, 2 if it required just one char of
+# the arg.
+# Current error values:
+# -1: Option that required an argument did not get it.
+# -2: Value of incorrect type supplied for option.
+# -3: Bad type given for option &
+function AssignVal(Option,Value,Options,ArgType,GotValue,Name,OptionNum,
+SingleOpt,specGiven,  UsedValue,Err,NumTypes) {
+    # If option takes a value...    [
+    NumTypes = "*()#<>]"
+    if (Option == "&" && ArgType !~ "[" NumTypes) {	# ]
+	OptErr = "Bad type given for & option"
+	return -3
+    }
+
+    if (UsedValue = (ArgType ~ "[:;" NumTypes)) {	# ]
+	if (!GotValue) {
+	    if (Name != "")
+		OptErr = "Variable requires a value -- " Name
+	    else
+		OptErr = "option requires an argument -- " Option
+	    return -1
+	}
+	if ((Err = CheckType(ArgType,Value,Option,Name,specGiven)) != "") {
+	    OptErr = Err
+	    return -2
+	}
+	# Mark this as a numeric variable; will be propogated to Options[] val.
+	if (ArgType != ":" && ArgType != ";")
+	    Value += 0
+	if ((Instance = ++Options[Option,"count"]) > 1)
+	    Options[Option,Instance] = Value
+	else
+	    Options[Option] = Value
+    }
+    # If this is an environ or rcfile assignment & it was given a value...
+    else if (!OptionNum && Value != "") {
+	UsedValue = 1
+	# If the value is "0" or "-" and this is the first instance of it,
+	# do not set Options[Option]; this allows an assignment in an rcfile to
+	# turn off an option (for the simple "Option in Options" test) in such
+	# a way that it cannot be turned on in a later file.
+	if (!(Option in Options) && (Value == "0" || Value == "-"))
+	    Instance = 1
+	else
+	    Instance = ++Options[Option]
+	# Save the value even though this is a flag
+	Options[Option,Instance] = Value
+    }
+    # If this is a command line flag and has a - following it in the same arg,
+    # it is being turned off.
+    else if (OptionNum && SingleOpt && substr(Value,1,1) == "-") {
+	UsedValue = 2
+	if (Option in Options)
+	    Instance = ++Options[Option]
+	else
+	    Instance = 1
+	Options[Option,Instance]
+    }
+    # If this is a flag assignment without a value, increment the count for the
+    # flag unless it was turned off.  The indicator for a flag being turned off
+    # is that the flag index has not been set in Options[] but it has an
+    # instance count.
+    else if (Option in Options || !((Option,1) in Options))
+	# Increment number of times this flag seen; will inc null value to 1
+	Instance = ++Options[Option]
+    Options[Option,"num",Instance] = OptionNum
+    return UsedValue
+}
+
+# Option is the option letter
+# Value is the value being assigned
+# Name is the var name of the option, if any
+# ArgType is one of:
+# :	String argument
+# ;	Non-null string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Returns null on success, err string on error
+function CheckType(ArgType,Value,Option,Name,specGiven,  Err,ErrStr) {
+    if (ArgType == ":")
+	return ""
+    if (ArgType == ";") {
+	if (Value == "")
+	    Err = "must be a non-empty string"
+    }
+    # A number begins with optional + or -, and is followed by a string of
+    # digits or a decimal with digits before it, after it, or both
+    else if (Value !~ /^[-+]?([0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)$/)
+	Err = "must be a number"
+    else if (ArgType ~ "[#<>]" && Value ~ /\./)
+	Err = "may not include a fraction"
+    else if (ArgType ~ "[()<>]" && Value < 0)
+	Err = "may not be negative"
+    # (
+    else if (ArgType ~ "[)>]" && Value == 0)
+	Err = "must be a positive number"
+    if (Err != "") {
+	ErrStr = "Bad value \"" Value "\".  Value assigned to "
+	if (Name != "")
+	    return ErrStr "variable " substr(Name,1,1) " " Err
+	else {
+	    if (Option == "&")
+		Option = Value
+	    return ErrStr "option " specGiven substr(Option,1,1) " " Err
+	}
+    }
+    else
+	return ""
+}
+
+# Note: only the above functions are needed by ProcArgs.
+# The rest of these functions call ProcArgs() and also do other
+# option-processing stuff.
+
+# Opts: Process command line arguments.
+# Opts processes command line arguments using ProcArgs()
+# and checks for errors.  If an error occurs, a message is printed
+# and the program is exited.
+#
+# Input variables:
+# Name is the name of the program, for error messages.
+# Usage is a usage message, for error messages.
+# OptList the option description string, as used by ProcArgs().
+# MinArgs is the minimum number of non-option arguments that this
+# program should have, non including ARGV[0] and +h.
+# If the program does not require any non-option arguments,
+# MinArgs should be omitted or given as 0.
+# rcFiles, if given, is a colon-seprated list of filenames to read for
+# variable initialization.  If a filename begins with ~/, the ~ is replaced
+# by the value of the environment variable HOME.  If a filename begins with
+# $, the part from the character after the $ up until (but not including)
+# the first character not in [a-zA-Z0-9_] will be searched for in the
+# environment; if found its value will be substituted, if not the filename will
+# be discarded.
+# rcfiles are read in the order given.
+# Values given in them will not override values given on the command line,
+# and values given in later files will not override those set in earlier
+# files, because AssignVal() will store each with a different instance index.
+# The first instance of each variable, either on the command line or in an
+# rcfile, will be stored with no instance index, and this is the value
+# normally used by programs that call this function.
+# VarNames is a comma-separated list of variable names to map to options,
+# in the same order as the options are given in OptList.
+# If EnvSearch is given and nonzero, the first EnvSearch variables will also be
+# searched for in the environment.  If set to -1, all values will be searched
+# for in the environment.  Values given in the environment will override
+# those given in the rcfiles but not those given on the command line.
+# NoRCopt, if given, is an additional letter option that if given on the
+# command line prevents the rcfiles from being read.
+# See ProcArgs() for a description of AllowUnRecOpt and optChars, and
+# ExclusiveOptions() for a description of exOpts.
+# Special options:
+# If x is made an option and is given, some debugging info is output.
+# h is assumed to be the help option.
+
+# Global variables:
+# The command line arguments are taken from ARGV[].
+# The arguments that are option specifiers and values are removed from
+# ARGV[], leaving only ARGV[0] and the non-option arguments.
+# The number of elements in ARGV[] should be in ARGC.
+# After processing, ARGC is set to the number of elements left in ARGV[].
+# The option values are put in Options[].
+# On error, Err is set to a positive integer value so it can be checked for in
+# an END block.
+# Return value: The number of elements left in ARGV is returned.
+# Must keep OptErr global since it may be set by InitOpts().
+function Opts(Name,Usage,OptList,MinArgs,rcFiles,VarNames,EnvSearch,NoRCopt,
+AllowUnrecOpt,optChars,exOpts,  ArgsLeft,e) {
+    if (MinArgs == "")
+	MinArgs = 0
+    ArgsLeft = ProcArgs(ARGC,ARGV,OptList NoRCopt,Options,1,AllowUnrecOpt,
+    optChars)
+    if (ArgsLeft < (MinArgs+1) && !("h" in Options)) {
+	if (ArgsLeft >= 0) {
+	    OptErr = "Not enough arguments"
+	    Err = 4
+	}
+	else
+	    Err = -ArgsLeft
+	printf "%s: %s.\nUse -h for help.\n%s\n",
+	Name,OptErr,Usage > "/dev/stderr"
+	exit 1
+    }
+    if (rcFiles != "" && (NoRCopt == "" || !(NoRCopt in Options)) &&
+    (e = InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch)) < 0)
+    {
+	print Name ": " OptErr ".\nUse -h for help." > "/dev/stderr"
+	Err = -e
+	exit 1
+    }
+    if ((exOpts != "") && ((OptErr = ExclusiveOptions(exOpts,Options)) != ""))
+    {
+	printf "%s: Error: %s\n",Name,OptErr > "/dev/stderr"
+	Err = 1
+	exit 1
+    }
+    return ArgsLeft
+}
+
+# ReadConfFile(): Read a file containing var/value assignments, in the form
+# <variable-name><assignment-char><value>.
+# Whitespace (spaces and tabs) around a variable (leading whitespace on the
+# line and whitespace between the variable name and the assignment character) 
+# is stripped.  Lines that do not contain an assignment operator or which
+# contain a null variable name are ignored, other than possibly being noted in
+# the return value.  If more than one assignment is made to a variable, the
+# first assignment is used.
+# Input variables:
+# File is the file to read.
+# Comment is the line-comment character.  If it is found as the first non-
+#     whitespace character on a line, the line is ignored.
+# Assign is the assignment string.  The first instance of Assign on a line
+#     separates the variable name from its value.
+# If StripWhite is true, whitespace around the value (whitespace between the
+#     assignment char and trailing whitespace on the line) is stripped.
+# VarPat is a pattern that variable names must match.  
+#     Example: "^[a-zA-Z][a-zA-Z0-9]+$"
+# If FlagsOK is true, variables are allowed to be "set" by being put alone on
+#     a line; no assignment operator is needed.  These variables are set in
+#     the output array with a null value.  Lines containing nothing but
+#     whitespace are still ignored.
+# Output variables:
+# Values[] contains the assignments, with the indexes being the variable names
+#     and the values being the assigned values.
+# Lines[] contains the line number that each variable occured on.  A flag set
+#     is record by giving it an index in Lines[] but not in Values[].
+# Return value:
+# If any errors occur, a string consisting of descriptions of the errors
+# separated by newlines is returned.  In no case will the string start with a
+# numeric value.  If no errors occur,  the number of lines read is returned.
+function ReadConfigFile(Values,Lines,File,Comment,Assign,StripWhite,VarPat,
+FlagsOK,
+Line,Status,Errs,AssignLen,LineNum,Var,Val) {
+    if (Comment != "")
+	Comment = "^" Comment
+    AssignLen = length(Assign)
+    if (VarPat == "")
+	VarPat = "."	# null varname not allowed
+    while ((Status = (getline Line < File)) == 1) {
+	LineNum++
+	sub("^[ \t]+","",Line)
+	if (Line == "")		# blank line
+	    continue
+	if (Comment != "" && Line ~ Comment)
+	    continue
+	if (Pos = index(Line,Assign)) {
+	    Var = substr(Line,1,Pos-1)
+	    Val = substr(Line,Pos+AssignLen)
+	    if (StripWhite) {
+		sub("^[ \t]+","",Val)
+		sub("[ \t]+$","",Val)
+	    }
+	}
+	else {
+	    Var = Line	# If no value, var is entire line
+	    Val = ""
+	}
+	if (!FlagsOK && Val == "") {
+	    Errs = Errs \
+	    sprintf("\nBad assignment on line %d of file %s: %s",
+	    LineNum,File,Line)
+	    continue
+	}
+	sub("[ \t]+$","",Var)
+	if (Var !~ VarPat) {
+	    Errs = Errs sprintf("\nBad variable name on line %d of file %s: %s",
+	    LineNum,File,Var)
+	    continue
+	}
+	if (!(Var in Lines)) {
+	    Lines[Var] = LineNum
+	    if (Pos)
+		Values[Var] = Val
+	}
+    }
+    if (Status)
+	Errs = Errs "\nCould not read file " File
+    close(File)
+    return Errs == "" ? LineNum : substr(Errs,2)	# Skip first newline
+}
+
+# Variables:
+# Data is stored in Options[].
+# rcFiles, OptList, VarNames, and EnvSearch are as as described for Opts().
+# Global vars:
+# Sets OptErr.  Uses ENVIRON[].
+# If anything is read from any of the rcfiles, sets READ_RCFILE to 1.
+function InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch,
+Line,Var,Pos,Vars,Map,CharOpt,NumVars,TypesInd,Types,Type,Ret,i,rcFile,
+fNames,numrcFiles,filesRead,Err,Values,retStr) {
+    split("",filesRead,"")	# make awk know this is an array
+    NumVars = split(VarNames,Vars,",")
+    TypesInd = Ret = 0
+    if (EnvSearch == -1)
+	EnvSearch = NumVars
+    for (i = 1; i <= NumVars; i++) {
+	Var = Vars[i]
+	CharOpt = substr(OptList,++TypesInd,1)
+	if (CharOpt ~ "^[:;*()#<>&]$")
+	    CharOpt = substr(OptList,++TypesInd,1)
+	Map[Var] = CharOpt
+	Types[Var] = Type = substr(OptList,TypesInd+1,1)
+	# Do not overwrite entries from environment
+	if (i <= EnvSearch && Var in ENVIRON &&
+	(Err = AssignVal(CharOpt,ENVIRON[Var],Options,Type,1,Var,0)) < 0)
+	    return Err
+    }
+
+    numrcFiles = split(rcFiles,fNames,":")
+    for (i = 1; i <= numrcFiles; i++) {
+	rcFile = fNames[i]
+	if (rcFile ~ "^~/")
+	    rcFile = ENVIRON["HOME"] substr(rcFile,2)
+	else if (rcFile ~ /^\$/) {
+	    rcFile = substr(rcFile,2)
+	    match(rcFile,"^[a-zA-Z0-9_]*")
+	    envvar = substr(rcFile,1,RLENGTH)
+	    if (envvar in ENVIRON)
+		rcFile = ENVIRON[envvar] substr(rcFile,RLENGTH+1)
+	    else
+		continue
+	}
+	if (rcFile in filesRead)
+	    continue
+	# rcfiles are liable to be given more than once, e.g. UHOME and HOME
+	# may be the same
+	filesRead[rcFile]
+	if ("x" in Options)
+	    printf "Reading configuration file %s\n",rcFile > "/dev/stderr"
+	retStr = ReadConfigFile(Values,Lines,rcFile,"#","=",0,"",1)
+	if (retStr > 0)
+	    READ_RCFILE = 1
+	else if (ret != "") {
+	    OptErr = retStr
+	    Ret = -1
+	}
+	for (Var in Lines)
+	    if (Var in Map) {
+		if ((Err = AssignVal(Map[Var],
+		Var in Values ? Values[Var] : "",Options,Types[Var],
+		Var in Values,Var,0)) < 0)
+		    return Err
+	    }
+	    else {
+		OptErr = sprintf(\
+		"Unknown var \"%s\" assigned to on line %d\nof file %s",Var,
+		Lines[Var],rcFile)
+		Ret = -1
+	    }
+    }
+
+    if ("x" in Options)
+	for (Var in Map)
+	    if (Map[Var] in Options)
+		printf "(%s) %s=%s\n",Map[Var],Var,Options[Map[Var]] > \
+		"/dev/stderr"
+	    else
+		printf "(%s) %s not set\n",Map[Var],Var > "/dev/stderr"
+    return Ret
+}
+
+# OptSets is a semicolon-separated list of sets of option sets.
+# Within a list of option sets, the option sets are separated by commas.  For
+# each set of sets, if any option in one of the sets is in Options[] AND any
+# option in one of the other sets is in Options[], an error string is returned.
+# If no conflicts are found, nothing is returned.
+# Example: if OptSets = "ab,def,g;i,j", an error will be returned due to
+# the exclusions presented by the first set of sets (ab,def,g) if:
+# (a or b is in Options[]) AND (d, e, or f is in Options[]) OR
+# (a or b is in Options[]) AND (g is in Options) OR
+# (d, e, or f is in Options[]) AND (g is in Options)
+# An error will be returned due to the exclusions presented by the second set
+# of sets (i,j) if: (i is in Options[]) AND (j is in Options[]).
+# todo: make options given on command line unset options given in config file
+# todo: that they conflict with.
+function ExclusiveOptions(OptSets,Options,
+Sets,SetSet,NumSets,Pos1,Pos2,Len,s1,s2,c1,c2,ErrStr,L1,L2,SetSets,NumSetSets,
+SetNum,OSetNum) {
+    NumSetSets = split(OptSets,SetSets,";")
+    # For each set of sets...
+    for (SetSet = 1; SetSet <= NumSetSets; SetSet++) {
+	# NumSets is the number of sets in this set of sets.
+	NumSets = split(SetSets[SetSet],Sets,",")
+	# For each set in a set of sets except the last...
+	for (SetNum = 1; SetNum < NumSets; SetNum++) {
+	    s1 = Sets[SetNum]
+	    L1 = length(s1)
+	    for (Pos1 = 1; Pos1 <= L1; Pos1++)
+		# If any of the options in this set was given, check whether
+		# any of the options in the other sets was given.  Only check
+		# later sets since earlier sets will have already been checked
+		# against this set.
+		if ((c1 = substr(s1,Pos1,1)) in Options)
+		    for (OSetNum = SetNum+1; OSetNum <= NumSets; OSetNum++) {
+			s2 = Sets[OSetNum]
+			L2 = length(s2)
+			for (Pos2 = 1; Pos2 <= L2; Pos2++)
+			    if ((c2 = substr(s2,Pos2,1)) in Options)
+				ErrStr = ErrStr "\n"\
+				sprintf("Cannot give both %s and %s options.",
+				c1,c2)
+		    }
+	}
+    }
+    if (ErrStr != "")
+	return substr(ErrStr,2)
+    return ""
+}
+
+# The value of each instance of option Opt that occurs in Options[] is made an
+# index of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Set(Options,Opt,Set,  count) {
+    if (!(Opt in Options))
+	return 0
+    Set[Options[Opt]]
+    count = Options[Opt,"count"]
+    for (; count > 1; count--)
+	Set[Options[Opt,count]]
+    return count
+}
+
+# The value of each instance of option Opt that occurs in Options[] that
+# begins with "!" is made an index of nSet[] (with the ! stripped from it).
+# Other values are made indexes of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Sets(Options,Opt,Set,nSet,  count,aSet,ret) {
+    ret = Opt2Set(Options,Opt,aSet)
+    for (value in aSet)
+	if (substr(value,1,1) == "!")
+	    nSet[substr(value,2)]
+	else
+	    Set[value]
+    return ret
+}
+
+# Returns true if option Opt was given on the command line.
+function CmdLineOpt(Options,Opt,  i) {
+    for (i = 1; (Opt,"num",i) in Options; i++)
+	if (Options[Opt,"num",i] != 0)
+	    return 1
+    return 0
+}
+### End of ProcArgs library
+# @(#) i2met.awk 1.0 96/02/13
+# jhdiii 96/01/14
+# Convert positive integer value Value to a string at most MaxLen characters
+# long.  This is done by converting the integer to a string of the form n*m,
+# where m is a metric suffix from: K M G
+# If Pow2 is true, then each factor of 1K is taken to be 1024; if it is false,
+# it is taken to be 1000.
+# MaxLen must be between 4 and 9.
+# Value may be any integer from 0..maxint
+# If Units is given, it is the units that Value is passed in, where
+# Units=1 means Value is in K; Units=2 means Value is in M, etc.
+function i2met(Value,MaxLen,Pow2,Units,  Len,Div) {
+    if (Value == 0)
+	return "0"
+    if (!(1 in Suf))
+	split("K,M,G,T,P,E,Z,Y",Suf,",")
+    # In both awk & gawk, integer values that can be represented as
+    # machine integers will be printed as integers.
+    # If value can be printed without modification, return it as it,
+    # but with a multiplier suffix if reqd.
+    if ((Len = length(Value Suf[Units])) <= MaxLen)
+	return Value Suf[Units]
+    MaxLen -= 1		# Leave space for suffix
+    Div = Pow2 ? 1024 : 1000
+    for (Units += 1; Units in Suf; Units++)
+	if (length(int(Value /= Div)) <= MaxLen)
+	    break
+    Value = substr(sprintf("%." MaxLen "f",Value),1,MaxLen)
+    if (substr(Value,MaxLen,1) == ".")
+	Value = substr(Value,1,MaxLen-1)
+    return Value Suf[Units]
+}
+
+# @(#) i2emet.awk 1.0 96/02/13
+# jhdiii 96/01/27
+# Convert numeric value Value to one with the decimal point set according to
+# engineering convention.  In this convention, there is always between 1 and
+# 3 digits before the decimal point.  A metric suffix is attached to retain
+# the original value.
+# If Pow2 is true, then each factor of 1K is taken to be 1024; if it is false,
+# it is taken to be 1000.
+# If Pow2 is true, MaxLen must be >= 5; if Pow2 is false, MaxLen must be >= 4.
+# If Units is given, it is the units that Value is passed in, where
+# Units=0 means Value is in base units; Units=-1 means Value is in milliunits,
+# Units=1 means Value is in kilounits, etc.
+# If NoZeroes is true, trailing zeroes in the fractional part are removed.
+function i2emet(Value,MaxLen,Pow2,Units,NoZeroes,  Len,Factor,i,suf2) {
+    if (Value == 0)
+	return "0"
+    if (!(1 in _Suf)) {
+	_MaxUnit = split("K,M,G,T,P,E,Z,Y",_Suf,",")
+	split("m,u,n,p,f,a,z,y",suf2,",")
+	for (i = 1; i in suf2; i++)
+	    _Suf[-i] = suf2[i]
+    }
+    # Make sure awk treats all of these as numbers
+    Factor = (Pow2 ? 1024 : 1000)+0
+    Units += 0
+    Value += 0
+    if (Value < 1)
+	for (; Value < 1 && Units > -_MaxUnit; Value *= Factor)
+	    Units--
+    else
+	for (; Value >= Factor && Units < _MaxUnit; Value /= Factor)
+	    Units++
+    if (Units)
+	MaxLen -= 1		# Leave space for suffix
+    # Round reasonably carefully
+    fDig = MaxLen-length(int(Value))-1
+    if (fDig > 0)
+	Value = sprintf("%." fDig "f",Value)+0	# Turn it back into a number!
+    else
+	Value = int(Value+0.5)
+    # Rounding may have caused rollover of leading digit, making the result
+    # exceed the allowed range (e.g. 999.6 -> 1000)
+    if (Value >= Factor) {
+	Value /= Factor
+	Units++
+    }
+    if (substr(Value,MaxLen,1) == ".")
+	Value = substr(Value,1,MaxLen-1)	# Get rid of trailing "."
+    else
+	Value = substr(Value,1,MaxLen)
+    if (NoZeroes && Value ~ /\..*0$/)
+	sub(/\.?0+$/,"",Value)
+    return Value _Suf[Units]
+}
+### Begin qsort routines
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k[] are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its elements.
+# The return value is the number of elements in the arrays (n).
+function qsortArbIndByValue(Arr,k,  ArrInd,ElNum) {
+    ElNum = 0
+    for (ArrInd in Arr)
+	k[++ElNum] = ArrInd
+    qsortSegment(Arr,k,1,ElNum)
+    return ElNum
+}
+
+# Sort a segment of an array.
+# Arr[] contains data with arbitrary indices.
+# k[] has indices 1..nelem, with the indices of arr[] as values.
+# This function sorts the elements of arr that are pointed to by
+# k[start..end], swapping the values of elements of k[] so that
+# when this function returns arr[k[start..end]] will be in order.
+function qsortSegment(Arr,k,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((end - start) == 1) {
+	if (Arr[tmps = k[start]] > Arr[tmpe = k[end]]) {
+	    k[start] = tmpe
+	    k[end] = tmps
+	}
+	return
+    }
+    # Make sure comparisons act on these as numbers
+    left = start+0
+    right = end+0
+    sepval = Arr[k[int((left + right) / 2)]]
+    # Make every element <= sepval be to the left of every element > sepval
+    while (left < right) {
+	while (Arr[k[left]] < sepval)
+	    left++
+	while (Arr[k[right]] > sepval)
+	    right--
+	if (left < right) {
+	    tmp = k[left]
+	    k[left++] = k[right]
+	    k[right--] = tmp
+	}
+    }
+    if (left == right)
+	if (Arr[k[left]] < sepval)
+	    left++
+	else
+	    right--
+    if (start < right)
+	qsortSegment(Arr,k,start,right)
+    if (left < end)
+	qsortSegment(Arr,k,left,end)
+}
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its indices.
+# The return value is the number of elements in the arrays (n).
+# If the indexes are numeric, Numeric should be true, so that they can be
+# compared as such rather than as strings.  Numeric indexes do not have to be
+# contiguous.
+function qsortByArbIndex(Arr,k,Numeric,  ArrInd,ElNum) {
+    ElNum = 0
+    if (Numeric)
+	# Indexes do not preserve numeric type, so must be forced
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd+0
+    else
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd
+    qsortNumIndByValue(k,1,ElNum)
+    return ElNum
+}
+
+# Arr is an array of elements with contiguous numeric indexes to be sorted
+# by value.
+# start and end are the starting and ending indexes of the range to be sorted.
+function qsortNumIndByValue(Arr,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((start - end) == 1) {
+	if ((tmps = Arr[start]) > (tmpe = Arr[end])) {
+	    Arr[start] = tmpe
+	    Arr[end] = tmps
+	}
+	return
+    }
+    left = start+0
+    right = end+0
+    sepval = Arr[int((left + right) / 2)]
+    while (left < right) {
+	while (Arr[left] < sepval)
+	    left++
+	while (Arr[right] > sepval)
+	    right--
+	if (left <= right) {
+	    tmp = Arr[left]
+	    Arr[left++] = Arr[right]
+	    Arr[right--] = tmp
+	}
+    }
+    if (start < right)
+	qsortNumIndByValue(Arr,start,right)
+    if (left < end)
+	qsortNumIndByValue(Arr,left,end)
+}
+
+### End qsort routines
+### Begin UnControl routines
+
+# @(#) uncontrol.awk 1.1 96/05/29
+# 92/11/09 john h. dubois iii (john@armory.com)
+# 96/05/29 Added octal-only conversion.
+
+# Uncontrol(S): Convert control characters in S to symbolic form.
+# Characters in S with values < 32 and with value 127 are converted to the form
+# ^X.  Characters with value >= 128 are converted to the octal form \0nnn,
+# where nnn is the octal value of the character.
+# The resulting string is returned.
+# If OctalOnly is true, octal numbers are used for all symbolic values instead
+# of ^X.
+# Global variables: UncTable[] and char2octal[].
+function Uncontrol(S,OctalOnly,  i,len,Output) {
+    len = length(S)
+    Output = ""
+    if (!("a" in UncTable))
+	MakeUncontrolTable()
+    for (i = 1; i <= len; i++)
+	Output = Output \
+	(OctalOnly ? char2octal[substr(S,i,1)] : UncTable[substr(S,i,1)])
+    return Output
+}
+
+# MakeUncontrolTable: Make tables for use by Uncontrol().
+# Global variables:
+# UncTable[] is made into a character -> symbolic character lookup table
+# with characters with values < 32 and with value 127 converted to the form
+# ^X, and characters with value >= 128 are converted to the octal form \0nnn.
+# char2octal[] is made into a similar table but with all non-printing chars
+# in the form \0nnn.
+function MakeUncontrolTable(  i,c) {
+    for (i = 0; i < 32; i++) {
+	UncTable[c = sprintf("%c",i)] = "^" sprintf("%c",i + 64)
+	char2octal[c] = "\\" sprintf("%03o",i)
+    }
+    for (i = 32; i < 127; i++) {
+	c = sprintf("%c",i)
+	char2octal[c]  = UncTable[c] = sprintf("%c",i)
+    }
+    UncTable[c = sprintf("%c",127)] = "^?"
+    char2octal[c] = "\\0177"
+    for (i = 128; i < 256; i++) {
+	UncTable[c = sprintf("%c",i)] = "\\" sprintf("%03o",i)
+	char2octal[c] = "\\" sprintf("%03o",i)
+    }
+}
+
+### End UnControl routines
+function UnWeb(Value,HexOnly,  UnWebbed) {
+    # Do + first, since % conversion may yield plusses
+    if (!HexOnly)
+	gsub(/\+/," ",Value)
+    while (match(Value,/%[a-fA-F0-9][a-fA-F0-9]/)) {
+	UnWebbed = UnWebbed substr(Value,1,RSTART-1) \
+	sprintf("%c",strtoi(substr(Value,RSTART+1,2),16))
+	Value = substr(Value,RSTART+3)
+    }
+    UnWebbed = UnWebbed Value
+    return UnWebbed
+}
+# @(#) strtol 1.0 96/03/01
+# 96/03/01 john h. dubois iii (john@armory.com)
+
+# Convert a value in base Base to an integer.
+function strtoi(S,Base,  ret,len,i,conv,digit) {
+    if (Base < 2 || Base > 36)
+	return ""
+    S = tolower(S)
+    len = length(S)
+    conv = substr("0123456789abcdefghijklmnopqrstuvwxyz",1,Base)
+    for (i = 1; i <= len; i++) {
+	if (!(digit = index(conv,substr(S,i,1))))
+	    return ""
+	ret = ret * Base + digit - 1
+    }
+    return ret
+}
+
+# If Base is 1-36, S is taken to be a number in base Base.
+# If Base is 16, an initial 0x or 0X is ignored.
+# If Base is 0, an initial 0x or 0X causes Base to be set to 16; otherwise
+# Base is set to 10.
+# If S is empty or contains any characters not appropriate to a number in
+# base Base, a null string is returned.  On success, an integer value is
+# returned.
+function strtol(S,Base) {
+    Base += 0	# yes, this is neccessary
+    if (Base < 0 || Base > 36)
+	return ""
+    if (Base == 0)
+	if (S ~ /^0[xX]/) {
+	    Base = 16
+	    S = substr(S,3)
+	}
+	else
+	    Base = 10
+    else if (Base == 16 && S ~ /^0[xX]/)
+	S = substr(S,3)
+    return strtoi(S,Base)
+}
+
+### Start of mail sending routines.
+# @(#) mail-send.gawk 2.0 97/02/22
+# 96/01/29 john h. dubois iii (john@armory.com)
+# 97/02/15 Rewritten.
+#
+# Returns name of cmd to pipe into, ready for body of message.
+# To[], Cc[], Fields[], and Order[] are as described for header822()
+# Bcc[] is an additional list of recipients who should not be mentioned in
+# headers.
+# If a non-null Subject is passed, as a convenience it is added to Fields[]
+# before it is passed to header822().
+# If a non-null From is passed, it is used as the return address.  It does
+# not affect the headers unless the MTA records it in them.
+function InitMail(To,Cc,Bcc,Fields,Order,Subject,From,UseSubmit,SubmitOpts,
+Debug,  Recips,i,j,Cmd) {
+    for (i = 1; i in To; i++)
+	Recips[++j] = To[i]
+    for (i = 1; i in Cc; i++)
+	Recips[++j] = Cc[i]
+    for (i = 1; i in Bcc; i++)
+	Recips[++j] = Bcc[i]
+    if (UseSubmit)
+	Cmd = InitSubmit(Recips,From,SubmitOpts,Debug)
+    else
+	Cmd = InitSendmail(Recips,From)
+    if (Cmd ~ "^!")
+	return Cmd
+    if (Subject != "")
+	Fields["Subject"] = Subject
+    printf "%s\n",header822(Fields,To,Cc,Order) | Cmd
+    return Cmd
+}
+
+# Sets up globals _ParamSOpts[] and _NoParamSOpts[] for use as sets of 
+# submit options to do and do not take values.
+function SubmitParam(Opt,Val,  i,c) {
+    if (!("r" in _NoParamSOpts)) {
+	for (i = 1; (c = substr("Wcdhjlmnqrstuvwz",i,1)) != ""; i++)
+	    _NoParamSOpts[c]
+	for (i = 1; (c = substr("LUVfghikx",i,1)) != ""; i++)
+	    _ParamSOpts[c]
+    }
+    if (Opt in _ParamSOpts)
+	return Opt Val "*"
+    else if (Opt in _NoParamSOpts)
+	return Opt
+    else
+	return ""
+}
+
+# Return value: Command to pipe into.  If an invalid submit option is passed,
+# a null string is returned.
+# Submit options are:
+# i*	Source channel
+# h*	Source host
+# t	Trust Sender/From line (root/mmdf only)
+# u	Don't trust Sender/From line (add Source-Info line to header)
+# f*	Don't trust Sender/From line; add given text
+# x*	Extract recipient list from named fields (comma-separated list)
+#       RecipList[] will not be used if this option is given.
+# g*	Extract recipient list from named fields and use explicit list
+# v	Report validity of each address given, rather than aborting on any bad
+# m	Deliver to mailbox (default; there used to be a tty option as well).
+#       m is always turned on for the sake of old versions.
+# l	Deliver local mail immediately; overrides mod=reg in MMDF config
+# n	Deliver netmail immediately; overrides mod=reg in MMDF config
+# w	Watch immediate delivery attempts
+# r	Return undelivered mail to submitter when it expires
+# s	Return undelivered mail to address given by 'Sender:' when it expires
+# q	Do not return undelivered mail (discard it when it expires).
+#       Remote systems may still return mail.  Use q with null From parameter
+# 	for no returns at all.
+# c	If mail is returned, include only a citation of the contents
+# z	Do not send warnings re undelivered (but not expired) mail
+# d	Don't use delay channel.  If 1st nameserver use fails, mail is returned
+# j	Used by the delay channel to indicate that submission is by it
+# k*	Specify nameserver timeout.  Parameter is in seconds.
+# W	Watch submission.  Output is sent to fd 2
+# L*	Specify logfile (root/mmdf only)
+# V*	Specify logging level (root/mmdf only). FAT TMP GEN BST FST PTR BTR FTR
+# U*	Specify invoker's UID (root only)
+function InitSubmit(RecipList,From,SubmitOpts,Debug,  Cmd,i,c,Opt) {
+    # If not special return handling requested and no return address given,
+    # send returns to submitter
+    if (From == "" && !("s" in SubmitOpts || "q" in SubmitOpts))
+	SubmitOpts["r"]
+    SubmitOpts["m"]
+    for (Opt in SubmitOpts)
+	if ((c = SubmitParam(Opt,SubmitOpts[Opt])) == "")
+	    return "!Error initializing submit: Bad option '" Opt "'."
+	else
+	    Cmd = Cmd c
+    if (Cmd != "")
+	Cmd = " -" Cmd
+    Cmd = "exec /usr/mmdf/bin/submit" Cmd
+    if (Debug) {
+	Cmd = "exec tee /dev/tty | " Cmd
+	print "mail submission command: " Cmd > "/dev/stderr"
+    }
+    if (!("r" in SubmitOpts || "s" in SubmitOpts))
+	print From | Cmd	# Explicit return address - maybe empty
+    if (!("x" in SubmitOpts)) {	# If explicit addresses may be given
+	for (i = 1; i in RecipList; i++)
+	    print RecipList[i] | Cmd
+	print "!" | Cmd	# terminate recipient list
+    }
+    return Cmd
+}
+
+function InitSendmail(RecipList,From,  ToList,i) {
+    if (From != "")
+	From = " -f '" From "'"
+    for (i = 1; i in RecipList; i++)
+	ToList = ToList " " RecipList[i]
+    return "exec /usr/lib/sendmail" From ToList
+}
+
+# @(#) GetMailHostName 97/02/12
+# 91/03/13 jhdiii
+# 97/02/12 Use hostname if unable to get name from mmdftailor.
+# Returns the name of the local host that should be used for mail purposes.
+# If mmdftailor is readable and both MLNAME and MLDOMAIN can be found, uses
+# MLNAME.MLDOMAIN.  If not, uses 'hostname'.
+# The name is stored in the global _MailHostName for reuse by this function.
+function GetMailHostName(  mlname,mldomain,proc,tailor,oFS,hostname) {
+    if (_MailHostName != "")
+	return _MailHostName
+    tailor = "/usr/mmdf/mmdftailor"
+    oFS = FS
+    FS = " "	# normal awk field splitting
+    while ((getline < tailor) == 1) {
+        if ($1 == "MLNAME")
+            mlname = $2
+        else if ($1 == "MLDOMAIN")
+            mldomain = $2
+	else
+	    continue
+	if (mlname != "" && mldomain != "") {
+	    hostname = mlname "." mldomain
+	    gsub("\"","",hostname)	# in case values are quoted
+	    break
+	}
+    }
+    close(tailor)
+    if (hostname == "") {
+	proc = "/usr/bin/hostname"
+	proc | getline hostname
+	close(proc)
+    }
+    FS = oFS
+    _MailHostName = hostname
+    return hostname
+}
+
+# Returns an RFC822 recipient field, wrapped as neccessary, ending with a
+# newline.
+function WrapField822(FieldName,Values,
+Field,Line,len,w,i,val,indentLen,indentStr)
+{
+    Line = FieldName ":"
+    len = length(Line)
+    indentLen = len+1
+    for (i = 1; i <= indentLen; i++)
+	indentStr = indentStr " "
+    for (i = 1; i in Values; i++) {
+	val = Values[i]
+	if ((i+1) in Values)
+	    val = val ","
+	len += w = length(val)+1
+	if (len > 79) {
+	    Field = Field Line "\n"
+	    Line = indentStr val
+	    len = w + indentLen - 1
+	}
+	else
+	    Line = Line " " val
+    }
+    return Field Line "\n"
+}
+
+# Create an RFC822-compliant mail header.  A blank line is *not* appended;
+# the returned value ends with a single trailing newline.
+# Fields[] contains field values, indexed by name.  The name is given without
+# a trailing :.  To[] and Cc[] are the recipient lists.
+# The first line of the header is the Date: field.  If there is no Date index
+# in Fields[], the current date & time in an RFC822-compliant format is used.
+# The second line of the header is the From: field.  If there is no From index
+# in Fields[], the From: field is made "user@host (name)", where user is the
+# value of the USER environment variable, or the name from 'id' if it is not
+# set; host is as described for GetMailHostName(), and name is from the NAME
+# environment variable.  If NAME is not set, (name) is not included in the
+# From: field.
+# The next lines of the header give the To: and (optionally) Cc: fields.
+# To[] and Cc[] should contain values indexed by integers starting with 1.
+# The fields are built by concatenating these values in the order of their
+# indices.  Header extensions are used as neccessary to keep the length of
+# each physical line below 80 characters if possible.
+# After these are added, any other fields are added.
+# The order they are added in may be specified by assigning the header names to
+# consecutive integer indexes in Order[], starting with 1.
+# Any field named in Order[] that does not exist in Fields[] will not be added.
+# Date, From, To, and Cc should not be given in Order.
+# After all fields named in Order[] are added, any remaining fields are added.
+# Field wrapping is not done to any values in Fields.
+# All elements are removed from Fields[].
+# Minimal RFC822 message has From, Date, and either To or Bcc line.
+function header822(Fields,To,Cc,Order,  header,i,field) {
+    header = "Date: " ( ("Date" in Fields) ? Fields["Date"] :
+    strftime("%a, %d %h %Y %T %Z") ) "\nFrom: "
+    delete Fields["Date"]
+    if ("From" in Fields) {
+	header = header Fields["From"]
+	delete Fields["From"]
+    }
+    else {
+	header = header WhoAmI()
+	header = header "@" GetMailHostName()
+	if ("NAME" in ENVIRON)
+	    header = header " (" ENVIRON["NAME"] ")"
+    }
+    header = header "\n" WrapField822("To",To)
+    if (1 in Cc)
+	header = header WrapField822("Cc",Cc)
+    for (i = 1; i in Order; i++)
+	if ((field = Order[i]) in Fields) {
+	    header = header field ": " Fields[field] "\n"
+	    delete Fields[field]
+	}
+    for (field in Fields) {
+	header = header field ": " Fields[field] "\n"
+	delete Fields[field]
+    }
+    return header
+}
+### End of mail sending routines.
+# WhoAmI 1.0 97/02/14
+# 97/02/14 john h. dubois iii (john@armory.com)
+# WhoAmI: return best attempt at determining what user owns this process.
+# First, get USER from environment.  If that fails, try logname; it gives a
+# better indication of who the user is than the uid does, since multiple login
+# names may have the same uid.  But, check that the name returned by logname
+# maps to the process' uid, as utmp may have bogus data or the user may have
+# su'd.  If it doesn't, or logname fails, use the user name returned by id.
+# For efficiency in multiple invokations, the user name is stored in
+# _WhoAmI_user for reuse.
+function WhoAmI(  Cmd,line,elem,logname,uiduser,uid,oFS) {
+    if (_WhoAmI_user != "")
+	return _WhoAmI_user 
+    if ("USER" in ENVIRON && ENVIRON["USER"] != "")
+	return _WhoAmI_user = ENVIRON["USER"]
+    Cmd = "exec /usr/bin/logname 2>/dev/null"
+    Cmd | getline logname
+    close(Cmd)
+    Cmd = "exec /usr/bin/id"
+    Cmd | getline line
+    close(Cmd)
+    split(line,elem,"[()=]")
+    uiduser = elem[3]
+    if (logname == uiduser)
+	return _WhoAmI_user = logname
+    uid = elem[2]
+    oFS = FS
+    FS = ":"
+    while ((getline < "/etc/passwd") == 1)
+	if ($1 == logname) {
+	    if ($3 == uid)
+		return _WhoAmI_user = logname
+	    break
+	}
+    return _WhoAmI_user = uiduser
+}

@@ -1,0 +1,532 @@
+.\" $Header: /tmp_mnt/us/wcb/research/src/argus/argus-1.5/man/man1/RCS/ra.1,v 1.4 1995/05/05 20:37:07 wcb Exp $
+.\" All rights reserved.
+.\"
+.\" Copyright (c) 1993, 1994 Carnegie Mellon University.
+.\" All rights reserved.
+.\"
+.\" Permission to use, copy, modify, and distribute this software and
+.\" its documentation for any purpose and without fee is hereby granted, 
+.\" provided that the above copyright notice appear in all copies and
+.\" that both that copyright notice and this permission notice appear
+.\" in supporting documentation, and that the name of CMU not be
+.\" used in advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.  
+.\" 
+.\" CMU DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING
+.\" ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL
+.\" CMU BE LIABLE FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR
+.\" ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+.\" WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+.\" ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+.\" SOFTWARE.
+.\"
+.\"
+.\"
+.TH RA 1 "27 December 1994"
+.SH NAME
+\fBra\fP \- read \fBargus(8)\fP data.
+.SH SYNOPSIS
+.B ra
+[ -bchmnEIMNORTWX ]
+[
+.B \-C
+.I access-file
+] [
+.B \-d
+.I debug-level
+]
+.br
+.ti +3
+[
+.B -r
+.I argus-file
+] [
+.B \-w
+.I output-file
+] [
+.B \-P
+.I port
+]
+.br
+.ti +3
+[
+.B \-F
+.I file
+] [
+.B \-S
+.I argus-server
+]
+.I expression
+.SH DESCRIPTION
+.IX  "ra command"  ""  "\fLra\fP \(em argus data"
+.LP
+.B Ra
+reads
+.BR argus
+data from either \fIstdin\fP, an \fIargus-file\fP, or from a
+remote host running as an \fIargus-server\fP.
+.B Ra
+prints out the contents of
+.BR argus
+transaction reports that match the policy described in the
+\fIaccess-file\fP and/or the boolean \fIexpression\fP.
+.LP
+.SH OPTIONS
+.TP 5 5
+.B \-b
+Dump the compiled transaction-matching code to standard output and stop.
+.TP 5 5
+.B \-c
+Print the transaction source byte and packet \fIcount\fP, and the destination
+byte and packet \fIcount\fP.
+.TP 5 5
+.B \-C
+Match entries against a Cisco access control list that is contained
+in \fIaccess-file\fP.
+.B Argus
+transaction reports corresponding to network traffic that should
+be blocked by the Cisco access control definition, are reported.
+The file format is that of a single Cisco extended access-list definition.
+.TP 5 5
+.B \-d
+Print debug information relating to \fB-C\fP option
+transaction reporting.  When \fIdebug-level\fP is 1,
+.B ra
+prints the access control list definition that would cause the
+argus datum to be rejected.  With a \fIdebug-level\fP of 2,
+.B ra
+also prints the access control list definition that permits
+argus data. 
+.TP 5 5
+.B \-E
+Print transactions that have been established.
+.TP 5 5
+.B \-F
+Use \fIfile\fP as input for the filter expression.
+An additional expression given on the command line is ignored.
+.TP 5 5
+.B \-h
+Print an explanation of all the arguments. 
+.TP 5 5
+.B \-I
+Print extended ICMP status reports.
+.TP 5 5
+.B \-m
+Print ethernet or fddi (MAC) addresses.
+.TP 5 5
+.B \-M
+Print transactions with multiple routes involved with the transaction.
+This condition exists when a transaction involves more than a single
+source and destination MAC address pair.
+.TP 5 5
+.B \-n
+No not translate host and service numbers to names. \fB-nn\fP will
+suppress translation of protocol numbers, as well.
+.TP 5 5
+.B \-N
+Print TCP transactions that closed normally.
+.TP 5 5
+.B \-O
+Print transactions that involved the use of IP options.
+.TP 5 5
+.B \-P
+Use alternate \fIport\fP when accessing remote
+.B argus
+server.  The default is port 561/tcp.
+.TP 5 5
+.B \-r
+Read from the specified \fIargus-file\fP.
+.TP 5 5
+.B \-R
+Print TCP transactions that encountered a RESET indication.
+.TP 5 5
+.B \-S
+Specify a remote \fIargus-server\fP. 
+.TP 5 5
+.B \-T
+Print transactions that reported because of a TIMED_OUT condition.
+.TP 5 5
+.B \-w
+Write out matching data to \fIoutput-file\fP, in
+.B argus
+file format. An \fIoutput-file\fP of '-' directs 
+.B ra
+to write the '\fIargus-file\fP to stdout, allowing for "chaining"
+.B ra
+commands together.
+.TP 5 5
+.B \-W
+Print TCP transactions where the source or destination window was
+set to zero at some time during the transaction.
+.TP 5 5
+.B \-X
+Print TCP transactions that involved packet retransmissions.
+.TP 5 5
+.B \fIexpression\fP
+This
+.B tcpdump(1)
+expression specifies which transactions will be selected.
+If no \fIexpression\fP is given, all transactions are selected.
+Otherwise, only transactions for which
+\fIexpression\fP is `true' will be printed.
+The syntax is identical to the expression syntax for \fBtcpdump\fP,
+however, the semantics for \fBtcpdump's\fP packet filter expression
+may be slightly different when applied to transaction selection.
+In particular, transaction selection based on the source or
+destination host may not always give the expected results,
+since argus cannot guarantee correct determination of the
+source host from the available datagrams (especially for non-TCP
+protocols with dropped or missing datagrams).
+For a complete \fIexpression\fP format description, please refer to the
+.B tcpdump(1)
+man page.
+.br
+.SH EXAMPLES
+.LP
+To report all TCP transactions from and to host wave,
+reading transaction data from \fIargus-file\fP argus.data:
+.RS
+.nf
+\fBra -r argus.data tcp and host wave\fP
+.fi
+.RE
+.LP
+Create the \fIargus-file\fP icmp.log with all ICMP events involving
+the host nimrod, using data from \fIargus-file\fP, but reading the
+transaction data from \fIstdin\fP:
+.RS
+.nf
+\fBcat \fIargus-file\fP | ra -L icmp.log icmp and host nimrod\fP
+.fi
+.RE
+.LP
+To review, in real-time, all the transactions to the network 198.2.3.0,
+that violate the Cisco access control list specified in \fIaccess-list\fP,
+using the remote 
+.B argus
+server \fIargus-host\fP.
+.RS
+.nf
+\fBra -S \fIargus-host\fP -C \fIaccess-list\fP dst net 198.2.3.0\fP
+
+.fi
+.RE
+.br
+.SH OUTPUT FORMAT
+.LP
+The following is a brief description of the output format of
+.B ra
+which reports transaction data in various levels of detail.
+The general format is:
+.RE
+.RS
+.nf
+.sp .1
+\fI  time  [mac.addr]  proto  host  dir  host  [count] status\fP
+.sp .1
+.fi
+.RE
+.TP 4 4
+.BI time
+\fItime\fP is printed as, day of the week, month/day and hr:min:sec, using
+.B localtime(3V).
+.B Argus
+transaction data contains both starting and ending transaction times,
+with precision to the microsecond. However,
+.B ra
+prints out only one of these dates depending on the status of the
+.B argus
+server.  When the 
+.B argus
+server is running in default mode, 
+.B ra
+reports the transaction starting time.
+When the server is in DETAIL mode, the transaction ending time is reported.
+.TP 5 5
+.BI mac.addr
+\fImac.addr\fP
+is an optional field, specified using the
+.B -m
+flag.  \fImac.addr\fP represents the first source and destination
+MAC addresses seen for a particular transaction.  These addresses are
+paired with the \fIhost.port\fP fields, so the direction indicator is
+needed to distinguish between the source and destination MAC addresses.
+.TP 5 5
+.BI proto\ [options\ protocol]
+The \fIproto\fP indicator consists of two fields. The first is
+protocol specific and the designations are:
+.nf
+.sp .5
+   *   -  TCP packet retransmissions
+    M  -  Multiple physical layer paths
+     S -  IP option Strict Source Route
+     L -  IP option Loose Source Route
+     T -  IP option Time Stamp
+     + -  IP option Security
+     R -  IP option Record Route
+     N -  IP option SATNET
+     ? -  multiple IP options set
+.fi
+
+The second field indicates the upper protocol used in the transaction.
+This field will contain the first 4 characters of the official
+name for the protocol used, as defined in RFC-1700.  Use of the
+.B -n
+option, twice (-nn), will cause the actual protocol number to be
+displayed.
+.TP 4 4
+.BI host
+The \fIhost\fP field is protocol dependent, and for all protocols
+will contain the IP address/name.  For TCP and UDP, the field will
+also contain the port number/name, separated by a period.
+.TP 3 3
+.BI dir
+The \fIdir\fP field will have the direction of the transaction,
+as can be best determined from the datum, and is used to indicate
+which hosts are transmitting. For TCP, the dir field indicates
+the actual source of the TCP connection, and the center character
+indicating the state of the transaction.
+.RS
+.nf
+.sp .5
+     -  - transaction was NORMAL
+     |  - transaction was RESET
+     o  - transaction TIMED OUT.
+.fi
+.RE
+.TP 5 5
+.BI count
+\fIcount\fP is an optional field, specified using the
+.B -c
+option.  There are 4 fields that are produced.  The
+first 2 are the packet counts and the last 2 are the byte counts
+for the specific transaction.  The fields are paired with the
+previous host fields, and represent the packets transmitted by
+the respective host.
+.TP 5 5
+.BI status
+The \fIstatus\fP field indicates the principle status for the transaction
+report, and is protocol dependent.  For all the protocols, except ICMP,
+this field reports on the basic state of a transaction.
+.TP 5 5
+.in .25i
+.BI \REQ\ INT\ \ (requested\ \ initial)
+This indicates that this is the \fIinitial\fP status report for a
+transaction and is seen only when the \fIargus-server\fP is in DETAIL
+mode.  For TCP connections this is \fBREQ\fP, indicating that a
+connection is being requested.  For the connectionless protocols,
+such as UDP, this is \fBINT\fP.
+.TP 5 5
+.in .25i
+.BI \ACC\ \ (accepted)
+This indicates that a request/response condition has occurred,
+and that a transaction has been detected between two hosts.
+For TCP, this indicates that a connection request has been
+answered, and the connection will be accepted.  This is only seen
+when the \fIargus-server\fP is in DETAIL mode.  For the
+connectionless protocols, this state indicates that there
+has been a single packet exchange between two hosts, and could
+qualify as a request/response transaction.
+.TP 5 5
+.in .25i
+.BI \EST\ CON\ \ (established\ \ connected)
+This record type indicates that the reported transaction is active, and
+has been established or is continuing.  This should be interpreted as a
+status report of a currently active transaction.
+For TCP, the EST status is only seen in DETAIL mode, and indicates
+that the three way handshake has been completed for a connection.
+.TP 5 5
+.in .25i
+.BI \CLO\ \ (closed) 
+TCP specific, this record type indicates that the TCP connection has
+closed normally.
+.TP 5 5
+.in .25i
+.BI \TIM\ \ (timeout)
+Activity was not seen relating to this transaction, during the
+.B argus
+server's timeout period for this protocol.  This status is seen
+only when there were packets recorded since the last report for
+this transaction.
+
+For the ICMP protocol, the \fIstatus\fP field displays various
+aspects of the ICMP data.  With the \fB-I\fP option, extended ICMP protocol
+data information is given.  ICMP status can have the values (\fB-I\fP option info):
+.nf
+.in 10
+
+\fBECO\fP echo request
+\fBECR\fP echo reply
+\fBURF\fP unreachable need fragmentation
+\fBURH\fP unreachable host (\fIhostaddr\fP)
+\fBURN\fP unreachable network (\fInetaddr\fP)
+\fBURO\fP unreachable protocol (\fIprotonum\fP)
+\fBURP\fP unreachable port (\fIprotonum portnum\fP)
+\fBURS\fP unreachable source failed
+\fBSRC\fP source quench
+\fBRED\fP redirect
+\fBTIM\fP time exceeded
+\fBPAR\fP parameter problem
+\fBTST\fP timestamp request
+\fBTSR\fP timestamp reply
+\fBIRQ\fP information request
+\fBIRR\fP information reply
+\fBMAS\fP mask request
+\fBMSR\fP mask reply (\fImaskaddr\fP)
+
+.fi
+.LP
+.br
+.SH OUTPUT EXAMPLES
+
+These examples show typical \fBra\fP output, and demonstrates a
+number of variations seen in \fBargus\fP data.  This \fBra\fP
+output was generated using the \fB-n\fP option to suppress
+number translation.
+
+.ft B
+.cs B 30 4
+.ss 4
+.nf
+Thu 12/29 06:40:32   S tcp  132.3.31.15.6439   -> 12.23.14.77.23   CLO
+.fi
+.ft R
+.in +6n
+.ll -1n
+This is a normal tcp transaction to the telnet port on host 12.23.14.77.
+The IP Option strict source route was seen.
+
+.in -6n
+.ll +1n
+.ft B
+.nf
+Thu 12/29 06:40:32     tcp  132.3.31.15.6200  <|> 12.23.14.77.25   RST
+.fi
+.ft R
+.in +6n
+.ll -1n
+This tcp transaction from the smtp port of host 12.23.14.77
+was \fBRESET\fP, suggesting that the transaction was denied.
+
+.in -6n
+.ll +1n
+.ft B
+.nf
+Thu 12/29 03:39:05  M  igmp 12.88.14.10       <-> 128.2.2.10       CON
+.fi
+.ft R
+.in +6n
+.ll -1n
+This is an igmp transaction status report, usually seen with MBONE traffic.
+There was more than one source and destination MAC address pair used to
+support the transaction, suggesting a possible routing loop.
+
+.in -6n
+.ll +1n
+.ft B
+.nf
+Thu 12/29 06:40:05 *   tcp  12.23.14.23.1043  <-> 12.23.14.27.6000 TIM
+.fi
+.ft R
+.fi
+.in +6n
+.ll -1n
+This is an X-windows transaction, that has \fBTIMEDOUT\fP.   Packets
+were retransmitted during the connection.
+
+.in -6n
+.ll +1n
+.ft B
+.nf
+Thu 12/29 07:42:09     udp   12.9.1.115.2262   -> 28.12.141.6.139  INT
+.fi
+.ft R
+.in +6n
+.ll -1n
+This is an initial netbios UDP transaction status report, indicating
+that this is the first datagram encountered for this transaction. 
+This status can only be seen when the \fIargus-server\fP is in \fBdetail\fP
+mode.
+
+.in -6n
+.ll +1n
+.ft B
+.nf
+Thu 12/29 06:42:09     icmp  12.9.1.115       <-  12.68.5.127      ECO
+Thu 12/29 06:42:09     icmp  12.9.1.115        -> 12.68.5.127      ECR
+.fi
+.ft R
+.in +6n
+.ll -1n
+This example represents a "ping" of host 12.9.1.115, and its response. 
+.in -6n
+.ll +1n
+
+.ss 12
+.cs B
+.ft R
+This next example shows the \fBra\fP output of a complete TCP transaction,
+while reading from a remote \fIargus-server\fP in \fBdetail\fP mode.
+The '*' in the CLO report indicates that at least one TCP packet was
+retransmitted during the transaction.
+.nf
+.ft B
+.cs B 30 4
+.ss 4
+
+% ra -S \fIargus-server\fP tcp and host sei.cmu.edu and port smtp
+ra: Trying argus-server port 561
+ra: connected Argus Version 1.4 detail mode
+Sat 12/03 15:29:39     tcp  i.sei.cmu.e.1543   -> sei.cmu.edu.smtp REQ
+Sat 12/03 15:29:39     tcp  i.sei.cmu.e.1543  <-  sei.cmu.edu.smtp ACC
+Sat 12/03 15:29:39     tcp  i.sei.cmu.e.1543  <-> sei.cmu.edu.smtp EST
+Sat 12/03 15:29:39 *   tcp  i.sei.cmu.e.1543   -> sei.cmu.edu.smtp CLO
+.ss 12
+.cs B
+.ft
+.fi
+.br
+.SH AUTHORS
+.nf
+Carter Bullard (wcb@fore.com).
+Chas DiFatta (cd@sei.cmu.edu).
+Special thanks to Mark Poepping (poepping@sei.cmu.edu).
+.fi
+.SH SEE ALSO
+.BR tcpdump (1),
+.BR argus (8)
+.LP
+Postel, Jon,
+.IR "Internet Protocol",
+.SM RFC
+791,
+Network Information Center,
+.SM SRI
+International, Menlo Park, Calif.,
+May 1981.
+.LP
+Postel, Jon, 
+.IR "Internet Control Message Protocol" ,
+.SM RFC
+792,
+Network Information Center, SRI International, Menlo Park, Calif.,
+May 1981.
+.LP
+Postel, Jon, 
+.IR "Transmission Control Protocol" ,
+.SM RFC
+793,
+Network Information Center, SRI International, Menlo Park, Calif.,
+May 1981.
+.LP
+Postel, Jon,
+.IR "User Datagram Protocol" ,
+.SM RFC
+768,
+Network Information Center, SRI International, Menlo Park, Calif.,
+May 1980.
+.LP
+McCanne, Steven, and Van Jacobson,
+.IR "The BSD Packet Filter: A New Architecture for User-level Capture" ,
+Lawrwnce Berkeley Laboratory, One Cyclotron Road, Berkeley, Calif., 94720,
+December 1992.

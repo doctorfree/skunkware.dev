@@ -1,0 +1,47 @@
+#!/bin/sh
+
+P=`pwd`
+B=`basename $P`
+O=openssl
+X=0.9.7g
+UNC=gzcat
+EXT="tar xf -"
+
+D=`echo $P/../dist/$B*.tar.gz`
+[ "$D" = "$P/../dist/$B*.tar.gz" ] && {
+  D=`echo $P/../dist/$B*.tar.bz2`
+  [ "$D" = "$P/../dist/$B*.tar.bz2" ] && {
+    EXT="/bin/cpio -icdu"
+    D=`echo $P/../rpm2dist/$B*.cpio.bz2`
+    [ "$D" = "$P/../rpm2dist/$B*.cpio.bz2" ] && {
+      echo "Can't find $P/../dist/$B*.tar.gz, $P/../dist/$B*.tar.bz2"
+      echo "or $P/../rpm2dist/$B*.cpio.bz2 - exiting."
+      exit 1
+    }
+  }
+  UNC=bzcat
+}
+V=`basename $D | awk -F "-" ' { print $2 } '`
+
+[ -d input ] || mkdir input
+[ -d dist ] || mkdir dist
+cd dist
+$UNC $D | $EXT
+cd ..
+tar xf ../prep.tar
+C=`echo $B | tr "[:lower:]" "[:upper:]"`
+sed -e "s/$O/$B/" -e "s/OPENSSL/$C/" $O.mkcdmt > $B.mkcdmt
+rm -f $O.mkcdmt
+
+echo "Enter description for $B: \c"
+read desc
+echo ""
+[ "$desc" ] || desc="Skunkware package"
+
+for i in Handoff Install MakeCDMT Voloff
+do
+  sed -e "s/$O/$B/g" -e "s/$X/$V/g" -e "s/secure socket library/$desc/" $i \
+       > /tmp/setup$$
+  cp /tmp/setup$$ $i
+  rm -f /tmp/setup$$
+done

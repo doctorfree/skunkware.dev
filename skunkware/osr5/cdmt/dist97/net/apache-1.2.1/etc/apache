@@ -1,0 +1,155 @@
+#!/bin/sh
+#
+# apache start/stop script
+# Usage: apache [ start | stop | enable | disable | query ]
+#
+
+#
+#  Uncomment next three lines for Apache httpd
+#
+HTTPDBIN=/usr/local/bin
+HTTPDLIB=/usr/local/lib/apache
+HTTPD=httpd
+PIDFILE=/usr/local/lib/apache/logs/httpd.pid
+
+#
+#  Uncomment next three lines for Netscape FastTrack
+#
+# HTTPDBIN=/usr/internet/ns-home/bin/httpd
+# HTTPD="ns-httpd -d /usr/internet/ns-home/httpd-johndoe/config"
+# PIDFILE=/usr/internet/ns-home/httpd-johndoe/logs/pid
+
+#
+#  Uncomment next three lines for NCSA httpd (e.g. from SCO Global Access)
+#
+# HTTPDBIN=/var/opt/ncsa
+# HTTPD=httpd
+# PIDFILE=/var/opt/ncsa/logs/httpd.pid
+
+#
+#  Uncomment next three lines for CERN httpd 3.0
+#
+# HTTPDBIN=/opt/cern_httpd/bin
+# HTTPD=cern_httpd
+# PIDFILE=/var/opt/cern_httpd/httpd-pid
+
+
+
+PATH=/bin:/usr/bin:/etc:$HTTPDBIN
+SCRIPT=`basename $0`
+
+cleanup() {
+        exit $1
+}
+
+http_start() {
+        if [ -r $PIDFILE ]
+        then
+                read line < $PIDFILE
+                set -- junk $line               # protects against empty line
+                shift                           # get rid of junk
+                [ $# -ge 1 ] || break
+                KILL_PID=$1
+                kill -0 $KILL_PID 2>/dev/null && {
+                        echo "$HTTPD appears to be running already."
+                        cleanup 0
+                }
+        fi
+
+        echo "Starting $HTTPD ... \c"
+	cd $HTTPDBIN 
+        $HTTPD -f $HTTPDLIB/conf/httpd.conf&
+        echo "done."
+}
+
+http_stop() {
+        if [ -r $PIDFILE ]
+        then
+                echo "Stopping $HTTPD ... \c"
+                read line < $PIDFILE
+                rm -f $PIDFILE
+                set -- junk $line               # protects against empty line
+                shift                           # get rid of junk
+                [ $# -ge 1 ] || break
+                KILL_PID=$1
+                kill -15 $KILL_PID
+                echo "done."
+        else
+                echo "$HTTPD does not appear to be running."
+        fi
+}
+
+http_enable() {
+        if [ -f /etc/rc2.d/S91apache ] ; then
+                echo "$HTTPD is already enabled."
+        else
+                echo "Enabling $HTTPD ... \c"
+                ln /etc/apache /etc/rc2.d/S91apache
+                echo "done."
+        fi
+        http_start
+}
+
+http_disable() {
+        http_stop
+        if [ -f /etc/rc2.d/S91apache ] ; then
+                echo "Disabling $HTTPD ... \c"
+                rm -f /etc/rc2.d/S91apache
+                echo "done."
+        else
+                echo "$HTTPD is already disabled."
+        fi
+}
+
+http_query() {
+        if [ -r $PIDFILE ]
+        then
+                read line < $PIDFILE
+                set -- junk $line               # protects against empty line
+                shift                           # get rid of junk
+                [ $# -ge 1 ] || break
+                KILL_PID=$1
+                kill -0 $KILL_PID 2>/dev/null
+                if [ $? -eq 0 ] 
+                then echo "$HTTPD is currently running."
+                else echo "$HTTPD is not running."
+                fi
+        else
+                echo "$HTTPD is not running."
+        fi
+
+        if [ -f /etc/rc2.d/S91apache ]
+        then echo "$HTTPD is enabled."
+        else echo "$HTTPD is disabled."
+        fi
+}
+
+# main()
+
+cd /
+
+case $1 in
+
+start)
+        http_start
+        ;;
+stop)
+        http_stop
+        ;;
+enable)
+        http_enable
+        ;;
+disable)
+        http_disable
+        ;;
+query)
+        http_query
+        ;;
+*)
+        echo "Usage: $0 [start|stop|enable|disable|query]"
+        cleanup 1
+        ;;
+
+esac
+
+cleanup 0

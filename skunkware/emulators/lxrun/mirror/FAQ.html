@@ -1,0 +1,351 @@
+<HTML>
+<HEAD>
+<TITLE>Lxrun FAQ</TITLE>
+</HEAD>
+<BODY BGCOLOR=#000000 TEXT=#ffffff LINK=#ccffcc VLINK=#ffccff>
+<CENTER>
+<H1><IMG SRC="lxrun.jpg" WIDTH=414 HEIGHT=238 ALT="lxrun"></H1>
+<P>
+Frequently Asked Questions
+<P>
+Version 1.5
+<BR>
+(last modified: May 07, 1998)
+</CENTER>
+
+<P>
+<B>Index:</B>
+<PRE>
+ <A HREF="#s0">Section 0</A>: The Basics
+
+    <A HREF="#q0.0">Q0.0</A>:  What is "lxrun"?
+
+    <A HREF="#q0.1">Q0.1</A>:  How can I get started using lxrun!
+
+    <A HREF="#q0.2">Q0.2</A>:  How does lxrun work?
+
+    <A HREF="#q0.3">Q0.3</A>:  That's brilliant.  Who was the genius who came up with lxrun?
+
+    <A HREF="#q0.4">Q0.4</A>:  What documentation for lxrun exists?
+
+
+ <A HREF="#s1">Section 1</A>: Using lxrun
+
+    <A HREF="#q1.0">Q1.0</A>:  What binary formats does lxrun support?
+
+    <A HREF="#q1.1">Q1.1</A>:  What does lxrun need in order to work?
+
+    <A HREF="#q1.2">Q1.2</A>:  How can I run Linux(R) applications that use audio?
+
+    <A HREF="#q1.3">Q1.3</A>:  What sorts of Linux binaries work well with lxrun?
+
+    <A HREF="#q1.4">Q1.4</A>:  How can i run StarOffice with lxrun?
+
+
+ <A HREF="#s2">Section 2</A>: Adding System Calls to lxrun
+
+    <A HREF="#q2.0">Q2.0</A>:  How complete is lxrun?
+
+    <A HREF="#q2.0.1">Q2.0.1</A>:  Which system calls does lxrun support?
+
+    <A HREF="#q2.1">Q2.1</A>:  What if I find a Linux binary that lxrun doesn't support?
+
+
+ <A HREF="#s3">Section 3</A>: Troubleshooting
+
+    <A HREF="#q3.0">Q3.0</A>:  What does "linuxemul:  fatal error:  program load failed:  No
+	   such file or directory" mean?
+
+    <A HREF="#q3.1">Q3.1</A>:  What does "progname:  can't load library 'some_library_name.so'"
+	   mean?
+
+    <A HREF="#q3.2">Q3.2</A>:  Why are my Linux binaries unable to find their data files?
+
+    <A HREF="#q3.3">Q3.3</A>:  What should i do if i find a problem with lxrun ?
+
+    <A HREF="#q3.4">Q3.4</A>:  What does the following error message mean?
+           myprog: can't resolve symbol '__iob'
+           myprog: can't resolve symbol '__iob'
+           myprog: can't resolve symbol '__ctype'
+
+
+<A NAME="s0">		       === Section 0: The Basics ===</A>
+
+<A NAME="q0.0">Q0.0</A>: What is "lxrun"?
+
+   A: It is a Linux emulator for SCO OpenServer and UnixWare machines.
+
+
+<A NAME="q0.1">Q0.1</A>:  How can I get started using lxrun!
+
+   A:  Follow these steps:
+
+	0. Unpack the latest pre-compiled distribution,
+           available at the lxrun home page
+           (<A HREF="http://www.ugcs.caltech.edu/~steven/lxrun/">http://www.ugcs.caltech.edu/~steven/lxrun/</A>) and at the SCO
+           Skunkware site (<A HREF="http://skunkware.dev/skunkware/emulators/index.html#lxrun">http://skunkware.dev/skunkware/emulators/index.html#lxrun</A>).
+
+           Do this as "root" from the root directory (/).
+           Issue the commands (assuming you downloaded into /tmp) :
+             # cd /
+             # gzcat /tmp/lxrun-x.x.x.tar.gz | tar xf -
+             (where x.x.x is the version you downloaded.)
+           The lxrun distribution should extract into the
+           /etc and /usr/local directories.
+
+	1. Copy a Linux binary to the /usr/local/linux/bin directory
+           If you don't have a Linux system at hand, use one of the
+           mirrors at <A HREF="ftp://sunsite.unc.edu/pub/Linux/welcome.html">ftp://sunsite.unc.edu/pub/Linux/welcome.html</A>
+           to download an app off the net.
+
+           Let's say the Linux binary is called "lyap".
+
+	2. Create a symbolic link to "lxfront" as follows :
+           # ln -s /usr/local/linux/bin/lxfront /usr/local/bin/lyap
+
+	3. Type "/usr/local/bin/lyap" or simply "lyap" if
+           /usr/local/bin is in your execution search path. 
+
+	3b. Optionally, set the environment variable LINUX_ROOT to
+	    "/usr/local/linux" and execute your Linux applications
+            by running "lxrun (app-pathname)" where "(app-pathname)"
+            refers to the Linux application path (lxfront does this
+            for you).
+
+
+<A NAME="q0.2">Q0.2</A>: How does lxrun work?
+
+   A: It works by remapping system calls on the fly.  As it turns
+      out, there's not much difference between Linux and SCO
+      binaries.  The main difference is the way in which system
+      calls are handled.  In Linux, an "int $0x80" instruction is
+      used, which jumps to the system-call-handling portion of
+      the Linux kernel.  On SCO systems, "int $0x80" causes a
+      SIGSEGV signal.  lxrun intercepts these signals and calls
+      the SCO equivalent of the system call that the Linux
+      program attempted.  The result is that the Linux binary
+      runs (with the help of lxrun) on the SCO platform with a
+      small (usually negligible) performance penalty.  All this is
+      accomplished without modifying the kernel.
+
+
+<A NAME="q0.3">Q0.3</A>: That's brilliant.  Who was the genius who came up with lxrun?
+
+   A: Michael Davidson, an engineer at SCO.
+
+
+<A NAME="q0.4">Q0.4</A>:  What documentation for lxrun exists?
+
+   A: A good starting point is the paper presented at the 
+      1998 USENIX technical conference in New Orleans. 
+      This is available in a variety of formats -
+      <A HREF="/skunkware/emulators/lxrun/html/lxrun.html">HTML</A>
+      <A HREF="/skunkware/emulators/lxrun/ps/lxrun.ps">Postscript</A>
+      <A HREF="/skunkware/emulators/lxrun/lxrun.sgml">SGML</A>
+      <A HREF="/skunkware/emulators/lxrun/dvi/lxrun.dvi">DVI</A>
+      <A HREF="/skunkware/emulators/lxrun/info/lxrun.info">Info</A>
+      <A HREF="/skunkware/emulators/lxrun/rtf/">RTF</A>
+      <A HREF="/skunkware/emulators/lxrun/tex/lxrun.tex">TeX</A>
+      <A HREF="/skunkware/emulators/lxrun/txt/lxrun.txt">Text</A>
+
+      In addition, check the doc subdirectory of the lxrun source.
+
+
+<A NAME="s1">		       === Section 1: Using lxrun ===</A>
+
+<A NAME="q1.0">Q1.0</A>: What binary formats does lxrun support?
+
+   A: lxrun understands Intel Linux a.out and ELF format
+   binaries.
+
+
+<A NAME="q1.1">Q1.1</A>: What does lxrun need in order to work?
+
+   A: To run most Linux programs, lxrun requires the help of the
+      Linux dynamic loader (ld.so) and whatever Linux shared
+      libraries are required by the program.  Follow the steps
+      in Q0.1 above to set up lxrun.
+
+
+<A NAME="q1.2">Q1.2</A>: How can I run Linux applications that use audio?
+
+      If you want to run a program that uses audio, get a copy
+      of the OSS drivers from:
+
+<A HREF="http://skunkware.dev/skunkware/audiovis/index.html#4front">
+	http://skunkware.dev/skunkware/audiovis/index.html#4front</A>
+
+      for 100% soundblaster compatible cards or:
+
+<A HREF="http://www.4front-tech.com/">
+      	http://www.4front-tech.com/</A>
+
+      for other sound cards.
+
+
+<A NAME="q1.3">Q1.3</A>: What sorts of Linux binaries work well with lxrun?
+
+   A: Most programs that do not rely on Linux-specific quirks
+      or deal directly with hardware should work under lxrun.
+      Users of lxrun have reported success with raplayer
+      (RealAudio client), xquake, the StarOffice suite, gcc (the
+      GNU C compiler), and a myriad of smaller apps and
+      utilities.  While running most apps is usually
+      straightforward, installing them and getting everything
+      set up correctly can be tricky.  See the official lxrun
+      WWW site (<A HREF="http://www.ugcs.caltech.edu/~steven/lxrun/">http://www.ugcs.caltech.edu/~steven/lxrun/</A>) for hints on
+      getting some of the more troublesome apps working.
+
+<A NAME="q1.4">Q1.4</A>: How can i get StarOffice to run with lxrun?
+
+   A: Robert Lipe has written a <A HREF="lxrun_star.html">fairly detailed account</A> 
+      of his exercise in getting StarOffice 3.1 running under lxrun 0.8.8. 
+      If you attempt this, or better, <A HREF="http://www.stardivision.com/download/index.html"> StarOffice 4.0</A> with lxrun 0.8.9 or later, 
+      please forward your experiences to <A HREF="mailto:rr@ronrecord.com">rr@ronrecord.com</A>.
+
+
+<A NAME="s2">	       === Section 2: Adding System Calls to lxrun ===</A>
+
+<A NAME="q2.0">Q2.0</A>: How complete is lxrun?
+
+   A: Somewhat complete.  Obviously, the more system calls lxrun is
+      able to translate, the more complete its emulation
+      capabilities. In recent releases of lxrun, there are
+      still quite a few unimplemented system calls, but they are
+      calls that are not used very often.  So lxrun can
+      successfully run _many_ Linux binaries.
+
+<A NAME="q2.0.1">Q2.0.1</A>:  Which system calls does lxrun support?
+
+    A: If you have the lxrun source (release 0.9.0 or later), you can
+       run the SyscallScript utility and it will produce a list of supported,
+       partially supported, and unsupported system calls in the file
+       <A HREF="SyscallTable.html">SyscallTable.html</A>.
+
+<A NAME="q2.1">Q2.1</A>: What if I find a Linux binary that lxrun doesn't support?
+
+
+   A: Follow these simple steps:
+
+	0. Go to <A HREF="http://skunkware.dev/skunkware">http://skunkware.dev/skunkware</A> and make
+	sure you have the most recent version of lxrun.  If not,
+	download the latest one and try it.  We are updating
+	lxrun with new system calls all the time.
+
+	1. Recompile lxrun with the TRACE option enabled.  (This
+	requires modifying one line in the Makefile.)  This will
+	cause lxrun to produce a history of all system calls
+	used by the binary as it was run (similar to the
+	"truss" and "trace" commands).  The trace dump will be
+	created in a file called "/tmp/lxrun.nnn" where "nnn" is
+        the process id.
+
+	2. Try to narrow down exactly which system call failed.
+	Most likely, the failure will be due to a system call
+	that has not yet been implemented in lxrun.
+
+	3. Implement the system call mapping.  This is usually
+	pretty easy to do.  The vast majority of lxrun's code
+	does mappings of this sort, so you can pick out almost
+	any source file to see how it is done.  Chances are, the
+	system call you need to remap is already in one of the
+	lxrun source files, but its code looks something like
+	this:
+
+	int lx_flock()		{ errno=ENOSYS; return -1; }	
+
+	This means that you're the first person who has gotten
+	around to mapping that particular system call.
+
+	4. After making your modification, recompile lxrun and
+	see if it works.  You may have to remap more than one
+	system call to get your binary working!
+
+	5. E-Mail your changes to <A HREF="mailto:skunkware@ronrecord.com">skunkware@ronrecord.com</A>.  This way,
+	we can put your changes into the next release of lxrun.
+
+	6. If steps 1-5 seem are beyond your programming
+	ability, contact skunkware@ronrecord.com and maybe one of the
+	Skunk team will have time to give you a hand with it.
+	Make sure to tell us exactly what program you're having
+	trouble with, and if possible, tell us where you got it.
+
+
+<A NAME="s3">		     === Section 3: Troubleshooting ===</A>
+
+<A NAME="q3.0">Q3.0</A>: What does "linuxemul: fatal error: program load failed: No
+      such file or directory" mean?
+
+   A: It probably means you have your LINUX_ROOT environment
+      variable set up incorrectly.
+
+
+<A NAME="q3.1">Q3.1</A>: What does "progname: can't load library 'some_library_name.so'"
+      mean?
+
+   A: It means you're missing a shared library that is needed to
+      run a particular binary.  You can either try to find a
+      compiled version of the library from a Linux ftp site
+      (such as <A HREF="ftp://sunsite.unc.edu/pub/Linux/libs/">ftp://sunsite.unc.edu/pub/Linux/libs/</A>) or if you
+      have access to a running Linux system, you can copy the
+      library directly.  You should put the library in
+      $LINUX_ROOT/lib on your SCO system (/usr/local/linux/lib by default).
+
+
+<A NAME="q3.2">Q3.2</A>: Why are my Linux binaries unable to find their data files?
+
+   A: To aid in the emulation process, lxrun prepends the contents
+      of the $LINUX_ROOT variable too many common pathnames.  Try
+      putting your program's data files in $LINUX_ROOT/whatever
+      instead of /whatever.
+
+<A NAME="q3.3">Q3.3</A>: What should i do if i find a problem with lxrun ?
+
+   A: Please report any difficulty you have with lxrun by e-mailing
+      <A HREF="mailto:skunkware@ronrecord.com">skunkware@ronrecord.com</A>. Feel free to include suggestions, comments, 
+      code modifications, extensions, ...
+
+<A NAME="q3.4">Q3.4</A>: What does the following error message mean?
+          myprog: can't resolve symbol '__iob'
+          myprog: can't resolve symbol '__iob'
+          myprog: can't resolve symbol '__ctype'
+
+   A: It means the Linux dynamic loader found a native SCO library
+      and is using it instead of the corresponding Linux binary.  (You
+      can find out exactly which library is causing the problem by
+      examining the lxrun.log file produced by a debugging version of
+      lxrun.)
+
+      This glitch will only show up if you have native libraries
+      installed that have the same names as a needed Linux binaries.
+      If you have XFree86 installed, the /usr/X11R6/lib libraries are
+      common culprits.
+
+      The best solution is to make sure no native libraries are
+      available anywhere under the directory pointed to by
+      $LINUX_ROOT.
+
+</PRE>
+<P>
+<HR>
+<P>
+<CENTER>
+The lxrun FAQ is maintained by Ron Record (<A HREF="mailto:rr@ronrecord.com">rr@ronrecord.com</A>) and
+Steve Ginzburg (<A HREF="mailto:stevieg@cco.caltech.edu">stevieg@cco.caltech.edu</A>)
+<P>
+Visit the lxrun web site at 
+<A HREF="http://www.ugcs.caltech.edu/~steven/lxrun/">
+http://www.ugcs.caltech.edu/~steven/lxrun/</A>
+or the lxrun source download areas at 
+<A HREF="ftp://dontask.caltech.edu/pub/lxrun/">
+ftp://dontask.caltech.edu/pub/lxrun/</A>
+and
+<A HREF="ftp://ftp.sco.com/skunkware/src/emulators">
+ftp://ftp.sco.com/skunkware/src/emulators</A>.
+</CENTER>
+<P>
+(R) Linux is a trademark or registered trademark of Linus Torvalds in
+    Australia, Germany, Japan, the United States, and other countries.
+<P>
+</BODY>
+</HTML>

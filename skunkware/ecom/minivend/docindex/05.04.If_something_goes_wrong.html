@@ -1,0 +1,125 @@
+<HTML>
+<HEAD>
+<TITLE>If something goes wrong</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="05.00.QUICK_START.html">Up</A>&nbsp;&nbsp;<A HREF="05.03.Setting_up_multiple_catalogs.html">&lt;&lt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="If_something_goes_wrong">If something goes wrong</A></H2>
+<P>
+MiniVend is a complex program, and needs the services of other complex programs (i.e. web servers and relational databases) to work. When there is a problem, it is not always MiniVend. It may have to do with Perl or your 
+<FONT SIZE=-1>HTTP</FONT> server setup. In fact, in the over four years of MiniVend's existence many more basic installation problems have to do with those than with MiniVend itself.
+
+
+<P>
+If you get a message about not being able to find libraries, or if you get
+a core dump or segment fault message, it is always an improperly built or
+configured Perl and has nothing to do with MiniVend. Contact your system
+administrator or install a new Perl yourself.
+
+<P>
+The <CODE>makecat</CODE> program is intended to be used to create the starting point for the catalog. If you don't get the demo to work the first time, keep trying. If you still can't get the demo to work, try running in 
+<FONT SIZE=-1>INET</FONT> mode. Finally, see the MiniVend 
+<FONT SIZE=-1>FAQ</FONT> at:
+
+
+<P>
+<PRE>    <A HREF="http://www.minivend.com/minivend/faq/">http://www.minivend.com/minivend/faq/</A>
+</PRE>
+<P>
+Check the two error log files -- <CODE>error.log</CODE> in the MiniVend home directory (where minivend.cfg resides) and <CODE>error.log</CODE> in the catalog directory (where catalog.cfg resides; there can be many of
+these). Many problems can be diagnosed quickly if these error logs are
+consulted.
+
+<P>
+Check the 
+<FONT SIZE=-1>README</FONT> file, the 
+<FONT SIZE=-1>FAQ,</FONT> and mail list archive at the official MiniVend web site for information:
+
+
+<P>
+<PRE>    <A HREF="http://www.minivend.com/minivend/">http://www.minivend.com/minivend/</A>
+</PRE>
+<P>
+You may subscribe to the MiniVend users mail list by sending the
+<STRONG>message text</STRONG>  <CODE>subscribe minivend-users</CODE> to:
+
+<P>
+<PRE>    majordomo@minivend.com
+</PRE>
+<P>
+Double check that you have the following things:
+
+<OL>
+<LI>
+<P>
+Using 
+<FONT SIZE=-1>UNIX</FONT> sockets: Check that the <CODE>vlink</CODE> program is 
+<FONT SIZE=-1>SUID,</FONT> or you have made appropriate changes in the <EM>SocketPerms</EM> directive. Unless the files are world-writable, the vlink program and the MiniVend server must run as the same user 
+<FONT SIZE=-1>ID!</FONT> If you are running 
+<FONT SIZE=-1>CGI-WRAP</FONT> or 
+<FONT SIZE=-1>SUEXEC,</FONT> then you will find that the
+ <CODE>vlink</CODE> program must <EM>not</EM> be 
+<FONT SIZE=-1>SUID.</FONT>
+
+<P>
+If you have trouble with the vlink program (named <A HREF="#item_simple">simple</A> in the demo configuration), try re-running <CODE>makecat</CODE> and using 
+<FONT SIZE=-1>INET</FONT> mode instead. (Or you can copy the <CODE>tlink</CODE> 
+<FONT SIZE=-1>INET</FONT> mode link program over <CODE>vlink</CODE>). This should work unchanged for many systems, but if you are on an 
+<FONT SIZE=-1>ISP</FONT> or have a non-standard network configuration you
+may have to make some changes to <EM>minivend.cfg</EM>. For <CODE>tlink</CODE> to work you must have the proper host <CODE>name(s)</CODE> configured into
+the
+<EM>TcpHost</EM> directive in <EM>minivend.cfg</EM>. The program selects port 7786 by default (the 
+<FONT SIZE=-1>ASCII</FONT> codes for 
+<FONT SIZE=-1>``M''</FONT> and 
+<FONT SIZE=-1>``V'')</FONT> -- if you decide to use another port, you must set the same number in both the tlink program (by running
+
+<CODE>compile_link</CODE>) and the <CODE>minivend.cfg</CODE> file.
+
+<P>
+The <CODE>tlink</CODE> program does <STRONG>not</STRONG> need to be 
+<FONT SIZE=-1>SUID.</FONT>
+
+<LI>
+<P>
+That you have proper file permissions.
+
+<P>
+<STRONG>IMPORTANT NOTE:</STRONG> The MiniVend server should not run as the user
+<CODE>nobody</CODE>!
+
+<P>
+The program files can be owned by anyone, but any databases, 
+<FONT SIZE=-1>ASCII</FONT> database source files, error logs, and the
+directory that holds them must be <STRONG>writable</STRONG> by the proper user 
+<FONT SIZE=-1>ID,</FONT> that is the one that is executing the minivend
+program. The best way to operate in multi-user, multi-catalog setups is to
+create a special <CODE>minivend</CODE>
+user, then put that user in the group that each catalog user is in. If you
+can define a group for each individual user, that provides the best
+security. Then all associated files can be in 660 or 770 mode, and you
+should have no problems with permissions, and no problems with security.
+
+<LI>
+<P>
+The <CODE>vlink</CODE> program is being executed on a machine that has the socket file <CODE>etc/socket</CODE> on a directly attached disk. UNIX-domain sockets will not work on
+NFS-mounted filesystems! That means the server <CODE>minivend</CODE> and the 
+<FONT SIZE=-1>CGI</FONT> program <CODE>vlink</CODE> must be executing on the same machine.
+
+<P>
+The <CODE>tlink</CODE> program does not have this problem, but it must have the proper host <CODE>name(s)</CODE> and 
+<FONT SIZE=-1>TCP</FONT> ports set in the
+ <EM>TcpHost</EM> and <EM>TcpPort</EM>
+directives in <CODE>minivend.cfg</CODE>. Also, you should be careful of security if sensitive information like
+customer credit card numbers is being placed on a network wire.
+
+</OL>
+<P>
+MiniVend is an ambitious and complex program, and is not presented as being <EM>easy to use</EM>, <EM>easy to install</EM>, or <EM>bug-free</EM>. The configuration scripts were done to try and make a very painful process only slightly painful. Some people install in one pass. Others never make it, especially when they are running on an 
+<FONT SIZE=-1>ISP</FONT> with a restrictive setup. Determined and thoughtful users almost always make MiniVend work.
+
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="05.00.QUICK_START.html">Up</A>&nbsp;&nbsp;<A HREF="05.03.Setting_up_multiple_catalogs.html">&lt;&lt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

@@ -1,0 +1,35 @@
+Instructions for installing an atdialer.  In this example, atdialSP28 is used.
+
+1. Move the dialer configuration (default) file into the defaults directory.
+   On 3.2v4, the defaults directory is /etc/default.
+   On 5.0, the defaults directory is /usr/lib/uucp/default.
+2. Make it readable by uucp.
+   chmod a+r atdialSP28
+3. Link the atdialer program to the same name as the configuration file.
+   cd /usr/lib/uucp
+   ln atdialer atdialSP28
+
+The atdialer is now ready to use.  Refer to it by name in the 5th field of the
+/usr/lib/uucp/Devices file.
+
+Some of the atdialers available here use a fixed DTE speed.  This means that
+communications between the modem and the system always occur at the same speed,
+regardless of what speed the modem communicates with the remote modem at.  The
+modem converts between the two Baud rates, buffering data and invoking flow
+control as neccessary.  The advantage of this is that it allows the use of
+modem features that intrinsically cause the DCE (modem to modem) data rate to
+vary ( particularly compression and error detection) as well as communications
+at speeds that the serial driver does not understand (e.g. 14400).  Also, it
+avoids the need for dialup users to cycle between different Baud rates by
+sending break sequences.
+Using a fixed DTE speed successfully has two requirements.  First, the modem
+and serial port must both have functioning hardware (RTS/CTS) flow control.
+The dialer takes care of configuring this, by telling the modem to do hardware
+flow control and by setting the serial port to use it.  Additionally, you must
+ensure that the cabling between the modem and serial port is sufficient for
+hardware flow control.  A full 25-conductor cable will keep things simple.
+Second, everything that uses the modem must talk to it at the fixed speed.
+This means setting the speed for the modem line in the Devices file to the
+fixed speed, and if the line is enabled for dialin, choosing a gettydefs tag
+that will select a gettydefs entry with the appropriate speed (for example, "o"
+for 38400 Baud).

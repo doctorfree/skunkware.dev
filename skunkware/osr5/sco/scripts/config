@@ -1,0 +1,1304 @@
+#!/bin/ksh
+# @(#) config.ksh 1.8 97/05/20
+# 93/05/06 john h. dubois iii (john@armory.com)
+# 93/06/07 Added userpath option
+# 94/01/02 Fixed bug that made userpath fail for csh users
+# 94/01/12 Added erase option
+# 94/03/05 Added -u option
+# 94/03/13 Added -d option.  Make ksh expand $userpath to avoid csh error.
+# 94/04/16 Give more detailed error messages when checking path.
+# 94/07/09 Fixed quoting of help message.
+# 95/01/07 Give VISUAL the same value as EDITOR
+# 95/01/29 Added LINES
+# 95/02/04 Added forward and biff.
+# 95/04/14 Generalized scheme for allowing only valid options.
+#          Added .httpreport setup.
+# 96/01/19 Increased description field size to 18 chars; added coredumpsize;
+#          do InitArrs only if the arrays are going to be used.
+# 96/01/24 Make csh limit coredumpsize work.
+# 96/01/26 More verbose descriptions of editors.
+# 96/01/26 Make .forward be readable by all.
+# 96/03/11 Added shell mail notification, timezone, and hushlogin to arrays.
+# 96/06/13 Added remaining code neccessary to support hushlogin & shellmail.
+# 96/06/17 Put http report levels one per line.
+#          Changed mesg and termtype query to be on or off instead of y/n.
+#          Do not allow other values to be given for on/off values.
+# 96/06/29 Added file versioning and SHOWVERSIONS.
+# 96/07/26 Let periodicity be given for http report level.
+# 96/12/06 Make d option actually work.  Added D option.
+# 97/02/28 Added "allhits" to httpreport levels.
+# 97/04/13 Pause after printing help if needed for help to fit on screen.
+#          Made short descriptions more verbose.
+#          Added "..." from description to value in interactive display.
+# 97/05/10 Work better on terminals with few lines: if needed, fit two menu
+#          columns into 80 character columns.
+
+# todo: Possible additional options: password, timezone, language
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+# Each option must be added to array Vars and all of those in function
+# InitArrs.  All vars that are acted on by -b and -c options and which do
+# anything besides set env. vars must have code to deal with them in Setup.
+# All vars must have code in InitVars, if nothing else to unset them if config
+# is run with the -u option.
+# Any config options that are stored by other means than writing to .config
+# must have special case handing in GetConfig and SetConfig.
+
+# Vars[i]	Variable names.
+# NumPref	Number of config options.
+# Descrip[i]	Short descriptions of config options.
+# Verbose[i]	Long (multi-line) descriptions of config options.
+# Values[i]	Values of config options
+# Defaults[i]	Default values
+
+# Ind varname		returns index of varname
+# ShowValue varname	prints varname followed by its value
+# SetVal var [val]	sets var in Values to val or shell param value
+# GetConf		Reads config from config file into Values[] & shell
+# AssignVal var=value	Sets var in Values to value
+# ShowConfig		Show current configuration
+
+# Usage: Ind varname
+# Returns the index of varname if it is valid.
+# Prints an error message and returns 0 if it is not.
+function Ind {
+    typeset -i i=1
+    while [ i -le NumPref ]; do
+	if [ "$1" = ${Vars[i]} ]; then
+	    return $i
+	fi
+	let i+=1
+    done
+    print -u2 "Unknown preference type: $1"
+    return 0
+}
+
+# Usage: SetVal varname [value]
+# Sets the variable's shell value and value in Values[] to value, if given,
+# or to the value of the shell parameter with the same name if not.
+# Prints an error message and returns 0 if varname is invalid.
+function SetVal {
+    typeset -i Index
+
+    Ind "$1"
+    Index=$?
+    isfalse Index && return 1
+    if [ $# = 2 ]; then
+	Values[Index]=$2
+	eval $1="'$2'"
+    else
+	eval 'Values[Index]'=\$$1
+    fi
+    return 0
+}
+
+# Reads configuration assignments from config file and sets Values[] to them.
+# Also sets shell parameters with the var names to the values.
+# Uses globals: Vars[]
+# If an argument is given, a complaint is printed if no config file is found.
+function GetConfig {
+    typeset v
+
+    if [ ! -f "$PrefFile" ]; then
+	[ $# -gt 0 ] && print -u2 \
+"You do not have an account configuration file yet.
+Use  $name -i  to create one."
+	return 1
+    elif [ ! -r "$PrefFile" ]; then
+	[ $# -gt 0 ] && print -u2 "Your config file is not readable."
+	return 1
+    else
+	unset ${Vars[*]}
+	eval "`set_vars $PrefFile`"
+	[ -f $HOME/.forward ] && forward="$(<$HOME/.forward)"
+	[ -e $HOME/.hushlogin ] && hushlogin=on || hushlogin=off
+	if [ -f $HOME/.httpreport ]; then
+	    # Put all lines on one line
+	    set -- $(<$HOME/.httpreport)
+	    httpreport="$*"
+	fi
+	[ -u "$HOME" ] && versioning=on || versioning=off
+	for v in ${Vars[*]}; do
+	    # convert old parameter values
+	    case $v in
+	    mesg)
+		case "$mesg" in
+		[yY]*)
+		    mesg=on;;
+		[nN]*)
+		    mesg=off;;
+		esac
+		;;
+	    askterm)
+		case "$askterm" in
+		[yY]*)
+		    askterm=on;;
+		[nN]*)
+		    askterm=off;;
+		esac
+		;;
+	    esac
+	    SetVal $v
+	done
+    fi
+    return 0
+}
+
+# set_vars 1.1 91/01/23
+# set_vars: Read variable assignments, 
+# convert values to forms that won't be messed with by the shell,
+# and output them in a form that is ready for the shell to evaluate
+# usage: eval "`set_vars [ filename ]`"
+# where the lines in filename are of the form
+# var=value
+# value may contain spaces, backslashes, quote characters, etc.;
+# they will become part of the value assigned to var by eval.
+# Lines that begin with a # (optionally preceded by whitespace)
+# and lines that do not contain a '=' are ignored.
+function set_vars {
+/bin/sed "
+/[ 	]*#/d
+/=/!d
+s/'/'\\\\''/g
+s/=/='/
+s/$/'/" $*
+}
+
+# Usage: EmitVar shelltype varname value
+function EmitVar {
+    typeset shelltype=$1 var=$2 val=$3
+    # An = is used between var and value even for csh 
+    # env vars so that the single-quote-escaping sed script
+    # can recognize the start of the value.
+    if [ $shelltype = b ]; then
+	echo "$var=$val"
+	echo "export $var"
+    else
+	echo "setenv $var=$val"
+    fi
+}
+
+# Uses globals: NumPref, Vars[], GetConfig(), debug
+# Usage: Setup b|c
+# Emits configuration strings based on contents of .config file
+# and carries out these direct login session modifications:
+# modifications of termio
+# mesg y/n
+# mbiff on/off
+function Setup {
+    GetConfig - || exit 1
+    typeset -i i=1
+    typeset var val equals shelltype=$1 mesgcmd sttycmd docmd=
+
+    # Can't use aliases here due to aliasing bug
+    istrue nomodify && docmd="print -u2 debug: Would execute: "
+
+    [ $shelltype = b ] && equals== || equals=' '
+
+    ### TERM var
+    if [ "$askterm" = on ]; then
+	print -u2 -n "TERM = ($TERM) " 1>&2
+	read term
+	# If the user changes terminal type, don't set TERM
+	[ -n "$term" -a "$term" != "$TERM" ] && unset LINES
+	export TERM=${term:-$TERM}
+    fi
+    ### mesg y/n
+    case "$mesg" in
+    on)
+	$docmd /bin/mesg y;;
+    off)
+	$docmd /bin/mesg n;;
+    esac
+
+    unset sttyopt[*]
+    ### stty intr, erase
+    [ -n "$interrupt" ] && set -A sttyopt -- intr "$interrupt"
+    [ -n "$erase" ] && set -A sttyopt -- "${sttyopt[@]}" erase "$erase"
+    [ ${#sttyopt[*]} -gt 0 ] && $docmd /bin/stty "${sttyopt[@]}"
+
+    ### biff
+    $CanDoBiff && [ -n "$biff" ] && $docmd mbiff $biff > /dev/null
+
+    ### PATH
+    if [ -n "$userpath" ]; then
+	if [ $shelltype = b ]; then
+	    echo "PATH=$PATH:$userpath"
+	    echo "export PATH"
+	else
+	    # userpath is liable to have $HOME:other-stuff in it.
+	    # If $PATH:$userpath is echoed for csh, $HOME::other-stuff
+	    # will still be in it when csh sees it, and it will
+	    # think that is a variable modification if : isn't escaped.
+	    # So, let ksh expand userpath instead of leaving it up to csh.
+	    eval echo setenv PATH $PATH:$userpath
+	fi
+    fi
+
+    ### coredumpsize
+    if [ -n "$coredumpsize" ]; then
+	if [ $shelltype = b ]; then
+	    # bash requires that -Sc be given as a single option (not -S -c)
+	    echo "ulimit -Sc $((coredumpsize*2)) 2>/dev/null"
+	else
+	    # tcsh brokenness; won't set coredumpsize all the way to hard limit
+	    # Failure of 'limit' causes sourcing to end immediately, so must
+	    # test in subshell first & then do it for real based on result.
+	    print -r \
+"if ( { (limit coredumpsize $coredumpsize >& /dev/null) } ) then
+    limit coredumpsize $coredumpsize
+else
+    limit coredumpsize $((coredumpsize-1))
+endif"
+	fi
+    fi
+
+    ### shellmail
+    # Since we don't know where mail is stored unless the MAIL var is set,
+    # about all we can do to turn shell mail notification on is set the "mail"
+    # shell variable to the same value as the MAIL env var for the sake of csh.
+    case "$shellmail" in
+    on)
+	if [ $shelltype = c ]; then
+	    # If MAIL is set and mail isn't, set mail from MAIL
+	    print \
+'if ($?MAIL && ($?mail == 0)) then
+    set mail=$MAIL
+endif'
+	fi
+	;;
+    off)
+	if [ $shelltype = b ]; then
+	    echo 'unset MAIL MAILCHECK MAILPATH'
+	else
+	    # Archaic versions of csh (e.g. SCO's prior to 3.2v5)
+	    # did not have unsetenv, so redirect error output.
+	    echo 'unset mail'
+	    echo 'unsetenv MAIL >&/dev/null'
+	fi
+	;;
+    esac
+
+    ### Other env vars, and checking for non-setup options
+    while [ i -le $((NumPref)) ]; do
+	var=${Vars[i]}
+	eval val=\$${Vars[i]}
+	if [[ $var = *([A-Z]) ]]; then
+	    if [ -n "$val" ]; then
+		EmitVar "$shelltype" "$var" "$val"
+		# Set VISUAL to the same value as EDITOR
+		[ "$var" = EDITOR ] && EmitVar "$shelltype" VISUAL "$val"
+	    fi
+	else
+	[[ $var != ?(mesg|askterm|interrupt|erase|userpath|biff|forward|httpreport|coredumpsize|shellmail|hushlogin|versioning) ]] &&
+		print -u2 "Unknown config option: $var"
+	fi
+	let i+=1
+    done | /bin/sed "
+    /=/s/'/'\\\\''/g
+    /=/s/\$/'/
+    s/=/$equals'/"
+    # On variable assignment lines, enclose the values in single quotes,
+    # and replace ' in values with '\'' (close the single-quotes,
+    # add an escaped single quote, then reopen the single-quotes).
+    # For csh, also replace the = with a space.
+    exit 0
+}
+
+# Usage: AssignVal var=value
+function AssignVal {
+    SetVal "${1%%=*}" "${1#*=}"
+}
+
+typeset -i maxCoreH maxCoreS
+
+# Usage: chkBins binary-name ...
+# Returns comma+space separated list of those that are found.
+function chkBins {
+    typeset bin
+
+    for bin; do
+	type "$bin" > /dev/null && bins="$bins, $bin"
+    done
+    print "${bins#, }"
+}
+
+# Initialize arrays used in ShowConfig(), Interactive()
+function InitArrs {
+    typeset editors pagers vitutors
+
+# On systems that don't have extended ulimit, set these to 0
+[ maxCoreH -eq 0 ] && maxCoreH=$(ulimit -H -c 2>/dev/null || print 0)/2
+[ maxCoreS -eq 0 ] && maxCoreS=$(ulimit -S -c 2>/dev/null || print 0)/2
+
+# Brief descriptions of configuration options
+# Used in ShowConfig() and Interactive()
+set -A Descrip \
+"" \
+"Writability/Talkability" \
+"Real Name" \
+"Default Terminal Type" \
+"Terminal Type Query" \
+"Terminal Rows" \
+"Default Pager" \
+"Default Editor" \
+"Interrupt Key" \
+"Erase Key" \
+"User Path" \
+"Mail Forwarding" \
+"Immediate Mail Alert" \
+"Shell Mail Alert" \
+"HTTP Report Levels" \
+"Maximum Core Dump Size" \
+"Quiet Login" \
+"File Versioning (Undelete)" \
+"Show File Versions" \
+"Timezone"
+
+# Short descriptions (<= 16 characters), for users on small terminals
+# If empty, uses value from Descrip[]
+set -A ShortDescrip \
+"" \
+"Writability" \
+"" \
+"Default Termtype" \
+"Termtype Query" \
+"" \
+"" \
+"" \
+"" \
+"" \
+"" \
+"" \
+"Biff Mail Alert" \
+"" \
+"HTTP Rept Levels" \
+"Max Core Dump" \
+"" \
+"File Versioning" \
+"Show Versions" \
+""
+
+pagers=$(chkBins less more pg most)
+editors=$(chkBins vi emacs uemacs joe elmedit pico ee ted)
+vitutors=$(chkBins vilearn vitutor)
+[ -n "$vitutors" ] && vitutors=\
+" and preferably having run a vi teaching program ($vitutors)"
+type msgs > /dev/null && msgcmd=msgs || msgcmd=news
+
+
+# Possible values, used in Interactive()
+set -A Possib \
+"" \
+"on or off" \
+"Anything" \
+"ansi, vt100, tvi912, etc." \
+"on or off" \
+"A number (positive integer)" \
+"$pagers, etc." \
+"$editors, etc." \
+"^C for control-C, ^? for delete" \
+"^H for control-H, ^? for delete" \
+"Colon-separated list of directories" \
+"Email address (username@host.name)" \
+"on or off" \
+"on or off" \
+"Space-separated list from: standard, wide, html, allhits,
+and raw, with each word optionally preceded by monthly: or daily:" \
+"An integer between 0 and $maxCoreH, inclusive" \
+"on or off" \
+"on or off" \
+"1 or unset (use '-' to unset it)" \
+"AST, EST, CST, MST, PST, YST, HST, SST, or [STZ]offset[DTZ]"
+
+
+# Tests for valid values, used in CheckSetVal() (called only by Interactive())
+set -A Tests \
+'' \
+'onoff "$val"' \
+'' \
+'TERM="$val" tput lines' \
+'onoff "$val"' \
+'[[ "$val" -gt 0 ]]' \
+'type "$val"' \
+'type "$val"' \
+'[[ "$val" = ^? ]]' \
+'[[ "$val" = ^? ]]' \
+'CheckPath "$val"' \
+'[[ "$(/usr/mmdf/bin/checkaddr -w "$val")" != *"Bad address"* ]]' \
+'onoff "$val"' \
+'onoff "$val"' \
+'[[ "$val" = ?(monthly:|daily:)@(standard|wide|html|allhits|raw)*( *( )?(monthly:|daily:)@(standard|wide|html|allhits|raw)) ]]' \
+'[[ "$val" -ge 0 && "$val" -le maxCoreH ]]' \
+'onoff "$val"' \
+'onoff "$val"' \
+'[[ "$val" = 1 ]]' \
+'[[ "$1" = @(AST|EST|CST|MST|PST|YST|HST|SST|*([!-0-9+;,])?([0-2])[0-9]?(:[0-5][0-9]?(:[0-5][0-9]))?(+([!-0-9+;,])?(?([0-2])[0-9]?(:[0-5][0-9]?(:[0-5][0-9]))))?(,+([0-9])?(/?([0-2])[0-9]?(:[0-5][0-9]?(:[0-5][0-9]))))?(,+([0-9])?(/?([0-2])[0-9]?(:[0-5][0-9]?(:[0-5][0-9]))))) ]]'
+
+# Warnings for invalid values.
+# Used in CheckSetVal() (called only by Interactive())
+set -A Warnings \
+"" \
+"value should be on or off" \
+"" \
+"invalid terminal type" \
+"value should be on or off" \
+"value must be a positive integer" \
+"no such program" \
+"no such program" \
+"not a control character" \
+"not a control character" \
+"path contains bad directories" \
+"invalid email address" \
+"value should be on or off" \
+"value should be on or off" \
+"unknown http log level(s)" \
+"value should be in the range 0..$maxCoreH" \
+"value should be on or off" \
+"value should be on or off" \
+"value should be 1 or unset (use '-' to unset it)" \
+"value must be a known timezone name or a valid timezone specification"
+
+# Tests for whether options should be offered - NOT USED YET
+set -A OfferTests \
+"" \
+"[ -x /bin/mesg ]" \
+"" \
+"" \
+"" \
+"" \
+"" \
+"" \
+"" \
+"" \
+"" \
+"" \
+type mbiff \
+"" \
+[ -f /etc/default/httpreport ] \
+ulimit -c \
+"" \
+"" \
+"" \
+""
+
+# Verbose descriptions of configuration options, used in Interactive()
+set -A Verbose \
+"" \
+"Your writability determines whether other users can use the write and talk
+commands to communicate with you.  It can be turned on or off for the duration
+of a login session by issuing the command \"mesg y\" or \"mesg n\".  You are
+initially unwritable when you log in.  Turning on writability within $name
+causes you to always become writable immediately after logging in. You can
+still turn off writability for the rest of a login session with \"mesg n\". 
+Note: if someone sends you a write or talk message while you are logged in, it
+does not overwrite whatever you are doing, it just appears on your screen.  You
+can use the screen-redraw command of the editor or other application you were
+using to redraw the screen, or save your work, exit the application, and
+restart it." \
+"Your real name is set by the value of the NAME environment variable.  By
+default it is set to the value of your \"real name\" as given in the
+/etc/passwd file.  \$NAME is used whenever an application wants to know what
+your real name is.  The mail and news sending programs use it to tell the
+recipient who it was that sent a message, some games use it for the high score
+list, and various programs that let you interact with other users use it to
+tell them who you are.  Changing your real name within $name changes the value
+that \$NAME is set to when you log in.  However, changing this does *not*
+change the value stored in the /etc/passwd file.  The main effect of this is
+that changing this value does not affect what a remote user sees when using the
+\"finger\" protocol to find the real name associated with your login name (for
+this reason, the value stored in the /etc/passwd file is often known as the
+\"finger name\").  On this system, you cannot change your \"finger name\"." \
+"Your default terminal type is the type that you get if you hit return at the
+\"TERM = (termtype)\" prompt when you log in, or which you get if you turn off
+\"Termtype Query\".  If you leave \"Termtype Query\" on, you can specify a
+different terminal type than the default by typing its name before hitting
+return.  Your terminal type determines what escape sequences are sent by the
+system to do full-screen displays, as required by most of the editors, etc.  It
+should match the terminal type that you use, or the terminal type that you set
+your communications program to emulate.  vt100 is often a good choice, if you
+have that option.  You change your terminal type after logging in by changing
+the value of the TERM environment variable.  Read the help for the \"Termtype
+Query\" option to find out how to do that." \
+"By default, you are asked for a terminal type when you log in on a dialup
+(modem) line, or if you didn't have your terminal type set wherever you
+remotely logged in from.  If you select \"off\" for \"Terminal type query\",
+your terminal type will be set to the value you give for \"Default Terminal
+Type\" without you being asked.  You can still change your terminal type from
+your shell prompt at any time.  If \"newtermtype\" is the terminal type you
+wish to set, you would type one of the following.
+If your shell is sh, type:
+
+TERM=newtermtype; export TERM
+
+If your shell is ksh, bash, or zsh, type:
+
+TERM=newtermtype
+
+If your shell is csh or tcsh, type:
+
+setenv TERM newtermtype" \
+"If your terminal emulator displays a number of rows (lines) that is not the
+normal number of rows for the terminal type you select (for example, if you
+use an emulator with a configurable number of rows), you can set the actual
+number here.  If you set \"Termtype Query\" to yes, the value you give for
+terminal rows will only take effect if you select your default termtype when
+you log in.  Note that the terminal rows setting will cause most, but not all,
+programs to use the number of rows you set.  A few ignore this option, and will
+try to use the number of rows that is the default for the terminal type you
+select.  If you need to change this value after you log in (for example, if you
+resize your terminal emulator window), you can do so by changing the value of
+the LINES environment variable, as follows.  Substitute the number of lines you
+have for \"n\":
+If your shell is sh, type: LINES=n; export LINES
+If your shell is ksh, bash, or zsh, type: LINES=n
+If your shell is csh or tcsh, type: setenv LINES n
+If you are using an xterm, scoterm, Sun console, or compatible terminal
+emulator, you can have LINES automatically set when you log in by using the
+\"resize\" program.  See the resize man page for details (do \"man resize\")." \
+"The pager is used to view text one screenfull at a time.  It is invoked by
+various utilities (mail, man, msgs, etc.) when it is neccessary to view more
+than one screenful of output.
+more is the default pager.  It is a simple pager that lets you view each screen
+by pressing the space bar.  pg is another simple pager.  It will let you go
+backwards in text by giving a page offset, and is less sensitive to terminal
+emulation problems because it always draws a full screen at at time.
+most is a pager whose main feature is the ability to view multiple files at
+once.  Since the pager that you set here is normally used to view only one
+file at a time, the only reason to select most is if you are familiar with it.
+less is the most capable pager.  It uses the \"vi\" cursor keys and command
+set to let you move around in text with ease.  You can use it without knowing
+vi, but to get the most out of it, you should read the \"less\" man page (do
+\"man less\").
+If you don't know which to pick, choose \"less\", since it's fairly easy to use
+and its extra capabilities are very useful if you learn about them.  Just
+remember that you have to type \"q\" to get out of less when you reach the
+end of a document (the man page tells how to change that behaviour)." \
+"The editor is used to edit text.  It is automatically run by some applications
+(like rn), and is entered by others (like mail) when requested.  The default is
+\"vi\".  It is very capable but non-intuitive.  You shouldn't attempt to use it
+without having a vi reference handy, or at least having read the man page (do
+\"man vi\")$vitutors.
+emacs is even more capable than vi, and similar caveats apply to it.  uemacs is
+\"micro-emacs\", a smaller, less capable editor mostly compatible with emacs,
+and faster to start up if the system is loaded.  joe is an editor with editing
+key bindings similar (but not exactly identical) to Word Perfect.  elmedit &
+pico are the editors used by default by the Elm & Pine mailers respectively. 
+ee & ted are other fairly easy to use but limited-capability editors.
+If you already know any of the above editors, you should set your editor to the
+one you know.  If you don't know any of them but do know Word Perfect, you will
+probably find joe easiest to use.  If you want to know an editor that will be
+available on all UNIX systems, you should choose (and learn) vi.  If you will
+need to do complex editing tasks, you should learn vi or emacs.  If you don't
+have any other reason to select one editor over another, pico is a good
+candidate since it is among the easiest to use and has good built-in help." \
+"The interrupt key is used to kill running programs.
+It is equivalent to control-C and control-break under DOS.
+The initial value is delete (the delete key), which is specified as ^?.
+The other common value on UNIX systems is control-C, specified as ^C.
+Other control keys may be specified as ^x, where x is the control key
+to use for the interrupt key.  Various other control keys have special
+meanings, so it is safest to use ^C or delete.  You can change your interrupt
+key from a shell prompt by typing:
+stty intr '^x'
+where x is the control key you want to use as your interrupt key." \
+"The erase key is used to delete the last character typed.  It causes the
+cursor to move back one space.  Depending on other settings, the character that
+was there may or may not be erased on the screen (actually, overwritten with a
+space), but in either case it is removed from the terminal input buffer.  The
+initial value is control-H, which is specified as ^H.  The other common value
+is delete (the delete key), which is specified as ^?.  Other control keys may
+be specified as ^x, where x is the control key to use for the erase key. 
+Various other control keys have special meanings, so it is safest to use ^H or
+delete.  If you use delete, make sure you don't set the interrupt key to be
+delete.  On a terminal, the backspace key (which sometimes has a left pointing
+arrow on it) most often sends control-H, and the DEL (delete) key almost always
+sends delete.  If the terminal has a cursor keypad, its left-arrow key usually
+sends an escape sequence rather than control-H or delete; if it does, it can't
+be used for erase.  If you use control + H for erase, set erase to ^H; if you
+use the delete key, set it to ^?; if you use the backspace key, you'll need to
+determine whether it sends control-H or delete; if you use your cursor keypad,
+you may have to change unless you are using a computer with communications
+software that lets you configure the key to send control-H or delete." \
+"Your path determines where the shell looks for a program to execute when you
+type its name.  The default path includes the directories that most of the
+system utilities reside in, and a directory under your home directory called
+\"bin\".  It does not contain your home directory.  If you want to be able to run
+utilities that will reside in your account, create the \"bin\" directory if it
+doesn't already exist (use the command: mkdir \$HOME/bin) and put them there. 
+The default path also does not contain the current directory; this prevents you
+from accidently running a possibly dangerous executable when you are in a
+publicly writable directory or a directory belonging to another user.  The user
+path, if any, is added to the end of the standard path.  To include your home
+directory in your path, use \"\$HOME\".  To include your current directory, use
+\".\".  Don't type in the quotes.  Another directory that some users may want in
+their path is /etc.  If you want more than one, separate them with colons,
+e.g.: \$HOME:/etc:." \
+"Mail forwarding allows you to have your email sent to an account on another
+system.  Before setting up mail forwarding, you should send test mail to the
+address you intend to forward to to make sure it works as you expect.  An
+incorrect forwarding address can cause you to lose all of your mail, or may
+set up a mail loop, causing an ever increasing number of error replies to
+circulate between accounts.
+The forwarding available through this option uses the .forward file, which is
+more limited in function that it is on some other systems.  Only true
+forwarding can be arranged, not pipe aliases.  A comma-separated list of
+addresses may be given.  To forward mail to another account and also keep it
+here, give your local account name and the remote address.  Do *not* put a
+backslash (\) in front of your account name; that is not neccessary here and
+will cause the forwarding to fail.
+To do more complex mail processing (for example, pipes), you can use a
+.maildelivery file.  Do \"man maildelivery\" to learn about its capabilities.
+Also, turning on immediate mail notification will create a prototype
+.maildelivery file." \
+"Turning immediate mail notification on causes a message to be sent to your
+terminal immediately when you receive new mail while logged on.  This can be
+distracting if you are using a full-screen application.  You can turn mail
+notification on and off interactively with the \"mbiff\" command.  If you set
+this option here, mail notification will be reset to the status you give each
+time you log in." \
+"If shell mail notification is on, your shell will periodically check for
+whether you have new mail just before it issues a shell prompt (it does this
+only if it has been 10 minutes since the last check).  If you do have new mail,
+it inform you before printing the prompt.  This is less intrusive than
+immediate notication, but it means that if you're running an application, you
+won't find out that you have new mail until you get back to a shell prompt." \
+"The HTTP report level determines what types of reports are mailed to you about
+accesses of your web pages.
+raw       Raw http access log data, with one line for each access.
+allhits   For each page accessed, gives time & remote hostname for each access.
+standard  Summary with one line for each file accessed, including access count.
+wide      This gives the standard report without lines being truncated,
+          as is done by default to make them fit an 80-column screen.
+html      Like the wide report, but HTML-formatted for viewing as a web page.
+Multiple report levels may be given; they should be separated from each other
+by spaces.  Also, any report level may be preceded by a periodicity
+specification, separated from the level by a colon (:).  The periodicities that
+may be specified are daily and monthly.  The levels so restricted will only
+be used at the given interval.  If any levels are selected by period, only
+levels selected by period will be used.  If no levels are selected by period,
+any levels that do not have a periodicity attached to them are used.  For
+example, if this list is given:   standard monthly:html
+then the monthly report will include only an html report, and the daily report
+will include only a standard report (since no daily:level is given)." \
+"NOTE: you need only read this and adjust this parameter if you are developing
+programs, or are curious about it.
+Under certain circumstances, when a process is killed due to an abnormal
+condition (e.g. the process attempted to access memory outside of its address
+space) the memory image of the process will be written to a file named \"core\"
+in its current working directory.  This is useful to users who are writing
+programs, because they can use a debugger to analyze the core file to determine
+what went wrong with the process.  In general, core dumps are not useful to
+users who are not developing programs.  Core dump files tend to be large,
+occupying about as much filesystem space as the process occupied memory.  A
+typical way for a process to fail is for it to occupy as much memory as it can
+and then die, which makes the problem worse.  To avoid this problem, it is
+possible to place a limit on the size of a core dump file.  By default, this is
+set to 0.  This means that a 0-size file named \"core\" will be created in the
+circumstances described above.  If you find these files, you can generally
+ignore them or remove them.  However, if you are writing programs and know how
+to use the debuggers, you will probably want to increase your coredump size
+limit to the maximum allowable." \
+"If \"quiet login\" is on, most of the login messages are suppressed.  The
+message of the day (login banner), report of new mail messages, and report of
+new system messages are not printed.  If you turn this on, be sure to check
+regularly for new system messages, using \"$msgcmd\"." \
+"Turning on file versioning enables the undelete capability for files within
+your home directory.  If file versioning is on and you remove a file or
+truncate it to zero length, the file is not actually removed from the
+filesystem.  Instead, it is renamed so that it is hidden from view.  This also
+happens when you overwrite a file, since that will remove or truncate the
+original file.  The file can be restored or removed \"for real\" with the
+undelete command.  Only a small number of old file versions are kept, so if you
+repeatedly remove/truncate the same file, eventually the earlier versions will
+\"fall off the end\" so that they cannot be restored.  Also, the filesystem is
+typically \"cleaned up\" at regular intervals by removing old saved versions of
+files.  The undelete capability is meant to rectify mistakes that are caught
+soon after they are made, not as a long-term backup scheme.  Versioned files
+occupy extra filesystem space.  Therefore, versioning is not automatically
+enabled for all users; it must be turned on here.  Turning it on here will turn
+file versioning on for your home directory and all directories underneath it. 
+If you want to have file versioning only on for certain directories, leave it
+off here and use undelete to turn it on for those directories with:
+undelete -s dirname
+You can turn it off again with: undelete -u directoryname
+For information on how to use undelete, do: man undelete" \
+"SHOWVERSIONS determines whether saved (undeletable) file versions are found
+when commands search through directories, as ls does when it lists files and
+the shells do when they expand wildcards.  For example, if you set SHOWVERSIONS
+to 1, * will expand to all files in the current directory, including saved
+versions of files, and ls will list them all.  If SHOWVERSIONS is unset, * will
+expand to only current versions of files, and only they will be listed by ls.
+Regardless of the setting of SHOWVERSIONS, saved versions can be acted on by
+explicitly naming a file with its version information.  For example,
+l \"foo;1\"
+will list saved version 1 of file foo, if it exists.  The quotes around the
+filename are neccessary because the ';' character is special to the shells.
+Also, the undelete command is not affected by SHOWVERSIONS; it can always show,
+remove, and perform other actions on saved file versions.  SHOWVERSIONS can be
+turned on and off during a login session by setting the SHOWVERSIONS
+environment variable to 1 to turn it on, and unsetting it to turn it off." \
+"Your timezone setting is used by utilities that print timestamps.  For
+example, when the \"l\" utility prints the dates for files, it prints them in
+the local time indicated by the timezone setting.  The usual form of timezone
+setting is \"STZnDTZ\", where STZ is the name of the timezone when daylight
+savings time is not in effect, n is the number of hours west of GMT (a negative
+number indicates hours east of GMT), and DTZ is the name for the timezone when
+daylight savings time is in effect.  If DTZ is not given, the locale is taken
+to not have daylight savings time.  Example: the timezone setting PST8PDT
+indicates that the timezone is named PST during standard time and PDT during
+daylight savings time, and is 8 hours west of GMT (7 hours during daylight
+savings time).  Timezone settings can be much more detailed than this; you can
+specify hours, minutes, and seconds from GMT individually for standard time and
+daylight savings time, specify the exact date and time that daylight savings
+time goes into effect and ends (by default, the rules for the United States are
+used), etc.  See the timezone(F) man page for complete details (do
+\"man F timezone\").  If one of the known time zone names is given by itself,
+it will be converted to a complete form."
+}
+
+# Usage: ShowValue varname
+# Prints varname followed by its value.
+# Prints an error message and returns 0 if varname is invalid.
+function ShowValue {
+    typeset -i Ind
+    typeset val
+
+    Ind "$1"
+    Index=$?
+    if isfalse Index; then
+	return 1
+    fi
+    eval val=\$${Vars[Index]}
+    print "$1: $val"
+}
+
+function SetConfig {
+    typeset -i i=1
+    typeset Var fwd htfile hufile
+
+    if > $PrefFile; then :; else
+	print -u2 "Failed to write configuration file $PrefFile."
+	exit 1
+    fi
+    while [ i -le NumPref ]; do
+	Var=${Vars[i]}
+	eval val=\$$Var
+	case $Var in
+	forward)
+	    fwd=$HOME/.forward
+	    if [ -n "$val" ]; then
+		echo "$val" > $fwd
+		# chgrp mmdf $fwd
+		# mail sent locally will run w/originator's uid all the way
+		# through delivery, so .forward has to be readable by all, not
+		# just mmdf.
+		chmod a+r $fwd
+		chmod a+x $HOME
+	    elif [ -f $fwd ]; then
+		# Since 'forward' var is set from .forward when config is
+		# started, if it's gone now user either didn't
+		# have one or has explicitly removed it.
+		rm $fwd
+	    fi
+	    ;;
+	httpreport)
+	    htfile=$HOME/.httpreport
+	    if [ -n "$val" ]; then
+		# Put one level per line, for readability
+		> $htfile
+		for level in $val; do
+		    echo "$level" >> $htfile
+		done
+	    elif [ -f $htfile ]; then
+		# Since 'httpreport' var is set from .httpreport when config is
+		# started, if it's gone now user either didn't
+		# have one or has explicitly removed it.
+		rm $htfile
+	    fi
+	    ;;
+	versioning)
+	    # note: the test for whether file versioning is current only or
+	    # not is to check only the home dir.
+	    case "$val" in
+	    on)
+		if [ ! -u "$HOME" ]; then
+		    print -ru2 -- \
+		    "Turning on file versioning (this may take a while)."
+		    undelete -rs -- "$HOME"
+		    print -ru2 -- "Done turning on file versioning."
+		fi
+		;;
+	    off)
+		if [ -u "$HOME" ]; then
+		    print -ru2 -- \
+		    "Turning off file versioning (this may take a while)."
+		    undelete -ru -- "$HOME"
+		    print -ru2 -- "Done turning off file versioning."
+		fi
+		;;
+	    esac
+	    ;;
+	hushlogin)
+	    # hushlogin var is set to on or off when config is started.
+	    # If value is still on or off, touch or remove file if neccessary.
+	    # If any other value, leave it as is.
+	    hufile=$HOME/.hushlogin
+	    if [ "$val" = on ]; then
+		[ ! -e $hufile ] && > $hufile
+	    elif [ "$val" = off -a -e $hufile ]; then
+		rm $hufile
+	    fi
+	    ;;
+	*)
+	    if [ -n "$val" ]; then
+		echo "${Vars[i]}=$val"
+	    fi
+	    ;;
+	esac
+	let i+=1
+    done > $PrefFile
+    if istrue u; then
+	chown $p_uid $PrefFile
+	chgrp $p_gid $PrefFile
+    fi
+}
+
+# Usage: ShowConfig
+function ShowConfig {
+    typeset -i i=1
+    typeset val
+
+    # All routines that call ShowConfig() will not have done an InitArrs
+    # first, and will exit after, so do InitArrs here
+    InitArrs
+    while [ i -le NumPref ]; do
+	eval val=\$${Vars[i]}
+	if [ -n "$val" ]; then
+	    print "${Descrip[i]}: $val"
+	fi
+	let i+=1
+    done
+}
+
+function CheckPath {
+    typeset dir IFS=: 
+    typeset -i ret=0 CRet
+
+    cd /usr/tmp		# Try to make all relative dirs except . and .. be bad.
+    for dir in $1
+    do
+	CRet=1
+	# expand vars
+	eval dir=$dir
+	if [ ! -a "$dir" ]; then
+	    print -u3 "$dir: does not exist."
+	elif [ ! -d "$dir" ]; then
+	    print -u3 "$dir: not a directory."
+	elif [ ! -x "$dir" ]; then
+	    print -u3 "$dir: not executable."
+	elif [ ! -r "$dir" ]; then
+	    print -u3 "$dir: not readable."
+	else
+	    CRet=0
+	fi
+        istrue CRet && ret=1
+    done
+    return $ret
+}
+
+function Interactive {
+    typeset -i i Map OptNum=1 helpLines maxDescLen=0 lenLimit termLines=0
+    typeset -i termCols=0
+    typeset Resp r val Menu line
+    typeset menuDescrip
+
+    InitArrs
+    export TERM
+    # Set this first in case we're running config for another user,
+    # in which case TERM is liable to be changed.
+    istrue debug || clear=$(tput clear 2>/dev/null)
+    GetConfig || InitVars
+    if [ -n "$LINES" ]; then
+	termLines=$LINES
+    else
+	termLines=$(tput lines 2>/dev/null)
+	[ termLines -lt 1 ] && termLines=24
+    fi
+    if [ -n "$COLUMNS" ]; then
+	termCols=$COLUMNS
+    else
+	termCols=$(tput cols 2>/dev/null)
+	[ termCols -lt 1 ] && termCols=80
+    fi
+    PS3="Select an option by number: "
+    set -A menuDescrip -- "${Descrip[@]}"
+    # If one option per line won't fit on screen, make select double up by
+    # making lines shorter; also makes lines shorter if we don't have 80 cols
+    if [[ NumPref+5 -gt termLines || termCols -lt 60 ]]; then
+	i=1
+	while [ i -le NumPref ]; do
+	    [ -n "${ShortDescrip[i]}" ] && menuDescrip[i]=${ShortDescrip[i]}
+	    let i+=1
+	done
+    fi
+    i=1
+    while [ i -le NumPref ]; do
+	[ ${#menuDescrip[i]} -gt maxDescLen ] && maxDescLen=${#menuDescrip[i]}
+	let i+=1
+    done
+    menuDescrip[NumPref+1]="Save & quit"
+    menuDescrip[NumPref+2]="Abort (no update)"
+    # select requires that max line length be termCols/2-6 to print two columns
+    # D is used for description + dots
+    if [ NumPref+5 -gt termLines ]; then
+	lenLimit=termCols/2-6
+	typeset -L$((maxDescLen+1)) D
+    else
+	lenLimit=termCols-5
+	typeset -L$((maxDescLen+3)) D
+    fi
+    typeset -L$((lenLimit-1)) trunc
+    while :; do
+	print -n "$clear"
+	D="Option"
+	print "    $D Current Value"
+	D="------"
+	print "    $D -------------"
+	i=1
+	while [ i -le NumPref+2 ]; do
+	    if [ "${NoOpt[i]}" -ne 1 ]; then
+		# Use D to build fixed-width description field
+		if [ i -le NumPref ]; then
+		    D="${menuDescrip[i]} ...................."
+		    line="$D ${Values[i]}"
+		else
+		    line=${menuDescrip[i]}
+		fi
+		if [ ${#line} -gt lenLimit ]; then
+		    trunc=$line
+		    line="$trunc>"
+		fi
+		Menu[i]=$line
+		Map[OptNum]=i	# Map of menu number to option number
+		let OptNum+=1
+	    fi
+	    let i+=1
+	done
+	set -- "${Menu[@]}"
+	# Print menu for each iteration
+	select Resp; do break; done
+	case "$REPLY" in
+	$#)
+	    exit 0;;
+	$(($#-1)))
+	    break;;
+	esac
+	[ -z "$Resp" ] && continue
+	i=REPLY
+	r=
+	OptNum=${Map[i]}
+	var=${Vars[OptNum]}
+	while [ -z "$r" ]; do
+	    print -n "
+Current value of ${Descrip[OptNum]} ($var): ${Values[OptNum]}
+Possible values: ${Possib[OptNum]}
+Enter: a value to set this option to; 'h' for a description of this option;
+'-' to remove this option from your configuration; or press return to retain
+the current value: "
+	    read r
+	    case "$r" in
+	    "")
+		break
+		;;
+	    h)
+		print -r -- "
+${Verbose[OptNum]}"
+		# Must use wc instead of set -- so that blank lines are counted
+		print -r -- "${Verbose[OptNum]}" | wc -l | read helpLines
+		if [ helpLines+6 -gt termLines ]; then
+		    print -rn -- "Press return to continue..."
+		    read
+		fi
+		r=
+		;;
+	    -)
+		SetVal $var ""
+		;;
+	    *)
+		CheckSetVal $OptNum "$r"
+		;;
+	    esac
+	done
+    done
+}
+
+function onoff {
+    [[ "$1" = @(on|off) ]]
+}
+
+# Usage: CheckSetVal var-index val
+function CheckSetVal {
+    typeset val=$2 oval=$2 stty r2
+
+    # Discard normal & error output, but save stderr as fd 3
+    # for tests that really want to print
+    istrue debug && print -u2 -- "Test for option $1: ${Tests[$1]}"
+    if eval ${Tests[$1]} >/dev/null 3>&2 2>&1; then
+	SetVal $var "$val"
+    else
+	if [[ "${Tests[$1]}" = onoff* ]]; then
+	    print -u2 "Error: ${Warnings[$1]}."
+	    r2=n
+	else
+	    print -u2 "Warning: ${Warnings[$1]}."
+	    print -n "Really set $var to \"$oval\"? "
+	    read r2
+	fi
+	if [[ "$r2" = [yY]* ]]; then
+	    SetVal $var "$oval"
+	else
+	    print -n \
+	    "Value of $var not changed.  Press return to continue. "
+	    read
+	fi
+    fi
+}
+
+# Set initial config values for a user who is running config for the first time
+# Get NAME from /etc/passwd, mesg from mesg command, TERM, PAGER, and
+# EDITOR/VISUAL from environment if set else defaults, interrupt and erase from
+# stty, anything else (e.g. LINES) straight from environment with null default.
+# userpath is left null, askterm is set to on.
+function InitVars {
+    if [ -z "$NAME" ]; then
+	# get name from /etc/passwd
+NAME=$(sed -n "/^$USER:[^:]*:[^:]*:[^:]*:/{s///;s/[:,].*//;p;}" /etc/passwd)
+	export NAME
+    fi
+    askterm=on
+
+    if istrue u; then
+	# If running config for another user, don't set these.
+	unset TERM PAGER EDITOR VISUAL mesg interrupt erase LINES \
+	coredumpsize
+    else
+	set -- $(mesg)
+	mesg=$2
+	[ "$mesg" = n ] && mesg=off || mesg=on
+
+	export TERM=${TERM:-vt100}
+	export PAGER=${PAGER:-/usr/bin/more}
+	export EDITOR=${VISUAL:-${EDITOR:-/usr/bin/vi}}
+
+	# Relevant stty -a output line looks like this:
+	# line = 0; intr = ^C; quit = ^\; erase = ^H; kill = ^U; eof = ^D;
+	# eol = ^@; 
+	stty=$(/bin/stty -a)
+	stty=${stty##*intr = }
+	interrupt=${stty%%;*}
+	[ $interrupt = DEL ] && interrupt='^?'
+	stty=${stty##*erase = }
+	erase=${stty%%;*}
+	[ $erase = DEL ] && erase='^?'
+	[ maxCoreS -eq 0 ] && maxCoreS=$(ulimit -S -c 2>/dev/null || print 0)/2
+	coredumpsize=$maxCoreS
+    fi
+    [ -f $HOME/.forward ] && forward="$(<$HOME/.forward)"
+    [ -e $HOME/.hushlogin ] && hushlogin=on || hushlogin=off
+    [ -u "$HOME" ] && versioning=on || versioning=off
+    if [ -f $HOME/.httpreport ]; then
+	# Put all lines on one line
+	set -- $(<$HOME/.httpreport)
+	httpreport="$*"
+    fi
+    # Since we do not have access to csh's internal 'mail' var, just use
+    # these two.
+    [ -n "$MAIL" -o -n "$MAILCHECK" ] && shellmail=on || shellmail=off
+    # This uses $HOME
+    $CanDoBiff && biff=$(mbiff status)
+
+    for v in ${Vars[*]}; do
+	SetVal $v
+    done
+}
+
+function Initialize {
+    InitVars
+    SetConfig
+
+    print "Your account configuration has been initialized as follows:"
+    ShowConfig
+    print \
+"To change these values or read a description of the
+configuration options, use \"$name\" without arguments."
+    exit 0
+}
+
+function List {
+    GetConfig - || exit 1
+    ShowConfig
+    exit 0
+}
+
+# @(#) getpwnam.ksh 1.0 94/03/05
+# Usage: getpwnam <name> [<pre>]
+# Reads the passwd file entry for account <name>
+# Sets 7 global variables from fields in the passwd entry:
+# <pre>name	Account name
+# <pre>password	Password field
+# <pre>uid	Login user ID
+# <pre>gid	Login group ID
+# <pre>gcos	GCOS (comment) field
+# <pre>home	Home directory
+# <pre>shell	Login shell
+# Returns 0 on success, 1 on error.
+# If <pre> is not given, pw_ is used.
+# Example: getpwnam spcecdt PW_
+# sets PW_name, PW_password, etc. with fields from spcecdt's passwd entry
+function getpwnam {
+    typeset IFS=: user=$1 p=$2
+
+    [ $# -lt 1 ] && return 1
+    [ $# -eq 1 ] && p=p_
+
+    set -- $(grep "^$user:" /etc/passwd 2>/dev/null) || return 1
+    eval $(print -r \
+"${p}name=$1
+${p}password=$2
+${p}uid=$3
+${p}gid=$4
+${p}gcos=$5
+${p}home=$6
+${p}shell=$7" | set_vars)
+}
+
+### Start of main program
+
+name=${0##*/}
+Usage="Usage: $name [-bcdhil] [-f filename] [option[=value]] ..."
+PrefFile=$HOME/.config
+typeset -i u=0 debug=0 nomodify=0
+
+set -o noglob
+
+while getopts :bcf:hilu:xdD opt; do
+    case $opt in
+    b|c)
+	action="Setup $opt";;
+    x)
+	debug=1 nomodify=1;;
+    d)
+	nomodify=1;;
+    D)
+	Assignments="interrupt=^C erase=^?"
+	;;
+    f)
+	PrefFile=$OPTARG;;
+    u)
+	getpwnam "$OPTARG"
+	PrefFile=$p_home/.config
+#	if [ ! -f $PrefFile ]; then
+#	    print -u2 "WARNING: This user has no config file.
+#	fi
+	HOME=$p_home
+	USER=$p_name
+	NAME=$p_gcos
+	u=1
+	;;
+    h)
+	echo \
+"$name: Display or modify account configuration.
+$Usage
+If any option=value parameters are passed, the user's .config file is modified
+with each option named set to the value given for it.  See a .config file for
+the possible option names.
+Options:"'
+-b: Process config file & emit sh/ksh/bash initialization strings.  This is
+    typically used in a .profile or /etc/profile like this: eval "`config -b`"
+-c: Process config file & emit csh/tcsh initialization strings.  This is
+    typically used in a .cshrc or /etc/cshrc like this (modern csh versions
+    could use eval instead):
+    set tmpfile="$HOME/#config.$$"
+    config -c > $tmpfile
+    source $tmpfile
+    rm $tmpfile
+-d: Debug configuration.  Use with -b or -c option to check configuration
+    without modifying login session.  Actions that would modify login
+    session are described without being taken.
+-f<filename>: Read/write <filename> instead of $HOME/.config.
+-h: Print this help.
+-i: Initialize account configuration.
+-l: List current account configuration.
+-u<user>: Process configuration file for <user>.
+-D: Make the erase character be the delete key.  This also sets the interrupt
+    character to be control-C, since it is normally the delete key.  Equivalent
+    to "config interrupt=^C erase=^?".'
+       exit 0
+       ;;
+    l)
+	action=List;;
+    i)
+	action=Initialize;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+
+
+# Configuration file variable names
+# Begin with "" so that first varname will have index 1, etc.
+set -A Vars "" mesg NAME TERM askterm LINES PAGER EDITOR interrupt erase \
+userpath forward biff shellmail httpreport coredumpsize hushlogin versioning \
+SHOWVERSIONS # TZ
+typeset -i NumPref=$((${#Vars[*]}-1))
+
+if type mbiff > /dev/null; then
+    CanDoBiff=true
+else
+    CanDoBiff=false
+    NoOpt[NumPref-1]=1
+fi
+
+type httplog > /dev/null || NoOpt[NumPref]=1
+
+#InitArrs
+
+# Execute action, if any
+eval $action
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+[ -n "$Assignments" ] && set -- "$@" $Assignments
+
+if [ $# -lt 1 ]; then
+    Interactive
+else
+    GetConfig - || exit 1
+    for arg; do
+	if [[ "$arg" = *=* ]]; then
+	    AssignVal "$arg"
+	else
+	    ShowValue "$arg"
+	fi
+    done
+fi
+
+SetConfig
+print -u2 "Configuration changes will take effect next time you log in."

@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# findex - Search for files/paths in compressed indicies
+# Copyright 1996 - NPX Enterprises - Richmond, BC
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2, or (at your option)
+# any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+# Written by Cory Omand.
+
+## This must be changed to where you place your indicies...
+
+#IDXPATH=~/.idx
+IDXPATH=/home/ftp/pub
+
+###########################################################
+
+if [ -z $1 ] || [ -z $2 ]; then
+	echo " fINDEX v1.0 - Search for files/paths in compressed indicies.
+	Usage:
+		findex <Index name without .gz ending> <pattern to match>
+	     "
+	exit
+fi
+
+# First search for uncompressed index
+if [ -f $IDXPATH/$1 ]
+then
+  cat $IDXPATH/$1 | grep $2 | pg
+else
+  if [ -f $IDXPATH/$1.gz ]
+  then
+    cat $IDXPATH/$1.gz | gunzip | grep $2 | pg
+  else
+	echo "Can't find index file $IDXPATH/$1"
+  fi
+fi

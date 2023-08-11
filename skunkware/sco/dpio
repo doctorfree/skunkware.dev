@@ -1,0 +1,75 @@
+#!/bin/sh
+#
+# dpio - use cpio to archive the specified directories to tape
+#        or read a cpio archive
+# 
+# Written 22 Dec 93 by Ronald Joe Record (rr@sco.com) after having
+# executed "man cpio" hundreds of times over the last decade.
+#
+# Modified 05-Aug-97 by rr@sco.com incorporating compression option
+# based on extension written by Sean M. McKee (mckee@misslink.net)
+#
+# Normal use of this script would be to read or write a cpio archive
+# from/to a 150 Mb cartridge tape. The usual invocation would be
+# "dpio -i" to read and "dpio dir1 dir2 dir3" or "dpio ." to write.
+#
+
+usage() {
+	echo "Usage: dpio [-ictvu] [-K Volume-size] [-f file] [dir list ...]"
+	exit 1
+}
+
+DIRS=
+VOLSIZ=150000
+DEVICE=/dev/rct0
+V=
+T=
+COMP=
+UNCOMP=
+READ=
+
+while getopts citvuK:f: c
+do
+	case $c in
+		K)  VOLSIZ=$OPTARG
+			;;
+		f)  DEVICE=$OPTARG
+			;;
+		c)  COMP="| gzip -9"
+		    UNCOMP="| gzcat"
+			;;
+		i)  READ=1
+			;;
+		t)  T=t
+			;;
+		u)  usage
+			;;
+		v)  V=v
+			;;
+		?)  usage
+			;;
+	esac
+done
+shift `expr $OPTIND - 1`
+
+DIRS=$*
+
+[ "$DIRS" = "" ] && [ "$READ" = "" ] && usage
+
+if [ "$READ" ]
+then
+    if [ "$UNCOMP" ]
+    then
+	dd if=$DEVICE | gzcat | cpio -icd${T}${V}B
+    else
+	cpio -icd${T}${V}B -I$DEVICE
+    fi
+else
+    if [ "$COMP" ]
+    then
+     find $DIRS -depth -print | cpio -oc${T}${V}BK $VOLSIZ | gzip -9 | dd of=$DEVICE
+    else
+     find $DIRS -depth -print | cpio -oc${T}${V}BK $VOLSIZ -O$DEVICE
+    fi
+
+fi

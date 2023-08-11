@@ -1,0 +1,431 @@
+IE6 Installation Steps
+===============
+1) Copy and paste the file below into a text editor. (Note I no longer use an ie6setup.reg, in the spirit of the new Frank's Corner instructions.) Edit the Environment section: Set PATH to your taste, & change USERPROFILE to end in your account name. In the next section, edit ShowDirSymLinks and ShowDotFiles to your taste. In the audio section, oss tends to use up less cpu % than alsa. Save it as, say, ~/config.reg.
+
+20050830 & up set 'winsysdir' to 'system32' - unfortunately, Frank's .reg files register IE in 'system' - DO NOT change 'winsysdir' until IE is working.
+
+You'll notice I tend to redundantly specify Version, and defaults for */ole/rpc in the app-specific sections. With the default Version=win2k since 20050830, this keeps WMP & IE, and pgms it calls (pstores, dw15, rundll32) working. Notice ole/rpc is set to builtin systemwide. This works fine for ie6setup & the pgms it and wineboot call, but must be native for IE itself (plugins don't work/crash the browser), as set below. This setup also cures my previously reported problem with Install on Demand in IE. (It is possible to use this setup to install the win2k version of IE if you set the system Version=win2k, but as I said, the builtin ole is not up to the task of supporting IE.) You may have to disable ddraw for wmplayer for wine versions below 20050830.
+
+After a successful install, the systemwide defaults for Version & */ole/rpc can be set to taste.
+
+2) Starting with no previous ~/.wine, type
+
+regedit ~/config.reg
+
+If you do have a ~/.wine already, but no IE, you may need to worry about merging your dlloverrides with mine.
+
+3) cd ~/wine/dosdevices
+ln -s c:/windows/temp t: (or ln -s /tmp t:, ala winetools)
+ln -s ~/winetools f:
+
+The last, if you are using winetools, is expected by some of it's install routines. If you have more than two physical cdroms, or you have HAL and you have a combination of more than two physical drives and mounted CD/DVD disks, f: will be taken already. Rename f: and f::, and create the softlink.
+
+4) Get dcom98 from Frank's Corner ( frankscorner.org/index.php?p=ie6 ), and
+
+wine dcom98.exe
+
+(NOT 'WINEDLLOVERRIDES="ole32=n" wine dcom98.exe' - this is covered by the definitions for install.exe below, and actually won't work starting with 20050830. That version automatically loads uxtheme.dll, which requires ole32, and there IS no native ole until this step completes.) You may now safely delete the definitions for install.exe below - it is a rather common name in windows!
+
+You will also want to download mfc40.dll into ~/.wine/drive_c/windows/system :
+
+www.dlldump.com/dllfiles/M/mfc40.dll
+
+This prevents an error in registering/installing ieinfo5.ocx.
+
+Another goody is riched20 (ies4linux does this).
+
+download.microsoft.com/download/win98SE/Update/5072/W98/EN-US/249973USA8.exe
+
+cabextract 249973USA8.exe
+cabextract ver1200.exe
+mv riched20.120 ~/.wine/drive_c/windows/riched20.dll (there's also a riched32.dll)
+
+If your linux distribution doesn't include cabextract, you might try
+
+wine 249973USA8.exe
+
+or goto www.kyz.uklinux.net/cabextract.php
+
+5) Before you do ie6setup, do (pre-20050830 only):
+
+cd ~/.wine/drive_c/windows/system
+mv regsvr32.exe regsvr32.exe.sav
+
+This prevents console errors of the type
+
+err:setupapi:SetupDefaultQueueCallbackA copy error 5
+C:\windows\msdownld.tmp\AS008D34.tmp\regsvr32.exe" -> c:\windows\system\regsvr32.exe"
+
+and prevents complaints from ie6setup about not being able to install all the components. Get ie6setup from Frank's Corner, and
+
+WINEDLLOVERRIDES="advpack=n" wine ie6setup.exe
+
+I selected 'Install Minimal, or customize your browser', and added WMP, WMP codecs, and Flash. 'Install Now - Typical set of components' will also work. At the end (about 1 hr. around 8:30am EST, flies w/DSL at other times), check for the presence of c:\windows\wininit.ini, and do a "wineboot" if it's still there. If you get a popup with a message to the effect - Could not download setup files now. Try again later - follow the advice. The servers tend to be busy.
+
+If you use my ~/config.reg, this is where you will need mfc40.dll, before you exit the 'Restart Computer' screen of ie6setup, otherwise you will get an error on the console like:
+
+err:module:import_dll Library MFC40.DLL (which is needed by L"C:\Program Files\Common Files\Microsoft Shared\MSInfo\ieinfo5.ocx") not found
+
+,and a popup box complaining that it can't load ieinfo5.ocx, during the wineboot phase. Also my config keeps grpconv.exe from going into the debugger all the time. Starting with 20050830, any app Version=nt40 can be replaced with Version=win2k. (I do this w/winamp also, to prevent not being able to load secprov.vxd.)
+
+6) Now cleanup:
+
+This 1st section can also be done at the 'Restart Computer' screen in ie6setup:
+
+pre-20050830: 20050830 & up:
+
+cd ~/.wine/drive_c/windows/system cd ~/.wine/drive_c/windows/system
+mv regsvr32.exe.sav regsvr32.exe rm regsvr32.exe
+
+2nd section all versions:
+
+cd ~
+rm -rf ~/.wine/drive_c/msdownload.tmp
+rm -rf ~/.wine/drive_c/windows/msdownload.tmp/*
+rm -rf "~/.wine/drive_c/windows/Windows Update Setup Files/*"
+
+Here's a useful command for cleaning out the temporary internet subtree, without damaging its support files:
+
+find "~/.wine/drive_c/windows/profiles/$USER/Temporary Internet Files/Content.IE5" ! -name desktop.ini ! -name index.dat -type f -exec rm {} ;
+
+7) Get ie6registry.tgz from Frank's Corner, unpack it, and
+
+regedit ie6-icw.reg
+regedit ie6.reg (this file registers IE dlls in 'system', and adds mime info)
+regedit iexplore.reg
+
+This last command illustrates the new Frank's Corner minimalist approach: they just load what's necessary for IE to function, rather that a system wide config.reg, like winetools, making it more appropriate for an existing ~/.wine that you already have programs installed in. If you are using my ~/config.reg though, this last command will be unnecessary as it's already in my config. It adds iexplore specific DllOverrides for crypt32, digest, shlwapi, urlmon, wininet, and wintrust.
+
+8) You may wish to install various WMP codecs:
+
+WMP 6.4: download.microsoft.com/download/4/6/1/461e47d9-bff9-4d3f-b97c-93476581f6ef/wmp6cdcs.exe
+
+WMP 7.1: download.microsoft.com/download/winmediaplayer/wmp71/7.1/W982KMe/EN-US/mp71.exe
+
+The above is the full player, not just the codecs, and has a lot of other interesting dlls, like msvcp60 (that winamp complains about if it can't find it) and mfc42 - the update to mfc40.
+
+WMP 9: download.microsoft.com/download/5/c/2/5c29d825-61eb-4b16-8eb8-58367d0464d5/WM9Codecs9x.exe
+
+You will also want to upgrade Flash:
+
+www.macromedia.com/shockwave/download/download.cgi?P1_Prod_Version=ShockwaveFlash
+
+--------------------------------------
+Here is the file:
+
+REGEDIT4
+
+[HKEY_CURRENT_USER]
+
+[HKEY_CURRENT_USER\Environment]
+"PATH"="c:\\windows;c:\\windows\\system;c:\\windows\\system32;c:\\Program Files\\Internet Explorer;c:\\Program Files\\Windows Media Player"
+"Systemroot"="c:\\windows"
+"TEMP"="c:\\windows\\temp"
+"TMP"="c:\\windows\\temp"
+"USERPROFILE"="c:\\windows\\Profiles\\jimb"
+"windir"="c:\\windows"
+"winsysdir"="c:\\windows\\system"
+
+[HKEY_CURRENT_USER\Software\Wine]
+"ShowDirSymLinks"="Y"
+"ShowDotFiles"="N"
+"Version"="win98"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\acmsetup.exe]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\acmsetup.exe\DllOverrides]
+"*"="native,builtin"
+"*comctl32"="builtin, native"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\dlimport.exe]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\dlimport.exe\DllOverrides]
+"*"="native,builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\DW15.EXE]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\DW15.EXE\DllOverrides]
+"*"="native,builtin"
+"advapi32"="builtin,native"
+"comctl32"="builtin,native"
+"ole32"="native,builtin"
+"oleaut32"="native,builtin"
+"rpcrt4"="native,builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\grpconv.exe]
+"Version"="nt40"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\grpconv.exe\DllOverrides]
+"*"="native,builtin"
+"*comctl32"="builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\ie6setup.exe]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\ie6setup.exe\DllOverrides]
+"*"="native,builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\ie6wzd.exe]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\ie6wzd.exe\DllOverrides]
+"*"="native,builtin"
+"advpack"="native,builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\iebatch.exe]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\iebatch.exe\DllOverrides]
+"*"="native,builtin"
+"*comctl32"="builtin, native"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\IEXPLORE.EXE]
+"Version"="win98"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\IEXPLORE.EXE\DllOverrides]
+"*"="native,builtin"
+"*advapi32"="builtin"
+"comctl32"="builtin"
+"ddraw"="builtin"
+"digest"="native"
+"mshtml"="native,builtin"
+"ole32"="native,builtin"
+"oleaut32"="native,builtin"
+"rpcrt4"="native,builtin"
+"shdocvw"="native,builtin"
+"shlwapi"="native"
+"urlmon"="native"
+"wininet"="native"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\install.exe]
+"Version"="win98"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\install.exe\DllOverrides]
+"ole32"="native"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\logagent.exe]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\logagent.exe\DllOverrides]
+"*"="native,builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\mplayer2.exe]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\mplayer2.exe\DllOverrides]
+"*"="native,builtin"
+"ddraw"="builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\PSTORES.EXE]
+"Version"="win98"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\PSTORES.EXE\DllOverrides]
+"*"="native,builtin"
+"ole32"="native,builtin"
+"oleaut32"="native,builtin"
+"rpcrt4"="native,builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\QuickTimePlayer.exe]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\QuickTimePlayer.exe\DllOverrides]
+"ddraw"="builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\QuickTimePlayer.exe\X11 Driver]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\rundll32.exe]
+"Version"="win98"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\rundll32.exe\DllOverrides]
+"*advapi32"="builtin"
+"*comctl32"="builtin,native"
+"*urlmon"="native,builtin"
+"advpack"="native,builtin"
+"browseui"="native"
+"cool"="native"
+"crypt32"="native,builtin"
+"digest"="native"
+"hlink"="native"
+"iesetup"="native"
+"imagehelp"="native"
+"inetcpl"="native,builtin"
+"initpki"="native"
+"mfc40"="native"
+"mshtml"="native,builtin"
+"msrating"="native"
+"msvcrt"="native,builtin"
+"msvcrt40"="builtin,native"
+"netapi32"="builtin,native"
+"occache"="native,builtin"
+"ole32"="native"
+"oleaut32"="native"
+"rpcrt4"="native"
+"rsabase"="native,builtin"
+"shdoc401"="native"
+"shdocvw"="native,builtin"
+"shlwapi"="native,builtin"
+"url"="builtin,native"
+"vsrevoke"="native"
+"wininet"="native,builtin"
+"wintrust"="native"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\setup_wm.exe]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\setup_wm.exe\DllOverrides]
+"*"="native,builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\updcrl.exe]
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\updcrl.exe\DllOverrides]
+"*"="native,builtin"
+"*comctl32"="builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\winamp.exe]
+"Version"="nt40"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\winamp.exe\DllOverrides]
+"*"="native,builtin"
+"mshtml"="native,builtin"
+"msvcp60"="native"
+"ole32"="native,builtin"
+"oleaut32"="native,builtin"
+"rpcrt4"="native,builtin"
+"shdocvw"="native,builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\wmplayer.exe]
+"Version"="win98"
+
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\wmplayer.exe\DllOverrides]
+"*"="native,builtin"
+"ddraw"="builtin,native"
+"ole32"="native,builtin"
+"oleaut32"="native,builtin"
+"rpcrt4"="native,builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\DllOverrides]
+"*"="native,builtin"
+"*autorun.exe"="native,builtin"
+"*ctfmon.exe"="builtin"
+"*ddhelp.exe"="builtin"
+"*findfast.exe"="builtin"
+"*maildoff.exe"="builtin"
+"*mdm.exe"="builtin"
+"*mosearch.exe"="builtin"
+"*msiexec.exe"="builtin,native"
+"advapi32"="builtin"
+"advpack"="native,builtin"
+"AGENTSVR.EXE"="builtin"
+"avicap32"="builtin"
+"capi2032"="builtin"
+"comctl32"="builtin"
+"comdlg32"="builtin"
+"crtdll"="builtin"
+"ctl3d32"="builtin"
+"d3d8"="builtin"
+"d3d9"="builtin"
+"dbghelp"="builtin"
+"ddeml"="builtin"
+"ddraw"="builtin"
+"ddrawex"="builtin"
+"dinput"="builtin"
+"dinput8"="builtin"
+"dispdib"="builtin"
+"display.drv"="builtin"
+"dmusic32"="builtin"
+"dplay"="builtin"
+"dplayx"="builtin"
+"dpnet"="builtin"
+"dsound"="builtin"
+"dswave"="builtin"
+"dxdiagn"="builtin"
+"eMusicClient.exe"="builtin"
+"gdi.exe"="builtin"
+"gdi32"="builtin"
+"glu32"="builtin"
+"glut32"="builtin"
+"icmp"="builtin"
+"icwconn1.exe"="builtin"
+"ifsmgr.vxd"="builtin"
+"imaadp32.acm"="builtin"
+"imm"="builtin"
+"imm32"="builtin"
+"iphlpapi"="builtin"
+"joystick.drv"="builtin"
+"kernel32"="builtin"
+"keyboard.drv"="builtin"
+"krnl386.exe"="builtin"
+"lz32"="builtin"
+"lzexpand"="builtin"
+"mcianim.drv"="builtin"
+"mciavi.drv"="builtin"
+"mcicda.drv"="builtin"
+"mciseq.drv"="builtin"
+"mciwave.drv"="builtin"
+"midimap.drv"="builtin"
+"mmsystem"="builtin"
+"mouse.drv"="builtin"
+"mpr"="builtin"
+"msacm.drv"="builtin"
+"msacm32"="builtin"
+"msadp32.acm"="builtin"
+"msi"="builtin,native"
+"msvfw32"="builtin"
+"msvidc32"="builtin"
+"mswsock"="builtin"
+"newdev"="builtin"
+"ntdll"="builtin"
+"odbc32"="native, builtin"
+"ole32"="builtin,native"
+"oleaut32"="builtin,native"
+"opengl32"="builtin"
+"pdf.ocx"="builtin"
+"psapi"="builtin"
+"qttask.exe"="builtin"
+"rasapi16"="builtin"
+"rasapi32"="builtin"
+"realsched.exe"="builtin"
+"rpcrt4"="builtin,native"
+"serialui"="builtin"
+"setupapi"="builtin"
+"shell"="builtin"
+"shell32"="builtin"
+"snmpapi"="builtin"
+"sound"="builtin"
+"sti"="builtin"
+"system.drv"="builtin"
+"tapi32"="builtin"
+"toolhelp"="builtin"
+"twain"="builtin"
+"twain_32"="builtin"
+"user.exe"="builtin"
+"user32"="builtin"
+"ver"="builtin"
+"version"="builtin"
+"vnbt.vxd"="builtin"
+"vtdapi.vxd"="builtin"
+"vwin32.vxd"="builtin"
+"w32skrnl"="builtin"
+"w32sys"="builtin"
+"win32s16"="builtin"
+"win87em"="builtin"
+"winampa.exe"="builtin"
+"winaspi"="builtin"
+"wing"="builtin"
+"winmm"="builtin"
+"winnls32"="builtin"
+"winsock"="builtin"
+"wintab"="builtin"
+"wintab32"="builtin"
+"wnaspi32"="builtin"
+"wow32"="builtin"
+"wprocs"="builtin"
+"ws2_32"="builtin"
+"wsock32"="builtin"
+
+[HKEY_CURRENT_USER\Software\Wine\Drivers]
+"Audio"="oss"
+
+[HKEY_CURRENT_USER\Software\Wine\WineDbg]
+"AlwaysShowThunks"=dword:00000000
+"BreakAllThreadsStartup"=dword:00000000
+"BreakOnAttach"=dword:00000000
+"BreakOnCritSectTimeOut"=dword:00000000
+"BreakOnDllLoad"=dword:00000000
+"BreakOnFirstChance"=dword:00000001
+"CanDeferOnBPByAddr"=dword:00000000

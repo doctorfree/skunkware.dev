@@ -1,0 +1,156 @@
+MetaPKG Command Line Usage
+==========================
+
+MetaPKG has several command line options that are required, and many more
+that control the way in which packages are generated. This document
+describes the main driver program's command line options. Each backend
+driver can add options of its own.
+
+Preparation
+-----------
+
+Before invoking MetaPKG, you must ensure that your distribution tree is
+laid out in a very specific manner. Many of these paths are hard-coded
+into MetaPKG, so be careful with file and directory names.
+
+MetaPKG starts its work in a BASE DIRECTORY. Lets call this $BASE. This
+directory is expected to contain at least a directory called dist/. Lets
+call this directory $DIST. This is the directory that contains the
+software you want to distribute in a package. For historical reasons,
+and showing its CDMT lineage, $BASE is also expected to contain a
+directory called input/, which we will call $INPUT. This is the directory
+in which all of the packaging files will be generated. It is the input
+into the packaging system.
+
+The files in $DIST are typically the results of doing `make install'.
+MetaPKG knows how to deal with two types of distribution tree: flat
+and productized.  A flat $DIST is one that contains only a single
+package, and will likely contain direcories called `/usr/bin' or
+`/usr/lib' etc. This type of structure is used when you are packaging
+one single program as an installable product.  A productized $DIST is
+one that contains multiple programs, each of which will be a package
+in its own right, grouped into one or more components.  In this case
+each subdirectory under $DIST contains a discrete package
+which has its own `/usr/bin' or `/usr/lib' etc.  MetaPKG uses the
+name of each subdirectory to contruct a default package name, which
+can be changed in a MetaPKG control script. Unless otherwise instructed,
+MetaPKG will create a single component which contains all of the packages.
+You can invoke MetaPKG in `component mode', in which case each subdirectory
+under $DIST will create a new component containing a single package.  Using
+the control script, you can fine tune this to any degree you like, creating
+components that group packages together in any way you chose.
+
+Please note that the arguments here can also all be set via a control
+script file.  All except for the -p argument, which names the control
+file, and the -d argument, which sets $BASE.
+
+Required Arguments
+------------------
+-d directory
+  Sets $BASE to the specified directory. Remember $BASE must contain the
+
+-P string
+  Sets the product name to the specified STRING. The string must be valid
+  for the chosen backend driver (see below).
+
+-C string
+  Sets the component code to STRING. The STRING must be valid for the
+  chosen backend driver. If you are not running MetaPKG in component mode,
+  this is simply the default component name to which any dangling packages
+  (packages that were not explicitly added to a component in the control
+  script) will be assigned.
+
+-D string
+  Sets the description of the product to STRING.
+
+-V string
+  Sets the version of the product to STRING. This must be a valid version
+  for the backend driver.
+
+-B name
+  Sets the backend driver to the driver specified by NAME.  Use the -?
+  argument to list all of the compiled in backends. This option may be
+  omitted if the `metapkg' binary is linked to a name that automatically
+  selects a backend driver. For example, if invoked as `mkcdmt', the
+  `cdmt' driver will automatically be selected, or if invoked as `mkpkg',
+  the `pkgadd' driver will automatically be selected. See the documentation
+  on each driver for the list of names that each one recognises.
+
+Optional Arguments
+------------------
+
+-p file
+  Use the specified FILE as a control script file.
+
+-f
+  Indicates that $DIST is a flat hierarchy. That is, it contains only a
+  single package.
+
+-c
+  Sets `multiple component' mode. Indicates that $DIST has more than one
+  package, and rather than making a single component that includes all
+  of the packages, make a component for each directory found, which contains
+  a single package that is the contents of the directory.
+
+-i
+  Instructs MetaPKG to use the permissions exactly as they are found in
+  $DIST. Usually, MetaPKG guesses the correct ownership and permissions.
+  This flags indicates that that work has already been done in preparing
+  the $DIST directory.
+
+-m
+  Usually, manual page source files are omitted. This tells MetaPKG to
+  include manual page source files in the installable product.
+
+-v
+  Usually, MetaPKG guesses the correct disposition for files. This option
+  tells MetaPKG to treat all files as `variable' files, or files that can
+  have their contents changed.
+
+-s
+  The reciprocal of -v. Instructs MetaPKG to make all files `static'.
+
+-r
+  For backends that support it, instruct MetaPKG to make all files
+  available early (in the CDMT backend for example, means to always
+  export files in the REGISTER phase).
+
+-M name[=value]
+  Defines macro NAME. If no VALUE is specified, set it to the value `1'.
+  Otherwise, set it to the specified VALUE. Such macros are only useful
+  to the control script.
+
+-I list
+  Control auto-preparation functions. This option has a different meaning
+  depending on whether or not a control file is being used. If a control
+  file *is* being used, the LIST is a list of auto-preparation functions
+  to ignore, even if they are specified in the control file. If there is
+  no control file being used, LIST indicates the list of auto-preparation
+  functions to execute before processing each package. The list can be
+  one or more of the following, each separated by a comma:
+    automan   - do (or do not) automatically format man pages
+    autotexi  - do (or do not) automatically compress TeXinfo files
+    autostrip - do (or do not) strip and mcs -d all binaries
+    reman     - do not obey explicit reman directives in the control file
+    texifo    - do not obey explicit texinfo directives in the control file
+    exec      - do not obey exec or script directives in the control file
+    all       - all of the above.
+
+-W
+  Indicates that any warning messages are OK, and that MetaPKG should go
+  ahead and produce output files regardless of the warnins.
+
+-X level file
+  Sets debugging to the specified LEVEL, and to be redirected to the given
+  FILE. The higher the LEVEL, the more verbose the debugging output.
+
+-N
+  Normally MetaPKG will automatically add inter-package and inter-component
+  dependencies as they are defined in the control file. This option will
+  stop that from happening, and you should ensure that all dependencies are
+  correctly set in the control file.
+
+-?
+  Displays the program usage information, lists the defined backends and
+  the program and backend version numbers.
+

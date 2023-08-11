@@ -1,0 +1,157 @@
+<HTML>
+<HEAD>
+<TITLE>Extended Value Access and File Upload</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="11.00.FORMS_AND_MINIVEND.html">Up</A>&nbsp;&nbsp;<A HREF="11.07.Stacking_Variables_on_the_Form.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="11.09.Updating_MiniVend_database_table.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Extended_Value_Access_and_File_U">Extended Value Access and File Upload</A></H2>
+<P>
+MiniVend has a facility for greater control over the display of form
+variables; it also can parse <CODE>multipart/form-data</CODE> forms for file upload.
+
+<P>
+File upload is simple. You define a form like:
+
+<P>
+<PRE>    &lt;FORM ACTION=&quot;[process-target] METHOD=POST ENCTYPE=&quot;multipart/form-data&quot;&gt;
+    &lt;INPUT TYPE=hidden NAME=mv_todo     VALUE=return&gt;
+    &lt;INPUT TYPE=hidden NAME=mv_nextpage VALUE=test&gt;
+    &lt;INPUT TYPE=file NAME=newfile&gt;
+    &lt;INPUT TYPE=submit VALUE=&quot;Go!&quot;&gt;
+    &lt;/FORM&gt;
+</PRE>
+<P>
+The [value-extended ...] tag performs the fetch and storage of the file. If
+you put the below on the <CODE>test.html</CODE> page (as you specified with
+<A HREF="#item_mv_nextpage">mv_nextpage</A> and use with the above form it will write the file you have specified:
+
+<P>
+<PRE>    &lt;PRE&gt;
+    Uploaded file name: [value-extended name=newfile]
+    Is newfile a file? [value-extended name=newfile yes=Yes no=No test=isfile]
+ 
+    Write the file. [value-extended name=newfile outfile=junk.upload]
+    Write again with
+     indication: [value-extended name=newfile
+                                outfile=junk.upload
+                                yes=&quot;Written.&quot;]
+                                no=FAILED]
+ 
+    And the file contents:
+    [value-extended name=newfile file_contents=1]
+    &lt;/PRE&gt;
+</PRE>
+<P>
+The [value-extended] tag also allows access to the array values of stacked
+variables. Use the following form:
+
+<P>
+<PRE>    &lt;FORM ACTION=&quot;[process-target] METHOD=POST ENCTYPE=&quot;multipart/form-data&quot;&gt;
+    &lt;INPUT TYPE=hidden NAME=testvar VALUE=&quot;value0&quot;&gt;
+    &lt;INPUT TYPE=hidden NAME=testvar VALUE=&quot;value1&quot;&gt;
+    &lt;INPUT TYPE=hidden NAME=testvar VALUE=&quot;value2&quot;&gt;
+    &lt;INPUT TYPE=submit VALUE=&quot;Go!&quot;&gt;
+    &lt;/FORM&gt;
+</PRE>
+<P>
+and page:
+
+<P>
+<PRE>    testvar element 0: [value-extended name=testvar index=0]
+    testvar element 1: [value-extended name=testvar index=1]
+    testvar elements:
+     joined with a space:   |[value-extended name=testvar]|
+     joined with a newline: |[value-extended
+                                joiner=&quot;\n&quot;
+                                name=testvar
+                                index=&quot;*&quot;]|
+     first two only:    |[value-extended
+                                name=testvar
+                                index=&quot;0..1&quot;]|
+     first and last:    |[value-extended
+                                name=testvar
+                                index=&quot;0,2&quot;]|
+</PRE>
+<P>
+to observe this in action.
+
+<P>
+The syntax for <CODE>[value-extended ...]</CODE> is:
+
+<P>
+<PRE> named: [value-extended 
+            name=formfield
+            outfile=filename*
+            ascii=1*
+            yes=&quot;Yes&quot;*
+            no=&quot;No&quot;*
+            joiner=&quot;char|string&quot;*
+            test=&quot;isfile|length|defined&quot;*
+            index=&quot;N|N..N|*&quot;
+            file_contents=1*
+            elements=1*]
+</PRE>
+<P>
+positional: [value-extended name]
+
+<P>
+Expands into the current value of the customer/form input field named by
+field. If there are multiple elements of that variable, it will return the
+value at <A HREF="#item_index">index</A>; by default all joined together with a space.
+
+<P>
+If the variable is a file variable coming from a multipart/form-data file
+upload, then the contents of that upload can be returned to the page or
+optionally written to the <A HREF="#item_outfile">outfile</A>.
+
+<DL>
+<DT><STRONG>name</STRONG><DD>
+The form variable 
+<FONT SIZE=-1>NAME.</FONT> If no other parameters are present, then the
+value of the variable will be returned. If there are multiple elements,
+then by default they will all be returned joined by a space. If <A HREF="#item_joiner">joiner</A>
+is present, then they will be joined by its value.
+
+<P>
+In the special case of a file upload, the value returned is the name of the
+file as passed for upload.
+
+</DD><P><DT><STRONG><A NAME="item_joiner">joiner</A></STRONG><DD>
+The character or string that will join the elements of the array. Will
+accept string literals such as ``\n'' or ``\r''.
+
+</DD><P><DT><STRONG><A NAME="item_test">test</A></STRONG><DD>
+Three tests -- <CODE>isfile</CODE> returns true if the variable is a file upload.
+<CODE>length</CODE> returns the length. <CODE>defined</CODE> returns whether the value has ever been set at all on a form.
+
+</DD><P><DT><STRONG><A NAME="item_index">index</A></STRONG><DD>
+The index of the element to return if not all are wanted. This is useful
+especially for pre-setting multiple search variables. If set to <CODE>*</CODE>, will return all (joined by <A HREF="#item_joiner">joiner</A>). If a range, such as <CODE>0 .. 2</CODE>, will return multiple elements.
+
+</DD><P><DT><STRONG><A NAME="item_file_contents">file_contents</A></STRONG><DD>
+Returns the contents of a file upload if set to a non-blank, non-zero
+value. If the variable is not a file, returns nothing.
+
+</DD><P><DT><STRONG><A NAME="item_outfile">outfile</A></STRONG><DD>
+Names a file to write the contents of a file upload to. It will not accept an absolute file name; the name must be relative to the catalog directory. If you wish to write images or other files that would go to 
+<FONT SIZE=-1>HTML</FONT> space, you must use the 
+<FONT SIZE=-1>HTTP</FONT> server's
+ <A HREF="#item_Alias">Alias</A> facilities or make a symbolic link.
+
+</DD><P><DT><STRONG><A NAME="item_ascii">ascii</A></STRONG><DD>
+To do an auto-ASCII translation before writing the <A HREF="#item_outfile">outfile</A>, set the <A HREF="#item_ascii">ascii</A> parameter to a non-blank, non-zero value. Default is no translation.
+
+</DD><P><DT><STRONG><A NAME="item_yes">yes</A></STRONG><DD>
+The value that will be returned if a test is true or a file is written
+successfully. Defaults to <CODE>1</CODE> for tests and the empty string for uploads.
+
+</DD><P><DT><STRONG><A NAME="item_no">no</A></STRONG><DD>
+The value that will be returned if a test is false or a file write fails.
+Defaults to the empty string.
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="11.00.FORMS_AND_MINIVEND.html">Up</A>&nbsp;&nbsp;<A HREF="11.07.Stacking_Variables_on_the_Form.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="11.09.Updating_MiniVend_database_table.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

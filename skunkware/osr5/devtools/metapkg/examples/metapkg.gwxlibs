@@ -1,0 +1,1571 @@
+#! /usr/bin/metapkg -p
+#
+# MetaPKG control file for package: gwxlibs
+#
+# This file does quite a bit of prep work to make sure the tree is exactly
+# as we want it. Mostly, this involves making sure that additional symlinks
+# for shared libraries are in place to preserve backwards compatibility,
+# and making sure all the files we know are "special cases" are handled
+# as best we can. The idea is that this script can be run on a pure dist
+# tree created by a make install, and have it do the right thing, so we
+# can "turn the crank". This only works if the GNU tools were also compiled
+# and packaged with mkcdmt, as that package knows to put a few key components
+# into a special placeholder in /tmp for gwxlibs to use. Otherwise, the user
+# has to take manual action. But the script checks to make sure that either
+# one of those things has happened, and will abort if they haven't.
+#
+
+# Requires at least version 2.0.1 of MetaPKG
+want (2,0,1);
+# Requires version 1.0.5 or later of the CDMT backend
+want ("cdmt", 1, 0, 5);
+# Requires version 1.0.1 or later of the PKGADD backend
+want ("pkgadd", 1, 0, 1);
+
+# Set various product versions for description purposes
+define ("EXPECTVER", "5.43");
+define ("TCLVER", "8.4.10");
+define ("TCLXVER", "8.3.5");
+
+define ("GWXVER", "2.1.0");
+define ("VERSUFFIX", "Aa");
+define ("XORGVER", "6.8.2");
+define ("XORGCMPNTVER", "6.8.2Ed");
+define ("GWXDESC", "Supplemental Graphics, Web and X11 Libraries");
+define ("XORGFONTSDESC", "X.org X11R${XORGVER} Core Fonts");
+define ("XORGRTDESC", "X.org X11R${XORGVER} Runtime");
+
+# Set various command line options
+set ("product-code", "GWXLIBS");
+set ("description", "${GWXDESC}");
+set ("version", "${GWXVER}${VERSUFFIX}");
+set ("component-mode", 1);
+
+ifndef ("GWXOS")
+  error ("GWXOS not set - must be one of OSR5, OSR6 or UW7");
+endif
+
+ifeq ("GWXOS", "OSR5")
+  define ("GWXOK", "1");
+  define ("DEPVENDOR", "SCO:");
+endif
+
+ifeq ("GWXOS", "OSR6")
+  define ("GWXOK", "1");
+  define ("DEPVENDOR", "SCO:");
+endif
+
+ifeq ("GWXOS", "UW7")
+  define ("GWXOK", "1");
+  backend ("pkgadd");
+  set ("pkgadd-category", "graphics");
+  define ("PKGADD", "1");
+  define ("DEPVENDOR", "");
+  define ("FONTSNM", "xorgfonts");
+  define ("XORGRTNM", "xorgrt");
+else
+  backend ("cdmt");
+  set ("dont-harden-symlinks", 0);
+  set ("dont-export-symlinks", 0);
+  define ("FONTSNM", "XORGFonts");
+  define ("XORGRTNM", "XORGRT");
+endif
+
+ifndef ("GWXOK")
+  error ("GWXOS=${GWXOS} not recognised - must be one of OSR5, OSR6 or UW7");
+endif
+
+prepare ("Checking and preparing distribution") {
+  script ("@@@@",
+@@@@
+[ -n "$DEBUG" ] && set -x
+origpwd=`pwd`
+
+[ "$GWXOS" = "OSR6" ] && {
+  [ -d uw7 -a -d osr5 ] || {
+    echo "ERROR: Tree not correctly prepared for OSR6 cut"
+    exit 1
+  }
+}
+
+[ -z "$HANDOFFS" ] && {
+  echo "ERROR: HANDOFFS environment variable not set. This must be set to"
+  echo "       the directory that contains the ltdl and info handoffs."
+  exit 1
+}
+
+#
+# Helper function for dealing with the plethora of library aliases.
+#
+newlib() {
+  [ -n "$DEBUG" -a "$DEBUG" = "2" ] && set -x
+  baselib=lib$1; shift
+  basela=lib$1.la; shift
+  basepc=$1.pc; shift
+  [ "$basepc" != ".pc" ] && {
+    basebc=`grep 'GWXCFG=' usr/lib/pkgconfig/$basepc|sed -e 's/GWXCFG=//'`
+  }
+
+  while [ $# -gt 0 ]; do
+    thislib=$1; shift
+    libname=lib$thislib
+    stripso=${thislib%*.so}
+    solibver=${thislib##*.so}
+
+    rm -f usr/lib/$libname
+    ln -sf $baselib usr/lib/$libname
+    [ "$GWXOS" = "OSR6" ] && {
+      rm -f osr5/usr/lib/$libname
+      ln -sf $baselib osr5/usr/lib/$libname
+    }
+
+    [ -z "$solibver" ] && {
+      # This is a base library name - do the PC and LA files too
+      [ "$basela" != "lib.la" ] && {
+        [ "lib${stripso}.la" != "$basela" ] && {
+          rm -f usr/lib/lib${stripso}.la
+          ln -sf $basela usr/lib/lib${stripso}.la
+	  [ "$GWXOS" = "OSR6" ] && {
+            rm -f osr5/usr/lib/lib${stripso}.la
+            ln -sf $basela osr5/usr/lib/lib${stripso}.la
+	  }
+        }
+      }
+
+      [ "$basepc" != ".pc" ] && {
+        [ "${stripso}.pc" != "$basepc" ] && {
+          rm -f usr/lib/pkgconfig/${stripso}.pc
+          ln -sf $basepc usr/lib/pkgconfig/${stripso}.pc
+          rm -f usr/bin/${stripso}-config
+          ln -sf ${basebc}-config usr/bin/${stripso}-config
+        }
+      }
+    }
+  done
+}
+
+maybe_newpkg() {
+  [ -n "$DEBUG" -a "$DEBUG" = "2" ] && set -x
+  [ -h usr/lib/pkgconfig/$1.pc ] || {
+    ln -s $2.pc usr/lib/pkgconfig/$1.pc
+  }
+  [ -h usr/bin/${1}-config ] || {
+    ln -s ${2}-config usr/bin/${1}-config
+  }
+}
+
+fix_lafile() {
+  [ -n "$DEBUG" -a "$DEBUG" = "2" ] && set -x
+  lafile=$1
+  . $lafile
+  ndl=""
+  la=
+  [ -n "$dependency_libs" ] && {
+    for le in $dependency_libs; do
+      [ "$la" != "$le" ] && {
+        case $le in
+          -L*) ;;
+          *) ne=`echo "$le" | sed -e 's,/usr/lib/lib\(.*\)\.la,-l\1,'`
+             ndl="$ndl $ne"
+	     ;;
+        esac
+      }
+      la=$le
+    done
+  }
+  [ -n "$ndl" ] && {
+    sed -e "/^dependency_libs=/ s,^depend.*,dependency_libs='$ndl',g" $lafile > $lafile.jkj
+    mv $lafile $lafile.bak
+    mv $lafile.jkj $lafile
+    [ -f $lafile ] && rm -f $lafile.bak
+  }
+}
+
+[ "$GWXOS" = "OSR6" -a -d uw7 -a -d osr5 ] && {
+  cd $origpwd
+  #
+  # Import the UW7 handoff
+  #
+  mv -f uw7/gwxlibs .
+  mv -f uw7/tcl .
+  mv -f uw7/tk .
+  mv -f uw7/tclx .
+  mv -f uw7/expect .
+  rm -fr uw7
+
+  #
+  # Import the OSR5 handoff
+  #
+  mkdir -p gwxlibs/osr5
+  mv -f osr5/gwxlibs/* gwxlibs/osr5
+  cd gwxlibs/osr5
+  rm -fr etc
+
+  # VERY IMPORTANT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  # VERY IMPORTANT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  # VERY IMPORTANT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  # VERY IMPORTANT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  # This list below much be carefully checked each time GWXLIBS is updated.
+  # We really dont want to have multiple copies of identical headers around,
+  # so we remove most of the ones from OSR5, and double-export the UW7 ones.
+  # However, there are some that differ, and this is that list. Be very
+  # very sure you have extracted both archives and done a diff against them.
+  # If any files differ, adjust this bit accordingly. Dont forget to also
+  # check the other packages like tcl,tk,tclx,expect etc.
+  mv usr/include/xercesc/util/Platforms/OpenServer \
+    ../usr/include/xercesc/util/Platforms
+
+  cd usr
+  mv include oinclude
+  mkdir -p include/glib-1.2 include/glib-2.0 include/openssl include/unicode
+  mv oinclude/db.h include/db.h
+  mv oinclude/db_185.h include/db_185.h
+  mv oinclude/glib-1.2/glibconfig.h include/glib-1.2/glibconfig.h
+  mv oinclude/glib-2.0/glibconfig.h include/glib-2.0/glibconfig.h
+  mv oinclude/ldap_features.h include/ldap_features.h
+  mv oinclude/openssl/opensslconf.h include/openssl/opensslconf.h
+  mv oinclude/pcre_stringpiece.h include/pcre_stringpiece.h
+  mv oinclude/unicode/platform.h include/unicode/platform.h
+  rm -fr oinclude
+
+  mv bin obin
+  mkdir bin
+  mv -f obin/gdk-pixbuf-query-loaders bin/
+  mv -f obin/gtk-query-immodules-2.0 bin/
+  mv -f obin/pango-querymodules bin/
+  rm -fr obin man share gnu
+  cd lib
+  rm -fr slsh pkgconfig slapd openssl icu openldap/
+
+  cd $origpwd/tcl
+  mkdir osr5
+  cd osr5
+  mv -f $origpwd/osr5/tcl/usr .
+  rm -fr usr/gnu/man
+  rm -fr usr/gnu/lib/tcl8.4
+  rm -fr usr/gnu/include
+
+  cd $origpwd/tk
+  mkdir osr5
+  cd osr5
+  mv -f $origpwd/osr5/tk/usr .
+  rm -fr usr/gnu/man
+  rm -fr usr/gnu/lib/tk8.4
+  rm -fr usr/gnu/include
+
+  cd $origpwd/tclx
+  mkdir osr5
+  cd osr5
+  mv -f $origpwd/osr5/tclx/usr .
+  rm -fr usr/gnu/man
+  rm -fr usr/gnu/lib/tclX8.3 usr/gnu/lib/tkX8.3
+  rm -fr usr/gnu/include
+
+  cd $origpwd/expect
+  mkdir osr5
+  cd osr5
+  mv -f $origpwd/osr5/expect/usr .
+  rm -fr usr/gnu/man
+  rm -fr usr/gnu/lib/expect${EXPECTVER}
+  rm -fr usr/gnu/include
+  cd usr/gnu
+  mv bin obin
+  mkdir bin
+  mv obin/expect bin
+  mv obin/expectk bin
+  rm -fr obin
+  cd $origpwd
+  rm -fr osr5
+}
+
+[ "$GWXOS" = "OSR5" ] && {
+  for d in gwxlibs XORGFonts XORGRT; do
+    [ -d $d/cntl ] || {
+      mkdir $d/cntl
+      cp -f $HANDOFFS/common/cqs.osr5 $d/cntl/cqs
+      cp -f $HANDOFFS/common/badver.osr5 $d/cntl/badver
+      cp -f $HANDOFFS/common/need646 $d/cntl/need646
+      cp -f $HANDOFFS/common/needMP3 $d/cntl/needMP3
+      chmod 755 $d/cntl/cqs $d/cntl/badver $d/cntl/need646 $d/cntl/needMP3
+    }
+  done
+
+  [ -f gwxlibs/cntl/ccs ] || {
+    cp -f $HANDOFFS/ccs.gwxlibs.gwxlibs gwxlibs/cntl/ccs
+    chmod 755 gwxlibs/cntl/ccs
+  }
+
+  [ -f XORGRT/cntl/ccs ] || {
+    cp -f $HANDOFFS/ccs.xorgrt.osr5.gwxlibs XORGRT/cntl/ccs
+    chmod 755 XORGRT/cntl/ccs
+  }
+}
+
+[ "$GWXOS" = "OSR6" ] && {
+  for d in gwxlibs XORGFonts XORGRT; do
+    [ -d $d/cntl ] || {
+      mkdir $d/cntl
+      cp -f $HANDOFFS/common/cqs.osr6 $d/cntl/cqs
+      cp -f $HANDOFFS/common/badver.osr6 $d/cntl/badver
+      chmod 755 $d/cntl/cqs $d/cntl/badver
+    }
+  done
+
+  [ -f gwxlibs/cntl/ccs ] || {
+    cp -f $HANDOFFS/ccs.gwxlibs.gwxlibs gwxlibs/cntl/ccs
+    chmod 755 gwxlibs/cntl/ccs
+  }
+
+  [ -f XORGRT/cntl/ccs ] || {
+    cp -f $HANDOFFS/ccs.xorgrt.osr6.gwxlibs XORGRT/cntl/ccs
+    chmod 755 XORGRT/cntl/ccs
+  }
+}
+
+[ "$GWXOS" = "UW7" ] && {
+  [ -d gwxlibs/cntl ] || {
+    mkdir gwxlibs/cntl
+    cp -f $HANDOFFS/postinstall.gwxlibs gwxlibs/cntl/postinstall
+  }
+}
+
+do_desc() {
+[ -n "$DEBUG" ] && set -x
+  [ -f $1/cntl/cmpnt.desc ] || {
+    cat > $1/cntl/cmpnt.desc <<EOF
+CMPNTCHECK=$1
+CMPNTNAME=$1
+CMPNTDESC="$2"
+EOF
+    chmod 444 $1/cntl/cmpnt.desc
+  }
+}
+
+[ "$GWXOS" = "UW7" ] || {
+  do_desc gwxlibs "$GWXDESC"
+  do_desc XORGFonts "$XORGFONTSDESC"
+  do_desc XORGRT "$XORGRTDESC"
+}
+
+
+# GWXLIBS stuff first
+cd $origpwd/gwxlibs
+
+chmod 755 usr/lib/pkgconfig
+[ -d usr/gnu/bin ] || mkdir -p usr/gnu/bin
+[ -d usr/gnu/lib ] || mkdir -p usr/gnu/lib
+
+#
+# Deal with external handoffs
+#
+
+[ -f usr/gnu/bin/ginstall-info ] || {
+  if [ "$GWXOS" = "OSR6" -o "$GWXOS" = "UW7" ]; then
+    cp -f $HANDOFFS/uw7-ginstall-info.gwxlibs usr/gnu/bin/ginstall-info
+  else
+    cp -f $HANDOFFS/osr5-ginstall-info.gwxlibs usr/gnu/bin/ginstall-info
+  fi
+}
+
+rm -f usr/gnu/info/dir
+cp -f $HANDOFFS/dir.gwxlibs usr/gnu/info/dir
+
+[ "$GWXOS" = "OSR6" -o "$GWXOS" = "UW7" ] && {
+  [ -f usr/lib/libltdl.so.4 ] || {
+    cp -f $HANDOFFS/uw7-libltdl.so.4.gwxlibs usr/lib/libltdl.so.4
+  }
+}
+
+[ "$GWXOS" = "OSR5" ] && {
+  [ -f usr/lib/libltdl.so.4 ] || {
+    cp -f $HANDOFFS/osr5-libltdl.so.4.gwxlibs usr/lib/libltdl.so.4
+  }
+}
+
+[ "$GWXOS" = "OSR6" ] && {
+  [ -f osr5/usr/lib/libltdl.so.4 ] || {
+    cp -f $HANDOFFS/osr5-libltdl.so.4.gwxlibs osr5/usr/lib/libltdl.so.4
+  }
+}
+
+[ -f usr/include/ltdl.h ] || {
+  cp -f $HANDOFFS/ltdl.h.gwxlibs usr/include/ltdl.h
+}
+
+[ "$GWXOS" = "OSR6" ] && {
+  [ -f osr5/usr/include/ltdl.h ] || {
+    cp -f $HANDOFFS/ltdl.h.gwxlibs osr5/usr/include/ltdl.h
+  }
+}
+
+[ "$GWXOS" = "OSR6" -o "$GWXOS" = "UW7" ] && {
+  [ -d usr/sbin ] || mkdir -p usr/sbin
+  [ -f usr/lib/slapd ] && mv -f usr/lib/slapd usr/sbin/in.slapd
+  [ -f usr/lib/slurpd ] && mv -f usr/lib/slurpd usr/sbin/in.slurpd
+}
+
+[ "$GWXOS" = "OSR5" ] && {
+  [ -f usr/lib/slapd ] && mv -f usr/lib/slapd etc/slapd
+}
+
+[ -f usr/lib/openssl/openssl.cnf.default ] || {
+  mv -f usr/lib/openssl/openssl.cnf usr/lib/openssl/openssl.cnf.default
+}
+
+[ -d usr/info ] && {
+  if [ -d usr/gnu/info ]; then
+    mv -f usr/info/* usr/gnu/info
+  else
+    mv usr/info usr/gnu
+  fi
+  rmdir usr/info
+}
+
+[ -h usr/man/man8/sasldblistusers.8 ] || {
+  [ -f usr/man/man8/salsdblistusers2.8 ] && {
+    ln -s sasldblistusers2.8 usr/man/man8/sasldblistusers.8
+  }
+}
+
+[ -h usr/man/man8/saslpasswd.8 ] || {
+  [ -f usr/man/man8/salspasswd2.8 ] && {
+    ln -s saslpasswd2.8 usr/man/man8/saslpasswd.8
+  }
+}
+
+[ -h usr/man/man1/pgrep.1 ] || {
+  [ -f usr/man/man1/pcregrep.1 ] && {
+    ln -s pcregrep.1 usr/man/man1/pgrep.1
+  }
+}
+
+[ -h usr/man/man1/xmlsec.1 ] || {
+  [ -f usr/man/man1/xmlsec1.1 ] && {
+    ln -s xmlsec1.1 usr/man/man1/xmlsec.1
+  }
+}
+
+[ -f etc/pango/pango.modules.default ] || {
+  mv -f etc/pango/pango.modules etc/pango/pango.modules.default
+}
+
+[ -f etc/pango/pangorc.default ] || {
+  mv -f etc/pango/pangorc etc/pango/pangorc.default
+}
+
+[ -f etc/pango/pango.aliases.default ] || {
+  mv -f etc/pango/pango.aliases etc/pango/pango.aliases.default
+}
+
+[ -f etc/pango/pangox.aliases.default ] || {
+  mv -f etc/pango/pangox.aliases etc/pango/pangox.aliases.default
+}
+
+[ -f etc/gtk-2.0/gdk-pixbuf.loaders.default ] || {
+  mv -f etc/gtk-2.0/gdk-pixbuf.loaders etc/gtk-2.0/gdk-pixbuf.loaders.default
+}
+
+[ -f etc/gtk-2.0/gtk.immodules.default ] || {
+  mv -f etc/gtk-2.0/gtk.immodules etc/gtk-2.0/gtk.immodules.default
+}
+
+[ -f etc/fonts/local.conf.default ] || {
+  mv -f etc/fonts/local.conf etc/fonts/local.conf.default
+}
+
+#
+# ICU gets funky with its naming of shared libraries. We need to clean
+# this all up. Xalan and Xerces are also thus afflicted.
+for i in data i18n io le lx tu uc; do
+  [ -h usr/lib/libicu${i}.so.34 ] && {
+    rm -f usr/lib/libicu${i}.so usr/lib/libicu${i}.so.34
+    mv -f usr/lib/libicu${i}.so.34.0 usr/lib/libicu${i}.so.34
+    ln -s libicu${i}.so.34 usr/lib/libicu${i}.so
+  }
+  [ "$GWXOS" = "OSR6" ] && {
+    [ -h osr5/usr/lib/libicu${i}.so.34 ] && {
+      rm -f osr5/usr/lib/libicu${i}.so osr5/usr/lib/libicu${i}.so.34
+      mv -f osr5/usr/lib/libicu${i}.so.34.0 osr5/usr/lib/libicu${i}.so.34
+      ln -s libicu${i}.so.34 osr5/usr/lib/libicu${i}.so
+    }
+  }
+done
+
+for i in c depdom; do
+  [ -h usr/lib/libxerces-${i}.so.27 ] && {
+    rm -f usr/lib/libxerces-${i}.so.27 usr/lib/libxerces-${i}.so
+    mv -f usr/lib/libxerces-${i}.so.27.0 usr/lib/libxerces-${i}.so.27
+    ln -s libxerces-${i}.so.27 usr/lib/libxerces-${i}.so
+  }
+  [ "$GWXOS" = "OSR6" ] && {
+    [ -h osr5/usr/lib/libxerces-${i}.so.27 ] && {
+      rm -f osr5/usr/lib/libxerces-${i}.so.27 osr5/usr/lib/libxerces-${i}.so
+      mv -f osr5/usr/lib/libxerces-${i}.so.27.0 osr5/usr/lib/libxerces-${i}.so.27
+      ln -s libxerces-${i}.so.27 osr5/usr/lib/libxerces-${i}.so
+    }
+  }
+done
+
+[ -h usr/lib/libxalan-c.so.19 ] && {
+  rm -f usr/lib/libxalan-c.so.19 usr/lib/libxalan-c.so
+  rm -f usr/lib/libxalanMsg.so.19 usr/lib/libxalanMsg.so
+  mv -f usr/lib/libxalan-c.so.19.0 usr/lib/libxalan-c.so.19
+  mv -f usr/lib/libxalanMsg.so.19.0 usr/lib/libxalanMsg.so.19
+  ln -s libxalan-c.so.19 usr/lib/libxalan-c.so
+  ln -s libxalanMsg.so.19 usr/lib/libxalanMsg.so
+}
+
+[ "$GWXOS" = "OSR6" ] && {
+  [ -h osr5/usr/lib/libxalan-c.so.19 ] && {
+    rm -f osr5/usr/lib/libxalan-c.so.19 osr5/usr/lib/libxalan-c.so
+    rm -f osr5/usr/lib/libxalanMsg.so.19 osr5/usr/lib/libxalanMsg.so
+    mv -f osr5/usr/lib/libxalan-c.so.19.0 osr5/usr/lib/libxalan-c.so.19
+    mv -f osr5/usr/lib/libxalanMsg.so.19.0 osr5/usr/lib/libxalanMsg.so.19
+    ln -s libxalan-c.so.19 osr5/usr/lib/libxalan-c.so
+    ln -s libxalanMsg.so.19 osr5/usr/lib/libxalanMsg.so
+  }
+}
+
+#
+# OpenSSL does something rather silly. They create a symlink to a symlink
+# to a file. Sure, that VALID, but its silly. Fix that silliness now.
+#
+rm -f usr/lib/libssl.so usr/lib/libssl.so.0
+ln -s libssl.so.0.9.7 usr/lib/libssl.so.0
+ln -s libssl.so.0.9.7 usr/lib/libssl.so
+rm -f usr/lib/libcrypto.so usr/lib/libcrypto.so.0
+ln -s libcrypto.so.0.9.7 usr/lib/libcrypto.so.0
+ln -s libcrypto.so.0.9.7 usr/lib/libcrypto.so
+
+[ "$GWXOS" = "OSR6" ] && {
+  rm -f osr5/usr/lib/libssl.so osr5/usr/lib/libssl.so.0
+  ln -s libssl.so.0.9.7 osr5/usr/lib/libssl.so.0
+  ln -s libssl.so.0.9.7 osr5/usr/lib/libssl.so
+  rm -f osr5/usr/lib/libcrypto.so osr5/usr/lib/libcrypto.so.0
+  ln -s libcrypto.so.0.9.7 osr5/usr/lib/libcrypto.so.0
+  ln -s libcrypto.so.0.9.7 osr5/usr/lib/libcrypto.so
+}
+
+# Ensures the directories are created in the package
+[ -d usr/X11R6/bin ] || mkdir -p usr/X11R6/bin
+[ -d usr/X11R6/include/X11 ] || mkdir -p usr/X11R6/include/X11
+
+[ -h usr/man/man1/bunzip2.1 ] || {
+  ln -s bzip2.1 usr/man/man1/bunzip2.1
+  ln -s bzip2.1 usr/man/man1/bzcat.1
+}
+
+[ -f usr/lib/pkgconfig/gcrypt.pc ] || {
+  cp -f $HANDOFFS/gcrypt.pc.gwxlibs usr/lib/pkgconfig/gcrypt.pc
+}
+
+[ -f usr/lib/pkgconfig/gpg-error.pc ] || {
+  cp -f $HANDOFFS/gpg-error.pc.gwxlibs usr/lib/pkgconfig/gpg-error.pc
+}
+
+[ -f usr/bin/gcrypt-config ] || {
+  cp -f $HANDOFFS/gcrypt-config.gwxlibs usr/bin/gcrypt-config
+}
+
+[ -f usr/bin/gpg-error-config ] || {
+  cp -f $HANDOFFS/gpg-error-config.gwxlibs usr/bin/gpg-error-config
+}
+
+#
+# Thats it for basic tree manipulations. Now we have to create a plethora
+# of extra symlinks in the lib directory for backwards compatibility.
+#
+echo "Doing library aliases ..."
+newlib IDL-2-glib2.so.0 IDL-2-glib2 libIDL-2.0-glib2 \
+ IDL.so IDL-2.0.so IDL-2.so.0
+
+newlib Xaw3d.so.6 Xaw3d "" \
+  Xaw3d.so Xaw3D.so Xaw3D.so.5 Xaw3D.so.6
+
+newlib art_lgpl_2.so.5 art_lgpl_2 libart-2.0 \
+  art_lgpl_2.so art.so art_lgpl.so libart.so libart_lgpl.so 
+
+newlib bz2.so.1 bz2 bzip2 \
+  bz2.so bzip2.so bzip.so
+
+newlib curl.so.3 curl curl \
+  curl.so curl.so.2 curl.so.1
+
+newlib db.so.4 db db-4.3 \
+  db.so db-4.3.so db-4.2.so db-4.1.so db-4.0.so db-4.so db-3.0.so db-3.so \
+  db43.so db42.so db41.so db4.so db3.so db.so.3
+
+newlib db_cxx.so.4 db_cxx "" \
+  db_cxx.so db_cxx.so.3
+
+newlib expat.so.5 expat expat \
+  expat.so expat.so.1 expat.so.2 expat.so.3 expat.so.4
+
+newlib exslt.so.8 exslt libexslt \
+  exslt.so exslt.so.4 exslt.so.7
+
+newlib xslt.so.2 xslt libxslt \
+  xslt.so xslt.so.1
+
+newlib freetype.so.2 freetype freetype2 \
+  freetype.so freetype2.so freetype.so.2.0 freetype.so.6 freetype.so.9
+
+newlib gd.so.1.8 gd1 gd1 \
+  gd1.so gd-1.so gd-1.8.so gd.so.1
+
+newlib gd.so.2.0 gd2 gdlib \
+  gd.so gd2.so gd-2.so gd-2.0.so gd.so.2
+
+newlib glib.so.1.2 glib-1.2 glib-1.2 \
+  glib-1.2.so glib1.so glib-1.so glib.so.1
+
+newlib gmodule.so.1.2 gmodule-1.2 gmodule-1.2 \
+  gmodule-1.2.so gmodule1.so gmodule-1.so gmodule.so.1
+
+newlib gthread.so.1.2 gthread-1.2 gthread-1.2 \
+  gthread-1.2.so gthread1.so gthread-1.so gthread.so.1
+
+newlib gdk.so.1.2 gdk-1.2 gdk-1.2 \
+  gdk-1.2.so gdk1.so gdk-1.so gdk.so.1
+
+newlib gtk.so.1.2 gtk-1.2 gtk+-1.2 \
+  gtk-1.2.so gtk1.so gtk-1.so gtk.so.1
+
+newlib glib.so.2.0 glib-2.0 glib-2.0 \
+  glib.so glib2.so glib-2.so glib-2.0.so glib-2.0.so.0 glib-2.0.so.2
+
+newlib gmodule.so.2.0 gmodule-2.0 gmodule-2.0 \
+  gmodule.so gmodule2.so gmodule-2.so gmodule-2.0.so \
+  gmodule-2.0.so.0 gmodule-2.0.so.2
+
+newlib gobject.so.2.0 gobject-2.0 gobject-2.0 \
+  gobject.so gobject2.so gobject-2.so gobject-2.0.so \
+  gobject-2.0.so.0 gobject-2.0.so.2
+
+newlib gthread.so.2.0 gthread-2.0 gthread-2.0 \
+  gthread.so gthread2.so gthread-2.so gthread-2.0.so \
+  gthread-2.0.so.0 gthread-2.0.so.2
+
+newlib gdk-pixbuf-xlib.so.2.0 gdk_pixbuf_xlib-2.0 gdk-pixbuf-xlib-2.0 \
+  gdk_pixbuf-xlib.so.2.0 gdk_pixbuf_xlib.so.2.0 \
+  gdk_pixbuf_xlib-2.0.so gdk_pixbuf_xlib-2.so gdk_pixbuf_xlib.so \
+  gdk_pixbuf-xlib-2.0.so gdk_pixbuf-xlib-2.so gdk_pixbuf-xlib.so \
+  gdk-pixbuf-xlib-2.0.so gdk-pixbuf-xlib-2.so gdk-pixbuf-xlib.so \
+  gdk-pixbuf-xlib-2.0.so.0 gdk-pixbuf-xlib-2.0.so.2 \
+  gdk_pixbuf-xlib-2.0.so.0 gdk_pixbuf-xlib-2.0.so.2 \
+  gdk_pixbuf_xlib-2.0.so.0 gdk_pixbuf_xlib-2.0.so.2
+
+newlib gdk-pixbuf.so.2.0 gdk_pixbuf-2.0 gdk-pixbuf-2.0 \
+  gdk-pixbuf-2.0.so gdk_pixbuf-2.0.so gdk-pixbuf-2.so gdk_pixbuf-2.so \
+  gdk-pixbuf.so gdk_pixbuf.so \
+  gdk-pixbuf-2.0.so.0 gdk_pixbuf-2.0.so.0 \
+  gdk-pixbuf-2.0.so.2 gdk_pixbuf-2.0.so.2
+
+newlib gdk-x11.so.2.0 gdk-x11-2.0 gdk-2.0 \
+ gdk.so gdk2.so gdk-2.so gdk-2.0.so gdk-x11.so gdk2-x11.so \
+ gdk-x11-2.so gdk-x11-2.0.so \
+ gdk-2.0.so.0 gdk-2.0.so.2 gdk-x11-2.0.so.0 gdk-x11-2.0.so.2
+
+newlib gtk.so.2.0 gtk-x11-2.0 gtk+-2.0 \
+ gtk.so gtk+.so gtk2.so gtk-2.so gtk-2.0.so gtk-x11.so gtk2-x11.so \
+ gtk-x11-2.so gtk-x11-2.0.so \
+ gtk-2.0.so.0 gtk-2.0.so.2 gtk-x11-2.0.so.0 gtk-x11-2.0.so.2
+
+newlib atk.so.1 atk-1.0 atk-1.0 \
+  atk.so atk1.so atk-1.so atk-1.0.so atk-1.0.so.0 atk-1.0.so.800
+
+newlib pango.so.1 pango-1.0 pango-1.0 \
+  pango.so pango1.so pango-1.so pango-1.0.so pango-1.0.so.0
+
+newlib pangoft2.so.1 pangoft2-1.0 pangoft2-1.0 \
+  pangoft2.so pangoft2-1.so pangoft2-1.0.so pangoft2-1.0.so.0
+
+newlib pangox.so.1 pangox-1.0 pangox-1.0 \
+  pangox.so pangox-1.so pangox-1.0.so pangox-1.0.so.0
+
+newlib pangoxft.so.1 pangoxft-1.0 pangoxft-1.0 \
+  pangoxft.so pangoxft-1.so pangoxft-1.0.so pangoxft-1.0.so.0
+
+newlib pangocairo.so.1 pangocairo-1.0 pangocairo-1.0 \
+  pangocairo.so pangocairo-1.so pangocairo-1.0.so
+
+newlib gdome2-glib1.so.8 gdome2-glib1 gdome2-glib1 \
+  gdome-glib1.so gdome2-glib1.so
+
+newlib gdome2-glib2.so.8 gdome2-glib2 gdome2-glib2 \
+  gdome.so gdome2.so gdome-glib2.so gdome2-glib2.so gdome2.so.7
+
+newlib gnuintl.so.4 gnuintl gettext \
+  gnuintl.so gnuintl.so.7
+
+newlib gsf.so.12 gsf libgsf-1 \
+  gsf-1.so gsf1.so gsf.so gsf.so.11
+
+newlib gtkhtml-2.so.1 gtkhtml-2 libgtkhtml-2.0 \
+  gtkhtml.so gtkhtml-2.so gtkhtml-2.0.so
+
+newlib icudata.so.34 "" "" \
+  icu_data.so icudata.so icudata.so.24 icudata.so.28 icudata.so.32
+
+newlib icui18n.so.34 "" "" \
+  icu_i18n.so icui18n.so icui18n.so.24 icui18n.so.28 icui18n.so.32
+
+newlib icuio.so.34 "" "" \
+  icu_io.so icuio.so icuio.so.24 icuio.so.28 icuio.so.32
+
+newlib icule.so.34 "" "" \
+ icu_le.so icule.so icule.so.24 icule.so.28 icule.so.32
+
+newlib iculx.so.34 "" "" \
+ icu_lx.so iculx.so iculx.so.24 iculx.so.28 iculx.so.32
+
+newlib icuuc.so.34 "" "" \
+  icu_uc.so icuuc.so icuuc.so.24 icuuc.so.28 icuuc.so.32
+
+newlib icutu.so.34 "" "" \
+  icu_tu.so icutu.so icutu.so.24 icutu.so.28 icuuc.so.32
+
+newlib jasper.so.1 jasper jasper \
+  jasper.so jasper.so.3
+
+newlib lber-2.2.so.7 lber "" \
+  lber.so lber2.so lber-2.so lber-2.2.so lber.so.2 lber.so.202
+
+newlib ldap-2.2.so.7 ldap "" \
+  ldap.so ldap2.so ldap-2.so ldap-2.2.so ldap.so.2 ldap.so.202
+
+newlib ldap_r-2.2.so.7 ldap_r "" \
+  ldap_r.so ldap2_r ldap_r-2 ldap_r-2.2 ldap_r.so.2 ldap_r.so.202
+
+newlib mm.so.13 mm mm \
+  mm.so mm.so.11 mm.so.12
+
+newlib netpbm.so.10 netpbm netpbm \
+  netpbm.so pbm.so pgm.so pnm.so ppm.so \
+  netpbm.so.1 pbm.so.1 pgm.so.1 pnm.so.1 ppm.so.1
+
+newlib pcre.so.0 pcre pcre \
+  pcre.so pcre4.so pcre5.so pcre-5.0.so pcreposix.so pcre4posix.so \
+  pcre5posix.so pcre.so.4 pcre6.so pcre-6.4.so
+
+newlib rsvg-2.so.13 rsvg-2 librsvg-2.0 \
+  rsvg.so rsvg-2.so rsvg-2.0.so librsvg.so librsvg-2.so librsvg-2.0.so \
+  rsvg-2.so.11
+
+newlib sablot.so.102 sablot sablot \
+  sablot.so sablot.so.101 sablot.so.100 sablot.so.98
+
+newlib sasl2.so.2 sasl2 sasl2 \
+  sasl.so sasl2.so
+
+newlib tiff.so.3 tiff tiff \
+  tiff.so tiff-3.so tiff-3.4.so tiff-3.5.so tiff-3.7.so \
+  tiff.so.3.4 tiff.so.3.5 tiff.so.3.6 tiff.so.3.7
+
+newlib xalan-c.so.19 "" "" \
+  xalan-c.so Xalan-c.so xalan.so Xalan.so \
+  xalan-c.so.15 xalan-c.so.16 xalan-c.so.17 xalan-c.so.18
+
+newlib xalanMsg.so.19 "" "" \
+  xalanMsg.so \
+  xalanMsg.so.15 xalanMsg.so.16 xalanMsg.so.17 xalanMsg.so.18
+
+newlib xerces-c.so.27 "" "" \
+  xerces-c.so Xerces-c.so xerces.so Xerces.so \
+  xerces-c.so.22 xerces-c.so.23 xerces-c.so.24 xerces-c.so.25 xerces-c.so.26
+
+newlib xerces-depdom.so.27 "" "" \
+  xerces-depdom.so Xerces-depdom.so \
+  xerces-depdom.so.22 xerces-depdom.so.23 xerces-depdom.so.24 \
+  xerces-depdom.so.25 xerces-depdom.so.26
+
+newlib xml2.so.8 xml2 libxml-2.0 \
+  xml2.so xml2-2.0.so xml2-2.1.so xml2-2.2.so xml2-2.3.so xml2-2.4.so \
+  xml2-2.5.so xml2-2.6.so \
+  xml2.so.2 xml2.so.6 xml2.so.7
+
+newlib xmlsec1-openssl.so.3 xmlsec1-openssl "" \
+  xmlsec1-openssl.so xmlsec-openssl.so \
+  xmlsec-openssl.so.1 xmlsec1-openssl.so.1
+
+newlib xmlsec1.so.3 xmlsec1 xmlsec1 \
+  xmlsec1.so xmlsec.so \
+  xmlsec.so.0 xmlsec1.so.0 \
+  xmlsec.so.1 xmlsec1.so.1
+
+#
+# There are many pkgconfig aliases we want to set up. This includes both the
+# actual .pc file in usr/lib/pkgconfig and the *-config file in usr/bin.
+# Different programs expect these things by different names. Its a pain.
+#
+echo "Doing package aliases ..."
+maybe_newpkg berkeley-db db-4.3
+maybe_newpkg berkeleydb db-4.3
+maybe_newpkg berkeleydb4 db-4.3
+maybe_newpkg libgtkhtml libgtkhtml-2.0
+maybe_newpkg libgtkhtml-2 libgtkhtml-2.0
+maybe_newpkg libIDL libIDL-2.0-glib2
+maybe_newpkg libIDL-2 libIDL-2.0-glib2
+maybe_newpkg libIDL-2.0 libIDL-2.0-glib2
+maybe_newpkg libIDL-2-glib2 libIDL-2.0-glib2
+maybe_newpkg libIDL-glib2 libIDL-2.0-glib2
+maybe_newpkg libIDL-glib1 libIDL-2.0-glib1
+maybe_newpkg libIDL-2-glib1 libIDL-2.0-glib1
+maybe_newpkg mng libmng
+maybe_newpkg png libpng
+maybe_newpkg www libwww
+maybe_newpkg libxml libxml-2.0
+maybe_newpkg libxml2 libxml-2.0
+maybe_newpkg libxml-2 libxml-2.0
+maybe_newpkg libxml2-2.0 libxml-2.0
+maybe_newpkg xml libxml-2.0
+maybe_newpkg xml-2 libxml-2.0
+maybe_newpkg slp openslp
+maybe_newpkg js javascript
+maybe_newpkg libgsf libgsf-1
+
+[ -h usr/bin/libIDL-config-2 ] || {
+  ln -s libIDL-2.0-glib2-config usr/bin/libIDL-config-2
+}
+
+[ -h usr/bin/libIDL-config-1 ] || {
+  ln -s libIDL-2.0-glib1-config usr/bin/libIDL-config-1
+}
+
+# TCL handling stuff starts here
+cd $origpwd/tcl
+
+#
+# Last step - fix LA files
+#
+cd $origpwd
+
+echo "Fixing libtool madness ..."
+for lf in `find . -name \*.la`;do
+  fix_lafile $lf
+done
+
+@@@@ );
+
+  ifneq ("GWXOS", "UW7")
+    exists ("/gwxlibs/cntl/cqs",false);
+    exists ("/gwxlibs/cntl/ccs",false);
+  endif
+  ifeq ("GWXOS", "OSR5")
+    exists ("/gwxlibs/cntl/need646",false);
+    exists ("/gwxlibs/cntl/needMP3",false);
+    exists ("/gwxlibs/cntl/badver",false);
+  endif
+
+  auto_compress_texinfo ();
+  auto_format_mansource ();
+  auto_strip (TRUE, TRUE);
+
+#
+# Files we dont want to end up in the distribution. These will be created
+# from the default files by the CCS script.
+#
+  remove ("/etc/pango/pangorc");
+  remove ("/etc/pango/pango.aliases");
+  remove ("/etc/pango/pango.modules");
+  remove ("/etc/pango/pangox.aliases");
+  remove ("/etc/openldap/ldap.conf");
+  remove ("/etc/openldap/slapd.conf");
+  remove ("/etc/openldap/schema/corba.schema");
+  remove ("/etc/openldap/schema/core.schema");
+  remove ("/etc/openldap/schema/cosine.schema");
+  remove ("/etc/openldap/schema/inetorgperson.schema");
+  remove ("/etc/openldap/schema/java.schema");
+  remove ("/etc/openldap/schema/misc.schema");
+  remove ("/etc/openldap/schema/nis.schema");
+  remove ("/etc/openldap/schema/openldap.schema");
+
+  ifeq ("GWXOS", "OSR5")
+    # Not built on OSR5 becuase it lacks threads
+    remove ("/usr/man/man8/slurpd.8");
+    remove ("/usr/man/man8/slurpd.8.Z");
+    remove ("/usr/man/cat8/slurpd.8");
+    remove ("/usr/man/cat8/slurpd.8.Z");
+  endif
+
+# Not built on UW7/OSR5 because its not an SGI machine
+  remove ("/usr/man/man1/tiffgt.1");
+  remove ("/usr/man/man1/tiffgt.1.Z");
+  remove ("/usr/man/cat1/tiffgt.1");
+  remove ("/usr/man/cat1/tiffgt.1.Z");
+  remove ("/usr/man/man1/tiffsv.1");
+  remove ("/usr/man/man1/tiffsv.1.Z");
+  remove ("/usr/man/cat1/tiffsv.1");
+  remove ("/usr/man/cat1/tiffsv.1.Z");
+  remove ("/usr/man/man1/sgi2tiff.1");
+  remove ("/usr/man/man1/sgi2tiff.1.Z");
+  remove ("/usr/man/cat1/sgi2tiff.1");
+  remove ("/usr/man/cat1/sgi2tiff.1.Z");
+
+  # These are problematic because the directory is exported
+  remove ("/usr/lib/icu/current");
+  remove ("/usr/lib/icu/Makefile.inc");
+
+# None of the docs, thanks
+  remove ("/usr/share/docs");
+
+# Other files we want removed
+  remove ("/usr/bin/testXSLT");
+
+# OpenSSL 0.9.7e installs symlinks to libraries that don't exist
+  removeany ("/usr/lib/libfips.*");
+  removeany ("/osr5/usr/lib/libfips.*");
+
+  ifneq ("GWXOS", "UW7")
+    # We set the LC_TIME links in the ccs script
+    removeany ("*/share/locale/*/LC_TIME");
+  endif
+
+# Any backup files go
+  removeany ("*.bak");
+
+# Any vim session files go too
+  removeany (".*.swp");
+
+# Sanity check to make sure the files we added exist
+  exists ("/gwxlibs/usr/gnu/bin/ginstall-info", FALSE);
+  exists ("/gwxlibs/usr/lib/libltdl.so.4", FALSE);
+  exists ("/gwxlibs/usr/include/ltdl.h", FALSE);
+  exists ("/gwxlibs/usr/lib/openssl/openssl.cnf.default", FALSE);
+
+  exists ("/XORGRT", FALSE);
+  exists ("/XORGFonts", FALSE);
+  mandir ("/usr/X11R6/man/man1");
+  mandir ("/usr/X11R6/man/man3");
+  mandir ("/usr/X11R6/man/man5");
+}
+
+package ("/gwxlibs", "${GWXDESC}", "GWXLIBS") {
+  file ("/usr/gnu/bin/ginstall-info") {
+    addexport ("/usr/gnu/bin/install-info", early);
+  }
+
+  file ("/usr/lib/libltdl.so.4") {
+    addexport ("/usr/lib/libltdl.so", normal);
+  }
+
+  ifeq ("GWXOS", "OSR6")
+    file ("/osr5/usr/lib/libltdl.so.4") {
+      addexport ("/osr5/usr/lib/libltdl.so", normal);
+    }
+  endif
+
+  file ("/usr/lib/libgnuintl.so.4") {
+    addexport ("/usr/gnu/lib/libgnuintl.so", normal);
+    addexport ("/usr/gnu/lib/libintl.so", normal);
+  }
+
+  ifeq ("GWXOS", "OSR6")
+    file ("/osr5/usr/lib/libgnuintl.so.4") {
+      addexport ("/osr5/usr/gnu/lib/libgnuintl.so", normal);
+      addexport ("/osr5/usr/gnu/lib/libintl.so", normal);
+    }
+  endif
+
+  file ("/usr/bin/pcregrep") {
+    addexport ("/usr/bin/pgrep", normal);
+  }
+
+  file ("/usr/bin/xmlsec1") {
+    addexport ("/usr/bin/xmlsec", normal);
+  }
+
+  file ("/usr/gnu/info/dir") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  directory ("/usr/lib/icu/3.4") {
+    export (normal);
+    addexport ("/usr/lib/icu/current", normal);
+  }
+
+  file ("/usr/lib/icu/3.4/Makefile.inc") {
+    addexport ("/usr/lib/icu/Makefile.inc", normal);
+    exportok();
+  }
+
+  file ("/usr/bin/bzip2") {
+    ifeq ("GWXOS", "OSR5")
+      addexport ("/bin/bzip2", early);
+      addexport ("/bin/bunzip2", early);
+      addexport ("/bin/bzcat", early);
+    endif
+    addexport ("/usr/bin/bunzip2", early);
+    addexport ("/usr/bin/bzcat", early);
+    addexport ("/sbin/bzip2", early);
+    addexport ("/sbin/bunzip2", early);
+    addexport ("/sbin/bzcat", early);
+  }
+
+  file ("/usr/bin/bzip2recover") {
+    ifeq ("GWXOS", "OSR5")
+      addexport ("/bin/bzip2recover", early);
+    endif
+  }
+
+  file ("/etc/pango/pango.modules.default") {
+    access (SERVER);
+  }
+
+  file ("/etc/pango/pangorc.default") {
+    access (SERVER);
+  }
+
+  file ("/etc/pango/pango.aliases.default") {
+    access (SERVER);
+  }
+
+  file ("/etc/pango/pangox.aliases.default") {
+    access (SERVER);
+  }
+
+  file ("/etc/gtk-2.0/gtk.immodules.default") {
+    access (SERVER);
+  }
+
+  file ("/etc/gtk-2.0/gdk-pixbuf.loaders.default") {
+    access (SERVER);
+  }
+
+  file ("/etc/slp.spi") {
+    access (CLIENT);
+  }
+
+  file ("/etc/slp.reg") {
+    access (CLIENT);
+  }
+
+  file ("/etc/fonts/fonts.dtd") {
+    access (SERVER);
+  }
+
+  file ("/etc/fonts/fonts.conf") {
+    access (SERVER);
+  }
+
+  file ("/etc/im_palette-small.pal") {
+    access (CLIENT);
+  }
+
+  file ("/etc/im_palette-tiny.pal") {
+    access (CLIENT);
+  }
+
+  file ("/etc/im_palette.pal") {
+    access (CLIENT);
+  }
+
+  file ("/etc/openldap/schema/README") {
+    access (SERVER);
+  }
+
+  file ("/usr/lib/gnupg/options.skel") {
+    access (CLIENT);
+  }
+
+  file ("/usr/bin/netpbm") {
+    # Custom has a bug where if you have too many links, as netpbm does,
+    # then it falls over dead. This keyword causes mkcdmt to export the
+    # links as multiple exportPath exports rather than creating LINK
+    # records for each link. They naievely thought 128 links was enough.
+    exportlinks();
+  }
+
+  directory ("/usr/lib/openssl/private") {
+    owner ("root");
+    group ("root");
+    mode (700);
+  }
+
+  directory ("/usr/lib/openldap/openldap-data") {
+    access (CLIENT);
+    owner ("root");
+    group ("root");
+    mode (700);
+  }
+
+  file ("/usr/bin/ldapmodify") {
+    convert ("/usr/bin/ldapadd", normal);
+  }
+
+  ifeq ("GWXOS", "OSR5")
+    remove ("/usr/bin/slapadd");
+    remove ("/usr/bin/slapcat");
+    remove ("/usr/bin/slapdn");
+    remove ("/usr/bin/slapindex");
+    remove ("/usr/bin/slappasswd");
+    remove ("/usr/bin/slaptest");
+
+    file ("/etc/slapd") {
+      addexport ("/usr/bin/slapadd", normal);
+      addexport ("/usr/bin/slapcat", normal);
+      addexport ("/usr/bin/slapdn", normal);
+      addexport ("/usr/bin/slapindex", normal);
+      addexport ("/usr/bin/slappasswd", normal);
+      addexport ("/usr/bin/slaptest", normal);
+    }
+  else
+    remove ("/usr/sbin/slapadd");
+    remove ("/usr/sbin/slapcat");
+    remove ("/usr/sbin/slapdn");
+    remove ("/usr/sbin/slapindex");
+    remove ("/usr/sbin/slappasswd");
+    remove ("/usr/sbin/slaptest");
+
+    file ("/usr/sbin/in.slapd") {
+      addexport ("/etc/slapd", normal);
+      addexport ("/usr/bin/slapadd", normal);
+      addexport ("/usr/bin/slapcat", normal);
+      addexport ("/usr/bin/slapdn", normal);
+      addexport ("/usr/bin/slapindex", normal);
+      addexport ("/usr/bin/slappasswd", normal);
+      addexport ("/usr/bin/slaptest", normal);
+    }
+
+    file ("/usr/sbin/in.slurpd") {
+      addexport ("/etc/slurpd", normal);
+    }
+  endif
+
+  #
+  # This little bit of trickery here needs some explaining. What we do
+  # is export all header files. For OSR6, we also need to export them
+  # into the /osr5 hierarchy. However, on OSR6, there are a few files
+  # which must not be exported, becuase they differ between OSR5 and
+  # OSR6. We list those as exclusions here. The script code above will
+  # preserve those files that need it. So for the /usr/include directory
+  # we use a recursive exportall(), and if on OSR6, we also export to
+  # /osr5. By marking a directory as exported, it will prevent MetaPKG
+  # from trying to export the individual files under it. Isnt that handy.
+  directory ("/usr/include") {
+    ifeq ("GWXOS", "OSR6")
+      exportall ("/osr5/usr/include", normal, recursive);
+    endif
+
+    except ("/osr5/usr/include/ltdl.h");
+    except ("/osr5/usr/include/db.h");
+    except ("/osr5/usr/include/db_185.h");
+    except ("/osr5/usr/include/glib-1.2/glibconfig.h");
+    except ("/osr5/usr/include/glib-2.0/glibconfig.h");
+    except ("/osr5/usr/include/ldap_features.h");
+    except ("/osr5/usr/include/openssl/opensslconf.h");
+    except ("/osr5/usr/include/pcre_stringpiece.h");
+    except ("/osr5/usr/include/unicode/platform.h");
+  }
+
+  ifeq ("GWXOS", "OSR6")
+    directory ("/usr/include/readline") {
+      exportall ("/osr5/usr/include", normal, nonrecursive);
+      exportok();
+    }
+  endif
+
+  directory ("/usr/include/X11/Xaw3d") {
+    addexport ("/usr/include/X11/Xaw3D", normal);
+    ifeq ("GWXOS", "OSR6")
+      addexport ("/osr5/usr/include/X11/Xaw3D", normal);
+    endif
+    exportok();
+  }
+
+  directory ("/usr/include/freetype2/freetype") {
+    addexport ("/usr/include/freetype", normal);
+    ifeq ("GWXOS", "OSR6")
+      addexport ("/osr5/usr/include/freetype", normal);
+    endif
+    exportok();
+  }
+
+  directory ("/usr/include/glib-2.0") {
+    ifneq ("GWXOS", "UW7")
+      except ("/osr5/usr/include/glib-2.0/glibconfig.h");
+      except ("/osr5/usr/include/glib/glibconfig.h");
+      exportall ("/usr/include/glib", normal, recursive);
+      ifeq ("GWXOS", "OSR6")
+        exportall ("/osr5/usr/include/glib", normal, recursive);
+      endif
+    else
+      addexport ("/usr/include/glib", normal);
+    endif
+    exportok();
+  }
+
+  directory ("/usr/include/gtk-2.0") {
+    addexport ("/usr/include/gtk", normal);
+    addexport ("/usr/include/gtk+", normal);
+    ifeq ("GWXOS", "OSR6")
+      addexport ("/osr5/usr/include/gtk", normal);
+      addexport ("/osr5/usr/include/gtk+", normal);
+    endif
+    exportok();
+  }
+
+  file ("/usr/include/libIDL/IDL.h") {
+    addexport ("/usr/include/IDL.h", normal);
+    ifeq ("GWXOS", "OSR6")
+      addexport ("/osr5/usr/include/IDL.h", normal);
+    endif
+    exportok();
+  }
+
+  ifeq ("GWXOS", "OSR6")
+    file ("/osr5/usr/include/glib-2.0/glibconfig.h") {
+      addexport ("/osr5/usr/include/glib/glibconfig.h", normal);
+    }
+  endif
+
+  directory ("/usr/include/pango-1.0/pango") {
+    addexport ("/usr/include/pango", normal);
+    ifeq ("GWXOS", "OSR6")
+      addexport ("/osr5/usr/include/pango", normal);
+    endif
+    exportok();
+  }
+
+  directory ("/usr/include/gd2") {
+    exportall ("/usr/include", normal, norecurse);
+    exportok();
+  }
+}
+
+package ("/tcl", "Tcl ${TCLVER}", "TCL84") {
+  remove ("/osr5/usr/gnu/include");
+
+  file ("/usr/gnu/bin/tclsh8.4") {
+    addexport ("/usr/gnu/bin/tclsh", normal);
+  }
+  file ("/usr/gnu/lib/libtcl8.4.so") {
+    addexport ("/usr/gnu/lib/libtcl.so", normal);
+  }
+
+  ifeq ("GWXOS", "OSR6")
+    directory ("/usr/gnu/include") {
+      exportall ("/osr5/usr/gnu/include", normal, recursive);
+    }
+    file ("/osr5/usr/gnu/bin/tclsh8.4") {
+      addexport ("/osr5/usr/gnu/bin/tclsh", normal);
+    }
+    file ("/osr5/usr/gnu/lib/libtcl8.4.so") {
+      addexport ("/osr5/usr/gnu/lib/libtcl.so", normal);
+    }
+  endif
+}
+
+package ("/tk", "Tk ${TCLVER}", "TK84") {
+  ifneq ("METAPKG_BACKEND", "pkgadd")
+    requires ("TCL84");
+  endif
+
+  remove ("/osr5/usr/gnu/include");
+
+  file ("/usr/gnu/bin/wish8.4") {
+    addexport ("/usr/gnu/bin/wish", normal);
+  }
+  file ("/usr/gnu/lib/libtk8.4.so") {
+    addexport ("/usr/gnu/lib/libtk.so", normal);
+  }
+
+  ifeq ("GWXOS", "OSR6")
+    directory ("/usr/gnu/include") {
+      exportall ("/osr5/usr/gnu/include", normal, recursive);
+    }
+    file ("/osr5/usr/gnu/bin/wish8.4") {
+      addexport ("/osr5/usr/gnu/bin/wish", normal);
+    }
+    file ("/osr5/usr/gnu/lib/libtk8.4.so") {
+      addexport ("/osr5/usr/gnu/lib/libtk.so", normal);
+    }
+  endif
+}
+
+package ("/tclx", "Extended Tcl/Tk ${TCLXVER}", "TCLX83") {
+  ifneq ("METAPKG_BACKEND", "pkgadd")
+    requires ("TCL84");
+    requires ("TK84");
+  endif
+
+  remove ("/usr/gnu/man/mann/memory.n.Z");
+  remove ("/usr/gnu/man/catn/memory.n.Z");
+  remove ("/usr/gnu/man/mann/memory.n");
+  remove ("/usr/gnu/man/catn/memory.n");
+  remove ("/osr5/usr/gnu/include");
+
+  file ("/usr/gnu/lib/libtclx8.3.so") {
+    addexport ("/usr/gnu/lib/libtclx.so", normal);
+  }
+  file ("/usr/gnu/lib/libtclx8.3.a") {
+    addexport ("/usr/gnu/lib/libtclx.a", normal);
+  }
+  file ("/usr/gnu/lib/libtkx8.3.so") {
+    addexport ("/usr/gnu/lib/libtkx.so", normal);
+  }
+  file ("/usr/gnu/lib/libtkx8.3.a") {
+    addexport ("/usr/gnu/lib/libtkx.a", normal);
+  }
+
+  ifeq ("GWXOS", "OSR6")
+    directory ("/usr/gnu/include") {
+      exportall ("/osr5/usr/gnu/include", normal, recursive);
+    }
+    file ("/osr5/usr/gnu/lib/libtclx8.3.so") {
+      addexport ("/osr5/usr/gnu/lib/libtclx.so", normal);
+    }
+    file ("/osr5/usr/gnu/lib/libtclx8.3.a") {
+      addexport ("/osr5/usr/gnu/lib/libtclx.a", normal);
+    }
+    file ("/osr5/usr/gnu/lib/libtkx8.3.so") {
+      addexport ("/osr5/usr/gnu/lib/libtkx.so", normal);
+    }
+    file ("/osr5/usr/gnu/lib/libtkx8.3.a") {
+      addexport ("/osr5/usr/gnu/lib/libtkx.a", normal);
+    }
+  endif
+}
+
+package ("/expect", "Expect ${EXPECTVER}", "EXPECT") {
+  ifneq ("METAPKG_BACKEND", "pkgadd")
+    requires ("TCL84");
+    requires ("TK84");
+  endif
+
+  remove ("/osr5/usr/gnu/include");
+
+  file ("/usr/gnu/lib/libexpect${EXPECTVER}.a") {
+    addexport ("/usr/gnu/lib/libexpect.a", normal);
+  }
+  file ("/usr/gnu/lib/libexpect${EXPECTVER}.so") {
+    addexport ("/usr/gnu/lib/libexpect.so", normal);
+  }
+
+  ifeq ("GWXOS", "OSR6")
+    directory ("/usr/gnu/include") {
+      exportall ("/osr5/usr/gnu/include", normal, recursive);
+    }
+    file ("/osr5/usr/gnu/lib/libexpect${EXPECTVER}.a") {
+      addexport ("/osr5/usr/gnu/lib/libexpect.a", normal);
+    }
+    file ("/osr5/usr/gnu/lib/libexpect${EXPECTVER}.so") {
+      addexport ("/osr5/usr/gnu/lib/libexpect.so", normal);
+    }
+  endif
+}
+
+ifneq ("METAPKG_BACKEND", "pkgadd")
+  package ("", "Enhanced TCL Tools", "TCLTOOLS") {
+    subpackage ("TCL84");
+    subpackage ("TK84");
+    subpackage ("TCLX83");
+    subpackage ("EXPECT");
+  }
+endif
+
+package ("/XORGRT", "${XORGRTDESC}", "XORGRT") {
+  ifeq ("GWXOS", "OSR6")
+    remove ("/osr5/usr/X11R6/include");
+    directory ("/usr/X11R6/include") {
+      exportall ("/usr/include", normal, recursive);
+      exportall ("/osr5/usr/X11R6/include", normal, recursive);
+    }
+
+    allfiles ("/usr/X11R6/lib/lib*.so") {
+      addexport ("/usr/lib/%s", early);
+    }
+  endif
+
+  file ("/usr/X11R6/lib/libXpm.so.4.11") {
+    addexport ("/usr/lib/libXpm.so.4.11", early);
+    addexport ("/usr/lib/libXpm.so.4", early);
+    addexport ("/usr/lib/libXpm.so.3", early);
+    ifneq ("GWXOS", "OSR6")
+      addexport ("/usr/lib/libXpm.so", early);
+    endif
+  }
+
+  file ("/usr/X11R6/bin/cxpm") {
+    addexport ("/usr/bin/cxpm", normal);
+  }
+
+  file ("/usr/X11R6/bin/sxpm") {
+    addexport ("/usr/bin/sxpm", normal);
+  }
+
+  file ("/usr/X11R6/include/X11/xpm.h") {
+    addexport ("/usr/include/xpm.h", normal);
+    ifneq ("GWXOS", "OSR6")
+      addexport ("/usr/include/X11/xpm.h", normal);
+    else
+      addexport ("/osr5/usr/include/xpm.h", normal);
+      addexport ("/osr5/usr/include/X11/xpm.h", normal);
+    endif
+  }
+
+  ifeq ("GWXOS", "OSR6")
+    file ("/osr5/usr/X11R6/lib/libXpm.so.4.11") {
+      addexport ("/osr5/usr/lib/libXpm.so.4.11", early);
+      addexport ("/osr5/usr/lib/libXpm.so.4", early);
+      addexport ("/osr5/usr/lib/libXpm.so.3", early);
+      addexport ("/osr5/usr/lib/libXpm.so", early);
+    }
+  endif
+
+  file ("/usr/X11R6/lib/X11/config/host.def") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/Xcms.txt") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/XErrorDB") {
+    access (CLIENT);
+    mode (644);
+    ifeq ("GWXOS", "OSR6")
+      addexport ("/usr/X11R6.1/lib/X11/XErrorDB", normal);
+      addexport ("/usr/lib/X11/XErrorDB", normal);
+    endif
+  }
+
+  file ("/usr/X11R6/lib/X11/XKeysymDB") {
+    access (CLIENT);
+    mode (644);
+    ifeq ("GWXOS", "OSR6")
+      addexport ("/usr/X11R6.1/lib/X11/XKeysymDB", normal);
+      addexport ("/usr/lib/X11/XKeysymDB", normal);
+    endif
+  }
+
+  file ("/usr/X11R6/lib/X11/locale/locale.alias") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/locale/locale.dir") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/locale/compose.dir") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  file ("/usr/X11R6/lib/X11/rgb.txt") {
+    access (CLIENT);
+    mode (644);
+    ifeq ("GWXOS", "OSR6")
+      addexport ("/usr/X11R6.1/lib/X11/rgb.txt", normal);
+      addexport ("/usr/lib/X11/rgb.txt", normal);
+    endif
+  }
+}
+
+package ("/XORGFonts", "${XORGFONTSDESC}", "XORGFONTS") {
+  remove ("/usr/X11R6/lib/X11/fonts/TTF/fonts.cache-1");
+  remove ("/usr/X11R6/lib/X11/fonts/Type1/fonts.cache-1");
+
+  allfiles ("*/fonts.alias") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  allfiles ("*/fonts.dir") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  allfiles ("*/fonts.scale") {
+    access (CLIENT);
+    mode (644);
+  }
+
+  ifeq ("GWXOS", "OSR6")
+    directory ("/usr/X11R6/lib/X11/fonts") {
+      exportall ("/usr/lib/X11/fonts", normal, recursive);
+    }
+  endif
+
+  ifeq ("GWXOS", "OSR5")
+    define ("XSCOFONT", "/usr/lib/X11/fonts/Type1");
+    define ("XORGT1FONT", "/usr/X11R6/lib/X11/fonts/Type1");
+
+    allfiles ("${XORGT1FONT}/*") {
+      except ("*/fonts.*");
+      except ("*/UTBI____.pfa");
+      except ("*/UTB_____.pfa");
+      except ("*/UTI_____.pfa");
+      except ("*/UTRG____.pfa");
+      except ("*/cour.pfa");
+      except ("*/courb.pfa");
+      except ("*/courbi.pfa");
+      except ("*/couri.pfa");
+      addexport ("${XSCOFONT}/%s", normal);
+    }
+  endif
+}
+
+component ("${FONTSNM}", "${XORGCMPNTVER}", "${XORGFONTSDESC}") {
+  subpackage ("XORGFONTS");
+
+  ifneq ("METAPKG_BACKEND", "pkgadd")
+    upgrades ("^6\\\\.7\\\\.0.*");
+    upgrades ("^6\\\\.8\\\\.0.*");
+    upgrades ("^6\\\\.8\\\\.1.*");
+    upgrades ("^6\\\\.8\\\\.2[A-D][a-z]");
+    upgrades ("^6\\\\.8\\\\.2E[a-c]");
+    replaces ("SCO:XF86Fonts::.*");
+  endif
+}
+
+component ("${XORGRTNM}", "${XORGCMPNTVER}", "${XORGRTDESC}") {
+  subpackage ("XORGRT");
+  dependency ("${DEPVENDOR}${FONTSNM}", "${XORGFONTSDESC}");
+
+  ifneq ("METAPKG_BACKEND", "pkgadd")
+    upgrades ("^6\\\\.7\\\\.0.*");
+    upgrades ("^6\\\\.8\\\\.0.*");
+    upgrades ("^6\\\\.8\\\\.1.*");
+    upgrades ("^6\\\\.8\\\\.2[A-D][a-z]");
+    upgrades ("^6\\\\.8\\\\.2E[a-c]");
+    dependency ("SCO:gwxlibs");
+    replaces ("SCO:XF86RT::.*");
+  endif
+}
+
+component ("gwxlibs", "${METAPKG_VERSION}", "${GWXDESC}") {
+  subpackage ("GWXLIBS");
+  ifneq ("METAPKG_BACKEND", "pkgadd")
+    subpackage ("TCLTOOLS");
+  else
+    subpackage ("TCL84");
+    subpackage ("TK84");
+    subpackage ("TCLX83");
+    subpackage ("EXPECT");
+  endif
+  dependency ("${DEPVENDOR}${XORGRTNM}", "X.org X11R${XORGVER} Runtime");
+  dependency ("${DEPVENDOR}${FONTSNM}", "X.org X11R${XORGVER} Core Fonts");
+
+  ifneq ("METAPKG_BACKEND", "pkgadd")
+    upgrades ("^1\\\\.0.*");
+    upgrades ("^1\\\\.1.*");
+    upgrades ("^1\\\\.2.*");
+    upgrades ("^1\\\\.3\\\\.0.*");
+    upgrades ("^1\\\\.3\\\\.1.*");
+    upgrades ("^1\\\\.3\\\\.2.*");
+    upgrades ("^1\\\\.3\\\\.3.*");
+    upgrades ("^2\\\\.0\\\\.0.*");
+  else
+    verbatim ("i postinstall=../../dist/gwxlibs/cntl/postinstall");
+  endif
+}
+
+requires ("XORGRT");
+requires ("XORGFonts");
+requires ("gwxlibs");

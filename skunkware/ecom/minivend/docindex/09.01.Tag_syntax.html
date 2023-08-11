@@ -1,0 +1,170 @@
+<HTML>
+<HEAD>
+<TITLE>Tag syntax</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.02.DATA_and_FIELD.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Tag_syntax">Tag syntax</A></H2>
+<P>
+MiniVend uses a style similar to 
+<FONT SIZE=-1>HTML,</FONT> but with [square brackets] replacing
+&lt;chevrons&gt;. The parameters that can be passed are much the same,
+where a parameter=``paramter value'' can be passed.
+
+<P>
+Summary:
+
+<P>
+<PRE>    [tag parameter]             Tag called with positional parameter
+    [tag parameter=value]       Tag called with named parameter
+    [tag parameter=&quot;the value&quot;] Tag called with space in parameter
+    [tag 1 2 3]                 Tag called with multiple positional parameters
+    [tag foo=1 bar=2 baz=3]     Tag called with multiple named parameters
+    [tag foo=`2 + 2`]           Tag called with calculated parameter
+    [tag foo=&quot;[value bar]&quot;]     Tag called with tag inside parameter
+    [tag foo=&quot;[value bar]&quot;]
+        Container text.         Container tag.
+    [/tag]
+</PRE>
+<P>
+Most tags can accept some positional parameters; this speeds up parsing and
+is simpler to write in many cases.
+
+<P>
+Here is an example tag:
+
+<P>
+<PRE>    [value name=city]
+</PRE>
+<P>
+That will cause MiniVend to look in the user form value array and return
+the value of the form parameter <CODE>city</CODE>, which might have been set with:
+
+<P>
+<PRE>    City: &lt;INPUT TYPE=text NAME=city VALUE=&quot;[value city]&quot;&gt;
+</PRE>
+<P>
+Note that we pre-set the value with the previous value of <CODE>city</CODE> (if any). It uses the positional style -- <A HREF="#item_name">name</A> is the first positional parameter for the [value ...] tag.
+
+<P>
+Positional parameters cannot be derived from other MiniVend tags; for
+instance [value [value formfield]] will not work. But if you use the named
+parameter syntax, the parameters can contain other tags, i.e.:
+
+<P>
+<PRE>    [value name=&quot;[value formfield]&quot;]
+</PRE>
+<P>
+There is one exception to the above rule when using the [item-list], [loop
+...], [sql ...], and other list tags. We will examine that in their
+individual sections.
+
+<P>
+Many MiniVend tags are container tags:
+
+<P>
+<PRE>    [set Checkout]
+        mv_nextpage=ord/checkout
+        mv_todo=return
+    [/set]
+</PRE>
+<P>
+Tags and parameter names are not case sensitive, so 
+<FONT SIZE=-1>[VALUE</FONT> NAME=something] would work just as well. MiniVend convention is to place 
+<FONT SIZE=-1>HTML</FONT> tags in upper case and MiniVend tags in lower case so pages are easier to read, but you could easily reverse the sense.
+
+
+<P>
+Single quotes work just as well as double quotes, and can prevent
+ambiguity.
+
+<P>
+<PRE>    [value name=b_city set='[value city]']
+</PRE>
+<P>
+works just as well.
+
+<P>
+Backticks, the other single quote, cause the parameter contents to be
+evaluated as Perl code via the <CODE>[calc]</CODE> tag. (This is in 
+<FONT SIZE=-1>MV3.15</FONT> and above.) So
+
+<P>
+<PRE>    [value name=row_value set=`$row_value += 1`] 
+</PRE>
+<P>
+is the same as
+
+<P>
+<PRE>    [value name=row_value set=&quot;[calc]$row_value += 1[/calc]&quot;] 
+</PRE>
+<P>
+You can also specify constructs inside an 
+<FONT SIZE=-1>HTML</FONT> tag:
+
+<P>
+<PRE>    &lt;TABLE MV=&quot;if items&quot;&gt;
+    &lt;TR MV=&quot;item-list&quot;&gt;
+    &lt;TD&gt; [item-code] &lt;/TD&gt;
+    &lt;TD&gt; [item-description] &lt;/TD&gt;
+    &lt;TD&gt; [item-price] &lt;/TD&gt;
+    &lt;/TR&gt;&lt;/TABLE&gt;
+</PRE>
+<P>
+The above will loop over any items in the shopping cart, displaying their part number, description, and price, but only 
+<FONT SIZE=-1>IF</FONT> there are items in the cart. It is equivalent to:
+
+
+<P>
+<PRE>    [if items]
+    &lt;TABLE&gt;
+    [item-list]
+    &lt;TR&gt;
+    &lt;TD&gt; [item-code] &lt;/TD&gt;
+    &lt;TD&gt; [item-description] &lt;/TD&gt;
+    &lt;TD&gt; [item-price] &lt;/TD&gt;
+    &lt;/TR&gt;
+    [/item-list]
+    &lt;/TABLE&gt;
+    [/if]
+</PRE>
+<P>
+This is provided to allow 
+<FONT SIZE=-1>HTML</FONT> editors to work with MiniVend if they wish. One
+common tag that is best specified in this fashion is <CODE>[body n]</CODE>, which would be best done as 
+<FONT SIZE=-1>&lt;BODY</FONT> MV=``body 1''&gt;.
+
+<P>
+What is done with the results of the tag depends on whether it is a 
+<EM>container</EM> or <EM>standalone</EM> tag. 
+<FONT SIZE=-1>A</FONT> container tag is one which has an end tag, i.e. <CODE>[tag] stuff [/tag]</CODE>. 
+<FONT SIZE=-1>A</FONT> standalone tag has no end tag, as in <CODE>[area href=somepage]</CODE>. (Note that <A HREF="#item__page_">[page ...]</A> and <A HREF="#item__order_">[order ..]</A>
+are <STRONG>not</STRONG> container tags.)
+
+<P>
+
+<FONT SIZE=-1>A</FONT> container tag will have its output re-parsed for
+more MiniVend tags by default. If you wish to inhibit this behavior, you
+must explicitly set the attribute <STRONG>reparse</STRONG> to 0. Note that you will almost always wish the default action.
+
+<P>
+With some exceptions (<CODE>[include file]</CODE> among them) the output of a standalone tag will not be re-interpreted for
+MiniVend tag constructs.
+
+<P>
+Most container tags will not have their contents interpreted before being
+passed the container text. Exceptions include <CODE>[calc]</CODE> .. <CODE>[/calc]</CODE> and
+<CODE>[currency]</CODE> ... <CODE>[/currency]</CODE>. All tags accept the 
+<FONT SIZE=-1>INTERPOLATE=1</FONT> tag modifier, which causes the
+interpretation to take place. It is frequent that you will <STRONG>not</STRONG> want to interpret the contents of a <CODE>[set variable]</CODE> 
+<FONT SIZE=-1>TAGS</FONT>
+<CODE>[/set]</CODE> pair, as that might contain tags which should only be upon evaluating an
+order profile, search profile, or <CODE>mv_click</CODE> operation. If you wish to perform the evaluation at the time a variable is
+set, you would use
+<CODE>[set name=variable interpolate=1] TAGS [/set]</CODE>.
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.02.DATA_and_FIELD.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

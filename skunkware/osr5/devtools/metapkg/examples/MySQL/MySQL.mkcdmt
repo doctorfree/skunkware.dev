@@ -1,0 +1,48 @@
+#
+# mkcdmt -f -d `pwd` -P MySQL 
+#        -D "MySQL - multi-threaded SQL database server" 
+#        -V 4.1.10Na -p thisfile
+
+prepare ("Checking and preparing distribution") {
+  auto_compress_texinfo();
+  auto_format_mansource();
+  auto_strip(TRUE,TRUE);
+}
+
+package ("/", "${METAPKG_DESCRIPTION}", "MYSQL")
+{
+  remove ("/usr/lib/perl5/5.8");
+  file ("/usr/bin/mysqld_safe") {
+    addexport ("/usr/bin/safe_mysqld", normal);
+  }
+  file ("/usr/lib/mysql/libmysqlclient.so.14.0.0") {
+    addexport ("/usr/lib/mysql/libmysqlclient.so", normal);
+    addexport ("/usr/lib/mysql/libmysqlclient.so.14", normal);
+    addexport ("/usr/lib/libmysqlclient.so.14", normal);
+    addexport ("/usr/lib/libmysqlclient.so", normal);
+  }
+  file ("/usr/lib/mysql/libmysqlclient_r.so.14.0.0") {
+    addexport ("/usr/lib/mysql/libmysqlclient_r.so", normal);
+    addexport ("/usr/lib/mysql/libmysqlclient_r.so.14", normal);
+    addexport ("/usr/lib/libmysqlclient_r.so.14", normal);
+    addexport ("/usr/lib/libmysqlclient_r.so", normal);
+  }
+  file ("/etc/default/mysql.default") {
+    access (SERVER);
+    export (normal);
+  }
+  file ("/etc/my.cnf.default") {
+    access (SERVER);
+    export (normal);
+  }
+}
+
+component ("MySQL", "${METAPKG_VERSION}", "${METAPKG_DESCRIPTION}")
+{
+  dependency ("SCO:gwxlibs");
+  upgrades("^1.*");
+  upgrades("^2.*");
+  upgrades("^3.*");
+  upgrades("^4\\\\.0.*");
+  upgrades("^4\\\\.1\\\\.[0-8]*");
+}

@@ -1,0 +1,366 @@
+<HTML>
+<HEAD>
+<TITLE>How shipping is calculated</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="16.00.SHIPPING.html">Up</A>&nbsp;&nbsp;<A HREF="16.03.Shipping_Calculation_modes.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="16.05.More_on_UPS_style_lookup.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="How_shipping_is_calculated">How shipping is calculated</A></H2>
+<OL>
+<LI>
+<P>
+The base code is selected by reading the value of mv_shipmode in the user
+session. If it has not been explicitly set, either by means of the <EM>DefaultShipping</EM> directive or by setting the variable on a form (or in an order profile), it
+will be <CODE>default</CODE>.
+
+<P>
+The mv_shipmode must be in the character class [A-Za-z0-9_]. If there are
+spaces, commas, or nulls in the value they will be read as multiple
+shipping modes.
+
+<LI>
+<P>
+The modes are selected from the d =item 1
+
+<P>
+The criterion field is found -- if it is quantity, then it is the total
+quantity of items on the order form. If it is any other name, then the
+criterion is calculated by multiplying the return value from the product
+database field for each item in the shopping cart, multiplied by its
+quantity. (If the lookup fails due to the column or row not existing, a
+zero cost will be returned, and an error is sent to the catalog error log.)
+If a number is returned from a MiniVend tag, then that number is used
+directly.
+
+<LI>
+<P>
+Entries in the shipping database that begin with the same string as the
+shipping mode are examined. If none is found, a zero cost is returned and
+an error is sent to the catalog error log.
+
+<P>
+<STRONG>NOTE:</STRONG> You may use the same mode name for all lines in the same group, but the <EM>first</EM> one will contain the main criteria.
+
+<LI>
+<P>
+The value of the accumulated criteria is examined, and if it falls with in
+the minimum and maximum, the cost is then applied.
+
+<LI>
+<P>
+If the cost is fixed, it is simply added.
+
+<LI>
+<P>
+If the cost field begins with an <A HREF="#item_x">x</A>, the cost is multiplied by the accumulated criterion -- price, weight,
+etc.
+
+<LI>
+<P>
+If the cost field begins with <A HREF="#item_f">f</A>, the formula following is applied. Use 
+<FONT SIZE=-1>@@TOTAL@@</FONT> as the value of the accumulated criterion.
+
+<LI>
+<P>
+If the cost field begins with <A HREF="#item_u">u</A> or a single letter from 
+<FONT SIZE=-1>A-Z,</FONT> a UPS-style lookup is done.
+
+<LI>
+<P>
+If the cost field begins with <CODE>s</CODE>, a Perl subroutine call is made.
+
+<LI>
+<P>
+If the cost field begins with <A HREF="#item_e">e</A>, zero cost is returned and an error placed in the session <STRONG>ship_message</STRONG> field, available as
+<CODE>[data session ship_message]</CODE>. 
+
+</OL>
+<P>
+Here is an example shipping file using all of the methods of determining
+shipping cost.
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> The columns are lined up for your reading convenience, the actual entries should have 
+<FONT SIZE=-1>ONE</FONT> tab between fields.
+
+
+<P>
+<PRE> global Option   n/a                 0   0      g PriceDivide
+ 
+ rpsg   RPS      quantity            0   0      R RPS products/rps.csv
+ rpsg   RPS      quantity            0   5      7.00
+ rpsg   RPS      quantity            6   10     10.00
+ rpsg   RPS      quantity            11  150    x .95
+  
+ usps   US Post  price               0   0      0
+ usps   US Post  price               0   50     f 7 + (1 * @@TOTAL@@ / 10)
+ usps   US Post  price               50  100    f 12 + (.90 * @@TOTAL@@ / 10)
+ usps   US Post  price               100 99999  f @@TOTAL@@ * .05
+ 
+ upsg   UPS      weight [value state]  0   0      e Nothing to ship.
+ upsg   UPS      AK HI               0   150    u upsg [default zip 980] 12.00 round
+ upsg   UPS                          0   150    u Ground [default zip 980] 2.00 round
+ upsg   UPS                          150 9999   e @@TOTAL@@ lb too heavy for UPS
+</PRE>
+<P>
+<PRE> upsca  UPS/CA   weight              0   0      c C UPS_Canada products/can.csv
+ upsca  UPS/CA   weight              -1   -1    o PriceDivide=0
+ upsca  UPS/CA   weight              0   150    C upsca [default zip A7G] 5.00
+ upsca  UPS/CA   weight              150 99999  e @@TOTAL@@ lb too heavy for UPS
+ 
+ fedex  FedEx    quantity            1   9999   s fedex_cost ;[value country]
+</PRE>
+<DL>
+<DT><STRONG>global</STRONG><DD>
+This is a global option setting, called out by the <CODE>g</CODE> at the beginning. PriceDivide tells the shipping routines to multiply all
+shipping settings by the PriceDivide factor -- except those explicitly set
+differently with the <A HREF="#item_o">o</A> individual modifier. This allows currency conversion. (Currently the only
+option is PriceDivide.)
+
+</DD><P><DT><STRONG><A NAME="item_rpsg">rpsg</A></STRONG><DD>
+If the user selected 
+<FONT SIZE=-1>RPS,</FONT> (code rpsg), and the quantity on the order was 3,
+the cost of 7.00 from the second <EM>rpsg</EM> line would be applied. If the quantity were 7, the next entry from the
+third <EM>rpsg</EM> line would be selected, for a cost of 10.00. If the quantity were 15, the
+last <EM>rpsg</EM> would be selected, and the quantity of 15 multiplied by 0.95, for a total
+cost of 14.25.
+
+</DD><P><DT><STRONG><A NAME="item_usps">usps</A></STRONG><DD>
+The next mode, <A HREF="#item_usps">usps</A>, is a more complicated formula -- using price as the criteria. If the
+total price of all items in the shopping cart (same as <CODE>[subtotal]</CODE> without quantity price breaks in place) is from 1 to 50, the cost will be
+7.00 plus 10% of the order. If the total is from 50.01 to 100, the cost
+will be 12.00 plus 9% of the order total. If the cost is 100.01 or greater,
+then 5% of the order total will be used as the shipping cost.
+
+</DD><P><DT><STRONG><A NAME="item_upsg">upsg</A></STRONG><DD>
+The next, <A HREF="#item_upsg">upsg</A>, is a special case. It specifies a 
+<FONT SIZE=-1>UPS</FONT> lookup based on your 
+<FONT SIZE=-1>UPS</FONT> zone and two required values (and two optional arguments):
+
+
+<P>
+<PRE>    1. Weight (careful, always use weight for this one!)
+    2. The zip/postal code of the recipient, of which only
+       the first three digits are used.
+    3. A fixed amount to add to the cost found in the UPS
+       tables (use 0 as a placeholder if specifying roundup)
+    4. If set to 'round', will round the cost up to the next
+       integer monetary unit.
+</PRE>
+<P>
+If the cost returned is zero, the reason will be placed as an error message
+in the session variable ship_message (available as
+<CODE>[data session ship_message]</CODE>).
+
+<P>
+
+<FONT SIZE=-1>UPS</FONT> weights are always rounded up if any fraction is
+present. 
+
+<P>
+The routines use standard 
+<FONT SIZE=-1>UPS</FONT> lookup tables. First, the 
+<FONT SIZE=-1>UPS</FONT> Zone file must be present. That is a standard 
+<FONT SIZE=-1>UPS</FONT> document,
+
+<EM>specific to your area</EM>, that you must obtain from 
+<FONT SIZE=-1>UPS</FONT> and enter into and make available to MiniVend in TAB-delimited format. (As of March 1997, you can use the standard .csv file distributed by 
+<FONT SIZE=-1>UPS</FONT> on their web site at www.ups.com.) You specify it with the
+ <EM>UpsZoneFile</EM> directive -- it is usually named something like <CODE>NNN.csv</CODE>, where 
+<FONT SIZE=-1>NNN</FONT> is the first three digits of the originating zip
+code. If you place it in your products directory, then the directive would
+look like:
+
+<P>
+<PRE>    UPSZoneFile  products/450.csv
+</PRE>
+<P>
+Second, you must obtain the cost tables from 
+<FONT SIZE=-1>UPS</FONT> (again, you can get them from www.ups.com) and place them into a MiniVend database. That database, its identifier specified with the first argument (Ground in the example) of the cost specification, is consulted to determine the 
+<FONT SIZE=-1>UPS</FONT> cost for that weight and rate schedule.
+
+
+<P>
+In the example below, you would want a database specification like:
+
+<P>
+<PRE>    Database  Ground  Ground.csv  CSV
+</PRE>
+<P>
+You can append a simple shipping cost qualification to a 
+<FONT SIZE=-1>UPS</FONT> lookup. If any additional parameters are present after the five usual ones used for 
+<FONT SIZE=-1>UPS</FONT> lookup, they will be interpreted as a Perl subroutine call. The syntax is the same as if it was encased in the tag
+ <CODE>[perl sub] [/perl]</CODE>, but the following substitutions are made prior to the call:
+
+<P>
+<PRE>    @@COST@@  is replaced with whatever the UPS lookup returned
+    @@GEO@@   is replaced with the zip (or other geo code)
+    @@ADDER@@ is replaced with the defined adder
+    @@TYPE@@  is replaced with the UPS shipping type
+    @@TOTAL@@ is replaced with the total weight
+</PRE>
+<P>
+The example above also illustrates geographic qualification. If the value
+of the form variable <STRONG>state</STRONG> on the checkout form is 
+<FONT SIZE=-1>AK</FONT> or 
+<FONT SIZE=-1>HI,</FONT> the 
+<FONT SIZE=-1>U.S.</FONT> states Alaska and Hawaii, a $10.00 additional charge (over and above the normal 2.00 handling charge) is made. This can also be used to select on country, product type, or any other qualification that can be encoded in the file.
+
+
+</DD><P><DT><STRONG><A NAME="item_upsca">upsca</A></STRONG><DD>
+The next entry is just like the 
+<FONT SIZE=-1>UPS</FONT> definition except it defines a different lookup
+zone file (<CODE>products/can.csv</CODE>) and uses a different database, <A HREF="#item_upsca">upsca</A>. It also disables the global PriceDivide option for itself only, not
+allowing currency conversion. Otherwise, the process is the same.
+
+<P>
+You can define up to 27 different lookup zones in the same fashion. If one
+of the cost lines (the last field) in the <CODE>shipping.asc</CODE> file begins with a ``c'', it configures another lookup zone, which must be
+lettered from <A HREF="#item_A">A</A> to <CODE>Z</CODE>. It takes the format:
+
+<P>
+<PRE>    c X name file* length* multiplier*
+</PRE>
+<P>
+where 
+<FONT SIZE=-1>X</FONT> is the letter from <CODE>A-Z</CODE>. The name is used internally as an identifier and must be present. The
+optional <A HREF="#item_file">file</A> is relative to the catalog root (like <EM>UpsZoneFile</EM> is) -- if it is not present the file equal to <A HREF="#item_name">name</A> in the products directory (<EM>ProductDir</EM>) will be used as the zone file. If the optional digit <CODE>length</CODE> is present, that determines the number of signficant digits in the passed
+postal/geo code. When the optional <CODE>multiplier</CODE> is present, the weight is multiplied by it before doing the table lookup.
+This allows shipping weights in pounds or kilograms to be adapted to a
+table using the opposite as the key. Remember, the match on weight must be
+exact, and MiniVend rounds the weight up to the next even unit.
+
+<P>
+To define the exact equivalent of the 
+<FONT SIZE=-1>UPS</FONT> lookup zone, you would do:
+
+<P>
+<PRE>    c U UPS products/450.csv 3 1
+</PRE>
+<P>
+The only difference is that the beginning code to call the lookup is
+upper-case
+<CODE>U</CODE> instead of lower-case <A HREF="#item_u">u</A>.
+
+</DD><P><DT><STRONG><A NAME="item_fedex">fedex</A></STRONG><DD>
+The last entry, <A HREF="#item_fedex">fedex</A>, uses a named subroutine. The example is designed to work with this
+subroutine defined in catalog.cfg:
+
+<P>
+<PRE>    Sub &lt;&lt;EOF
+    sub fedex_cost {
+        my($country) = @_;
+        my $cost;
+        if($country =~ /^usa?$/i) {
+            $cost = 20;
+        }
+        else {
+            $cost = 50;
+        }
+        return $cost;
+    }
+    EOF
+</PRE>
+<P>
+<STRONG>NOTE:</STRONG> The text above appears indented, but in the <EM>catalog.cfg</EM> file it must begin at the beginning of the line. Also, make sure you upload in 
+<FONT SIZE=-1>ASCII</FONT> mode -- carriage returns are not tolerated.
+
+
+<P>
+It will simply return a cost of 20 if the country the user has entered is 
+<FONT SIZE=-1>US</FONT> or 
+<FONT SIZE=-1>USA</FONT> -- and return 50 otherwise. Obviously much more complicated routines can be defined. Read the following only if you know Perl well and/or are not of faint heart.
+
+
+<P>
+You can call named subroutines with any of the methods, defined with
+<CODE>[set name] your_perl_code_here [/set]</CODE>, <EM>Sub</EM>, or <EM>GlobalSub</EM>.
+
+<P>
+If parameters are specified, separated by commas, they will be taken as
+either fixed values or as database fields to be sent to the subroutine in
+an anonymous hash keyed on the item code (for each item in the *current*
+shopping cart).
+
+<P>
+If a database other than the products database is to be used, the database
+name should be prepended with a colon (<CODE>:</CODE>) separator. If a key other than the item code is to be used, it should be
+appended with a semi-colon separator.
+
+<P>
+To send fixed value to the subroutine (appended to the call reference as an
+array of fixed scalar parameters), begin the parameter with a semicolon. <STRONG>They will be appended globally after the hash reference</STRONG>.
+
+<P>
+Examples
+
+<P>
+<PRE>  # Sends the weight of each item from the products database
+  
+  weight 
+  
+  
+  # Sends the value of the handling field from the
+  # special database for each item
+  
+  special:handling 
+  
+   
+  # Sends the value of the 'adder' field from the special
+  # database, for the value the user has entered for 'country'
+  # The spaces around the separators are OK
+ 
+  special : adder ; [value country] 
+  
+ 
+  # Sends a fixed parameter of 20 to the subroutine
+  
+  ;20
+</PRE>
+<P>
+The parameters are interpreted for MiniVend tags before being parsed. Here
+is a complete example:
+
+<P>
+<PRE>   s item_cost weight,modes:[value mv_shipmode];[value country], ;20, ;25
+  
+  items in the shopping cart:  00-0011 19=202
+  
+  ------- product database  ----
+  
+  code    weight   description      price
+  00-0011   8      The Mona Lisa    1000
+  19-202    12     American Gothic  800
+  
+  
+  ------- modes database  ----
+  
+  code    upsg  upsb  upsr  postal_air postal_surface
+  UK        0    0     0       1            1 
+</PRE>
+<P>
+will call the subroutine <CODE>item_cost</CODE>, and will send the weight of each item, along with the value of the modes
+database column corresponding to the shipping mode the user has selected,
+keyed with the value of <A HREF="#item_country">country</A>
+on their order form. If the user has selected mode postal_air, and is in
+the country coded as <CODE>UK</CODE>, the subroutine will be called as if it was:
+
+<P>
+<PRE>      item_cost( {
+                    '00-0011' =&gt; {postal_air =&gt; '1', weight =&gt; '8'}, 
+                    '19-202' =&gt; {postal_air =&gt; '1', weight =&gt; '12'},
+                 }, 20, 25 )
+</PRE>
+<P>
+If the undefined value is returned by the routine, the next shipping mode
+will be tried. If a non-numeric string value is returned, its value will be
+placed as an error message in the session variable ship_message (available
+as <CODE>[data session ship_message]</CODE>) and a zero cost will be returned. If any number or the empty string is
+returned, it will be used as the shipping cost (even 0).
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="16.00.SHIPPING.html">Up</A>&nbsp;&nbsp;<A HREF="16.03.Shipping_Calculation_modes.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="16.05.More_on_UPS_style_lookup.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

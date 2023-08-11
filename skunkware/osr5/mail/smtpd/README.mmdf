@@ -1,0 +1,245 @@
+
+		         Obtuse smtpd for SCO UNIX
+		       Installation guide (for MMDF)
+		       -----------------------------
+
+This tar archive is created with a relative path - mkdir an appropriate
+place in your source tree, cd to and upack it there, lest it overwrite
+something you wish to first preserve!
+
+[Read smtpd_check_rules for an understanding of the obtuse smtpd filtering
+ rules.]
+
+This distribution includes the complete source kit for all supported
+versions of *NIX (including Linux) and should work cleanly with virtually
+any MTA.
+
+[You may want to try the new installation script "install-for-mmdf".]
+[It provides functionality beyond that covered in the manual steps below.]
+[Please report any difficulties or make suggestions to <edhew@xenitec.on.ca>]
+
+		============
+Version history:
+------- -------
+1.0.0	Aug/98	   - First release for of Obtuse smtpd for SCO MMDF.
+1.0.1	Dec 17/98  - Added installation and de-installation scripts;
+		     added various reporting utilities,
+		   - added "blck" for installing local RBL entries.
+1.0.2	Jan 26/99  - Bug fix to ensure local RBL is properly checked;
+		   - enhanced logging at .debug level;
+		   - added automated syslog reporting and cleanup.
+1.0.2d	Feb  6/99  - Added documentation on creating local RBL;
+		   - Revised smtpd_check_rules order to lower cost of use;
+                   - Minor changes to installation script to accomodate
+                     changes in SCO OSR5.0.5 with rs505a.
+1.0.2f	Jul 14/99  - Added and revised reporting scripts (now report reason
+		     for denial - see smtpd_check_rules.xt for examples);
+		   - Updated local sample files
+1.0.3a	Jan 05/00  - %X is now replaced with the TXT of an RBL lookup record
+		     in stderr issued on denied connection attempts;
+		   - Added ability to put an "exec:" rule into the rules file
+		     to run a program;
+		   - Include Ray McLean <raym@sco.COM> contrib to correct
+		     "submit" deficiencies by using "execmail" instead:
+		     mmdf_sendmail reported now close enough to the real
+		     sendmail (when -f is used) that smtpd/smtpfwdd can be
+		     compiled as though it is talking to a real sendmail;
+                   - Updates to various utility scripts and sample files;
+		   - install-for-mmdf script now detects and preserves
+		     previous logmaint and smtpd_check_rules files if present;
+                   - additional documentation and utility in sample production
+		     smtpd_check_rules file.
+
+		============
+
+Install the smdpd daemon binary in /usr/local/bin
+-rwx------   1 root     other     123584 Feb 12 02:25 /usr/local/bin/smtpd
+
+mkdir -p /usr/spool/smtpd/etc /usr/spool/smtpd/dev
+chown mmdf /usr/spool/smtpd
+chgrp mmdf /usr/spool/smtpd
+chmod 770 /usr/spool/smtpd
+
+Populate it as follows:
+
+/usr/spool/smtpd
+-rw-rw----   1 edhew    devel         43 Sep 08 16:40 README.mmdf
+drwxr-xr-x   2 bin      bin           48 Aug 03 20:45 dev
+drwxrwxr-x   2 bin      auth          64 Aug 03 20:53 etc
+
+chmod 755 /usr/spool/smtpd/dev
+chmod 775 /usr/spool/smtpd/etc
+chgrp bin /usr/spool/smtpd/etc /usr/spool/smtpd/dev
+chgrp wheel /usr/spool/smtpd/etc
+chown bin /usr/spool/smtpd/dev /usr/spool/smtpd/etc
+
+./dev:
+crw-rw-rw-   1 root     other     26,  0 Mar 20 02:46 socksys
+                                  ^^^^^^
+Note: ** Your ./dev/socksys file must have major and minor numbers
+      ** strictly identical to your /dev/socksys file.
+chmod 666 socksys
+
+./etc:
+-rw-------   1 mmdf     other       8152 Sep 08 16:32 smtpd_check_rules
+chmod 600 /usr/spool/smtpd/etc/smtpd_check_rules
+chown mmdf /usr/spool/smtpd/etc/smtpd_check_rules
+
+Install /usr/local/bin/mmdf_sendmail
+-rwxr-xr-x   1 root     other        960 Aug 04 03:33 /usr/local/bin/mmdf_sendmail
+chmod 755 /usr/local/bin/mmdf_sendmail
+
+Install /usr/local/bin/smtpfwdd :
+-rwx------   1 root     other      98196 Aug 03 21:28 /usr/local/bin/smtpfwdd
+chmod 700 /usr/local/bin/smtpfwdd
+
+Comment the existing entry in /etc/inetd.conf and replace with:
+smtp	stream	tcp	nowait	root	/usr/local/bin/smtpd smtpd
+# Remember to SIGHUP your inetd process to that it's aware of the change!
+
+Install the following line in your /etc/rc2.d/S88USRDEFINE (3.2vX.X)
+or /etc/rc2.d/P88USRDEFINE (OSR5.x.x).  The smtpfwdd daemon must be
+running and should be started during multi-user initialization to
+actually forward incoming mail to your MTA's "submit" or equivalent
+process.
+/bin/su root -c "/usr/local/bin/smtpfwdd"
+
+Install your local.rbl file (example: xenitec.rbl) in the directory
+your nameserver is told to use (via named.boot), and must be properly
+referenced in your smtpd_check_rules file, eg:
+
+noto:RBL.rbl.xenitec.on.ca:ALL:ALL:550 Mail refused from host %I in local RBL.
+         ^^^^^^^^^^^^^^^^^
+Remember to SIGHUP your named daemon process when changes are made to
+your local .rbl file for those changes to take effect immediately.
+
+The seperately provided smtpd_check_rules file and xenitec.rbl is
+provided with no warranty or representation based on spam experiences
+here and may be used (and adjusted) to meet your local requirements.
+	-----
+This anti-spam solution has been tested and is working in SCO 3.2v4.2
+and OpenServer Release 5.0.[45] environments and should work the same
+with any SCO UNIX release using MMDF.  It has been reported to work
+with "sendmail" under SCO UNIX and LINUX.
+	-----
+Notes for other MTA's ... you should be able to patch the source specific
+to any *NIX o/s to replace its smtpd daemon instead.  First though, try
+the other provided Makefile's to save a lot of work.  Compile with gcc.
+
+=====
+
+How to create your own local RBL (DNS blacklist):
+
+	[The installation script does *NOT* do this for you!]
+
+Once created and installed, your local RBL will be referenced by Obtuse
+smtpd via DNS the same as any other RBLs you may choose to define and
+activate in your smtpd_check_rules file.  We are assuming that your
+nameserver is configured to resolve using your local BIND files.
+
+Locate the directory where you keep your nameservice files as defined in
+/etc/named.boot (BIND 4.9.x ) or /etc/named.conf (BIND 8.1.1).
+
+Create a file in the named directory with the name of your subdomain, eg,
+for foobar.com, create "foobar.rbl".
+
+Add entries to your zone file to create the link between the
+rbl.foobar.com file and the "rbl.foobar.com" pseudo-subdomain:
+$ORIGIN rbl.foobar.com.
+$INCLUDE rbl.foobar.com
+
+Edit /usr/local/etc/blck to properly define the absolute path/name of your
+local RBL DNS zone file as necessary; the default shipping configuration is:
+	localrbl="/usr/lib/named/foobar.rbl"
+Also, customize the message to be provided with the TXT record.
+For convenience, you may wish to add /usr/local/etc to your 'root'
+search path.  Intentionally, you must be the 'root' user to use "blck".
+Use the "blck" shell script provided to add entries in the proper format
+given the information provided in the "Received" header of received UBE.
+Example:
+# blck
+what spam site?		pc171.epson.com.hk(203.85.143.171)
+
+This would generate the entry:
+; pc171.epson.com.hk(203.85.143.171)
+171.143.85.203  IN      TXT     "Denied due to prior smtp abuse - blck"
+
+Note that these will (and must) return "TXT" records when queried.
+
+You may customize that message as you see fit, either manually in each
+entry in your foobar.rbl file, or in general in the "blck" script.
+Note that the message is not currently used for anything, but in future
+revisions it may also be picked up by smtpd and sent to the remote host.
+
+Add an entry in an appropriate place in your
+usr/spool/smtpd/etc/smtpd_check_rules file:
+noto:RBL.rbl.foobar.com:ALL:ALL:550 Mail refused from host %I in local RBL, see http%C//www.foobar.com/antispam-links.html/
+
+Replace "foobar.com" with your actual subdomain name.  The message you
+provide here *is* sent to the blocked site; customize it and the URL of
+your anti-spam page explaining your policy.
+
+Remember to SIGHUP the 'named' daemon so that it knows about your new
+local RBL file and contents.  Note that the 'blck' script automatically
+SIGHUP's named when you use it for additions.
+
+=====
+
+Mailing list:	You may subscribe to the private mailing list maintained
+		for obtuse smtpd announcements and help.  Make your
+		specific request to: <edhew@xenitec.on.ca>.
+
+=====
+Diagnostics:
+Default logging is to /usr/adm/syslog
+*** Important: the smtpd process will produce lots of logging to
+*** /usr/adm/syslog !  Ensure that you have adequate space in the
+*** filesystem it lives in.  You are well advised to install a
+*** cron task to run the reporting scripts and roll the log daily.
+
+Error:
+Dec 13 19:11:38 localhostname smtpfwdd[PID#]: can't open semaphore file in
+"/usr/spool/smtpd/." (Permission denied) - bye!
+
+Check:
+Possible incorrect permissions (see above)
+Possible incorrect major and minor numbers for /usr/spool/smtpd/dev/socksys
+
+	-----
+
+Error:
+All email is delivered to the user in duplicate!
+
+Cause:
+A known bug in some mmdf implimentation causes this when using "mod=imm"
+
+Workaround:
+su - mmdf
+# Change "mod=imm" to "mod=reg" for affected channels in /usr/mmdf/mmdftailor
+cd /usr/mmdf/table;./dbmbuild
+
+# Ensure you have sufficient mmdf deliver(ADM) daemons running for
+# affected channels to deal with your mail volume to preclude backlogs.
+
+	-----
+
+Error:
+Mail that should be accepted is being incorrectly refused as a relay attempt.
+
+Problem: (smtpd_check_rules)
+From what we recall, very early versions of obtuse smtpd would accept:
+  noto:ALL:ALL:*%*@*:551 [RELAY;] Sorry %H (%I), I don't allow
+  unauthorized relaying. You can't use me to send mail from %F to %T.
+
+Solution:
+noto:ALL:ALL:*%%*@*:551 [RELAY;] Sorry %H (%I), I don't allow
+unauthorized relaying. You can't use me to send mail from %F to %T.
+
+Notice the double percent (%) in field 4.  % is a special character (for
+%F, %T, %X, etc. to work) and therefore to specify an actual % you need
+to use %%.
+
+=====
+	Ed Hew <edhew@xenitec.on.ca>
+	orig rev:	Wed Sep 09 23:46:52 EDT 1998
+	last rev:	Mon Sep  6 23:57:13 EDT 1999

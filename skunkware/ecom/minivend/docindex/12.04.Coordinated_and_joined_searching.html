@@ -1,0 +1,143 @@
+<HTML>
+<HEAD>
+<TITLE>Coordinated and joined searching</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="12.00.THE_SEARCH_ENGINE.html">Up</A>&nbsp;&nbsp;<A HREF="12.03.Fast_Binary_Search.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="12.05.Specifying_a_text_based_search_w.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Coordinated_and_joined_searching">Coordinated and joined searching</A></H2>
+<P>
+MiniVend will do a complete range of tests on individual columns in the
+database. To use this function, set <A HREF="#item_mv_coordinate">mv_coordinate</A> to <STRONG>yes</STRONG> (co=yes in the one-click syntax).
+
+<P>
+In order to use coordinated searching, the number of <EM>search fields</EM>
+
+<STRONG>must equal</STRONG> the number of <EM>search strings</EM>. This makes sense if you think about it a bit.
+
+<P>
+If you want to make sure that is the case, use the <CODE>mv_search_map</CODE>
+variable. It allows you to map variables to others in the search
+specification. For example:
+
+<P>
+<PRE>    &lt;INPUT TYPE=hidden NAME=mv_search_map VALUE=&quot;
+        mv_searchspec=search1
+        mv_searchspec=search2
+        mv_searchspec=search3
+        &quot;&gt;
+    &lt;INPUT TYPE=hidden NAME=mv_search_field VALUE=title&gt;
+    &lt;INPUT TYPE=hidden NAME=mv_search_field VALUE=artist&gt;
+    &lt;INPUT TYPE=hidden NAME=mv_search_field VALUE=category&gt;
+    Artist: &lt;INPUT NAME=search1 VALUE=&quot;&quot;&gt;
+    Title:  &lt;INPUT NAME=search2 VALUE=&quot;&quot;&gt;
+    Genre:  &lt;INPUT NAME=search3 VALUE=&quot;&quot;&gt;
+</PRE>
+<P>
+Even if the user leaves one blank, the search will work.
+
+<P>
+Leading/trailing whitespace is stripped from all lines in the mv_search_map
+variable, so you can position it as shown for convenience.
+
+<P>
+Coordinated searches may be joined with the output of another table if you
+set one of the <A HREF="#item_mv_search_field">mv_search_field</A> values to a <CODE>table:column</CODE>
+pair. Note that this will slow down large searches considerably unless you
+have another search specification, as the database must be accessed for
+every search line! If you have a search field that qualifies for a regular
+expression search function, or are doing a binary search with
+<A HREF="#item_mv_dict_look">mv_dict_look</A>, or are not doing an <CODE>OR</CODE> search, the penalty should not be too great as only matching lines will
+cause an access to the database.
+
+<P>
+Individual field operations can then be specified with the <CODE>mv_column_op</CODE>
+(or <STRONG>op</STRONG>) parameter. The operations include:
+
+<P>
+<PRE>    operation            string     numeric   equivalent
+    ---------           
+    equal to               eq         ==           =
+    not equal              ne         !=           &lt;&gt;
+    greater than           gt         &gt; 
+    less than              lt         &lt; 
+    less than/equal to     le         &lt;= 
+    greater than/equal to  ge         &gt;= 
+    regular expression     rm                       =~ , LIKE
+    regular expression NOT rn                       !~
+    exact match            em
+</PRE>
+<P>
+An example:
+
+<P>
+<PRE>    [page scan
+            co=yes
+            sf=title
+            se=Sunflowers
+            op=em
+            sf=artist
+            se=Van Gogh
+            op=rm          ] Sunflowers, Van Gogh [/page]
+</PRE>
+<P>
+<PRE>    [page search=&quot;
+            co=yes
+  
+            sf=title
+            se=Sunflowers
+            nu=0
+            op=!~
+  
+            sf=artist
+            se=Van Gogh
+            op=rm    
+            nu=0
+</PRE>
+<P>
+<PRE>            sf=inventory:qty
+            se=1
+            op=&gt;=
+            nu=1 
+        &quot;] Any in stock except Sunflowers, Van Gogh [/page]
+</PRE>
+<P>
+Note that in the second example you need to specify nu=0 even though that
+is the default. This is to set the proper correspondence. To avoid having
+to do this, use MiniVend's option array feature:
+
+<P>
+<PRE>    [page search.0=&quot;
+                    sf=title
+                    se=Sunflowers
+                    op=!~
+                &quot;
+          search.1=&quot;
+                    sf=artist
+                    se=Van Gogh
+                &quot;
+          search.2=&quot;
+                    sf=inventory:qty
+                    se=1
+                    op=&gt;=
+                    nu=1 
+                &quot;
+        ] Any in stock except Sunflowers, Van Gogh [/page]
+</PRE>
+<P>
+The <CODE>co=yes</CODE> is assumed when specifying a multiple search.
+
+<P>
+The second search will check the stock status of the painting provided
+there is an <A HREF="#item_inventory">inventory</A> table as in some of the MiniVend demo catalogs. If the <CODE>qty</CODE> field is greater than or equal to 1, then the product will be picked. If
+out of stock, it will not be found.
+
+<P>
+It always helps to have an <CODE>rm</CODE> type included in the search. This is used to pre-screen records so that
+database accesses only need be made for already-matching entries. If
+accesses must be made for every record large searches can get quite slow.
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="12.00.THE_SEARCH_ENGINE.html">Up</A>&nbsp;&nbsp;<A HREF="12.03.Fast_Binary_Search.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="12.05.Specifying_a_text_based_search_w.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

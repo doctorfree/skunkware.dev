@@ -1,0 +1,143 @@
+#!/bin/ksh
+# @(#) manifest.ksh 2.2 97/05/11
+# 93/06/18 john h. dubois iii (john@armory.com)
+# 94/02/15 Added multiple compilers option.
+# 94/05/19 Added option of giving args to compiler.
+# 96/01/06 5.0 port: If on >= 5.0, give -# to cc; also remove '' from -D output
+# 96/01/19 Changed default tmpdir to home dir for safety
+# 96/02/02 Remove object file too
+# 97/05/11 Cleaned up/fixed argument processing
+
+# Sets _OSRelease to the entire OS release (e.g. 3.2v5.0.0}
+# Sets _OSVersion to the version part (e.g. 5.0.0)
+# Returns the major part of the version (e.g. 5)
+# If an OSVersion value is given as an arg, returns 0 if the system OS version
+# is lexicographically less than it; 1 if they are equal; 2 if the system OS
+# version is greater.
+function OSVersion {
+    typeset arg=$1
+    if [ -z "$_OSRelease" ]; then
+	# Name of release field is different in different langs
+	set -- $(LANG=english_us.ascii uname -X)
+	while [ "$1" != Release -a $# -ge 3 ]; do
+	    shift 3
+	done
+	[ $# -lt 3 ] && return 1
+	_OSRelease=$3
+	_OSVersion=${3##*v}
+    fi
+    [ -z "$arg" ] && return ${_OSVersion%%.*}
+    [[ "$_OSVersion" > "$arg" ]] && return 2
+    [[ "$_OSVersion" < "$arg" ]] && return 0
+    return 1
+}
+
+typeset -L20 word
+typeset -i i=0
+Debug=false
+
+name=${0##*/}
+Usage="Usage: $name [-xh] [compiler] [-compiler-args]"
+
+set -A args -- "$@"	# save args
+
+# If on a release earlier than 5.0, use uSoft flag (-z); else at&t flag (-#).
+# Assumes the compiler appropriate to the release is installed as cc.
+OSVersion 5.0.0 && set -A comp -- cc -z || set -A comp -- cc -#
+set -A comp -- "${comp[@]}" gcc -v icc -#
+typeset -i numcomp=${#comp[*]}/2 i
+
+# Use leading : so that getopts will not complain if unknown option given
+while getopts :hx opt "${args[@]}"; do
+    case $opt in
+    h)
+	print -r -- \
+"$name: print compiler manifest defines.
+$Usage
+If no compiler name is given, the standard compiler (cc) is used.
+If any arguments are given, they are passed to the compiler.  For example,
+$name cc -dos
+can be used to get the manifest defines for the DOS cross compiler.
+The compilers that $name knows how to extract manifest defines from are:"
+    i=0
+    while [ i -lt numcomp ]; do
+	print -rn -- "${comp[i*2]} "
+	let i+=1
+    done
+    print -r -- "
+Options:
+-h: Print this help.
+-x: Turn on debugging."
+	exit 0
+	;;
+    x)
+	Debug=true
+	;;
+    ?)
+	break
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+$Debug && print -ru2 -- "Non-option arguments: $*"
+
+if [[ $# -eq 0 || "$1" = -* ]]; then
+    Compiler=cc
+else
+    Compiler=$1
+    shift
+fi
+compArgs="$*"
+Tail=${Compiler##*/}
+set -- "${comp[@]}"
+while [ $# -gt 0 ]; do
+    if [ "$1" = "$Tail" ]; then
+	Compiler="$1 $compArgs $2"
+	break
+    fi
+    shift 2
+done
+
+if [ -z "$Compiler" ]; then
+    print -u2 "$Compiler: unknown compiler."
+    exit 1
+fi
+
+: ${TMP:=$TMPDIR}
+: ${TMP:=$HOME}
+: ${TMP:=/tmp}
+
+# cd to tmpdir so that object files will go there
+cd $TMP
+tmpbase=$TMP/#mani$$
+tmpfile=$tmpbase.c
+tmpobj=$tmpbase.o
+
+> $tmpfile
+
+$Debug && print -ru2 -- "Compiler command line: $Compiler -c $tmpfile"
+
+for rword in $($Compiler -c $tmpfile 2>&1); do
+    $Debug && print -n -u2 "rword: <$rword>"
+    # at&t compiler puts '' around output 
+    rword=${rword#\'}
+    rword=${rword%%?(\')*( )}
+    $Debug && print -u2 "    Cleaned word: <$rword>"
+    if [[ "$rword" = -D* ]]; then
+	word=$rword
+	line="$line${word#-D}"
+	let i+=1
+	if [ i -eq 4 ]; then
+	    echo "${line%*( )}"
+	    line=
+	    i=0
+	fi
+    fi
+done
+rm -f "$tmpfile" "$tmpobj"
+
+[ -n "$line" ] && echo "${line%*( )}"

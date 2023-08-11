@@ -1,0 +1,98 @@
+:
+# @(#) segclock.sh 2.0 92/09/15
+# 91/10/12 john h. dubois iii (john@armory.com)
+# 92/02/16 added help
+# 92/09/11 Rewrote & converted to gawk script
+# 92/09/15 Pass options to segfont.  Use default size of 4.
+
+# Use gawk instead of awk to get strftime(), sprintf("%c",n), and /dev/std...
+gawk '
+BEGIN {
+    sleep = 1
+    size = 4
+    if (ARGC > 1) {
+	if (ARGV[ARGC - 1] ~ "^[0-9]+$") {
+	    sleep = ARGV[1]
+	    if (!sleep) {
+		print "Bad sleep time.  Use +h for help." > "/dev/stderr"
+		exit 1
+	    }
+	    ARGC--
+	}
+	for (i = 1; i < ARGC; i++) {
+	    Opt = ARGV[i]
+	    if (Opt ~ "^[-+]")
+		Opt = substr(Opt,2)
+	    if (Opt == "r")
+		SegArgs = SegArgs " -r3"
+	    else if (Opt ~ "^c.?$")
+		SegArgs = SegArgs " -" Opt
+	    else if (Opt ~ "^c[0-9][0-9]+$")
+		SegArgs = SegArgs " -c" sprintf("%c",substr(Opt,2) + 0)
+	    else if (Opt ~ "^s[0-9]*$")
+		size = substr(Opt,2)
+	    else if (Opt == "h") {
+		system("sleep 1")
+		print \
+"segclock: display a clock in a 25-segment-display font.\r\n" \
+"Usage: segclock [cx] [r] [s<size>] [<sec>]\r\n" \
+"If <sec> is given, segclock updates the display every <sec> seconds.\r\n" \
+"If it is not, segclock updates the display every second.\r" > "/dev/stderr"
+		print \
+"Options:\r\n" \
+"cx sets the character that characters are constructed from to x.\r\n" \
+"If x is a multidigit sequence, the charcter whose ascii value is x is used."\
+"\r\n" \
+"If x is not given, each character is built from the character it represents."\
+"\r\n" \
+"r rotates the characters so that, if you upended the display,\r\n" \
+"they would be printed down the screen and look ugly.\r\n" \
+"s<size> sets the font segment size to <size>.  The default is 4.\r\n" \
+"More than that will not work with an 80-column display." > "/dev/stderr"
+		exit 0
+	    }
+	    else {
+		system("sleep 1")
+		print Opt ": bad option." > "/dev/stderr"
+		exit 1
+	    }
+	}
+    }
+    Dimension = size * 2 + 3
+    Cmd = "echo \"0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n:\" | segfont -kew1000 -s" \
+    size SegArgs "; :"
+    for (n = 0; n <= 9; n++) {
+	for (line = 1; line <= Dimension; line++)
+	    Cmd | getline Chars[n,line]
+	Cmd | getline blank
+    }
+    for (line = 1; line <= Dimension; line++) {
+	Cmd | getline ColonLine
+	gsub(" +"," ",ColonLine)
+	Chars[":",line] = ColonLine
+    }
+    close(Cmd)
+    Cmd = \
+    sprintf("(timer %d || while :; do echo ""; sleep %d; done) 2>/dev/null",
+    sleep * 1000,sleep)
+    while (1) {
+	Time = strftime("%T")
+	for (Line = 1; Line <= Dimension; Line++) {
+	    for (i = 1; i < 8; i++) {
+		if (i == 3 || i == 6)
+		    Dim = 3
+		else
+		    Dim = Dimension
+		printf "%-" Dim "s ",
+		Chars[substr(Time,i,1),Line] > "/dev/stdout"
+	    }
+	    printf "%-" Dim "s",
+	    Chars[substr(Time,i,1),Line] > "/dev/stdout"
+	    print "" > "/dev/stdout"
+	}
+	printf "\014" > "/dev/stdout"
+	close("/dev/stdout")
+	Cmd | getline
+    }
+}
+' "$@" | scrnopt

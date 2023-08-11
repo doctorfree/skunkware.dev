@@ -1,0 +1,189 @@
+<HTML>
+<HEAD>
+<TITLE>SQL support via DBI</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="08.00.SQL_SUPPORT.html">Up</A>&nbsp;&nbsp;<A HREF="08.02.SQL_Access_Methods.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="SQL_support_via_DBI">SQL support via DBI</A></H2>
+<P>
+The configuration of the 
+<FONT SIZE=-1>DBI</FONT> database is done by setting attributes in
+additional <EM>Database</EM> directives <STRONG>after</STRONG> the initial defining line as described above. For example, the following
+defines the database <STRONG>arbitrary</STRONG>
+as a 
+<FONT SIZE=-1>DBI</FONT> database, sets the data source 
+<FONT SIZE=-1>(DSN)</FONT> to an appropriate value for an mSQL database named
+ <CODE>minivend</CODE> on port 1114 of the local machine:
+
+<P>
+<PRE>    Database arbitrary arbitrary.asc SQL
+    Database arbitrary DSN           dbi:mSQL:minivend:localhost:1114
+</PRE>
+<P>
+As a shorthand method, you can instead include the 
+<FONT SIZE=-1>DSN</FONT> as the type:
+
+<P>
+<PRE>    Database arbitrary arbitrary.asc dbi:mSQL:minivend:localhost:1114
+</PRE>
+<P>
+Supported configuration attributes include (but are not limited to):
+
+<DL>
+<DT><STRONG><A NAME="item_DSN">DSN</A></STRONG><DD>
+
+<FONT SIZE=-1>A</FONT> specification of the 
+<FONT SIZE=-1>DBI</FONT> driver and its data source. To use the DBD::mSQL driver for 
+<FONT SIZE=-1>DBI,</FONT> you would typically use:
+
+
+<P>
+<PRE>    dbi:mSQL:minivend:othermachine.my.com:1112
+</PRE>
+<P>
+where mSQL selects the driver (case 
+<FONT SIZE=-1>IS</FONT> important), <CODE>minivend</CODE> selects the database, <CODE>othermachine.my.com</CODE> selects the host, and 1112 is the port. On many systems, <CODE>dbi:mSQL:minivend</CODE> will work just fine. (The <CODE>minivend</CODE>
+database must already exist, of course.)
+
+<P>
+This is the same as the <STRONG>DBI_DSN</STRONG> environment variable -- if you don't set the 
+<FONT SIZE=-1>DSN</FONT> parameter, then the value of <STRONG>DBI_DSN</STRONG> will be used to try and find the proper database to connect to.
+
+</DD><P><DT><STRONG><A NAME="item_USER">USER</A></STRONG><DD>
+The user name you log into the database with -- same as the environment
+variable <STRONG>DBI_USER</STRONG>. If you don't need a user name, just don't set the 
+<FONT SIZE=-1>USER</FONT> directive.
+
+</DD><P><DT><STRONG><A NAME="item_PASS">PASS</A></STRONG><DD>
+The password you log into the database with -- same as the environment
+variable <STRONG>DBI_PASS</STRONG>. If you don't need a password, just don't set the 
+<FONT SIZE=-1>PASS</FONT> directive.
+
+</DD><P><DT><STRONG><A NAME="item_COLUMN_DEF">COLUMN_DEF</A></STRONG><DD>
+
+<FONT SIZE=-1>A</FONT> comma-separated set of lines in the form 
+<FONT SIZE=-1>NAME=TYPE(N),</FONT> where 
+<FONT SIZE=-1>NAME</FONT> is the name of the field/column, 
+<FONT SIZE=-1>TYPE</FONT> is the 
+<FONT SIZE=-1>SQL</FONT> data type reference, and 
+<FONT SIZE=-1>N</FONT> is the length (if needed). Most MiniVend fields should be of the fixed-length character type, something like <CODE>char(128).</CODE> In fact that is the default if you do not choose a type for a column. You can have as many lines as needed. This is not a 
+<FONT SIZE=-1>DBI</FONT> parameter, it is specific to MiniVend.
+
+
+</DD><P><DT><STRONG><A NAME="item_NAME">NAME</A></STRONG><DD>
+
+<FONT SIZE=-1>A</FONT> space-separated field of column names for a table.
+Normally not used -- MiniVend should resolve the column names properly upon
+query. Set this if your catalog errors out with ``dbi: can't find field
+names'' or the like. The first field should always be <STRONG>code</STRONG>. This is not a 
+<FONT SIZE=-1>DBI</FONT> parameter, it is specific to MiniVend. All columns
+must be listed, in order of their position in the table.
+
+</DD><P><DT><STRONG><A NAME="item_NUMERIC">NUMERIC</A></STRONG><DD>
+Tells MiniVend to not quote values for this field; allows numeric data types for 
+<FONT SIZE=-1>SQL</FONT> databases. Placed as a comma-separated field of column names for a table, in no particular order. This should be defined if you are to use an numeric value, as many 
+<FONT SIZE=-1>DBD</FONT> drivers do not yet support type queries.
+
+
+</DD><P><DT><STRONG><A NAME="item_UPPERCASE">UPPERCASE</A></STRONG><DD>
+Tells MiniVend to force field names to 
+<FONT SIZE=-1>UPPER</FONT> case for row accesses using the <CODE>[item-data ...]</CODE>, <CODE>[loop-data ...]</CODE>, <CODE>[item-field ...</CODE>, etc. Typically used for Oracle and some other 
+<FONT SIZE=-1>SQL</FONT> implementations.
+
+</DD><P><DT><STRONG><A NAME="item_DELIMITER">DELIMITER</A></STRONG><DD>
+
+<FONT SIZE=-1>A</FONT> MiniVend delimiter type - one of 
+<FONT SIZE=-1>TAB,CSV,PIPE,%%,LINE</FONT> or the corresponding numeric type. The default for 
+<FONT SIZE=-1>SQL</FONT> databases is 
+<FONT SIZE=-1>TAB</FONT> -- use 
+<FONT SIZE=-1>DELIMITER</FONT> if you wish to import another type. This is not a 
+<FONT SIZE=-1>DBI</FONT> parameter, it is specific to MiniVend.
+
+
+</DD><P><DT><STRONG><A NAME="item_KEY">KEY</A></STRONG><DD>
+You can change the keying default of <A HREF="#item_code">code</A> in the first column of the database with the 
+<FONT SIZE=-1>KEY</FONT> directive. <STRONG>Don't use this unless you know exactly</STRONG>
+
+<STRONG>what you are doing and are prepared to alter all searches, imports, and</STRONG>
+
+<STRONG>exports accordingly.</STRONG>  It is best to just accept the default and make the first column the key for
+any MiniVend database.
+
+</DD><P><DT><STRONG><A NAME="item_ChopBlanks">ChopBlanks,LongReadLen,LongTruncOK,RaiseError, etc.</A></STRONG><DD>
+Sets the corresponding 
+<FONT SIZE=-1>DBI</FONT> attribute. Of particular interest is ChopBlanks,
+which should be set on drivers which by default return space-padded
+fixed-length character fields (Solid is an example).
+
+<P>
+The supported list as of this release of MiniVend is:
+
+<P>
+<PRE>  ChopBlanks
+  CompatMode
+  LongReadLen
+  LongTruncOk
+  PrintError
+  RaiseError
+  Warn
+</PRE>
+<P>
+Issue the shell command <CODE>perldoc DBI</CODE> for more information.
+
+</DD><P></DL>
+<P>
+Here is an example of a completely set up 
+<FONT SIZE=-1>DBI</FONT> database on mySQL, using a comma-separated value input, setting the 
+<FONT SIZE=-1>DBI</FONT> attribute LongReadLen to retrieve an entire field, and changing some field definitions from the default <CODE>char(128):</CODE>
+
+
+<P>
+<PRE>  Database   products  products.csv  dbi:mysql:minivend
+  Database   products  USER          minivend
+  Database   products  PASS          nevairbe
+  Database   products  DELIMITER     CSV
+ 
+  # Set a DBI attribute
+  Database   products  LongReadLen   128
+ 
+  # change some fields from the default field type of char(128)
+  # Only applies if Minivend is importing from ASCII file
+  # If you set a field to a numeric type, you must set the
+  # NUMERIC attribute
+  Database   products  COLUMN_DEF    &quot;code=char(20) NOT NUL primary key&quot;
+  Database   products  COLUMN_DEF    price=float, discount=float
+  Database   products  COLUMN_DEF    author=char(40), title=char(64)
+  Database   products  COLUMN_DEF    nontaxable=char(3)
+  Database   products  NUMERIC       price
+  Database   products  NUMERIC       discount
+</PRE>
+<P>
+You must have mySQL, 
+<FONT SIZE=-1>DBI,</FONT> and DBD::mysql completely installed and tested,
+and have created the database <CODE>minivend</CODE> for this to work. Permissions are difficult on mySQL -- if you have
+trouble, try starting the mySQL daemon with <CODE>safe_mysqld --skip-grant-tables &amp;</CODE> for testing purposes.
+
+<P>
+To change to 
+<FONT SIZE=-1>ODBC,</FONT> the only changes required might be:
+
+<P>
+<PRE>    Database products  DSN         dbi:ODBC:TCP/IP localhost 1313
+    Database products  ChopBlanks  1
+</PRE>
+<P>
+The 
+<FONT SIZE=-1>DSN</FONT> setting is specific to your 
+<FONT SIZE=-1>ODBC</FONT> setup. The
+ <STRONG>ChopBlanks</STRONG> setting takes care of the space-padding in Solid and some other databases -- it is not specific to 
+<FONT SIZE=-1>ODBC.</FONT> Once again, 
+<FONT SIZE=-1>DBI,</FONT> 
+<FONT SIZE=-1>DBD::ODBC,</FONT> and the and appropriate 
+<FONT SIZE=-1>ODBC</FONT> driver must be installed and tested.
+
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="08.00.SQL_SUPPORT.html">Up</A>&nbsp;&nbsp;<A HREF="08.02.SQL_Access_Methods.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

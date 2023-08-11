@@ -1,0 +1,219 @@
+#!/bin/ksh
+# @(#) newswarn.ksh 1.1 94/11/19
+# 94/09/18 john h. dubois iii (john@armory.com)
+# 94/11/06 Removed c option; now no g opt means check-only.
+# 94/11/19 Explicitely state if noone is using the news server.
+
+# Output of command 'sockinfo -st':
+# tcp        0      0  192.122.209.42.4724    192.122.209.39.119     CLOSE_WAIT
+#    PID 24777: trn
+# user bdp on tty /dev/ttyp50
+
+# Usage: FindPortUsers <ip-address> <port-number>
+# Output is lines of the form:
+# <user> <tty>
+# Line are also written to stderr with the form:
+# User <user> on tty <tty> is running <ps-name> (pid <process-id>).
+
+# Output of sockinfo has the format:
+# line describing a socket used by a process
+# ....
+# name and pid of the process using the above sockets
+# user and controlling tty for the above process
+# Example:
+#Proto Recv-Q Send-Q  Local Address          Foreign Address        (state)
+#tcp        0      0  192.122.209.42.4669    129.24.12.18.7326      ESTABLISHED
+#   PID 3362: icb 
+#user turtle on tty /dev/ttyp25
+#tcp        0      0  192.122.209.42.80      192.122.209.42.4667    TIME_WAIT
+#tcp        0      0  192.122.209.42.4666    198.7.0.2.25           TIME_WAIT
+#tcp        0   1219  192.122.209.42.20      141.222.1.3.1081       FIN_WAIT_1
+#tcp        0      0  192.122.209.42.21      141.222.1.3.1080       ESTABLISHED
+#   PID 3061: Mosaic 
+#user zap on tty /dev/ttyp21
+#tcp        0      0  127.0.0.1.6001         127.0.0.1.4592         ESTABLISHED
+# Returns 1 if no users are using the specified ip-address/port-number,
+# 0 if any are.
+function FindPortUsers {
+    sockinfo -st | gawk -v ip="$1" -v Port="$2" '
+    BEGIN {
+	# Escape dots in IP address so that it can be used as a regex,
+	# so that a port number of .* will have the right effect
+	gsub(/\./,"\\.",ip)
+	FoundUser = 0
+    }
+
+    # Find processes connected to a particular port on the news server.
+    $1 == "tcp" {
+        if ($5 ~ "^" ip "\\." Port "$")
+	    PortUser = 1
+	next
+    }
+    $1 == "PID" {
+	pid = $2
+	gsub(":","",pid)
+	procname = $3
+	next
+    }
+    $1 == "user" {
+	tty = substr($5,6)
+	if (pid == "") {
+	    print "User line found before process line... ignoring!" \
+	    > "/dev/stderr"
+	}
+	else if (PortUser && tty != "socksys") {	# Just ignore socksys
+	    user = $2
+	    printf "User %s on %s is running %s (pid %d).\n",
+	    user,tty,procname,pid > "/dev/stderr"
+	    if (pid !~ "^[0-9]+$")
+		print "Strange pid... ignoring!" > "/dev/stderr"
+	    else if (user !~ "^[a-z][a-z0-9]+$")
+		print "Strange user name... ignoring!" > "/dev/stderr"
+	    else if (tty !~ "^tty")
+		print "Strange tty name... ignoring!" > "/dev/stderr"
+	    else {
+		printf "%s %s\n",user,tty
+		FoundUser = 1
+	    }
+	    PortUser = 0
+	}
+	pid = ""
+    }
+    END {
+	exit !FoundUser
+    }
+    '
+}
+
+ln_name=${0##*/}
+Usage="Usage: $ln_name [-h] [-g<grace-period>] [-s<news-server>] [-p<port>]"
+ServerFiles="/usr/lib/news/server /usr/lib/news/rn/server"
+typeset -i Grace=-1
+Port=119
+
+while getopts :hcg:s:p: opt; do
+    case $opt in
+    h)
+	echo \
+"$ln_name: Warn users of impending shutdown of the news server.
+$ln_name finds all users who are using the system's news server, reports on
+them, and optionally warns them that the news server is about to be shut down. 
+Users are repeatedly warned at one minute intervals until the grace period has
+expired.  Before each warning, the users still using the news server are
+reported on, so that it can easily be determined when all users have finished.
+A final warning of immediate shutdown is issued at 0 minutes; a grace period of
+0 can be used to give only this warning.  No action is taken when the grace
+period expires (the news server must be shut down manually).
+$ln_name determines who is using the news server by searching for processes
+that have connections to the NNTP port on the news server used by the local
+system.  To determine the name of the news server used by the local system,
+$ln_name first checks the environment variable NNTPSERVER, and then checks in
+order the files /usr/lib/news/server and /usr/lib/news/rn/server.  The first
+value found is used.
+$Usage
+Options:
+-g<grace-period>: Set the grace period to <grace-period> minutes, and warn
+    users.  Without this option, $ln_name will report once on who is using the
+    news server, but will not issue any warnings.
+-h: Print this help.
+-p<port>: Check for connections to the news server on the given port, instead
+    of the default port of $Port (NNTP service).  <port> can be a regular
+    expression in the style of egrep(C).  If a port number of 0 is given, 
+    it is translated to \".*\", so users with processes connected to the news
+    server on any port are warned.  <port> must be a decimal integer.
+-s<news-server>: Set news server by name or IP number."
+	exit 0
+	;;
+    p)  
+	Port=$OPTARG
+	;;
+    s)  NNTPSERVER=$OPTARG;;
+    g)
+	if [[ "$OPTARG" != [1-9]*([0-9]) ]]; then
+	    print -u2 "Bad number of minutes: $OPTARG.  Aborting."
+	    exit 1
+	fi
+	Grace=$OPTARG
+	;;
+    +?)
+	print -u2 "$ln_name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$ln_name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -gt 0 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+if [ -z "$NNTPSERVER" ]; then
+    for file in $ServerFiles; do
+	read NNTPSERVER 2>/dev/null < $file && break
+    done
+fi
+
+if [ -z "$NNTPSERVER" ]; then
+    print -u2 "Could not determine news server name."
+    exit 1
+fi
+
+# Get the ip address of the news server so that sockinfo doesn't have to
+# look up the names of all ip connections
+if [[ "$NNTPSERVER" = +([0-9])+(.+([0-9])) ]]; then
+    ip=$NNTPSERVER
+else
+    dig +pfset=0x2020 "$NNTPSERVER" | while read name t ip; do
+	# Ignore CNAMEs and such.  dig will automatically look up the A
+	# record for the name the CNAME points to.
+	[ "$t" = A ] && break
+    done
+    if [[ "$ip" != +([0-9])+(.+([0-9])) ]]; then
+	print -u2 "Could not get IP address for news server $NNTPSERVER."
+	exit 1
+    fi
+fi
+
+[ "$Port" = 0 ] && Port=".*"
+
+if [ Grace -eq -1 ]; then
+    FindPortUsers "$ip" "$Port" > /dev/null || 
+    print "Noone is using the news server."
+    exit 0
+fi
+
+Prefix="Warning: the news server"
+
+while [ Grace -ge 0 ]; do
+
+    case $Grace in
+    0) message="$Prefix is being shut down NOW!";;
+    1) message="$Prefix will be shut down in 1 minute.";;
+    *) message="$Prefix will be shut down in $Grace minutes.";;
+    esac
+    print "Sending message: $message"
+
+    FoundUser=false
+    FindPortUsers "$ip" "$Port" | while read user tty; do
+	# Discard error output from write to avoid warnings re 
+	# "you have your terminal set to mesg -n"
+	echo "\r$message\r" | write $user $tty 2>/dev/null
+	FoundUser=true
+    done
+
+    $FoundUser || print "No users are using the news server."
+
+    let Grace-=1
+    if [ Grace -gt 0 ]; then
+	echo "****"
+	sleep 60
+    fi
+done

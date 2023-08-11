@@ -1,0 +1,244 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.6">
+ <TITLE>Linux Emulation for SCO: Getting started</TITLE>
+ <LINK HREF="lxrun-6.html" REL=next>
+ <LINK HREF="lxrun-4.html" REL=previous>
+ <LINK HREF="lxrun.html#toc5" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="lxrun-6.html">Next</A>
+<A HREF="lxrun-4.html">Previous</A>
+<A HREF="lxrun.html#toc5">Contents</A>
+<HR>
+<H2><A NAME="s5">5. Getting started</A></H2>
+
+<P>
+<H2><A NAME="ss5.1">5.1 How do I get lxrun ?</A>
+</H2>
+
+<P>Lxrun is currently distributed as a component of <B>SCO Skunkware</B>
+<A HREF="http://skunkware.dev/skunkware/">http://skunkware.dev/skunkware/</A>,
+a free CD-ROM containing hundreds of megabytes of pre-compiled and pre-packaged 
+software for SCO platforms. A Skunkware CD-ROM can be obtained via
+<A HREF="http://www.sco.com/offers/">http://www.sco.com/offers/</A> and, beginning in 1998, all operating
+systems released by SCO will contain a Skunkware CD-ROM in the shrink-wrapped
+product. Lxrun may also be obtained via the SCO Skunkware web site at 
+<A HREF="http://skunkware.dev/skunkware/emulators/">http://skunkware.dev/skunkware/emulators/</A>.
+All SCO Skunkware software is freely redistributable.
+<P>
+<H2><A NAME="ss5.2">5.2 Building lxrun from source</A>
+</H2>
+
+<P>Detailed instructions on building lxrun from source, configuring the build, 
+installing the emulation system and additional run-time components, installing 
+a Linux binary, runtime environment variables, and error messages are contained
+in the file <CODE>INSTALL</CODE> in the lxrun source distribution and on-line in
+<A HREF="http://skunkware.dev/skunkware/emulators/lxrun/FAQ.html">the lxrun FAQ</A>.
+<P>The lxrun source distribution contains a Makefile with support for compilation
+on SCO OpenServer 5, UnixWare 2.x, and UnixWare 7. The Makefile uses the
+output of "uname -r" to determine the platform. As additional
+platform support is added this will need to be augmented or the configuration
+modified to use autoconfig.
+<P>To build lxrun on one of the supported platforms, it is only necessary to
+issue the command "make". The command "make install" will both build lxrun
+and copy the resulting binaries and documentation into $(DESTDIR) which
+is set by default to the ./dist directory.
+<P>As a convenience this distribution includes a script called 
+lxfront which can be used with a symbolic link (see below) to provide 
+a wrapper around the invocation of lxrun the Linux binary name
+allowing them to be run directly.
+<P>Starting with lxrun 0.9.0 the build of lxrun will produce an ld-linux.so.1
+as well as the lxrun binary. The ld-linux.so.1 is installed in /lib on the
+target system and provides support for direct execution of Linux binaries,
+thus deprecating the need for the lxrun binary front-end except for the
+execution of Linux a.out binaries.
+<P>The lxrun source has the following capability ifdefs:
+<UL>
+<LI><B>DEF_LINUX_ROOT</B> -
+Default root directory name for lxrun to searching under for any
+native Linux files. 
+Specifically when a Linux library tries to load a dynamic library, lxrun
+remaps the pathname to somewhere below this directory.  
+The value specified here becomes the internal default which can be 
+overridden by the LINUX_ROOT environment variable.
+Set in Makefile with make macro LXROOT.
+Default value is "/usr/local/linux"</LI>
+<LI><B>TRACE</B> -
+Flag for making a version of lxrun that emits system call traces 
+(to file /tmp/lxrun.nnn (where "nnn" is the process pid.))
+This can be used for tracing a binaries use of an unimplemented 
+system call or other runtime problems. Its not enabled bu default 
+since it slows down the operation of lxrun and produces large log files.
+(build should be augmented to make a variantly named lxrun binary with this 
+on regardless).
+Set in Makefile with make macro TRACE.
+Default is disabled (off)</LI>
+<LI><B>ELF_DEBUG</B> -
+Flag to enable output to stderr of debug traces for the 
+ELF loader capability of lxrun. Outputs ELF Header information,
+interpreter remap values and open, load, mmap, mprotect values/status
+(should be modified to be integrated with TRACE logging)
+Set in Makefile via make macro DBG.
+Default is disabled (off)</LI>
+<LI><B>UNIDIRECTIONAL_PIPES</B> -
+Flag to enable use of unidirectional pipes (pipe() ) 
+instead of bidirectional pipes (socketpair()) for the pipe()
+syscall emulation on platforms where pipes are not bidirectional.
+Not referenced in Makefile.
+Default is disabled (emulation will use bidirectional pipes)</LI>
+<LI><B>NO_DISPLAY_HACK</B> -
+Flag to disable remapping of DISPLAY variable from a local server 
+specification to a full hostname specification.
+This remapping is done (by default) to address some 
+problems with local connections on OSr5 (at least) to some X servers.
+Not referenced in Makefile.
+Default is disabled (remapping will be done)</LI>
+<LI><B>LXRUN_AUTO_PATH_BEHAVIOR</B> -
+if enabled makes lxrun search for the Linux binary to be run in the 
+normal PATH rather than in the (expected) absolute pathname given.
+Not referenced in Makefile.
+Default is disabled (off)</LI>
+<LI><B>ELFMARK_HACK</B> -
+enables detection of binaries marked (with elfmark) as Linux binaries
+(mark value "LXRN" as an unsigned long).
+Not referenced in Makefile.
+Default is disabled (off) - status is experimental.</LI>
+</UL>
+<P>Platform defines for OpenServer 5 (OSR5), UnixWare 2.x (UNIXWARE) 
+and UnixWare 7 (GEMINI) are automatically setup in the Makefile.
+<P>
+<H2><A NAME="ss5.3">5.3 Installing the emulation system</A>
+</H2>
+
+<P>Lxrun expects to find all its (Linux) library files in a normal root hierarchy
+rooted under a single place called the LINUX_ROOT.
+Unless respecified in the build this defaults internally in lxrun to
+/usr/local/linux.
+<P>You can respecify or change it at runtime with the environment variable
+LINUX_ROOT (wherever it ends up this must be the place the Linux 
+libraries are placed under).
+<P>"make install" will install the built binary (lxrun) into /usr/local/bin,
+lxfront into $LINUX_ROOT/bin, and the lxrun program interpreter
+ld-linux.so.1 into /lib. The HTML documents describing lxrun are placed
+in /usr/local/man/html/lxrun.
+<P>
+<H2><A NAME="ss5.4">5.4 Installing Linux applications</A>
+</H2>
+
+<P>
+<P>With lxrun 0.9.0 and later, Linux ELF binaries can be installed anywhere in
+the standard execution path (e.g. /usr/local/bin). See section
+<A HREF="lxrun-3.html#sec-direct">Direct execution of Linux ELF binaries</A>
+for details on how this is done. Further, Linux applications distributed in 
+RPM format can be installed using either a native RPM port 
+or the Linux RPM run under the control of lxrun. Some additional arguments
+to RPM may be necessary. For instance, a native port of RPM for SCO OpenServer 
+is available at 
+<A HREF="http://skunkware.dev/skunkware/osr5/sysadmin/rpm/">http://skunkware.dev/skunkware/osr5/sysadmin/rpm/</A>).
+Using the SCO OpenServer RPM it is necessary to invoke RPM as follows:
+<PRE>
+    rpm --nodeps --ignorearch --ignoreos --prefix /usr/local ...
+</PRE>
+
+The Skunkware distribution of RPM for OpenServer includes a shell script
+front-end <CODE>rpm4sco</CODE> which inserts these arguments for you.
+<P>Linux a.out and statically linked ELF binaries should be installed in 
+/usr/local/linux/bin and symbolic links by the name of the binary created 
+from /usr/local/bin to the lxfront shell script in /usr/local/linux/bin.
+<P>
+<H2><A NAME="ss5.5">5.5 Error messages</A>
+</H2>
+
+<P><CODE>linuxemul: fatal error: program load failed: No such file or directory</CODE>
+<P>Indicates that the Linux binary couldn't run 
+(either lxrun could't find the Linux binary or the Linux binary 
+couldn't find the dynamic linker)
+It probably means your LINUX_ROOT environment variable isn't set up 
+correctly or you don't have the required minimum Linux libraries.
+<P><CODE>progname: can't load library 'some_library_name.so'</CODE>
+<P>Indicates you're missing a shared library that is needed to
+run a particular binary.  You can either try to find a
+compiled version of the library from a Linux ftp site
+(such as 
+<A HREF="ftp://sunsite.unc.edu/pub/Linux/libs/">ftp://sunsite.unc.edu/pub/Linux/libs/</A>) or if you
+have access to a running Linux system, you can copy the
+library directly.  You should put the library in
+$LINUX_ROOT/lib on your host system 
+(/usr/localLinuxlib by default on a SCO system ).
+<P><CODE>myprog: can't resolve symbol '__iob'<BR>
+myprog: can't resolve symbol '__iob'<BR>
+myprog: can't resolve symbol '__ctype'</CODE>
+<P>Indicates that the Linux dynamic loader found a native SCO library
+and is using it instead of the corresponding Linux binary.  
+(You can find out exactly which library is causing the problem by
+examining the lxrun.log file produced by a debugging version of
+lxrun.)
+<P>This will only occur if you have native libraries
+installed that have the same names as a dependent Linux binary.
+If you have XFree86 installed, the /usr/X11R6/lib libraries are
+common culprits.
+<P>The best solution is to make sure no native libraries are
+available anywhere under the directory pointed to by
+$LINUX_ROOT.
+<P>
+<H2><A NAME="ss5.6">5.6 If you come across an unsupported binary</A>
+</H2>
+
+<P>
+<OL>
+<LI> Go to 
+<A HREF="http://skunkware.dev/skunkware">http://skunkware.dev/skunkware</A> and make
+sure you have the most recent version of lxrun.  If not,
+download the latest one and try it.  We are updating
+lxrun with new system calls all the time.
+</LI>
+<LI> Recompile lxrun with the TRACE option enabled.  (This
+requires modifying one line in the Makefile.)  This will
+cause lxrun to produce a history of all system calls
+used by the binary as it was run (similar to the
+"truss" and "trace" commands).  The trace dump will be
+created in a file called "/tmp/lxrun.nnn" where "nnn" is
+the process id.
+</LI>
+<LI> Try to narrow down exactly which system call failed.
+Most likely, the failure will be due to a system call
+that has not yet been implemented in lxrun.
+</LI>
+<LI> Implement the system call mapping.  This is usually
+pretty easy to do.  The vast majority of lxrun's code
+does mappings of this sort, so you can pick out almost
+any source file to see how it is done.  Chances are, the
+system call you need to remap is already in one of the
+lxrun source files, but its code looks something like
+this:
+
+int lx_flock()          { errno=ENOSYS; return -1; }    
+
+This means that you're the first person who has gotten
+around to mapping that particular system call.
+</LI>
+<LI> After making your modification, recompile lxrun and
+see if it works.  You may have to remap more than one
+system call to get your binary working!
+</LI>
+<LI> E-mail your changes to 
+<A HREF="mailto:skunkware@ronrecord.com">skunkware@ronrecord.com</A>.
+This way, we can put your changes into the next release of lxrun.
+</LI>
+<LI> If steps 1-5 seem beyond your programming
+ability, contact 
+<A HREF="mailto:skunkware@ronrecord.com">skunkware@ronrecord.com</A>.
+and maybe one of the
+Skunkware team will have time to give you a hand with it.
+Make sure to tell us exactly what program you're having
+trouble with, and if possible, tell us where you got it.</LI>
+</OL>
+<P>
+<HR>
+<A HREF="lxrun-6.html">Next</A>
+<A HREF="lxrun-4.html">Previous</A>
+<A HREF="lxrun.html#toc5">Contents</A>
+</BODY>
+</HTML>

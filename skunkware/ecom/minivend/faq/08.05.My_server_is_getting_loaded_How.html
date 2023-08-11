@@ -1,0 +1,100 @@
+<HTML>
+<HEAD>
+<TITLE>My server is getting loaded. How do I use the static page capability?</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="08.00.Performance_issues.html">Up</A>&nbsp;&nbsp;<A HREF="08.04.I_am_using_SQL_and_MiniVend_is_.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="08.06.My_session_files_change_to_owner.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="My_server_is_getting_loaded_How">My server is getting loaded. How do I use the static page capability?</A></H2>
+<P>
+Here is an example based on the simple demo.
+
+<P>
+To set up the simple demo catalog statically, all that is required is to
+put in catalog.cfg:
+
+<P>
+<PRE>    StaticDir   /ext/htdocs/simple/static
+    StaticPath  /simple/static
+    StaticAll   Yes
+    StaticFly   Yes
+    NoCache     ord special
+</PRE>
+<P>
+<EM>The root WWW directory (DocumentRoot) on my system is /ext/htdocs --  </EM>
+
+<EM>you would change your StaticDir accordingly.</EM>  <STRONG>Make sure the directory</STRONG>
+
+<STRONG>is empty -- MiniVend will overwrite files there!</STRONG>
+
+
+
+<P>
+Then edit a couple of the pages -- catalog.html and results.html. They have
+``dynamic'' elements, ones that prevent the static build for those two
+pages (and any searches calling them for a template) from succeeding.
+Insert anywhere in the page:
+
+<P>
+<PRE>        [tag flag build][/tag]
+</PRE>
+<P>
+This tells the builder to go ahead and build the static page anyway,
+despite the dynamic elements. (The elements in this case are the Perl code
+telling the user their name in catalog.html, the dynamic ``Check Basket''
+icon on the results page, and some sorting parameters that are not used in
+the one-click search.)
+
+<P>
+At that point, if you are in control of the MiniVend software directory and
+changed directory to it, you should be able to run:
+
+<P>
+<PRE>        bin/minivend -build simple
+</PRE>
+<P>
+(Users who are provided a catalog without control of the server will not be
+able to do this. The administrator would need to get involved.)
+
+<P>
+You will see some output from the build command, giving you the status of the build for individual pages. 
+<FONT SIZE=-1>(HINT:</FONT> send the standard output to a file to get a full report.) It will show information like:
+
+
+<P>
+<PRE>    Checking page catalog ......................................done.
+    Checking page browse .......................................done.
+    Checking page canceled ...............skipping, dynamic elements.
+    ...
+    Checking part number 00-0011................................done.
+    ...
+    Checking part number 00-342.................................done.
+    Building page browse........................................done.
+    ...
+    Building page catalog ......................................
+    &gt;&gt; found search mp=0/se=Renaissance.........................save.
+    &gt;&gt; found search mp=0/se=Impressionists......................save.
+    &gt;&gt; found search mp=0/se=Surrealists.........................save.
+    &gt;&gt; found search mp=0/se=Americana...........................save.
+    &gt;&gt; found search mp=0/se=Contemporary........................save.
+    done.
+    Building part number 00-0011................................done.
+    ...
+    Building part number 00-342.................................done.
+    Re-checking /simple/static/scan5.html.......................none.
+    ...
+    Re-checking /simple/static/scan3.html.......................none.
+    done.
+</PRE>
+<P>
+Restart the server and re-enter the catalog. Now all accesses should be fast whenever possible. One-click searches and flypages are in static 
+<FONT SIZE=-1>HTML</FONT> space, and only orders and checkout ops should be parsed by MiniVend.
+
+
+<P>
+This should get you started -- see the documentation for more information,
+particularly the section on what are ``dynamic'' tags and how to flag
+databases as dynamic with the DynamicData directive.
+
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="08.00.Performance_issues.html">Up</A>&nbsp;&nbsp;<A HREF="08.04.I_am_using_SQL_and_MiniVend_is_.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="08.06.My_session_files_change_to_owner.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

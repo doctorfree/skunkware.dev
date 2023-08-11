@@ -1,0 +1,178 @@
+<HTML>
+<HEAD>
+<TITLE>LOOP</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.03.SET_SETI_and_SCRATCH.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.05.IF.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="LOOP">LOOP</A></H2>
+<P>
+Loop lists can be used to construct arbitrary lists based on the contents
+of a database field, a search, or other value (like a fixed list).
+
+<P>
+Loop accepts a <A HREF="#item_search">search</A> parameter which will do one-click searches on a database table (or file).
+
+<P>
+To iterate over all keys in a table, use the idiom (<CODE>[loop search=&quot;ra=yes/ml=9999&quot;] [/loop]</CODE>.  <CODE>ra=yes</CODE> sets <CODE>mv_return_all</CODE>, which means ``match everything''. The <CODE>ml=9999</CODE> limits matches to that many records -- you normally don't want to use that many, but it is a reasonable default maximum. If you want to not use the text file for searching a Minivend 
+<FONT SIZE=-1>DBM</FONT> database, don't forget to use
+ <CODE>st=db</CODE>
+(mv_searchtype).
+
+<P>
+Both can be sorted with <CODE>[sort table:field:mod -start +number]</CODE> modifiers. See <EM>SORTING</EM>.
+
+<DL>
+<DT><STRONG><A NAME="item__loop">[loop item item item] LIST [/loop]</A></STRONG><DD>
+named attributes: <CODE>[loop prefix=label* list=&quot;item item item&quot;* search=&quot;se=whatever&quot;*]</CODE>
+
+
+
+<P>
+Returns a string consisting of the 
+<FONT SIZE=-1>LIST,</FONT> repeated for every item in a comma-separated or
+space-separated list. Operates in the same fashion as the <CODE>[item-list]</CODE> tag, except for order-item-specific values. Intended to pull multiple
+attributes from an item modifier -- but can be useful for other things,
+like building a pre-ordained product list on a page.
+
+<P>
+Loop lists can be nested by using different prefixes:
+
+<P>
+<PRE>    [loop prefix=size list=&quot;Small Medium Large&quot;]
+        [loop prefix=color list=&quot;Red White Blue&quot;]
+            [color-code]-[size-code]&lt;BR&gt;
+        [/loop]
+        &lt;P&gt;
+    [/loop]
+</PRE>
+<P>
+This will output:
+
+<P>
+<PRE>                Red-Small
+                White-Small
+                Blue-Small
+        
+                Red-Medium
+                White-Medium
+                Blue-Medium
+        
+                Red-Large
+                White-Large
+                Blue-Large
+</PRE>
+<P>
+You can do an arbitrary search with the search=``args'' parameter, just as
+in a one-click search:
+
+<P>
+<PRE>    [loop search=&quot;se=Americana/sf=category&quot;]
+        [loop-code] [loop-field title]
+    [/loop]
+</PRE>
+<P>
+The above will show all items with a category containing the whole world
+``Americana''.
+
+</DD><P><DT><STRONG><A NAME="item__if_loop_data">[if-loop-data table field] IF [else] ELSE [/else][/if-loop-field]</A></STRONG><DD>
+Outputs the 
+<FONT SIZE=-1>IF</FONT> if the <A HREF="#item_field">field</A> in <A HREF="#item_table">table</A> is non-empty, and the 
+<FONT SIZE=-1>ELSE</FONT> (if any) otherwise.
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> This tag does not nest with other <CODE>[if-loop-data ...]</CODE> tags.
+
+</DD><P><DT><STRONG><A NAME="item__if_loop_field">[if-loop-field field] IF [else] ELSE [/else][/if-loop-field]</A></STRONG><DD>
+Outputs the <STRONG>IF</STRONG> if the <A HREF="#item_field">field</A> in the <A HREF="#item_products">products</A> table is non-empty, and the <STRONG>ELSE</STRONG> (if any) otherwise.
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> This tag does not nest with other <CODE>[if-loop-field ...]</CODE> tags.
+
+</DD><P><DT><STRONG><A NAME="item__loop_accessories_">[loop-accessories]</A></STRONG><DD>
+Evaluates to the value of the Accessories database entry for the item.
+
+</DD><P><DT><STRONG><A NAME="item__loop_alternate">[loop-alternate N] DIVISIBLE [else] NOT DIVISIBLE [/else][/loop-alternate]</A></STRONG><DD>
+Set up an alternation sequence. If the loop-increment is divisible by <A HREF="#item_N">N</A>, the text will be displayed. If an <CODE>[else]NOT DIVISIBLE TEXT[/else]</CODE> is present, then the 
+<FONT SIZE=-1>NOT</FONT> 
+<FONT SIZE=-1>DIVISIBLE</FONT> 
+<FONT SIZE=-1>TEXT</FONT> will be displayed.
+
+
+<P>
+For example:
+
+<P>
+<PRE>    [loop-alternate 2]EVEN[else]ODD[/else][/loop-alternate]
+    [loop-alternate 3]BY 3[else]NOT by 3[/else][/loop-alternate]
+</PRE>
+</DD><P><DT><STRONG><A NAME="item__loop_alternate_">[/loop-alternate]</A></STRONG><DD>
+Terminate the alternation area.
+
+</DD><P><DT><STRONG><A NAME="item__loop_change">[loop-change marker]</A></STRONG><DD>
+Same as <CODE>[item-change]</CODE> but within loop lists.
+
+</DD><P><DT><STRONG><A NAME="item__loop_code_">[loop-code]</A></STRONG><DD>
+Evaluates to the product code for the current item.
+
+</DD><P><DT><STRONG><A NAME="item__loop_data">[loop-data database fieldname]</A></STRONG><DD>
+Evaluates to the field name <EM>fieldname</EM> in the arbitrary database table <EM>database</EM>, for the current item.
+
+</DD><P><DT><STRONG><A NAME="item__loop_description_">[loop-description]</A></STRONG><DD>
+Evaluates to the product description (from the products file) for the
+current item.
+
+</DD><P><DT><STRONG><A NAME="item__loop_field">[loop-field fieldname]</A></STRONG><DD>
+The [loop-field ...] tag is special in that it looks in any of the tables
+defined as <A HREF="#item_ProductFiles">ProductFiles</A>, in that order, for the data, returning the value only if that key is
+defined. In most catalogs, where <A HREF="#item_ProductFiles">ProductFiles</A> is not defined (i.e. the demo), <CODE>[loop-field title]</CODE> is equivalent to
+<CODE>[loop-data products title]</CODE>.
+
+<P>
+Evaluates to the field name <EM>fieldname</EM> in the database, for the current item.
+
+</DD><P><DT><STRONG><A NAME="item__loop_increment_">[loop-increment]</A></STRONG><DD>
+Evaluates to the number of the item in the list. Used for numbering items
+in the list.
+
+</DD><P><DT><STRONG><A NAME="item__loop_last_tags_loop_last_">[loop-last]tags[/loop-last]</A></STRONG><DD>
+Evaluates the output of the MiniVend tags encased inside, and if it
+evaluates to a numerical non-zero number (i.e. 1, 23, or -1) then the loop
+iteration will terminate. If the evaluated number is
+<STRONG>negative</STRONG>, then the item itself will be skipped. If the evaluated number is <STRONG>positive</STRONG>, then the item itself will be shown but will be last on the list.
+
+<P>
+<PRE>      [loop-last][calc]
+        return -1 if '[loop-field weight]' eq '';
+        return 1 if '[loop-field weight]' &lt; 1;
+        return 0;
+        [/calc][/loop-last]
+</PRE>
+<P>
+If this is contained in your <CODE>[loop list]</CODE> and the weight field is empty, then a numerical <CODE>-1</CODE> will be output from the <CODE>[calc][/calc]</CODE> tags; the list will end and the item will <STRONG>not</STRONG> be shown. If the product's weight field is less than 1, a numerical 1 is
+output. The item will be shown, but will be the last item shown.
+
+</DD><P><DT><STRONG><A NAME="item__loop_next_tags_loop_next_">[loop-next]tags[/loop-next]</A></STRONG><DD>
+Evaluates the output of the MiniVend tags encased inside, and if it
+evaluates to a numerical non-zero number (i.e. 1, 23, or -1) then the loop
+will be skipped with no output. Example:
+
+<P>
+<PRE>      [loop-next][calc][loop-field weight] &lt; 1[/calc][/loop-next]
+</PRE>
+<P>
+If this is contained in your <CODE>[loop list]</CODE> and the product's weight field is less than 1, then a numerical <CODE>1</CODE> will be output from the
+<CODE>[calc][/calc]</CODE> operation. The item will not be shown.
+
+</DD><P><DT><STRONG><A NAME="item__loop_price">[loop-price n* noformat*]</A></STRONG><DD>
+Evaluates to the price for optional quantity n (from the products file) of
+the current item, with currency formatting. If the optional ``noformat'' is
+set, then currency formatting will not be applied.
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.03.SET_SETI_and_SCRATCH.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.05.IF.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

@@ -1,0 +1,174 @@
+<HTML>
+<HEAD>
+<TITLE>Inserting hyperlinks</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="06.00.SETTING_UP_YOUR_CATALOG.html">Up</A>&nbsp;&nbsp;<A HREF="06.12.Basic_MiniVend_Tags.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="06.14.How_to_order_an_item.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Inserting_hyperlinks">Inserting hyperlinks</A></H2>
+<P>
+named: [area href=``dir/page'' secure=1* arg=``argument''* form=``form
+string''*]
+
+<P>
+positional: [area pg arg*]
+
+<P>
+Produces the 
+<FONT SIZE=-1>URL</FONT> to call a MiniVend page, without the surrounding 
+<FONT SIZE=-1>A</FONT> 
+<FONT SIZE=-1>HREF</FONT> notation. This can be used to get control of your 
+<FONT SIZE=-1>HREF</FONT> items, perhaps to place an 
+<FONT SIZE=-1>ALT</FONT> string or a Javascript construct. It was originally named
+ <A HREF="#item_area">area</A> because it also can be used in a client-side image map.
+
+<P>
+<PRE>   &lt;A HREF=&quot;[area catalog]&quot; ALT=&quot;Main catalog page&quot;&gt;
+</PRE>
+<P>
+The optional <EM>arg</EM> is used just as in the <EM>page</EM> tag.
+
+<P>
+The optional <CODE>form</CODE> argument allows you to encode a form in the link.
+
+<P>
+<PRE>        &lt;A HREF=&quot;[area form=&quot;
+                mv_order_item=99-102
+                mv_order_size=L
+                mv_order_quantity=1
+                mv_separate_items=1
+                mv_todo=refresh&quot;
+        ]&quot;&gt; Order t-shirt in Large size &lt;/A&gt;
+</PRE>
+<P>
+See above for more information.
+
+<DL>
+<DT><STRONG><A NAME="item__page_">[/page], [/order]</A></STRONG><DD>
+Expands into &lt;/a&gt;. Used with the page element, such as:
+
+<P>
+<PRE>  [page shirts]Our shirt collection[/page].
+</PRE>
+<P>
+
+<FONT SIZE=-1>TIP:</FONT> 
+<FONT SIZE=-1>A</FONT> small efficiency boost in large pages is to just use the 
+<FONT SIZE=-1>&lt;/A&gt;</FONT> tag.
+
+
+</DD><P><DT><STRONG><A NAME="item__page">[page ...]</A></STRONG><DD>
+named: [page href=``dir/page'' arg=``argument'' secure=1* form=``form
+string'']
+
+<P>
+positional: [page dir/page arg*] (only two positional parameters)
+
+<P>
+Insert a hyperlink to the specified catalog page pg. For example, [page
+shirts] will expand into &lt; a
+href=``http://machine.company.com/cgi-bin/vlink/shirts?id=WehUkATn&amp;pc=33''&gt;.
+The catalog page displayed will come from ``shirts.html'' in the pages
+directory.
+
+<P>
+If the user has sent a cookie to MiniVend (meaning the <STRONG>second</STRONG> page they access), and you set the scratch value <CODE>mv_no_session_id</CODE> in their session, the session 
+<FONT SIZE=-1>ID</FONT> will not be appended to the 
+<FONT SIZE=-1>URL.</FONT> If you set the scratch value
+ <CODE>mv_no_count</CODE>, then the page count will not be appended; this is not dependent on
+cookies. So if you put in your initial page
+
+<P>
+<PRE>    [set mv_no_session_id]1[/set]
+    [set mv_no_count]1[/set]
+    [set mv_add_dot_html]1[/set]
+</PRE>
+<P>
+or put in <CODE>catalog.cfg</CODE>:
+
+<P>
+<PRE>    ScratchDefault  mv_no_session_id  1
+    ScratchDefault  mv_no_count       1
+    ScratchDefault  mv_add_dot_html   1
+</PRE>
+<P>
+no session 
+<FONT SIZE=-1>ID</FONT> or count will be shown. That makes the 
+<FONT SIZE=-1>URL</FONT> shown above be <A HREF="http://machine.company.com/cgi-bin/vlink/shirts.html">http://machine.company.com/cgi-bin/vlink/shirts.html</A> -- once again, that is on the
+ <EM>second</EM> page the user accesses if they are taking and sending cookies. If the user has a pre-existing 
+<FONT SIZE=-1>MV_SESSION_ID</FONT> or 
+<FONT SIZE=-1>MV_USERNAME</FONT> cookie from a prior session, the effect will be immediate.
+
+
+<P>
+The <CODE>argument</CODE> will be passed to MiniVend and placed in the
+<A HREF="#item_mv_arg">mv_arg</A> session parameter. This allows programming of a conditional page display
+based on where the link came from. The argument is then available with the
+tag [data session arg], or the embedded Perl session variable
+$Session-&gt;{arg}. If you set the catalog configuration option
+<EM>NewEscape</EM>, which is the default, then spaces and some other characters will be
+escaped with the <CODE>%NN</CODE> HTTP-style notation and unescaped when
+the argument is read back into the session.
+
+<P>
+
+<FONT SIZE=-1>A</FONT> bit of magic occurs if MiniVend has built a static plain 
+<FONT SIZE=-1>HTML</FONT> page for the target page. Instead of generating a normal MiniVend-parsed page reference, a static page reference will be inserted if the user has accepted and sent back a cookie with the session 
+<FONT SIZE=-1>ID.</FONT>
+
+
+<P>
+The optional <CODE>form</CODE> argument allows you to encode a form in the link.
+
+<P>
+<PRE>        [page form=&quot;
+                mv_order_item=99-102
+                mv_order_size=L
+                mv_order_quantity=1
+                mv_separate_items=1
+                mv_todo=refresh&quot;] Order t-shirt in Large size &lt;/A&gt;
+</PRE>
+<P>
+The two form values <EM>mv_session_id</EM> and <EM>mv_arg</EM> are automatically added when appropriate. (<EM>mv_arg</EM> is the <CODE>arg</CODE> parameter for the tag.)
+
+<P>
+If the parameter <CODE>href</CODE> is not supplied, <EM>process</EM> is used, causing normal MiniVend form processing. If the <CODE>href</CODE> points to an http:// link no MiniVend 
+<FONT SIZE=-1>URL</FONT> processing will be done, but the mv_session_id
+
+<P>
+This would generate a form that ordered item number 99-102 on a separate
+line (<CODE>mv_separate_items</CODE> being set), with size <CODE>L</CODE>, in quantity 2. Since the page is not set, you will go to the default
+shopping cart page -- equally you could set <CODE>mv_orderpage=yourpage</CODE>
+to go to <CODE>yourpage</CODE>.
+
+<P>
+All normal MiniVend form caveats apply -- you must have an action, you must
+supply a page if you don't want to go to the default, etc.
+
+<P>
+You can theoretically submit any form with this, though none of the
+included values can have newlines or trailing whitespace. If you want to do
+something like that you will have to write a UserTag.
+
+<P>
+You can also use it for submitting foreign forms if you like; it will not
+touch the href if it begins with http:, ftp:, or the like.
+
+</DD><P><DT><STRONG>[/page], [/order]</STRONG><DD>
+Expands into &lt;/a&gt;. Used with the page element, such as:
+
+<P>
+<PRE>  [page shirts]Our shirt collection[/page].
+</PRE>
+<P>
+
+<FONT SIZE=-1>TIP:</FONT> 
+<FONT SIZE=-1>A</FONT> small efficiency boost in large pages is to just use the 
+<FONT SIZE=-1>&lt;/A&gt;</FONT> tag.
+
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="06.00.SETTING_UP_YOUR_CATALOG.html">Up</A>&nbsp;&nbsp;<A HREF="06.12.Basic_MiniVend_Tags.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="06.14.How_to_order_an_item.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

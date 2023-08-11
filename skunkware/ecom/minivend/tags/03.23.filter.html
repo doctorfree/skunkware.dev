@@ -1,0 +1,334 @@
+<HTML>
+<HEAD>
+<TITLE>filter</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="03.00.TAGS.html">Up</A>&nbsp;&nbsp;<A HREF="03.22.file.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="03.24.flag.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="filter">filter</A></H2>
+<DL>
+<DT><STRONG>CALL INFORMATION</STRONG><DD>
+Parameters: <STRONG>op</STRONG>
+
+
+
+<P>
+Positional parameters in same order.
+
+<P>
+Pass attribute hash as last to subroutine: <STRONG>no</STRONG>
+
+
+
+<P>
+Must pass named parameter interpolate=1 to cause interpolation.
+
+<P>
+This is a container tag, i.e. [filter] 
+<FONT SIZE=-1>FOO</FONT> [/filter]. Nesting: 
+<FONT SIZE=-1>NO</FONT>
+
+
+<P>
+Invalidates cache: <STRONG>no</STRONG>
+
+
+
+<P>
+Called Routine: 
+
+<P>
+ASP/perl tag calls:
+
+<P>
+<PRE>    $Tag-&gt;filter(
+        {
+         op =&gt; VALUE,
+        },
+        BODY
+    )
+  
+ OR
+ 
+    $Tag-&gt;filter($op, $BODY);
+</PRE>
+<P>
+<PRE> 
+</PRE>
+</DD><P><DT><STRONG>DESCRIPTION</STRONG><DD>
+Applies any of MiniVend's standard filters to an arbitray value, or you may
+define your own. The filters are also available as parameters to the <A HREF="#item_cgi">cgi</A>, <A HREF="#item_data">data</A>, and <A HREF="#item_value">value</A> tags.
+
+<P>
+Filters can be applied in sequence and as many as needed can be applied.
+
+<P>
+Here is an example. If you store your author or artist names in the database 
+<FONT SIZE=-1>``LAST,</FONT> First'' so that they sort properly, you still might want to display them normally as ``First Last''. This call
+
+
+<P>
+<PRE>    [filter op=&quot;name namecase&quot;]WOOD, Grant[/filter]
+</PRE>
+<P>
+will display as
+
+<P>
+<PRE>    Grant Wood
+</PRE>
+<P>
+Another way to do this would be:
+
+<P>
+<PRE>    [data table=products column=artist key=99-102 filter=&quot;name namecase&quot;]
+</PRE>
+<P>
+Filters available include:
+
+<DL>
+</DD><P><DT><STRONG><A NAME="item_cgi">cgi</A></STRONG><DD>
+Returns the value of the 
+<FONT SIZE=-1>CGI</FONT> variable. Useful for starting a filter sequence
+with a seed value.
+
+<P>
+<PRE>    'cgi' =&gt;    sub {
+                    return $CGI::values(shift);
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_digits">digits</A></STRONG><DD>
+Returns only digits.
+
+<P>
+<PRE>    'digits' =&gt; sub {
+                    my $val = shift;
+                    $val =~ s/\D+//g;
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_digits_dot">digits_dot</A></STRONG><DD>
+Returns only digits and periods, i.e. [.0-9]. Useful for decommifying
+numbers.
+
+<P>
+<PRE>    'digits_dot' =&gt; sub {
+                    my $val = shift;
+                    $val =~ s/[^\d.]+//g;
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_dos">dos</A></STRONG><DD>
+Turns linefeeds into carriage-return / linefeed pairs.
+
+<P>
+<PRE>    'dos' =&gt;    sub {
+                    my $val = shift;
+                    $val =~ s/\r?\n/\r\n/g;
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_entities">entities</A></STRONG><DD>
+Changes <CODE>&lt;</CODE> to <CODE>&amp;lt;</CODE>, <CODE>&quot;</CODE> to <CODE>&amp;quot;</CODE>, etc.
+
+<P>
+<PRE>    'entities' =&gt; sub {
+                    return HTML::Entities::encode(shift);
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_gate">gate</A></STRONG><DD>
+Performs a security screening by testing to make sure a corresponding
+scratch variable has been set.
+
+<P>
+<PRE>    'gate' =&gt;   sub {
+                    my ($val, $var) = @_;
+                    return '' unless $::Scratch-&gt;{$var};
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_lc">lc</A></STRONG><DD>
+Lowercases the text.
+
+<P>
+<PRE>    'lc' =&gt;     sub {
+                    return lc(shift);
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_lookup">lookup</A></STRONG><DD>
+Looks up an item in a database based on the passed table and column. Call
+would be:
+
+<P>
+<PRE>    [filter op=&quot;uc lookup.country.name&quot;]us[/filter]
+</PRE>
+<P>
+This would be the equivalent of [data table=country column=name key=US].
+
+<P>
+<PRE>    'lookup' =&gt; sub {
+                        my ($val, $tag, $table, $column) = @_;
+                        return tag_data($table, $column, $val) || $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_mac">mac</A></STRONG><DD>
+Changes newlines to carriage returns.
+
+<P>
+<PRE>    'mac' =&gt;    sub {
+                    my $val = shift;
+                    $val =~ s/\r?\n|\r\n?/\r/g;
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG>name</STRONG><DD>
+Transposes a 
+<FONT SIZE=-1>LAST,</FONT> First name pair.
+
+<P>
+<PRE>    'name' =&gt; sub {
+                    my $val = shift;
+                    return $val unless $val =~ /,/;
+                    my($last, $first) = split /\s*,\s*/, $val, 2;
+                    return &quot;$first $last&quot;;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_namecase">namecase</A></STRONG><DD>
+Namecases the text. Only works on values that are uppercase in the first
+letter, i.e. [filter op=namecase]LEONARDO da Vinci[/filter] will return
+``Leonardo da Vinci''.
+
+<P>
+<PRE>    'namecase' =&gt; sub {
+                    my $val = shift;
+                    $val =~ s/([A-Z]\w+)/\L\u$1/g;
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_no_white">no_white</A></STRONG><DD>
+Strips all whitespace.
+
+<P>
+<PRE>    'no_white' =&gt;   sub {
+                    my $val = shift;
+                    $val =~ s/\s+//g;
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_pagefile">pagefile</A></STRONG><DD>
+Strips leading slashes and dots.
+
+<P>
+<PRE>    'pagefile' =&gt; sub {
+                    $_[0] =~ s:^[./]+::;
+                    return $_[0];
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_sql">sql</A></STRONG><DD>
+Change single-quote characters into doubled versions, i.e. ' becomes ''.
+
+<P>
+<PRE>    'sql'       =&gt; sub {
+                    my $val = shift;
+                    $val =~ s:':'':g; # '
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_strip">strip</A></STRONG><DD>
+Strips leading and trailing whitespace.
+
+<P>
+<PRE>    'strip' =&gt;  sub {
+                    my $val = shift;
+                    $val =~ s/^\s+//;
+                    $val =~ s/\s+$//;
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_text2html">text2html</A></STRONG><DD>
+Rudimentary HTMLizing of text.
+
+<P>
+<PRE>    'text2html' =&gt; sub {
+                    my $val = shift;
+                    $val =~ s|\r?\n\r?\n|&lt;P&gt;|;
+                    $val =~ s|\r?\n|&lt;BR&gt;|;
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_uc">uc</A></STRONG><DD>
+Uppercases the text.
+
+<P>
+<PRE>    'uc' =&gt;     sub {
+                    return uc(shift);
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_unix">unix</A></STRONG><DD>
+Removes those crufty carriage returns.
+
+<P>
+<PRE>    'unix' =&gt;   sub {
+                    my $val = shift;
+                    $val =~ s/\r?\n/\n/g;
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_urlencode">urlencode</A></STRONG><DD>
+Changes non-word characters (except colon) to <CODE>%3c</CODE> notation.
+
+<P>
+<PRE>    'urlencode' =&gt; sub {
+                    my $val = shift;
+                    $val =~ s|[^\w:]|sprintf &quot;%%%02x&quot;, ord $1|eg;
+                    return $val;
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_value">value</A></STRONG><DD>
+Returns the value of the user session variable. Useful for starting a
+filter sequence with a seed value.
+
+<P>
+<PRE>    'value' =&gt;  sub {
+                    return $::Values-&gt;(shift);
+                },
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_word">word</A></STRONG><DD>
+Only returns word characters. Locale does apply if collation is properly
+set.
+
+<P>
+<PRE>    'word' =&gt;   sub {
+                    my $val = shift;
+                    $val =~ s/\W+//g;
+                    return $val;
+                },
+</PRE>
+<P>
+You can define your own filters in an GlobalSub (or Sub or ActionMap):
+
+<P>
+<PRE>    package Vend::Interpolate;
+</PRE>
+<P>
+<PRE>    $Filter{reverse} = sub { $val = shift; return scalar reverse $val  };
+</PRE>
+<P>
+That filter will reverse the characters sent.
+
+<P>
+The arguments sent to the subroutine are the value to be filtered, any
+associated variable or tag name, and any arguments appended to the filter
+name with periods as the separator.
+
+<P>
+
+<FONT SIZE=-1>A</FONT> <CODE>[filter op=lookup.products.price]99-102[/filter]</CODE> will send ('99-102', undef, 'products', 'price') as the parameters.
+Assuming the value of the user variable <CODE>foo</CODE> is <CODE>bar</CODE>, the call
+<CODE>[value name=foo filter=&quot;lookup.products.price.extra&quot;]</CODE> will send ('bar', 'foo', 'products', 'price', 'extra').
+
+</DD><P></DL>
+</DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="03.00.TAGS.html">Up</A>&nbsp;&nbsp;<A HREF="03.22.file.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="03.24.flag.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

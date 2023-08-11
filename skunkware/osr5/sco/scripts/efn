@@ -1,0 +1,126 @@
+#!/bin/ksh
+# @(#) efn.ksh 96/01/19
+# 93/04/13 john h. dubois iii (john@armory.com)
+# 96/01/19 Changed default tmpdir home dir for safety
+
+: ${TMP:=$TMPDIR}
+: ${TMP:=$HOME}
+: ${TMP:=/tmp}
+: ${VISUAL:=$EDITOR}
+: ${VISUAL:=vi}
+
+tmpfile=$TMP/#efn$$
+name=${0##*/}
+Usage="Usage: $name [-h] [-f <file>] filename ..."
+InFile=
+
+while getopts :hf: opt; do
+    case $opt in
+    h)
+	echo \
+"$name: edit file names.
+$Usage
+Each file name given is put into a file preceded by a numeric tag to
+identify it.  The file is then passed to the user's editor (the value of
+\$VISUAL or \$EDITOR if set; vi if not).  The file names may be changed
+while in the editor.  The tags should not be changed.  When the editor is
+exited, the file is scanned for changed names.  For each name that has
+been changed, the name of the file it refers to is changed to the new name.  
+Options:
+-f: Take file names to be edited from <file> instead of the command line.
+-h: print this help."
+       exit 0
+       ;;
+    f)
+	if [ ! -r "$OPTARG" ]; then
+	    echo "$OPTARG: Cannot read."
+	    exit 1
+	fi
+	InFile=$OPTARG
+	;;
+    +?)
+	echo "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	echo "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ -n "$InFile" ]; then
+    if [ $# -gt 0 ]; then
+	echo \
+"File names should not be given on the command line if -f <filename> is used."
+	exit 1
+    fi
+    set -- $(<$InFile)
+fi
+
+if [ $# -lt 1 ]; then
+    echo "$Usage\nUse -h for help."
+    exit
+fi
+
+echo "Change each filename to the name the file should be moved to." > $tmpfile
+typeset -i sequence=0 numfiles
+
+set -A Files -- "$@"
+
+trap "rm $tmpfile; exit 0" HUP INT QUIT TERM
+
+for file; do
+    if [[ -a "$file" ]]; then
+	let sequence+=1
+	Files[sequence]=$file
+	print "$sequence)\t$file"
+    else
+	print -u2 "$file: No such file."
+    fi
+done >> $tmpfile
+
+numfiles=sequence
+
+if [ numfiles -eq 0 ]; then
+    rm $tmpfile
+    exit 0
+fi
+
+[[ "$VISUAL" = *vi ]] && VISUAL="$VISUAL +2"
+
+[ -s $tmpfile ] && $VISUAL $tmpfile
+
+IFS="	"
+
+while read tag newname; do
+    case "$tag" in
+    Change*)
+	continue ;;
+    +([0-9])\))
+	sequence=${tag%\)}
+	;;
+    *)
+	print -u2 "Editing error: unrecognized tag: $tag"
+	continue;;
+    esac
+    oldname=${Files[sequence]}
+    if [ "$oldname" = "$newname" ]; then
+	print -- "Not moved: $oldname"
+    else
+	[[ "$oldname" = -* ]] && oldname="./$oldname"
+	print "Moving $oldname to $newname"
+	mv "$oldname" "$newname"
+    fi
+done < $tmpfile
+rm $tmpfile
+exit 0

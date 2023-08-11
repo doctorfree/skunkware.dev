@@ -1,0 +1,25 @@
+# @(#) history.ksh
+# 1990 john h. dubois iii
+# 96/01/17 added 'history 0'
+
+# history lists the last $LINES-5, or last 20 commands
+# history 0 lists all history
+# history n [ m ] lists command n or commands n through m
+# history -n [ -m ] lists the n or n through m most recent commands
+# history n -m and history -n m are illegal
+# n and m can be history numbers or command prefixes;
+# -n and -m must be numbers
+# history must be unaliased to use this
+function history {
+    if [ $# -eq 1 -a "$1" = 0 ]; then
+	fc -lr $((-HISTSIZE+1)) -1
+    else
+	case "$1" in
+	"") fc -l -1 -$((${LINES:-25}-5)); return;;
+	-[0-9]*) fc -lr $2 $1 -1;;
+	[0-9]*) h=`fc -l -1`; h=${h%%	*}; 
+		fc -lr -$(( $h-$1+1 )) -$(( $h-${2:-$1}+1 ));;
+	*) fc -lr $1 ${2:-$1}
+	esac
+    fi
+}

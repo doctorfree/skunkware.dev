@@ -1,0 +1,285 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+   <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-1">
+   <META NAME="GENERATOR" CONTENT="Mozilla/4.08 [en] (X11; I; UnixWare 5 i386) [Netscape]">
+   <TITLE>RELEASE NOTES - Squid 2.2.STABLE5 for SCO Operating Systems
+</TITLE>
+</HEAD>
+<BODY>
+
+<CENTER>
+<H1>
+RELEASE NOTES</H1></CENTER>
+
+<CENTER>Squid 2.2.STABLE5 for SCO Operating Systems</CENTER>
+
+<P>
+<HR>
+<H1>
+Contents</H1>
+<A HREF="#LIC">License</A>
+<BR><A HREF="#SUPP">Supported Platforms</A>
+<BR><A HREF="#DOC">Documentation</A>
+<BR><A HREF="#INST">Installation</A>
+<BR><A HREF="#CONF">Configuration</A>
+<BR><A HREF="#SRC">Obtaining Source</A>
+<H1>
+<A NAME="LIC"></A>License</H1>
+Squid 2.2.STABLE5 is licensed under the GNU General Public License(<A HREF="http://www.gnu.org/copyleft/gpl.html">version
+2</A>).
+<H1>
+<A NAME="SUPP"></A>Supported Platforms</H1>
+The SCO squid product is expected to run on the following versions of SCO's
+operating system platforms:
+<UL>
+<LI>
+UnixWare 7.1.x</LI>
+
+<LI>
+OpenServer 5.0.5</LI>
+</UL>
+
+<H1>
+<A NAME="DOC"></A>Documentation</H1>
+Squid 2.2.STABLE5 for SCO includes the User's Guide in /usr/internet/squid/docs/.
+Additional documentation, including the <A HREF="http://www.squid-cache.org/Doc/FAQ/FAQ.html">FAQ</A>,
+may be found at <A HREF="http://www.squid-cache.org/">http://www.squid-cache.org/</A>.
+One final source of information is squid's configuration file, /usr/internet/squid/etc/squid.conf,
+which is heavily commented.
+<H1>
+<A NAME="INST"></A>Installation</H1>
+
+<H3>
+UnixWare 7</H3>
+The package name 'squid' conflicts directly with Squid on Skunkware. If
+the Skunkware Squid is installed, it must be removed before installing
+this one. Before removing the Skunkware Squid package, it may be desirable
+to take a backup of the existing squid.conf file.
+<P>To install the squid package:
+<BLOCKQUOTE># pkgadd -d `pwd`/squid.pkg</BLOCKQUOTE>
+To start squid, use the <TT>/usr/sbin/squid</TT> script:
+<BLOCKQUOTE># squid start</BLOCKQUOTE>
+To stop squid:
+<BLOCKQUOTE># squid stop</BLOCKQUOTE>
+Options accepted by <TT>/usr/sbin/squid</TT> include start, stop, enable,
+disable, query, restart, and rotate. See squid(1M) for details.
+<P>This squid package installs into <TT>/usr/internet/squid</TT>, rather
+than squid's usual directory <TT>/usr/local/squid</TT>. It uses the industry
+standard port of 8080, rather than the historical squid standard of 3128.
+<H3>
+OpenServer 5</H3>
+To install the squid package from custom volumes, place the volume images
+in any directory and from that directory type:
+<BLOCKQUOTE># custom -i -p SCO:Squid -z `pwd`</BLOCKQUOTE>
+The squid start/stop script behaves the same on OpenServer as it does
+on Unixware.
+<H1>
+<A NAME="CONF"></A>Configuration</H1>
+Configuration changes should be made in <TT>/usr/internet/squid/etc/squid.conf</TT>.
+If the server is running, it will need to be restarted for changes to take
+effect.
+<UL>
+<LI>
+By default, squid uses 100M of disk space for storing cached documents.
+On a dedicated proxy server, this value is likely to be too small. The
+appropriate value to change is "cache_dir". See the configuration file
+for details. After changing this value, it is necessary to recreate the
+cache directories using the -z switch before starting squid:</LI>
+
+<BLOCKQUOTE>
+<PRE>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # /usr/internet/squid/bin/squid -z
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; # squid start</PRE>
+</BLOCKQUOTE>
+
+<LI>
+By default, squid uses 8M of RAM for storing "hot" (very popular) replies.
+On a dedicated proxy server, this value is likely to be too small. The
+appropriate value to change is "cache_mem".</LI>
+
+<LI>
+By default, acls (access control lists) prevent users from connecting to
+the proxy server, with the exception of localhost. In order to allow access
+to others, it will be necessary to add an acl for the appropriate users.&nbsp;&nbsp;
+Information on creating acls as well as examples of acls may be found in
+the acl section of the user's guide, found in /usr/internet/squid/docs/.</LI>
+
+<LI>
+By default, squid error messages are in the same language as the installed
+machine's locale.&nbsp; Error messages are provided for different languages,
+however.&nbsp; In order to change the language of the squid error messages,
+simply change the symbolic link '/usr/internet/squid/etc/errors' to point
+to the appropriate directory in '/usr/internet/squid/etc/locale'.</LI>
+</UL>
+
+<H1>
+<A NAME="SRC"></A>Obtaining Source</H1>
+Squid 2.2.STABLE5 for SCO is built using the standard source available
+for <A HREF="http://www.squid-cache.org/Versions/v2/2.2/squid-2.2.STABLE5-src.tar.gz">download</A>
+from http://www.squid-cache.org.
+<H3>
+UnixWare 7</H3>
+Before building, it is necessary to apply the following patch to <TT>src/ftp.c</TT>:
+<BLOCKQUOTE><PRE>
+*** ftp.c.default       Tue Sep 28 14:11:21 1999
+--- ftp.c       Tue Sep 28 14:13:33 1999
+***************
+*** 867,872 ****
+--- 867,876 ----
+      memset(ftpState->data.buf + ftpState->data.offset, '\0', read_sz);
+      Counter.syscalls.sock.reads++;
+      len = read(fd, ftpState->data.buf + ftpState->data.offset, read_sz);
++     if (len == 0) {
++       Counter.syscalls.sock.reads++;
++       len = read(fd, ftpState->data.buf + ftpState->data.offset, read_sz);
++     }
+      if (len > 0) {
+        fd_bytes(fd, len, FD_READ);
+  #if DELAY_POOLS
+</PRE></BLOCKQUOTE>
+This patch works around a bug in the UnixWare 7.0.1 sockets library.
+<P>After applying the patch, Squid for SCO is built with the following
+options:
+<UL>
+<LI>
+--prefix=/usr/internet/squid</LI>
+
+<LI>
+--enable-icmp</LI>
+
+<LI>
+--enable-snmp</LI>
+
+<LI>
+--enable-time-hack</LI>
+
+<LI>
+--enable-poll</LI>
+
+<LI>
+--enable-useragent-log</LI>
+
+<LI>
+--enable-htcp</LI>
+
+<LI>
+--enable-carp</LI>
+
+<LI>
+--enable-gnuregex</LI>
+
+<LI>
+--enable-delay-pools</LI>
+
+<LI>
+--enable-cache-digests</LI>
+</UL>
+
+<H3>
+OpenServer 5</H3>
+Before building, it is necessary to apply the following patch to src/pinger.c:
+<BLOCKQUOTE><PRE>
+*** pinger.c.original Tue Oct 19 13:23:47 1999
+--- pinger.c Tue Oct 19 13:26:35 1999
+***************
+*** 111,116 ****
+      "Out of Range Type"
+  };
+  
+  static int in_cksum(unsigned short *ptr, int size);
+  static void pingerRecv(void);
+  static void pingerLog(struct icmphdr *, struct in_addr, int, int);
+--- 111,117 ----
+      "Out of Range Type"
+  };
+  
++ #ifndef _SCO_DS
+  static int in_cksum(unsigned short *ptr, int size);
+  #endif
+  static void pingerRecv(void);
+***************
+*** 112,117 ****
+  };
+  
+  static int in_cksum(unsigned short *ptr, int size);
+  static void pingerRecv(void);
+  static void pingerLog(struct icmphdr *, struct in_addr, int, int);
+  static int ipHops(int ttl);
+--- 113,119 ----
+  
+  #ifndef _SCO_DS
+  static int in_cksum(unsigned short *ptr, int size);
++ #endif
+  static void pingerRecv(void);
+  static void pingerLog(struct icmphdr *, struct in_addr, int, int);
+  static int ipHops(int ttl);
+***************
+*** 242,248 ****
+      pingerLog(icmp, from.sin_addr, preply.rtt, preply.hops);
+  }
+  
+! 
+  static int
+  in_cksum(unsigned short *ptr, int size)
+  {
+--- 244,250 ----
+      pingerLog(icmp, from.sin_addr, preply.rtt, preply.hops);
+  }
+  
+! #ifndef _SCO_DS
+  static int
+  in_cksum(unsigned short *ptr, int size)
+  {
+***************
+*** 264,269 ****
+      answer = ~sum;
+      return (answer);
+  }
+  
+  static void
+  pingerLog(struct icmphdr *icmp, struct in_addr addr, int rtt, int hops)
+--- 266,272 ----
+      answer = ~sum;
+      return (answer);
+  }
++ #endif
+  
+  static void
+  pingerLog(struct icmphdr *icmp, struct in_addr addr, int rtt, int hops)
+
+</PRE></BLOCKQUOTE>
+SCO is built using the following options:
+<BLOCKQUOTE>
+<LI>
+--prefix=/usr/internet/squid</LI>
+
+<LI>
+--enable-icmp</LI>
+
+<LI>
+--enable-snmp</LI>
+
+<LI>
+--enable-time-hack</LI>
+
+<LI>
+--enable-useragent-log</LI>
+
+<LI>
+--enable-htcp</LI>
+
+<LI>
+--enable-carp</LI>
+
+<LI>
+--enable-gnuregex</LI>
+
+<LI>
+--enable-delay-pools</LI>
+
+<LI>
+--enable-cache-digests</LI>
+</BLOCKQUOTE>
+
+</BODY>
+</HTML>

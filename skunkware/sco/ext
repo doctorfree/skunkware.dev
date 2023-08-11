@@ -1,0 +1,77 @@
+#! /bin/sh
+#
+# ext - Print extensions data.
+#
+PATH=/bin:/usr/bin:/local/bin:/usr/sco/bin
+IFS=" 	
+"
+export PATH IFS
+
+#
+# Setup variables.
+#
+prog=`basename $0`
+
+#
+# Define exit codes.
+#
+: ${OK=0} ${FAIL=1} ${STOP=10} ${HALT=11}
+
+#
+# Procedures.
+#
+usage () {
+	echo "Usage:	$prog [ search_key ] ..."
+	cleanup $FAIL
+}
+
+error () {
+	#
+	# Issue an error message.
+	#
+	echo "ERROR:	$1."
+}
+
+cleanup () {
+	exit $1
+}
+
+#
+######## main ########
+#
+LIST="/usr/sco/lib/extensions"
+
+#
+# Parse arguments.
+#
+while getopts h arg
+do
+	case $arg in
+		h)
+			usage
+			;;
+	esac
+done
+
+#
+# Make sure the LIST is readable.
+#
+if [ ! -r $LIST ]
+then
+	error "Cannot read $LIST"
+	cleanup $FAIL
+fi
+
+case $# in
+	0)
+		cat $LIST
+		;;
+	*)
+		for arg in "$@"
+		do
+			grep -y "${arg}" $LIST
+		done
+		;;
+esac
+
+cleanup $OK

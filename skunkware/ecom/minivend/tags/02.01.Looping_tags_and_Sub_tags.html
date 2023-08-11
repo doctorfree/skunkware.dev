@@ -1,0 +1,377 @@
+<HTML>
+<HEAD>
+<TITLE>Looping tags and Sub-tags</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="02.00.DESCRIPTION.html">Up</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Looping_tags_and_Sub_tags">Looping tags and Sub-tags</A></H2>
+<P>
+Certain tags are not standalone; these are the ones that are interpreted as
+part of a surrounding looping tag like <CODE>[loop]</CODE>, <CODE>[item-list]</CODE>, <CODE>[query]</CODE>, or <CODE>[region]</CODE>.
+
+<P>
+<PRE>    [PREFIX-accessories]
+    [PREFIX-alternate]
+    [PREFIX-calc]
+    [PREFIX-change]
+    [PREFIX-change]
+    [PREFIX-code]
+    [PREFIX-data]
+    [PREFIX-description]
+    [PREFIX-discount]
+    [PREFIX-field]
+    [PREFIX-increment]
+    [PREFIX-last]
+    [PREFIX-match]
+    [PREFIX-modifier]
+    [PREFIX-next]
+    [PREFIX-param]
+    [PREFIX-price]
+    [PREFIX-quantity]
+    [PREFIX-subtotal]
+    [if-PREFIX-data]
+    [if-PREFIX-field]
+    [modifier-name]
+    [quantity-name]
+</PRE>
+<P>
+
+<FONT SIZE=-1>PREFIX</FONT> represents the prefix that is used in that
+looping tag. They are only interpreted within their container and only
+accept positional parameters. The default prefixes:
+
+<P>
+<PRE>    Tag           Prefix     Examples
+    -----        --------   ----------
+    [loop]        loop       [loop-code], [loop-field price], [loop-increment]
+    [item-list]   item       [item-code], [item-field price], [item-increment]
+    [search-list] item       [item-code], [item-field price], [item-increment]
+    [query]       sql        [sql-code], [sql-field price], [sql-increment]
+</PRE>
+<P>
+Sub-tag behavior is consistent among the looping tags. 
+
+<P>
+There are two types of looping lists; 
+<FONT SIZE=-1>ARRAY</FONT> and 
+<FONT SIZE=-1>HASH.</FONT>
+
+
+<P>
+An array list is the normal output of a <CODE>[query]</CODE>, a search, or a <CODE>[loop]</CODE>
+tag. It returns from 1 to 
+<FONT SIZE=-1>N</FONT> <CODE>return fields</CODE>, defined in the <CODE>mv_return_fields</CODE>
+or <CODE>rf</CODE> variable or implicitly by means of a 
+<FONT SIZE=-1>SQL</FONT> field list. The two queries below are essentially
+identical:
+
+<P>
+<PRE>    [query sql=&quot;select foo, bar from products&quot;]
+    [/query]
+</PRE>
+<P>
+<PRE>    [loop search=&quot;
+                    ra=yes
+                    fi=products
+                    rf=foo,bar
+    &quot;]
+</PRE>
+<P>
+Both will return an array of arrays consisting of the <CODE>foo</CODE> column and the <CODE>bar</CODE> column. The Perl data structure would look like:
+
+<P>
+<PRE>    [
+        ['foo0', 'bar0'],
+        ['foo1', 'bar1'],
+        ['foo2', 'bar2'],
+        ['fooN', 'barN'],
+    ]
+</PRE>
+<P>
+
+<FONT SIZE=-1>A</FONT> hash list is the normal output of the [item-list] tag. It returns the value of all return fields in an array of hashes. 
+<FONT SIZE=-1>A</FONT> normal [item-list] return might look like:
+
+
+<P>
+<PRE>    [
+        {
+            code     =&gt; '99-102',
+            quantity =&gt; 1,
+            size     =&gt; 'XL',
+            color    =&gt; 'blue',
+            mv_ib    =&gt; 'products',
+        },
+        {
+            code     =&gt; '00-341',
+            quantity =&gt; 2,
+            size     =&gt; undef,
+            color    =&gt; undef,
+            mv_ib    =&gt; 'products',
+        },
+            
+    ]
+</PRE>
+<P>
+You can also return hash lists in queries:
+
+<P>
+<PRE>    [query sql=&quot;select foo, bar from products&quot; type=hashref]
+    [/query]
+</PRE>
+<P>
+Now the data structure will look like:
+
+<P>
+<PRE>    [
+        { foo =&gt; 'foo0', bar =&gt; 'bar0' },
+        { foo =&gt; 'foo1', bar =&gt; 'bar1' },
+        { foo =&gt; 'foo2', bar =&gt; 'bar2' },
+        { foo =&gt; 'fooN', bar =&gt; 'barN' },
+    ]
+</PRE>
+<DL>
+<DT><STRONG><A NAME="item__PREFIX_accessories">[PREFIX-accessories arglist]</A></STRONG><DD>
+The same as the [accessories ...] tag except always supplied the current
+item code. If the list is a hash list, i.e. an [item-list], then the value
+of the current item hash is passed so that a value default can be
+established.
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_alternate">[PREFIX-alternate N] DIVISIBLE [else] NOT DIVISIBLE [/else][/PREFIX-alternate]</A></STRONG><DD>
+Set up an alternation sequence. If the item-increment is divisible by 
+<FONT SIZE=-1>`N',</FONT> the text will be displayed. If an `[else]NOT 
+<FONT SIZE=-1>DIVISIBLE</FONT> TEXT[/else]' is present, then the 
+<FONT SIZE=-1>NOT</FONT> 
+<FONT SIZE=-1>DIVISIBLE</FONT> 
+<FONT SIZE=-1>TEXT</FONT> will be displayed. For example:
+
+
+<P>
+<PRE>    [item-alternate 2]EVEN[else]ODD[/else][/item-alternate]
+    [item-alternate 3]BY 3[else]NOT by 3[/else][/item-alternate]
+</PRE>
+</DD><P><DT><STRONG><A NAME="item__PREFIX_calc_">[PREFIX-calc] 2 + [item-field price] [/PREFIX-calc]</A></STRONG><DD>
+Calls perl via the equivalent of the [calc] [/calc] tag pair. Much faster
+to execute.
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_change_conditoon_">[PREFIX-change][conditoon] ... [/condition] TEXT [/PREFIX-change]</A></STRONG><DD>
+Sets up a breaking sequence that occurs when the contents of [condition]
+[/condition] change. The most common one is a category break to nest or
+place headers.
+
+<P>
+The region is only output when a field or other repeating value between
+[condition] and [/condition] changes its value. This allows indented lists
+similar to database reports to be easily formatted. The repeating value
+must be a tag interpolated in the search process, such as
+<CODE>[PREFIX-field field]</CODE> or <CODE>[PREFIX-data database field]</CODE>. If you need access to 
+<FONT SIZE=-1>MML</FONT> tags, you can use [PREFIX-calc] with a
+$Tag-&gt;foo() call.
+
+<P>
+Of course, this will only work as you expect when the search results are
+properly sorted.
+
+<P>
+The value to be tested is contained within a
+<CODE>[condition]value[/condition]</CODE> tag pair. The <CODE>[PREFIX-change]</CODE> tag also processes an <CODE>[else] [/else]</CODE> pair for output when the value does not change.
+
+<P>
+Here is a simple example for a search list that has a field <CODE>category</CODE> and
+<CODE>subcategory</CODE> associated with each item:
+
+<P>
+<PRE> &lt;TABLE&gt;
+ &lt;TR&gt;&lt;TH&gt;Category&lt;/TH&gt;&lt;TH&gt;Subcategory&lt;/TH&gt;&lt;TH&gt;Product&lt;/TH&gt;&lt;/TR&gt;
+ [search-list]
+ &lt;TR&gt;
+    &lt;TD&gt;
+         [item-change cat]
+ 
+         [condition][item-field category][/condition]
+ 
+                 [item-field category]
+         [else]
+                 &amp;nbsp;
+         [/else]
+         [/item-change]
+    &lt;/TD&gt;
+    &lt;TD&gt;
+         [item-change]
+ 
+         [condition][item-field subcategory][/condition]
+ 
+                 [item-field subcategory]
+         [else]
+                 &amp;nbsp;
+         [/else]
+         [/on-change]
+    &lt;/TD&gt;
+    &lt;TD&gt; [item-field name] &lt;/TD&gt;
+ [/search-list]
+ &lt;/TABLE&gt;
+</PRE>
+<P>
+The above should put out a table that only shows the category and
+subcategory once, while showing the name for every product. (The <CODE>&amp;nbsp;</CODE>
+will prevent blanked table cells if you use a border.)
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_code_">[PREFIX-code]</A></STRONG><DD>
+The key or code of the current loop. In an [item-list] this is always the
+product code; in a loop list it is the value of the current argument; in a
+search it is whatever you have defined as the first mv_return_field (rf).
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_data">[PREFIX-data table field]</A></STRONG><DD>
+Calls the column <CODE>field</CODE> in database table <A HREF="#item_table">table</A> for the current [PREFIX-code]. This may or may not be equivalent to <CODE>[PREFIX-field field]</CODE>
+depending on whether your search table is defined as one of the <CODE>ProductFiles</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_description_">[PREFIX-description]</A></STRONG><DD>
+The description of the current item, as defined in the <CODE>catalog.cfg</CODE> directive
+<CODE>DescriptionField</CODE>. In the demo, it would be the value of the field <CODE>description</CODE>
+in the table <CODE>products</CODE>.
+
+<P>
+If the list is a hash list, and the lookup of <CODE>DescriptionField</CODE> fails, then the attribute <CODE>description</CODE> will be substituted. This is useful to supply shopping cart descriptions
+for on-the-fly items.
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_discount_">[PREFIX-discount]</A></STRONG><DD>
+The price of the current item is calculated, and the difference between
+that price and the list price (quantity one) price is output. This may have
+different behavior than you expect if you set the [discount] [/discount]
+tag along with quantity pricing.
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_field_">[PREFIX-field]</A></STRONG><DD>
+Looks up a field value for the current item in one of several places, in
+this order:
+
+<P>
+<PRE>    1. The first ProductFiles entry.
+    2. Additional ProductFiles in the order they occur.
+    3. The attribute value for the item in a hash list.
+    4. Blank
+</PRE>
+<P>
+
+<FONT SIZE=-1>A</FONT> common user error is to do this:
+
+<P>
+<PRE>    [loop search=&quot;
+                    fi=foo
+                    se=bar
+                &quot;]
+</PRE>
+<P>
+<PRE>    [loop-field foo_field]
+    [/loop]
+</PRE>
+<P>
+In this case, you are searching the table <CODE>foo</CODE> for a string of <CODE>bar</CODE>. When it is found, you wish to display the value of <CODE>foo_field</CODE>. Unless <CODE>foo</CODE> is in <CODE>ProductFiles</CODE> and the code is not present in a previous product file, you will get a
+blank or some value you don't want. What you really want is <CODE>[loop-data foo foo_field]</CODE>, which specifically addresses the table <CODE>foo</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_increment_">[PREFIX-increment]</A></STRONG><DD>
+The current count on the list, starting from either 1 in a zero-anchored
+list like <CODE>[loop]</CODE> or <CODE>[item-list]</CODE>, or from the match count in a search list.
+
+<P>
+If you skip items with [PREFIX-last] or [PREFIX-next], the count is 
+<FONT SIZE=-1>NOT</FONT> adjusted.
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_last_">[PREFIX-last] CONDITION [/PREFIX-last]</A></STRONG><DD>
+If 
+<FONT SIZE=-1>CONDITION</FONT> evaluates true (a non-whitespace value that
+is not specifically zero) then this will be the last item displayed.
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_modifier">[PREFIX-modifier attribute]</A></STRONG><DD>
+If the item is a hash list (i.e. [item-list]), this will return the value
+of the <CODE>attribute</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_next_">[PREFIX-next] CONDITION [/PREFIX-next]</A></STRONG><DD>
+If 
+<FONT SIZE=-1>CONDITION</FONT> evaluates true (a non-whitespace value that
+is not specifically zero) then this item is skipped.
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_param">[PREFIX-param name]</A></STRONG><DD>
+<DT><STRONG>[PREFIX-param N]</STRONG><DD>
+Returns the array parameter associated with the looping tag row. Each
+looping list returns an array of <CODE>return fields</CODE>, set in searches with
+<CODE>mv_return_field</CODE> or <CODE>rf</CODE>. The default is only to return the code of the search result, but by
+setting those parameters you can return more than one item.
+
+<P>
+In a [query ...] 
+<FONT SIZE=-1>MML</FONT> tag you can select multiple return fields with
+something like:
+
+<P>
+<PRE>    [query prefix=prefix sql=&quot;select foo, bar from baz where foo=buz&quot;]
+        [prefix-code]  [prefix-param foo]  [prefix-param bar]
+    [/query]
+</PRE>
+<P>
+In this case, [prefix-code] and [prefix-param foo] are synonymns, for
+<CODE>foo</CODE> is the first returned parameter and becomes the code for this row. Another
+synonym is [prefix-param 0]; and [prefix-param 1] is the same as
+[prefix-param bar].
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_price_">[PREFIX-price]</A></STRONG><DD>
+The price of the current code, formatted for currency. If MiniVend's
+pricing routines cannot determine the price (i.e. it is not a valid product
+or on-the-fly item) then zero is returned. If the list is a hash list, the
+price will be modified by its <CODE>quantity</CODE> or other applicable attributes (like <CODE>size</CODE> in the demo).
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_quantity_">[PREFIX-quantity]</A></STRONG><DD>
+The value of the <CODE>quantity</CODE> attribute in a hash list. Most commonly used to display the quantity of an
+item in a shopping cart [item-list].
+
+</DD><P><DT><STRONG><A NAME="item__PREFIX_subtotal_">[PREFIX-subtotal]</A></STRONG><DD>
+The [PREFIX-quantity] times the [PREFIX-price]. This does take discounts
+into effect.
+
+</DD><P><DT><STRONG><A NAME="item__if_PREFIX_data">[if-PREFIX-data table field] IF text [else] ELSE text [/else] [/if-PREFIX-data]</A></STRONG><DD>
+Examines the data field, i.e. [PREFIX-data table field], and if it is
+non-blank and non-zero then the <CODE>IF text</CODE> will be returned. If it is false, i.e. blank or zero, the <CODE>ELSE text</CODE> will be returned to the page.
+
+<P>
+This is much more efficient than the otherwise equivalent
+<CODE>[if type=data term=table::field::[PREFIX-code]]</CODE>.
+
+<P>
+You cannot place a condition; i.e. [if-PREFIX-data table field eq
+'something']. Use <CODE>[if type=data ...]</CODE> for that.
+
+<P>
+Careful, a space is not a false value!
+
+</DD><P><DT><STRONG><A NAME="item__if_PREFIX_field">[if-PREFIX-field field] IF text [else] ELSE text [/else] [/if-PREFIX-field]</A></STRONG><DD>
+Same as [if-PREFIX-data ...] except uses the same data rules as <CODE>[PREFIX-field]</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item__modifier_name">[modifier-name attribute]</A></STRONG><DD>
+Outputs a variable name which will set an appropriate variable name for
+setting the attribute in a form (usually a shopping cart). Outputs for
+successive items in the list:
+
+<P>
+<PRE>    1. attribute0
+    2. attribute1
+    3. attribute2
+</PRE>
+<P>
+etc.
+
+</DD><P><DT><STRONG><A NAME="item__quantity_name_">[quantity-name]</A></STRONG><DD>
+Outputs for successive items in the list:
+
+<P>
+<PRE>    1. quantity0
+    2. quantity1
+    3. quantity2
+</PRE>
+<P>
+etc. <CODE>[modifier-name quantity]</CODE> would be the same as <CODE>[quantity-name]</CODE>.
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="02.00.DESCRIPTION.html">Up</A>&nbsp;&nbsp;</H3></BODY></HTML>

@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<HTML>
+<HEAD>
+ <META NAME="GENERATOR" CONTENT="SGML-Tools 1.0.6">
+ <TITLE>Linux Emulation for SCO: Development Issues</TITLE>
+ <LINK HREF="lxrun-4.html" REL=next>
+ <LINK HREF="lxrun-2.html" REL=previous>
+ <LINK HREF="lxrun.html#toc3" REL=contents>
+</HEAD>
+<BODY>
+<A HREF="lxrun-4.html">Next</A>
+<A HREF="lxrun-2.html">Previous</A>
+<A HREF="lxrun.html#toc3">Contents</A>
+<HR>
+<H2><A NAME="s3">3. Development Issues</A></H2>
+
+<P>
+<P>
+<H2><A NAME="sec-direct"></A> <A NAME="ss3.1">3.1 Direct execution of Linux ELF binaries</A>
+</H2>
+
+<P>Rather than running Linux binaries with the lxrun front-end, it is possible
+to turn lxrun into a program interpreter, ld-linux.so.* - the Linux runtime 
+linker. The path of the interpreter is actually embedded in every dynamic 
+linked ELF executable - for standard UnixWare / OpenServer ELF it is
+/usr/lib/libc.so.1, and for Linux it is /lib/ld-linux.so.1 (or, ld-linux.so.2
+for executables linked with GNU libc v2). 
+<P>The direct execution of Linux binaries in this manner is in the latest 
+development releases of lxrun. At the time of this writing, support for
+this model of execution is available on UnixWare platforms only. SCO OpenServer
+places some rather strict limitations on what a program interpreter can be.
+Overcoming these restrictions is a current development topic.
+<P>The following discourse, from Mike Davidson
+<A HREF="mailto:md@sco.com">(md@sco.com)</A> the author of lxrun, 
+details some of the issues involved in the direct execution model:
+<P>"It's actually quite simple to build a version of lxrun which
+can be used as the initial program interpreter for Linux binaries.
+There are, however, a couple of problems:
+<UL>
+<LI> runtime linkers are usually ELF shared objects
+which don't have a fixed load address, and which have
+to do some rather delicate data relocations when they
+first start up - I avoided this issue by making the
+ld-linux.so.* version of lxrun be an actual ELF executable
+(rather than a shared library) bound to a fixed address
+which does not conflict with the addresses used by normal
+Linux binaries - while this is a bit of a kludge it works
+perfectly well</LI>
+<LI> the interpreter program loaded by the kernel cannot itself
+require an interpreter - what this means is that if the
+program interpreter wants to do any dynamic loading of
+shared libraries it has to do it for itself - this isn't
+too much of a problem on OpenServer since you can just
+do a static link of everything that lxrun needs into a
+single binary - unfortunately this doesn't work on UnixWare 7
+since libsocket is <EM>only</EM> available as a shared library.</LI>
+</UL>
+
+I think that there is a way round this, but I haven't had time to
+try it out yet. Essentially it looks something like this:
+<UL>
+<LI>    ld-linux.so.* is created as a dynamic linked shared object
+with appropriate dependencies on other shared libraries
+(ie at least /usr/lib/libc.so.1 and /usr/lib/libsocket.so.1)</LI>
+<LI>    when ld-linux.so.* is loaded by the kernel and gets control,
+the <EM>first</EM> thing that it does is to fix up enough of it's
+own data relocations in order to be able to run</LI>
+<LI>    once that is done, it maps /usr/lib/libc.so.1 (ie the normal
+system runtime linker and standard library) into memory,
+fakes up a suitable aux vector and invokes the normal
+runtime linker, while pretending to be a normal executable
+program (this involves a lot of trickery - you have to fake up
+an appropriate set of program headers to give to the runtime
+linker, you have to fix up entries in .dynamic, .dynsym and
+.rel.* to reflect the actual address that ld-linux.so.* is
+actually loaded at, and you have to provide a fake entry
+point address so that the system runtime linker will give
+control back to ld-linux.so.* in the right place ....)</LI>
+<LI>    if all of that works, then ld-linux.so.* proceeds as normal,
+and now maps in the Linux runtime linker and passes control
+to it</LI>
+</UL>
+
+I realise that this all sounds hideously complicated, but all of the
+alternatives that I can think of are worse in some way.
+<P>At first I thought that we could avoid this by just porting a
+version of the Linux runtime linker to run native on UNIX, but
+this looks like it may be more trouble than it is worth - while
+the Linux runtime linker is quite well written it has to deal
+with some rather unpleasant limitations in the GNU tools - in
+particular it looks as if GNU ld doesn't support the equivalent
+of our -Bsymbolic option which makes writing the startup code
+for a runtime linker almost impossible (in fact the Linux runtime
+linker startup routine is just one massive function that uses
+nothing but local variables and which does all of it's system
+calls with chunks of inline assembler)."
+<P>
+<H2><A NAME="ss3.2">3.2 SIGSEGV vs. software interrupt kernel module</A>
+</H2>
+
+<P>Consideration was given to implementing a software interrupt kernel module
+rather than relying on the "int $0x80" segmentation violation. Rather than
+sacrifice the elegance and portability of a "non-kernel" Linux emulation
+strategy, Mike Davidson has suggested that:
+<BLOCKQUOTE>
+This probably isn't really necessary. Assuming that we are really
+only interested in Linux ELF (and <EM>not</EM> Linux a.out) we can use
+the dynamic linker to "preload" the Linux runtime compatibility
+library in such a way that almost all of the system calls will be
+intercepted and handled directly by the compatibility library 
+without ever going down to an actual "int $0x80" instruction.
+</BLOCKQUOTE>
+<P>
+<H2><A NAME="ss3.3">3.3 Performance enhancements</A>
+</H2>
+
+<P>Thus far, performance has not been an issue as very little negative
+impact has been detected.  The main cost of running a Linux application under
+lxrun is the overhead of catching the segmentation violation (int $0x80),
+fixing up the structures/errors/returns, and mapping the system call.
+Since much of what lxrun does is done in the normal course of executing a 
+system call natively, the SIGSEGV intercept is the main overhead.
+<P>In order to avoid catching SIGSEGV for every system call, current lxrun
+development plans on implementing a "pre-load" of the "Linux runtime 
+compatibility library" (see the previous subsection). With the direct 
+execution of Linux ELF binaries described above, it is possible to pre-load 
+this library on startup. That is, the binary has already
+been identified as a Linux ELF binary since it is attempting to load
+/lib/ld-linux.so.1. This "fake" program interpreter knows it will have to
+map system calls so, rather than waiting for the SIGSEGV to trigger the 
+mapping, the program interpreter can "pre-map". Thus, system calls made by
+the Linux ELF binary under the control of such a program interpreter would
+not cause general protection traps. In this scenario, nearly all of the 
+performance overhead of running Linux binaries with lxrun is eliminated.
+<P>
+<HR>
+<A HREF="lxrun-4.html">Next</A>
+<A HREF="lxrun-2.html">Previous</A>
+<A HREF="lxrun.html#toc3">Contents</A>
+</BODY>
+</HTML>

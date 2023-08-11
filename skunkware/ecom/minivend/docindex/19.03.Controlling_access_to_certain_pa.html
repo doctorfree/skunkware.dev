@@ -1,0 +1,101 @@
+<HTML>
+<HEAD>
+<TITLE>Controlling access to certain pages</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="19.00.MINIVEND_SECURITY.html">Up</A>&nbsp;&nbsp;<A HREF="19.02.Administrative_Pages.html">&lt;&lt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Controlling_access_to_certain_pa">Controlling access to certain pages</A></H2>
+<P>
+If the directory containing the page has a file <CODE>.access</CODE>
+and that file is zero bytes long, then access can be gated in one of
+several ways.
+
+<OL>
+<LI>
+<P>
+If the file <CODE>.access_gate</CODE> is present, it will be read and scanned for page-based access. The file has
+the form:
+
+<P>
+<PRE>   page: condition
+   *: condition
+</PRE>
+<P>
+The <A HREF="#item_page">page</A> is the file name of the file to be controlled (the .html extension is
+optional); the <CODE>condition</CODE> is either a literal <CODE>Yes/No</CODE>
+or MiniVend tags which would produce a <CODE>Yes</CODE> or <CODE>No</CODE> (1/0 work just fine, as do true/false).
+
+<P>
+The entry for <CODE>*</CODE> sets the default action if the page name is not found. If you want pages to
+be allowed by default, set it to <CODE>1</CODE>
+or <CODE>Yes</CODE>. If you want pages to be denied by default in this directory, leave blank
+or set to <CODE>No</CODE>. Here is an example, for the directory <CODE>controlled</CODE>, having the following files:
+
+<P>
+<PRE>  -rw-rw-r--   1 mike     mike            0 Jan  8 14:19 .access
+  -rw-rw-r--   1 mike     mike          185 Jan  8 16:00 .access_gate
+  -rw-rw-r--   1 mike     mike          121 Jan  8 14:59 any.html
+  -rw-rw-r--   1 mike     mike          104 Jan  8 14:19 bar.html
+  -rw-rw-r--   1 mike     mike          104 Jan  8 14:19 baz.html
+  -rw-rw-r--   1 mike     mike          104 Jan  8 14:19 foo.html
+</PRE>
+<P>
+The contents of <CODE>.access_gate</CODE>:
+
+<P>
+<PRE>    foo.html: [if session username eq 'flycat']
+                Yes
+              [/if]
+    bar:      [if session username eq 'flycat']
+              [or scratch allow_bar]
+                Yes
+              [/if]
+    baz:      yes
+    *:        [data session logged_in]
+</PRE>
+<P>
+The page <CODE>controlled/foo</CODE> is only allowed for the logged-in user
+<STRONG>flycat</STRONG>.
+
+<P>
+The page <CODE>controlled/bar</CODE> is allowed for the logged-in user
+<STRONG>flycat</STRONG>, or if the scratch variable <CODE>allow_bar</CODE> is set to a non-blank, non-zero value.
+
+<P>
+The page <CODE>controlled/baz</CODE> is always allowed for display.
+
+<P>
+The page <CODE>controlled/any</CODE> (or any other page in the directory not named in <CODE>.access_gate</CODE>) will be allowed for any user logged in via <EM>UserDB</EM>.
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> The <CODE>.access_gate</CODE> scheme is available for database access checking if the database is defined
+as an <EM>AdminDatabase</EM>. The <CODE>.access_gate</CODE>
+file is located in <EM>ProductDir</EM>.
+
+<LI>
+<P>
+If the <EM>Variable</EM>  <CODE>MV_USERDB_REMOTE_USER</CODE> is set (non-zero and non-blank) then any user logged in via the UserDB
+feature will receive access to all pages in the directory.
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> If there is a <CODE>.access_gate</CODE> file, it overrides this.
+
+<LI>
+<P>
+If the variables <CODE>MV_USERDB_ACL_TABLE</CODE> is set to a valid database identifier, the <EM>UserDB</EM> module can control access with simple 
+<FONT SIZE=-1>ACL</FONT> logic. See <EM>USER DATABASE</EM>.
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> If there is a <CODE>.access_gate</CODE> file, it overrides this. Also, if 
+<FONT SIZE=-1>MV_USERDB_REMOTE_USER</FONT> is set, then this capability is
+not available.
+
+</OL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="19.00.MINIVEND_SECURITY.html">Up</A>&nbsp;&nbsp;<A HREF="19.02.Administrative_Pages.html">&lt;&lt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

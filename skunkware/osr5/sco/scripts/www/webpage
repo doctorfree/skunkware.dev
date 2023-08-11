@@ -1,0 +1,516 @@
+#!/bin/ksh
+# @(#) webpage.ksh 2.1 97/01/21
+# 94/11/16 john h. dubois iii (john@armory.com)
+# 96/01/08 Print a slightly more useful message if a non-option is entered.
+# 96/11/07 2.0 Added all options.
+# 96/11/29 2.1 Added CheckPerms and FixPerms
+
+### Start of kstat lib
+# @(#) kstat.ksh 1.0 96/11/29
+# 96/11/29 john h. dubois iii (john@armory.com)
+
+# Make these print in octal
+typeset -i8  S_IFMT=8#0170000	# File type bitmask
+typeset -i8 S_IRWXU=8#0000700	# Owner perms bitmask
+typeset -i8 S_IRWXG=8#0000070	# Group perms bitmask
+typeset -i8 S_IRWXO=8#0000007	# Other perms bitmask
+typeset -i8 S_IFREG=8#0100000	# Reg file
+typeset -i8 S_IFBLK=8#0060000	# Block file
+typeset -i8 S_IFDIR=8#0040000	# Directory
+typeset -i8 S_IFCHR=8#0020000	# Char file
+typeset -i8 S_IFIFO=8#0010000	# Named pipe
+typeset -i8 S_IFNAM=8#0050000	# Special named file
+typeset -i8 S_IFLNK=8#0120000	# Symlink
+typeset -i8 S_ISUID=8#0004000	# setuid
+typeset -i8 S_ISGID=8#0002000	# setgid
+typeset -i8 S_ISVTX=8#0001000	# sticky bit
+typeset -i8 S_IRUSR=8#0000400	# owner read
+typeset -i8 S_IWUSR=8#0000200	# owner write
+typeset -i8 S_IXUSR=8#0000100	# owner execute
+typeset -i8 S_IRGRP=8#0000040	# group read
+typeset -i8 S_IWGRP=8#0000020	# group write
+typeset -i8 S_IXGRP=8#0000010	# group execute
+typeset -i8 S_IROTH=8#0000004	# other read
+typeset -i8 S_IWOTH=8#0000002	# other write
+typeset -i8 S_IXOTH=8#0000001	# other execute
+
+typeset -i8 ls2mode
+# Usage: ls2mode ls-mode-field
+# Returns the file mode in ls2mode
+function ls2mode {
+    typeset perm nperm comp name=${0##*/}
+    typeset -i ptype ret
+
+    typeset perm=$1
+
+    nperm=${perm#?}
+    case "${perm%$nperm}" in
+    -) ret=S_IFREG;;
+    d) ret=S_IFDIR;;
+    l) ret=S_IFLNK;;
+    b) ret=S_IFBLK;;
+    c) ret=S_IFCHR;;
+    p) ret=S_IFIFO;;
+    s) ret=S_IFNAM;;
+    m) ret=S_IFNAM;;
+    *) print -ru2 -- "$name: unknown type character: ${perm%$nperm}"
+	return 2;;
+    esac
+    perm=$nperm
+
+    for ptype in 6 3 0; do		# get perms for user, group and other
+	for wperm in r w xsStT; do	# strip off each mode letter
+	    nperm=${perm#?}
+	    # get next component of perms
+	    comp=${perm%$nperm}
+	    # Make sure each mode bit has one of the expected values for it
+	    if [[ "$comp" != [-$wperm] ]]; then
+		print -u2 "$name: unrecognized permission character: $comp"
+		return 3
+	    fi
+	    case $comp in
+	    -) ;;
+	    r) ret='ret|4<<ptype';;
+	    w) ret='ret|2<<ptype';;
+	    [xst]) ret='ret|1<<ptype';;
+	    esac
+	    case $comp in
+	    [sS]) [ ptype -eq 3 ] && ret='ret|S_ISGID' ||
+		  ret='ret|S_ISUID'
+		;;
+	    [tT]) ret='ret|S_ISVTX';;
+	    esac
+	    perm=$nperm
+	done
+    done
+    ls2mode=ret
+}
+
+typeset -i8 kstat_mode
+typeset -i kstat_nlink kstat_uid kstat_gid kstat_major kstat_minor kstat_size
+
+# Usage: kstat file ...
+function kstat {
+    typeset file line IFS=" "
+    typeset -i n=0
+
+    ls -lLnd "$@" | while read line; do
+	ls2mode $line
+	kstat_mode[n]=ls2mode
+	set -- $line
+	kstat_nlink[n]=$2
+	# store uid & gid because username and groupname may be ambiguous
+	kstat_uid[n]=$3
+	kstat_gid[n]=$4
+	case "$5" in
+	*,?*)
+	    kstat_major[n]=${5%,*}
+	    kstat_minor[n]=${5#*,}
+	    kstat_size[n]=-1
+	    ;;
+	*,)
+	    kstat_major[n]=${5%,}
+	    kstat_minor[n]=$6
+	    kstat_size[n]=-1
+	    shift
+	    ;;
+	*)
+	    kstat_major[n]=-1
+	    kstat_minor[n]=-1
+	    kstat_size[n]=$5
+	    ;;
+	esac
+	kstat_date[n]="$6 $7 $8"
+	shift 8
+	kstat_name[n]="$*"
+	let n+=1
+    done
+    [ n -gt 0 ] && return 0 || return 1
+}
+### End of kstat lib
+
+function CheckPerms {
+    typeset home=$1 pageDir=$2 homePage=$3
+    typeset fail=false badFiles badDirs
+    typeset -i OXR="S_IXOTH|S_IROTH"
+
+    kstat "$home" || return 1
+    if ((!(kstat_mode&S_IXOTH))); then
+	print -r \
+"Your home directory must be made executable by \"other\" in order for the
+web server to access it.  Use the 'Fix permissions' option, or the command:
+chmod o+x \$HOME
+"
+	fail=true
+    fi
+    kstat "$pageDir" || return 1
+    # require web dir to be publicly readable too because some web servers
+    # require that in order to locate default file if /~user/ is given.
+    if [ "kstat_mode&OXR" -ne OXR ]; then
+	print -r \
+"Your web directory ($pageDir) must be made
+executable & readable by \"other\" in order for the web server to access it.  
+Use the 'Fix permissions' option, or use the command:
+chmod o+rx $pageDir
+"
+	fail=true
+    fi
+    kstat "$homePage" || return 1
+    if ((!(kstat_mode&S_IROTH))); then
+	print -r \
+"Your home page must be made readable by \"other\" in order for the
+web server to access it.  Use the 'Fix permissions' option, or the command:
+chmod o+r $homePage
+"
+	fail=true
+    fi
+    cd "$pageDir" || return 1
+    badFiles=$(find . -type f ! -perm -004 -print)
+    if [ -n "$badFiles" ]; then
+	print -r \
+"Some files in your web directory ($pageDir)
+are not readable by the web server.  Any that are intended to be web-served
+should be made publicly readable with the command: chmod o+r filename
+where filename is the name of the file to be made publicly readable.
+Alternately, the 'Fix permissions' option may be used; this will make all
+files in your web directory publicly readable.  The names of the files 
+(relative to your web directory) that may need to be modified are:
+$badFiles
+"
+	fail=true
+    fi
+    badDirs=$(find . -type d ! -perm -001 -print)
+    if [ -n "$badFiles" ]; then
+	print -r \
+"Some directories under your web directory ($pageDir)
+are not executable by the web server.  Any that contain files that are intended
+to be web-served should be made publicly executable with the command:
+chmod o+x dir-name-name
+where dir-name is the name of the directory to be made publicly executable. 
+Alternately, the 'Fix permissions' option may be used; this will make all
+directories under your web directory publicly readable.  The names of the
+directories (relative to your web directory) that may need to be modified are:
+$badDirs
+"
+	fail=true
+    fi
+    $fail || print -r "The permissions on your web-served files are correct."
+}
+
+function FixPerms {
+    typeset home=$1 pageDir=$2 homePage=$3
+    typeset -i OXR="S_IXOTH|S_IROTH"
+
+    print -nr \
+"This will make your web directory ($pageDir)
+publicly readable and executable, your home directory and all directories under
+your web directory publicly executable, and all regular files in your web
+directory publicly readable.  Are you sure you want to do this? [y/n]: "
+    read response
+    if [[ "$response" != [yY]* ]]; then
+	print -r "Permissions fix aborted."
+	return
+    fi
+    print -r "Fixing permissions (names of modified files follow)..."
+    # Check whether home & page dir really need to be modified so that an
+    # accurate list of modified filenames can be printed.
+    kstat "$home" || return 1
+    if ((!(kstat_mode&S_IXOTH))); then
+	print -r "$home"
+	chmod a+x "$home"
+    fi
+    kstat "$pageDir" || return 1
+    if [ "kstat_mode&OXR" -ne OXR ]; then
+	print -r "$pageDir"
+	chmod a+rx "$pageDir"
+    fi
+    cd "$pageDir" || return 1
+    find . -type f ! -perm -004 -print -exec chmod a+r {} \;
+    find . -type d ! -perm -001 -print -exec chmod a+x {} \;
+    print "Done.\n"
+}
+
+function MakePage {
+    print -u2 "Making prototype web page..."
+
+    set -o noclobber	# just to be sure we don't overwrite anything
+
+    if [ ! -d $HomePageDir ]; then
+	mkdir $HomePageDir || {
+	    print -u2 "Could not make a directory for your web page."
+	    exit 1
+	}
+    fi
+
+    # Make the possessive form of NAME
+    [[ "$NAME" = *s ]] && PSName="$NAME'" || PSName="$NAME's"
+    # Create prototype user page, substituting in vars
+    if [ -f "$PROTOPAGE" -a -r "$PROTOPAGE" ]; then
+	cat $PROTOPAGE
+    else
+	print -r -- "$defPage"
+    fi | sed "
+s@%PSNAME%@$PSName@
+s@%NAME%@$NAME@
+s@%USER%@$USER@
+s@%URL%@$URL@
+s@%MAILNAME%@$MAILNAME@
+" > $HomePage
+
+    chmod a+rx $Home $HomePageDir
+    chmod a+r $HomePage
+
+    print \
+"A prototype home page has been created for you.  It is in the file:
+$HomePage
+You can edit the file and replace its contents with material of your own
+creation.  The URL for your web page is:
+$URL
+You can get information on HTML, URLs, etc. by selecting the 'Help' option
+within your web browser.
+"
+}
+
+### Start of main program
+# 95/12/23 john h. dubois iii (john@armory.com)
+# Usage: host2addr <hostname>
+# Sets global host2addr to first ip address associated with hostname
+# Return value: 0 on success, 1 on failure
+function host2addr {
+    typeset hostname=$1 name t ip
+
+    if [[ "$hostname" = +([0-9])+(.+([0-9])) ]]; then
+	host2addr=$hostname
+    else
+	/etc/dig +pfset=0x2020 "$hostname" | while read name t ip; do
+	    # Ignore CNAMEs and such.  dig will automatically look up the A
+	    # record for the name the CNAME points to.
+	    [ "$t" = A ] && break
+	done
+	[[ "$ip" != +([0-9])+(.+([0-9])) ]] && return 1
+	host2addr=$ip
+    fi
+    return 0
+}
+
+# Usage: addr2host <addr>
+# Sets global addr2host to first hostname associated with addr
+# Return value: 0 on success, 1 on failure
+function addr2host {
+    typeset addr=$1 name t ip
+
+    if [[ $# -eq 0 || "$1" != +([0-9.]) ]]; then
+	addr2host=
+	return 1
+    fi
+    /etc/dig +pfset=0x2020 -x "$addr" | while read ip t name; do
+	[ "$t" = PTR ] && break
+    done
+    [[ -z "$name" ]] && return 1
+    addr2host=$name
+    return 0
+}
+
+l_name=${0##*/}
+Usage=\
+"Usage: $l_name [-h] [-e<editor>] [-g<graphical-browser>] [-t<text-browser>]
+       [-w<www-name>] [-m<mailname>] [-i<index-page>] [-d<homepage-directory>]
+       [-p<prototype-page>]"
+
+defProtoPage=/usr/local/lib/protopage
+PROTOPAGE=$defProtoPage
+# save value of editor from environment, if any, so that config file won't
+# overwrite it
+if [ -n "$VISUAL" ]; then
+    sEDITOR=$VISUAL
+elif [ -n "$EDITOR" ]; then
+    sEDITOR=$EDITOR
+fi
+
+TBROWSER=lynx
+GBROWSER=Mosaic
+INDEXPAGE=index.html
+PAGEDIR=.public_html
+defFile=/etc/default/webpage
+defPage="<title>%PSNAME% WWW Home Page</title>
+<h1>%PSNAME% WWW Home Page</h1>
+This is a prototype web page for %NAME%.
+<hr>
+This web page maintained by <a href=%URL%>
+%USER%@%MAILNAME%</a>"
+userDefFile=.webpage
+[ -f $defFile -a -r $defFile ] && . $defFile
+[ -f $HOME/$userDefFile -a -r $HOME/$userDefFile ] && . $HOME/$userDefFile
+
+if [ -n "$sEDITOR" ]; then
+    EDITOR=$sEDITOR
+elif [ -z "$EDITOR" ]; then
+    EDITOR=vi
+fi
+
+
+while getopts he:g:t:w:m:i:d:p: opt; do
+    case $opt in
+    h)
+	print -r -- \
+"$l_name: create, view, or modify a user-maintained web page.
+$l_name creates a web page directory for the invoking user, puts a prototype
+home page in it, and then lets the user view and modify the page.
+For viewing the page, $l_name uses Mosaic if the user is on an X display, and
+lynx if not.  If the VISUAL or EDITOR environment variables are set, they are
+used to get the name of the editor to invoke.  If not, vi is used.
+$l_name will only invoke the editor on the top (index) page.  It tells the user
+the location of the web page directory so that the user can create a more
+complex web site directly.
+To get the hostname of the local system for use in URLs, $l_name first tries
+replacing the leftmost component of the local hostname with \"www\".  If this
+gives the same IP address as the unmodified hostname, it is used; otherwise
+the unchanged hostname is used.
+$l_name depends on the web server interpreting a URL of the form /~username/
+as a reference to a file named index.html in the user's home page directory
+within their UNIX home directory.  The default home page directory is
+\".public_html\".
+To generate the prototype web page, $l_name reads the file $defProtoPage
+and makes the following substitutions in it:
+%PSNAME% is replaced with the possessive form of NAME (e.g. John DuBois ->
+    John DuBois')
+%NAME% is replaced with the name of the invoking user, from the NAME
+    environment variable.
+%USER% is replaced with the username of the invoking user, from the USER
+    environment variable.
+%URL% is replaced with the URL of the page being generated.
+%MAILNAME% is replaced by the hostname of the local system for mail purposes.
+If -m is not given, this is the same as the unmodified hostname.
+The default is:
+$defPage
+<br>
+$Usage
+Options:
+Some of the following options can also be set by assigning values to variables
+in either of two configuration files.  First, $defFile is read;
+then the file named $userDefFile in the invoking user's home directory is read. 
+Assignments in the latter override assignments in the former.  In these files,
+values are assigned to variables in shell style, e.g. \"VARNAME=value\". 
+Variable names are given in parentheses following option descriptions.
+-h: Print this help.
+-e<editor>: Use <editor> to edit the page.  (EDITOR)
+-g<graphical-browser>: Use <graphical-browser> as the browser if on an X
+    display.  (GBROWSER)
+-t<text-browser>: Use <text-browser> as the browser if on a text display.
+    (TBROWSER)
+-w<www-name>: Set the hostname of the local system, for use in URLs, to
+    <www-name>.  (WWWNAME)
+-m<mailname>: Set the hostname of the local system for use in email addresses
+    to <mailname>.  (MAILNAME)
+-i<index-page>: Set the filename of the index page to <index-page> instead of
+    index.html.  (INDEXPAGE)
+-d<homepage-directory>: Set the homepage directory to <homepage-directory>;
+    this should the name of the directory under each user's UNIX home directory
+    in which the web server will look for /~username/ URLs.  (PAGEDIR)
+-p<prototype-page>: Set the filename of the web page prototype to
+    <prototype-page>.  (PROTOPAGE)"
+	exit 0
+	;;
+    d)
+	PAGEDIR=$OPTARG
+	;;
+    e)
+	EDITOR=$OPTARG
+	;;
+    g)
+	GBROWSER=$OPTARG
+	;;
+    i)
+	INDEXPAGE=$OPTARG
+	;;
+    m)
+	MAILNAME=$OPTARG
+	;;
+    p)
+	PROTOPAGE=$OPTARG
+	;;
+    t)
+	TBROWSER=$OPTARG
+	;;
+    w)
+	WWWNAME=$OPTARG
+	;;
+    ?)
+	print -r -u2 "Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+HomePageDir="$HOME/$PAGEDIR"
+HomePage="$HomePageDir/$INDEXPAGE"
+[ -z "$DISPLAY" ] && browser=$TBROWSER || browser=$GBROWSER
+if [ -z "$WWWNAME" ]; then
+    # Try to get the best name for web purposes.
+    # If the local system's domain name with the host name replaced with 'www'
+    # gives the same ip address as the hostname does, use it; else use the
+    # original domain name.
+    hostname=$(hostname)
+    wwwname_maybe=www.${hostname#*.}
+    WWWNAME=$hostname
+    if host2addr "$hostname"; then
+	ip=$host2addr
+	if host2addr "$wwwname_maybe"; then
+	    [ $host2addr = $ip ] && WWWNAME=$wwwname_maybe
+	fi
+    fi
+fi
+if [ -z "$MAILNAME" ]; then
+    [ -z "$hostname" ] && hostname=$(hostname)
+    MAILNAME=$hostname
+fi
+
+URL=http://$WWWNAME/~$USER/
+
+if [ -f $HomePage ]; then
+    print \
+"You already have a web page.  The file name is:
+$HomePage
+The URL is: $URL
+"
+else
+    MakePage
+fi
+
+select ans in \
+"View your home page as HTML source" \
+"Edit your home page with $EDITOR" \
+"Look at your home page with $browser" \
+"Check the permissions on your web-served files" \
+"Fix the permissions on your web-served files" \
+"Quit"
+do
+    case "$ans" in
+    View*)
+	${PAGER:-more} "$HomePage";;
+    Edit*)
+	"$EDITOR" "$HomePage";;
+    Look*)
+	"$browser" "$URL";;
+    Check*)
+	CheckPerms "$HOME" "$HomePageDir" "$HomePage";;
+    Fix*)
+	FixPerms "$HOME" "$HomePageDir" "$HomePage";;
+    Quit)
+	break 2;;
+    *)
+	case "$REPLY" in
+	[qQeExX]*)
+	    break 2;;
+	*)
+	    print -u2 \
+	"Please enter 1, 2, 3, or 4, or press return for a list of options.."
+	    ;;
+	esac
+	;;
+    esac
+done

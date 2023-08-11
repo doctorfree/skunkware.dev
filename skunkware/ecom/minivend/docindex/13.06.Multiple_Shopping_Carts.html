@@ -1,0 +1,80 @@
+<HTML>
+<HEAD>
+<TITLE>Multiple Shopping Carts</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="13.00.THE_ORDER_PROCESS.html">Up</A>&nbsp;&nbsp;<A HREF="13.05.Basket_display.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="13.07.Advanced_Multi_level_Order_Pages.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Multiple_Shopping_Carts">Multiple Shopping Carts</A></H2>
+<P>
+You can maintain multiple shopping carts with MiniVend (2.02 and above). One shopping cart -- main, by name -- is defined when the user session starts. If the user orders item 
+<FONT SIZE=-1>M1212</FONT> with the following tag:
+
+
+<P>
+<PRE>    [order M1212 layaway] Order this item! [/order]
+</PRE>
+<P>
+the order will be placed in the cart named <EM>layaway</EM>. However, by default you won't see what you want! That is because the
+default shopping basket page won't display the cart you are thinking it
+will -- it will show the main cart. So copy the default cart
+(pages/ord/basket.html in the demos) to a new file, insert a <CODE>[cart layaway]</CODE> tag, and submit it as a MiniVend page name addendum to the cart name:
+
+<P>
+<PRE>    [order M1212 layaway/lay_basket] Order this item! [/order]
+</PRE>
+<P>
+Now the contents of the <EM>layaway</EM> cart will be displayed. If you need to display a different price, you will
+have to emulate the <CODE>[subtotal]</CODE>,
+<CODE>[item-price]</CODE>, <CODE>[item-subtotal]</CODE>, etc. fields with <CODE>[item-list]</CODE>, <CODE>[calc]</CODE>, and <CODE>[currency]</CODE> tags. This snippet emulates the item-price tag for a different price field <EM>layaway-price</EM>:
+
+<P>
+<PRE>    [currency] [item-field layaway-price] [/currency]
+</PRE>
+<P>
+An item subtotal:
+
+<P>
+<PRE>    [currency]
+        [calc]
+            [item-field layaway-price] * [item-quantity]
+        [/calc]
+    [/currency]
+</PRE>
+<P>
+
+<FONT SIZE=-1>A</FONT> cart subtotal, using the item-list tag:
+
+<P>
+<PRE>    [currency]
+        [calc]
+            [item-list layaway]
+            ([item-field layaway-price] * [item-quantity]) +
+            [/item-list]
+            0
+        [/calc]
+    [/currency]
+</PRE>
+<P>
+The zero is needed because of the trailing plus sign left by the iterative <CODE>[item-list]</CODE> tag.
+
+<P>
+Shipping and the <CODE>[nitems]</CODE> tag will still work properly with a different price.
+
+<P>
+You can also order items from a form, using the <CODE>mv_order_item</CODE>,
+<A HREF="#item_mv_cartname">mv_cartname</A>, and optional <CODE>mv_order_quantity</CODE> variables.
+
+<P>
+<PRE> &lt;FORM METHOD=POST ACTION=&quot;[process-order]&quot;&gt;
+ &lt;input type=checkbox name=&quot;mv_order_item&quot; value=&quot;M3243&quot;&gt; Item M3243
+ &lt;input name=&quot;mv_order_quantity&quot; value=&quot;1&quot;&gt; Quantity
+ &lt;input type=hidden name=&quot;mv_cartname&quot; value=&quot;layaway&quot;&gt;
+ &lt;input type=hidden name=&quot;mv_doit&quot; value=&quot;refresh&quot;&gt;
+ &lt;input type=submit name=&quot;mv_junk&quot; value=&quot;Place on Layaway Now!&quot;&gt;
+ &lt;/FORM&gt;
+</PRE>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="13.00.THE_ORDER_PROCESS.html">Up</A>&nbsp;&nbsp;<A HREF="13.05.Basket_display.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="13.07.Advanced_Multi_level_Order_Pages.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

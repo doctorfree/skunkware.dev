@@ -1,0 +1,147 @@
+#!/bin/sh
+#
+# Postinstall script written by Ron Record (rr@sco.com) for use with my
+# UnixWare 7.1.1 packaging of the Non-Stop Open Source E-Commerce Pack.
+# 
+# Written 14-Mar-2000
+#
+# Adapted to OpenServer custom+ packaging 11-May-2000 by rr@sco.com
+#
+
+PATH=/usr/local/bin:$PATH
+export PATH
+
+scriptname="$0"
+step="$1"
+keywords="$2"
+pkglist="$3"
+
+# Source in the standard functions library, ccsSetup.sh
+. ccsSetup.sh
+
+ccs_return_value=0
+
+#############################################################################
+#
+# default_man
+#         Add /usr/local/man to the default man command search path
+#
+#############################################################################
+default_man()
+{
+  DEF=/etc/default/man
+  [ -f $DEF ] && {
+    MAN=`grep MANPATH $DEF | grep /usr/local/man`
+    [ "$MAN" ] || {
+      sed -e "s/:\/usr\/man:/:\/usr\/man:\/usr\/local\/man:/" $DEF > /tmp/def$$
+      cp /tmp/def$$ $DEF
+      rm -f /tmp/def$$
+    }
+  }
+}
+
+#############################################################################
+#
+# host_set
+#         fixup the HOST name and IP in any configuration files
+#
+#############################################################################
+host_set()
+{
+  HOSTPROG=/usr/bin/hostname
+  if [ -x $HOSTPROG ] 
+  then
+    HOSTNAME=`$HOSTPROG`
+  else
+    HOSTNAME=localhost
+  fi
+  [ "$HOSTNAME" ] || HOSTNAME=localhost
+  HOST_FILES="/usr/local/etc/webmin/miniserv.conf"
+
+  for i in $HOST_FILES
+  do
+  [ -f $i ] && {
+    sed -e "s/disco.pdev.sco.com/$HOSTNAME/g" < $i > /tmp/_ccs$$
+    mv /tmp/_ccs$$ $i
+    rm -f /tmp/_ccs$$ /tmp/_ccs_ip$$
+    chown root:bin $i
+    chmod 600 $i
+  }
+  done
+}
+
+DisableStop()
+{
+    /etc/init.d/webmin disable > /dev/null 2>&1
+    /etc/init.d/webmin stop > /dev/null 2>&1
+}
+
+set_pass() 
+{
+  PW=`grep root: /etc/shadow | awk ' BEGIN { FS=":" } { print $2 } '`
+
+  # Set the Webmin administrative password to root's password as well
+  WEBMINUSERS=/usr/local/etc/webmin/miniserv.users
+  echo "admin:$PW:0" >> $WEBMINUSERS
+
+  chmod 600 $WEBMINUSERS
+  chown root:sys $WEBMINUSERS
+}
+
+EnableStart()
+{
+  # This creates the symbolic links in /etc/rc?.d to start
+  # the daemons when the system goes multi-user.
+  # 
+  #############################################################################
+  [ -x /etc/init.d/webmin ] && /etc/init.d/webmin enable > /dev/null 2>&1
+  
+  echo "
+Webmin has been installed successfully.
+To start and access Webmin, issue the command (as root):
+	# /etc/webmin start
+Webmin has been preconfigured to start automatically at boot time. 
+To disable this feature, run the command (as root):
+	# /etc/webmin disable
+
+Use your web browser to go to:
+	https://$HOSTNAME:10000/
+and login as 'admin' with the root password.
+
+Because Webmin uses SSL for encryption only, the certificate
+it uses is not signed by one of the recognized CAs such as
+Verisign. When you first connect to the Webmin server, your
+browser will ask you if you want to accept the certificate
+presented, as it does not recognize the CA. Say yes.
+
+Would you like to start Webmin now ? [y] (y/n)\c"
+  read ans
+  echo ""
+  if [ "$ans" = "y" ] || [ "$ans" = "Y" ] || [ "$ans" = "" ]
+  then
+    if [ -x /etc/init.d/webmin ]
+    then
+       /etc/init.d/webmin stop > /dev/null 2>&1
+       /etc/init.d/webmin start > /dev/null
+    else
+        echo "WARNING: Unable to execute /etc/init.d/webmin !"
+    fi
+  fi
+}
+
+#############################################################################
+#
+# main
+#
+#############################################################################
+
+case "$step" in
+        POST_EXPORT) host_set 
+                     default_man
+                     set_pass
+                     EnableStart
+                     ;;
+        PRE_UNEXPORT) DisableStop ;;
+esac
+
+exit $ccs_return_value

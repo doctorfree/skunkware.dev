@@ -1,0 +1,99 @@
+This is a port of smail 3.1.29.1 to SCO Open Server 5.0. This is a binary
+only distribution, and has 8-bit MIME support, ESMTP and other optional
+features compiled in. Be VERY careful when installing this package, and
+test its installation well.
+
+*** IT IS HIGHLY RECOMMENDED THAT YOU DO THIS IS SINGLE USER MODE ***
+*** AND THAT YOU HAVE A COMPLETE SYSTEM BACKUP BEFORE PROCEEDING  ***
+
+Before extracting you MUST cd /bin and type:
+mv mail lmail, then to extract this archive, as root, do the following:
+# cd /
+# gzcat smail-3.1.29.1.tar.gz | tar xf -
+This will extract the distribution into the /usr hierarchy.
+
+Before extracting this software, you should first remove both MMDF and
+Sendmail from your system completely. You can still use the standard SCO
+mail user tools, although better tools are vailible freely. I strongly
+suggest you use PINE or ELM (and of the two, PINE is more powerful).
+You will find both tools on the same site you found this archive.
+
+One of the side-effects of removing the mail transports from custom is
+that your mail spool directory can be removed. There is an entry in
+this archive to create it with the permissions smail expects. If you
+do have an existing /var/spool/mail, I suggest you back it up before
+you begin installing smail.
+
+Once you have extracted the archives, there are several things you
+must set up. The first is to arrange to have identd run. To do this,
+edit /etc/services, and change the entry for port 113 to be:
+ident	113/tcp		auth tap authentication
+Next, edit /etc/inetd.conf and add the line (or edit any existing
+line which related to RFC1143 authentication) to:
+ident	stream	tcp	nowait	root	/etc/identd in.identd
+
+If there are any entries in inetd.conf relating to smtp, remove them.
+
+Next, you must edit /etc/tcp to arrange for smail to be run when TCP/IP
+is started up. To do this, add an entry called 'sendmail' to the ALLPROCS
+list at the top of the file. Them at or near line 229 of the file, just
+after the checks for lpd, add the following lines:
+
+	if [ -x /usr/lib/sendmail -a -f /usr/lib/smail/config ]; then
+		/usr/lib/sendmail -bd -q5m
+		echo "sendmail \c"
+	fi
+
+The parameter -bd is VITAL, unless you are arranging to have sendmail
+run by inetd, which is NOT recommended. The -q5m parameter will tell
+smail to examine the pending out-going queue every 5 minutes. You can
+change this to something like -q1h30m or -q1d ... see the smail man
+pages for examples.
+
+Next, you must edit /usr/lib/smail/config and tailor it according
+to your needs. I have left my config file exactly as it stands.
+Consult the man pages in /usr/lib/smail/man, and the administration
+guide in /usr/lib/smail/guide. If you do not have nroff, you can view
+pre-formatted versions of these files in /usr/lib/smail/preformat.
+smail.5 is the most important of the lot, as it explains all the
+config files. The file admin.txt in preformat is a very useful
+document to read.
+
+Next, edit /usr/lib/smail/routers. You must decide how smail is to
+look up host names. You have two options, either using DNS/BIND or
+using the gethostbyname() system call. I suggest you use the BIND
+router (which is set by default) if at all possible. If you want to
+use gethostbyname, you must comment out the entry for inet_hosts
+which uses 'driver-bind' and un-comment the one which uses
+gethostbyname. While editing this file, decide how smail is to
+handle mail to hosts it doesnt know, but setting up the smart_host
+driver. You can have your smart host contacted by SMTP or UUCP. 
+Please consult the smail documentation for more details.
+
+Ensure that /var/spool/mail has permissions 1777 and is owned by
+user root, group mail.
+
+Once all of this has been done, attempt a simple test by executing:
+/usr/bin/smail -bv -v100 root
+This will produce a great deal of output, but at the end, you
+should see 'root ... deliverable'. If you have aliased root to 
+some other user, that user's name will appear. To set up aliases,
+you must edit the file /usr/lib/aliases, which is a normal text file.
+Once you have editing the aliases to your liking, run the program
+/usr/lib/smail/newaliases.
+
+As a final test, ensure that smail is running by executing:
+/usr/lib/sendmail -bd -q5m
+and then type: telnet localhost 25
+You should see something about 'Smail 3.1.29.1 #4 ready'. Type
+QUIT to exit.
+
+One word of warning. By default, smail does not accept delivery
+of very large messages. Be sure to set max_message_size in your
+config file.
+
+Setting up smail is a worth-while but complex operation. Please be sure
+to read ALL the documentation and to consult the appropriate news
+groups before asking me questions. I am a smail user, not a smail
+support person. For good samples, see /usr/lib/smail/samples
+

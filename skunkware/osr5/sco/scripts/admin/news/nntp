@@ -1,0 +1,53 @@
+#!/bin/ksh
+# @(#) nntp.ksh 1.1 96/06/17
+# 94/12/18 john h. dubois iii (john@armory.com)
+# 95/01/22 Also print nntp processes when no args given
+# 96/06/17 Added help.
+
+Name=${0##*/}
+
+StatusFile=/etc/nntp.shut
+Usage="Usage: $Name [-h|on|off]"
+
+function nntpprocs {
+    typeset out
+
+    out=$(ps -fu news|grep nntpd)
+    [ -n "$out" ] && print "nntpd processes running:\n$out"
+}
+
+case "$1" in
+"")
+    print -n "nntp service is "
+    [ -f $StatusFile ] && print off || print on
+    nntpprocs
+    ;;
+-h)
+    print \
+"$Name: turn NNTP service on or off.
+$Usage
+$Name turns NNTP service on or off by creating or removing a status file
+read by nntpd, $StatusFile.  If $StatusFile exists, nntpd returns an NNTP
+status message indicating that the news server is shut down (note, this
+requires a modified nntpd or a front end for nntpd).
+Options:
+on:  Turn on NNTP service by removing the status file.
+off: Turn off NNTP service and report how many NNTP connections are currently
+     active.  These nntpd processes are not killed.
+If $Name is invoked without arguments, it tells whether NNTP service is on or
+off."
+    ;;
+on)
+    [ ! -f $StatusFile ] && print -u2 "$Name: nntp was already on." ||
+    rm $StatusFile
+    ;;
+off)
+    [ -f $StatusFile ] && print -u2 "$Name: nntp was already off." ||
+    > $StatusFile
+    nntpprocs
+    ;;
+*)
+    print -u2 "$Usage"
+    exit 1
+    ;;
+esac

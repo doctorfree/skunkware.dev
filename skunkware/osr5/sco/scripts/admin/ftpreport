@@ -1,0 +1,569 @@
+#!/bin/ksh
+# @(#) ftpreport.ksh 1.0 97/02/25
+# 94/07/18 john h. dubois iii (john@armory.com)
+# 94/07/29 Added -s flag.
+# 94/07/30 Merged ftpreport & httpreport.  Do not follow symlinks.
+# 97/02/25 Added -m option.
+#
+# todo: merge with httpreport again.
+# todo: Let users specify what files they are interested in.
+# todo: Count multiple accesses by one person only once.
+# todo: Show last modify date on files.
+
+# Usage: Ind <arrayname> <value> [[<nsearch>] <firstelem>]
+# Returns the index of the first element of <arrayname> that has value <value>.
+# Returns 0 if it is none found.
+# Works only for indexes 1..255.
+# If <nsearch> is given, the first <nsearch> elements of the array are
+# searched, with only nonempty elements counted.
+# If not, the first n nonempty elements are searched,
+# where n is the number of elements in the array.
+# If a fourth argument is given, it is the index to start with; the search
+# continues for <nsearch> elements.
+# Element zero should not be set.
+function Ind {
+    typeset -i NElem ElemNum=${4:-1} NumNonNull=0
+    typeset Arr=$1 Val=$2 ElemVal
+
+    [ $# -eq 3 ] && NElem=$3 || eval NElem=\${#$Arr[*]}
+    while [ ElemNum -le 255 -a NumNonNull -lt NElem ]; do
+	eval ElemVal=\"\${$Arr[ElemNum]}\" 
+	[ "$Val" = "$ElemVal" ] && return $ElemNum
+	[ -n "$ElemVal" ] && let NumNonNull+=1
+	let ElemNum+=1
+    done
+    return 0
+}
+
+# Associative array routines
+# 93/06/25 john h. dubois iii (john@armory.com)
+# 93/07/09 Changed syntax of AStore so that these functions can be used
+#          for set operations.
+# 94/06/26 Added append capability to AStore
+# These routines use two shell arrays and an integer variable for each
+# associative array:
+# For associative array "foo", the values are stored in foo_val[] and the
+# indices are stored in foo_ind[].  The free pointer is stored in foo_free.
+# Only 255 values can be stored.
+# Arrays must have names that are valid shell variable names.
+# A null array index is not allowed.
+
+# Usage: AStore <arrayname> <index> <value> <append>
+# Stores value <value> in associative array <arrayname> with index <index>
+# If no <value> is given, nothing is stored in the value array.
+# This can be used for set operations.
+# If a 4th argument is given, the value is appended to the current value
+# stored for the index (if any).
+# Return value is 0 for success, 1 for failure due to full array,
+# 2 for failure due to bad index or arrayname, 3 for bad syntax
+function AStore {
+    typeset Arr=$1 Index=$2 Val=$3
+    typeset -i Used Free=0 NumInd NumArgs=$#
+
+    [ -z "$Index" ] && return 2
+    if eval [ -z \"\$${Arr}_free\" ]; then	# New array
+	[[ "$Arr" != [a-zA-Z_]*([a-zA-Z_0-9]) ]] && return 2
+	Free=1
+	NumInd=0
+    else
+	Ind ${Arr}_ind "$Index"
+	NumInd=$?
+    fi
+    if [ NumInd -eq 0 ]; then	# Index is not used yet
+	if [ Free -eq 0 ]; then
+	    eval Used=\${#$Arr[*]} Free=\$${Arr}_free
+	    [ Used -eq 255 ] && return 1
+	fi
+	# Find an unused element
+	while eval [ -n \"\${${Arr}_ind[Free]}\" ]; do
+	    let Free+=1
+	    [ Free -gt 255 ] && Free=1
+	done
+	NumInd=Free
+	let Free+=1
+	eval ${Arr}_free=$Free ${Arr}_ind[NumInd]=\$Index
+    fi
+    case $NumArgs in
+    [12]) return 1;;
+    3) eval ${Arr}_val[NumInd]=\$Val;;
+    4) eval ${Arr}_val[NumInd]=\"\${${Arr}_val[NumInd]}\$Val\";;
+    *) return 3;;
+    esac
+}
+
+# Usage: AGet <arrayname> <index> <var>
+# Finds the value indexed by <index> in associative array <arrayname>.
+# If there is no such array or index, 0 is returned and <var> is not touched.
+# Otherwise, <var> (if given) is set to the indexed value and the numeric index
+# for <index> in the arrays is returned.
+function AGet {
+    typeset Arr=$1 Index=$2 Var=$3
+    typeset -i NumInd
+
+    Ind ${Arr}_ind "$Index"
+    NumInd=$?
+    [ NumInd -gt 0 ] && [ -n "$Var" ] && eval $Var=\"\${${Arr}_val[NumInd]}\"
+    return $NumInd
+}
+
+# Usage: AUnset <arrayname>
+# Removes all elements from associative array <arrayname>
+function AUnset {
+    typeset Arr=$1
+    eval unset ${Arr}_ind[*] ${Arr}_val[*] ${Arr}_free
+}
+
+# Usage: ADelete <arrayname> <index>
+# Removes index <index> from associative array <arrayname>
+# Returns 0 on success, 1 if <index> was not an index of <arrayname>
+function ADelete {
+    typeset Arr=$1 Index=$2
+    typeset -i NumInd
+
+    Ind ${Arr}_ind "$Index"
+    NumInd=$?
+    if [ NumInd -gt 0 ]; then
+	eval unset ${Arr}_ind[NumInd] ${Arr}_val[NumInd]
+	eval [ NumInd -lt ${Arr}_free ] && eval ${Arr}_free=$NumInd
+	return 0
+    else
+	return 1
+    fi
+}
+
+# Usage: AGetAll <arrayname> <varname>
+# All of the indices of array <arrayname> are stored in shell array <varname>
+# with indices starting with 0.
+# The total number of indices is returned.
+function AGetAll {
+    typeset -i NElem ElemNum=1 NumNonNull=0
+    typeset Arr=$1 VarName=$2 ElemVal
+
+    eval NElem=\${#${Arr}_ind[*]}
+    while [ ElemNum -le 255 -a NumNonNull -lt NElem ]; do
+	eval ElemVal=\"\${${Arr}_ind[ElemNum]}\" 
+	if [ -n "$ElemVal" ]; then
+	    eval $VarName[NumNonNull]=\$ElemVal
+	    let NumNonNull+=1
+	fi
+	let ElemNum+=1
+    done
+    return $NumNonNull
+}
+
+# Read a defaults file
+# Usage: ReadDefaults filename var ...
+# Any of the named vars that are listed in the file are set globally
+function ReadDefaults {
+    typeset Defaults var file=$1
+    shift
+
+    set_Avars Defaults "$file"
+    for var in "$@"; do
+	AGet Defaults $var $var
+    done
+}
+
+# set_Avars: store variable assignments in an associative array.
+# 93/12/28 John H. DuBois III (john@armory.com)
+# Converts values to forms that won't be messed with by the shell.
+# Usage: set_Avars [-c] array-name [filename ...]
+# where the lines in filename (or the input) are of the form
+# var=value
+# value may contain spaces, backslashes, quote characters, etc.;
+# they will become part of the value assigned to index var.
+# Lines that begin with a # (optionally preceded by whitespace)
+# and lines that do not contain a '=' are ignored.
+# Variables are stored in associative array array-name.
+# If -c is given, an error message is printed & the program is exited
+# if an attempt is made to set a value for a parameter that has already
+# been set.
+
+function set_Avars {
+    typeset Arr store
+
+    if [ "$1" = -c ]; then
+	store=ChkStore
+	shift
+    else
+	store=AStore
+    fi
+    Arr=$1
+    shift
+    for file; do
+	if [ ! -r "$file" ]; then
+	    print -u2 "$file: Could not open."
+	    return 1
+	fi
+    done
+    # return exit status of eval
+    eval "$(sed "
+/^[ 	]*#/d
+/=/!d
+s/'/'\\\\''/g
+s/=/ '/
+s/$/'/
+s/^/$store $Arr /" "$@")"
+}
+
+# Usage: ChkStore <arrname> <index> <value>
+# Exit if <index> is already set
+function ChkStore {
+    typeset arrname=$1 index=$2 value=$3
+
+    if AGet $arrname $index; then
+	# 0 return means index not found
+	AStore $arrname $index "$value"
+    else
+	print -u2 "Error: $index already set.  Exiting."
+	exit 1
+    fi
+}
+
+# start of main program
+
+name=${0##*/}
+Usage="Usage:
+$name [-ahtx] [-d DefReportLevel] [-c ConfFile] [-s Subject] [Logfile ...]"
+typeset -i IsFTP=0
+
+case $name in
+httpreport)
+    DefLogFile=/usr/local/lib/httpd/logs/access_log
+    ;;
+ftpreport)
+    DefLogFile=/usr/adm/xferlog
+    AnonOnly=true   # Whether only rept on anonymous ftp use (optimization)
+    ftphome=$(print ~ftp)
+    IsFTP=1
+    ;;
+*)
+    print -u2 "Unknown function: $name"
+    exit 1
+    ;;
+esac
+
+Type=${name%report}
+typeset -u Upper=$Type
+Config=/etc/default/$name
+UserConfig=.$name
+LogProc=${Type}log
+Subject="$Upper Report"
+DefReportLevel=none
+Archive=false
+Debug=false
+Test=false
+TooManyUsers=false
+mail=mail
+
+while getopts :ahxtd:c:s:m: opt; do
+    case $opt in
+    h)
+	echo \
+"$name: mail reports of $Type accesses to users.
+$Usage
+$name examines the $Type access log and generates reports based on it,
+which are mailed to the users responsible for particular ${Type}-accessible
+files.  The default is for no report to be sent.  To get a report, a user
+can put the following in a file named $UserConfig in the user's home directory:
+raw        The raw $Type access log data is delivered, with one line for each
+	   access.
+standard   A summary of accesses with one line for each file that has been
+	   accessed one or more times.
+standard-wide  This gives the standard report without lines being truncated,
+	   as is usually done to make the lines fit an 80-column screen."
+((IsFTP)) && echo \
+"detailed   Some fields are shortened to allow more fields to be fit.
+detailed-wide  This gives the detailed report without lines being truncated,
+	   as is usually done to make the lines fit an 80-column screen."
+	echo \
+"Multiple report levels may be specified, spread over one or more lines.  All
+of the requested reports will be sent.
+The operation of $name as a whole is determined by the
+$DefLogFile file.  This file must exist.  The format is
+Pattern	User
+where Pattern is a ksh-style expression to match the full pathname of a
+file that may be accessed.  It is used as a pattern rather than expanded as
+a filename, so * may match more than one filename component.  User is the user
+that reports of accesses that match this pattern should be sent to."
+((IsFTP)) && echo \
+"A leading ~/ is expanded into the anonymous ftp user home directory, and a
+leading ~user is expanded into user's home directory."
+echo \
+"As a special case, a line that contains only one field can be used to match
+files in users' directories.  The string %d is embedded in the path where the
+user name will appear.  Lines that begin with # are comments and are ignored.
+Reports can be generated for no more than 255 users.
+Example config file:
+######"
+((IsFTP)) && echo \
+"# report transfers of files below each directory pub/user/foo to foo
+~ftp/pub/user/%d/*
+# Report transfers of files below this dir to jon
+~ftp/pub/midnight_beach/*       jon
+# report transfers of files in pub (but not in a dir below it) to spcecdt
+~ftp/pub/*([!/])        spcecdt" || echo \
+"# report accesses of objects in users' home pages to the users
+/~%d/*
+# Report cgi-bin accesses to spcecdt
+/cgi-bin/*	spcecdt
+# report all accesses other than user home pages to webmaster
+/[!~]*	webmaster" 
+echo \
+"######
+Options:
+-a: After processing the $Type log file, append its contents to a file with
+    the same name but with - appended, and then truncate the log file.
+-h: Print this help.
+-s<subject>: Set the subject used in mail to users.  The default is '$Subject'.
+-x: Turn on debugging.
+-t: Test only; do not actually mail anything.
+-m<mailer>: Use <mailer> to send mail.  It must have a -s option to set the
+   subject of the mail.
+-d<default-report-level>: Set the default report level to something other than 
+   none.  More than one word can be given by quoting them.
+-c<config-file>: Use <config-file> instead of $Config."
+	exit 0
+	;;
+    a)
+	Archive=true;;
+    x)
+	Debug=true
+	print -u2 "Debugging is on."
+	;;
+    t)
+	Test=true
+	print -u2 "Test-only is on."
+	;;
+    m)
+	mail=$OPTARG
+	;;
+    s)
+	Subject=$OPTARG
+	;;
+    d)
+	DefReportLevel=$OPTARG
+	;;
+    c)
+	Config=$OPTARG
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$name: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+[ $# -lt 1 ] && set -- $DefLogFile
+
+# Add the directory that this command was found in (if included in $0)
+# since log processing program may be there too, and it may not be in PATH
+PATH=$PATH:/usr/local/bin:${0%/*}
+
+$Debug && print -u2 "Archiving=$Archive; test=$Test;
+report level=$DefReportLevel; config file=$Config; log files=$*"
+
+if [ ! -f $Config ]; then
+    print -u2 "$name: Could not open config file $Config.  Aborting."
+    exit 1
+fi
+
+# Store patterns
+typeset -i NumPat=0
+while read pat user; do
+    $Debug && print -u2 "Config line: $pat $user"
+    [[ "$pat" = \#* ]] && continue
+    if ((IsFTP)); then
+	if [[ "$pat" = \~* ]]; then	# expand ~
+	    userhome=$(eval print ${pat%%/*})
+	    if [[ $userhome = ~* ]]; then
+		print -u2 "$name: ${userhome#~}: no such user.  Aborting."
+		exit 1
+	    fi
+	    pat=$userhome/${pat#*/}
+	fi
+	[[ $pat != $ftphome?(/*) ]] && AnonOnly=false
+    fi
+
+    # Convert %d line to more easily used format
+    $Debug && print -u2 "Pattern: $pat    User: $user"
+    if [ -z "$user" ]; then
+	if [[ "$pat" != *%d* ]]; then
+	    print -u2 \
+"$name: Error in $Config:
+this line has only one field, which does not contain %d:
+$pat $user"
+	    exit 1
+	fi
+	Prefixes[NumPat]=${pat%%%d*}
+	Suffixes[NumPat]=${pat#*%d}
+	Pats[NumPat]=${Prefixes[NumPat]}*([!/])${Suffixes[NumPat]}
+    else
+	Pats[NumPat]=$pat
+	Users[NumPat]=$user
+    fi
+    let NumPat+=1
+done < $Config
+
+# Pats[1..n] now contains ksh patterns to match each xferred file against.
+# If the username to mail to is given explicitly, it is in Users[n].
+# If it is part of the filename, then a prefix and suffix that should be
+# removed from the filename to yield the username are stored in Prefixes[n]
+# and Suffixes[n].
+
+if $Debug; then
+    typeset -i i=0
+    while [ i -lt NumPat ]; do
+	print -n "Rule $i: Report on ${Pats[i]} to "
+	if [ -n "${Users[i]}" ]; then
+	    print "${Users[i]}"
+	else
+	    print "pattern - prefix ${Prefixes[i]} and suffix ${Suffixes[i]}"
+	fi
+	let i+=1
+    done
+fi
+
+# Example lines from httpd log:
+#      1              2   3   4    5       6    7     8                 9
+# Requesting-host    Date                       Op   URL                Version
+# deeptht.armory.com [Sat Feb 19 17:53:27 1994] GET  /~spcecdt/arm.html HTTP/1.0
+# sgil301.cern.ch    [Mon Jul 18 07:35:42 1994] POST /cgi-bin/purity-test/NumQuest=100/Name=Sex100 HTTP/1.0
+# netcom5.netcom.com [Sun May 22 00:17:16 1994] get  /u/css1217/index.html
+# pentlan.stir.ac.uk [Wed May 25 01:17:29 1994] HEAD /~zap/nc/nc.html HTTP/1.0
+# Other ops are ignored.
+
+# Example line from xferlog:
+# Fri Mar 25 14:29:11 1994 5 si.UCSC.EDU 33416 /u/prologic/toolbox6.1 a _ o r prologic ftp 0 *
+#current-time   transfer-time   remote-host   file-size   filename
+#    1-5                6               7       8               9
+#transfer-type   special-action-flag   direction   access-mode   username
+#       10              11              12              13              14
+#service-name   authentication-method   authenticated-user-id
+#       15              16                      17
+
+set -o noglob
+typeset -i i NumUsers
+
+# Process report files & construct report for each user
+for logfile in "$@"; do
+    while read line; do
+	set -- $line
+
+	if ((IsFTP)); then
+	    # If anonymous xfer (chrooted), prepend ftp home dir
+	    [ "${13}" = a ] && filename="$ftphome$9" || filename=$9
+	    # Optimization.  Do this separately from the above test because
+	    # user logged in directly might grab from pub archives.
+	    # This doesn't actually help that much.
+	    $AnonOnly && [[ "$filename" != $ftphome?(/*) ]] && continue
+	else
+	    filename=$8
+	fi
+
+	$Debug && print -n -u2 .
+	let i=0
+	# Find which reports this line should be included in
+	while [ i -lt NumPat ]; do
+	    if eval [[ \$filename = ${Pats[i]} ]]; then
+		if [ -n "${Users[i]}" ]; then
+		    User=${Users[i]}
+		else
+		    User=${filename##${Prefixes[i]}}
+		    User=${User%%${Suffixes[i]}}
+		fi
+		# Append line to user's data
+		AStore XferData "$User" "$line
+" - || TooManyUsers=true
+	    fi
+	    let i+=1
+	done
+    done < $logfile
+done
+
+$Debug && print -u2 ""
+
+$TooManyUsers &&
+print -u2 "$name: Too many users; report limited to first 255."
+
+# Data for each user is now stored in associative array XferData, indexed by
+# user name.
+
+AGetAll XferData Indices
+NumUsers=$?
+typeset DataLines
+
+$Debug && 
+print -u2 "Reports to be generated for $NumUsers users: ${Indices[*]}"
+
+i=0
+while [ i -lt NumUsers ]; do
+    User=${Indices[i]}
+    eval UserConfFile=~$User/$UserConfig
+    $Debug && print -u2 "Checking for existance of $UserConfFile"
+    if [ -f $UserConfFile -a ! -L $UserConfFile ]; then
+	$Debug && print -u2 "$User has a config file."
+	Level=
+	while read line; do
+	    [[ $line = [!#]* ]] && Level="$Level $line"
+	    $Debug && print -u2 ">> $line"
+	done < $UserConfFile
+    else
+	Level=$DefReportLevel
+    fi
+    $Debug && print -u2 "Report level(s) for $User: $Level"
+    unset ReportCommands[*]
+    for word in $Level; do
+	case "$word" in
+	none)
+	    ReportCmd=
+	    ;;
+	raw)
+	    ReportCmd=cat
+	    ;;
+	standard|*detailed*|*wide*)
+	    flags=
+            # Match embedded 'detailed' or 'wide' so that detailed-wide or
+            # wide-detailed can be given
+            ((IsFTP)) && [ "$word" = *detailed* ] && flags=-l
+            [ "$word" = *wide* ] && flags="$flags -w0"
+            ReportCmd="$LogProc $flags /dev/stdin"
+
+	    ;;
+	*)
+	    ReportCmd="echo Bad value in $UserConfFile; should be some of
+none, raw, standard, or wide."
+	    ;;
+	esac
+	set -A ReportCommands -- "${ReportCommands[@]}" "$ReportCmd"
+    done
+    AGet XferData $User DataLines
+    if $Debug; then
+	print -u2 "Report commands for $User: ${ReportCommands[*]}"
+	print -u2 "Data lines for $User:\n$DataLines"
+    fi
+    for Cmd in "${ReportCommands[@]}"; do
+	print -r "$DataLines" | $Cmd
+	echo ""
+    done | if $Test; then
+	print -u2 "Would send to $User:"
+	cat 1>&2
+    elif [ -n "$ReportCmd" ]; then
+	$mail -s "$Subject" $User
+    fi
+    let i+=1
+done
+exit 0

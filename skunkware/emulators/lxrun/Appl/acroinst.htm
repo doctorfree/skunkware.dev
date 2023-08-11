@@ -1,0 +1,130 @@
+<HTML>
+<BODY bgcolor=#ffffff>
+<TITLE>Adobe Acrobat Installation</TITLE>
+<H1>Adobe Acrobat Installation</H1>
+This document covers:
+<UL>
+<P><LI>
+<A HREF=#download>Downloading Adobe Acrobat</A>
+<P><LI>
+<A HREF=#install>Installing Adobe Acrobat</A>
+<P><LI>
+<A HREF=#run>Running and Troubleshooting Adobe Acrobat</A>
+</UL>
+The procedures shown here assume that you have already installed
+the lxrun and lxrunlibs packages on your system. You can obtain
+these packages from the 
+<A HREF=http://www.ugcs.caltech.edu/~steven/lxrun>lxrun ftp site</A> or
+from the UnixWare 7, Release 7.1 Operating System Updates CD-ROM.
+<A NAME=download><H2>Downloading Adobe Acrobat</H2></A>
+<OL>
+<P><LI>
+Log onto your system as <B><I>root</B></I>.
+<P><LI>
+Create the directory <I>/home/tmp</I>.
+<P><LI>
+Change directories to <I>/home/tmp</I>.
+<P><LI>
+Download the Linux version of Adobe Acrobat:
+<PRE>
+<B>ftp ftp.adobe.com</B> (log in as user ftp)
+<B>cd /pub/adobe/acrobatreader/unix/3.x
+get ar302lin.tar.Z</B>
+</PRE>
+<P><LI>
+Uncompress the archive, by issuing the following command:
+<PRE>
+<B>tar xvf ar302lin.tar.Z
+</PRE>
+This creates a sub-directory named <I>ILINXR.install</I> containing
+the installation program and readmes.
+</OL>
+<A NAME=install><H2>Installing Adobe Acrobat</H2></A>
+<OL>
+<P><LI>
+Create a uname spoofer program as shown below.
+This tricks the Acrobat installation scripts into thinking
+that you are running the Linux operating system.
+<P>
+With your favorite text editor, create <I>/usr/lib/linux/bin/uname</I>
+to include the following:
+<PRE>
+#! /bin/sh
+# @(#) uname spoofer for lxrun
+# place into /usr/lib/linux/bin as uname (executable)
+# Put that pathname earlier in PATH before system uname (/usr/bin)
+#       uname spoof
+#
+if [ -z "$1" ] ; then
+        echo "Linux"
+else
+        case "$1" in
+         "-s")  echo "Linux"
+                ;;
+         "-n")  node=`/usr/bin/uname -n`
+                echo $node
+                ;;
+         "-r")  echo "2.0.34"
+                ;;
+         "-v")  echo "uw7lxrun"
+                ;;
+         "-a")  node=`/usr/bin/uname -n`
+                echo "Linux $node 2.0.34 uw7lxrun i486 SCO"
+                ;;
+         "-m")  echo "i486"
+                ;; 
+	*)      echo "uname spoofer for lxrun"
+		echo "usage: uname [-snrvma]"
+                ;;
+        esac
+fi
+</PRE>
+<P><LI>
+Ensure that this version of <B>uname</B> will be invoked:
+<PRE>
+<B>chmod a+x /usr/lib/linux/bin/uname
+PATH=/usr/lib/linux/bin/:$PATH</B>
+</PRE>
+<P><LI>
+Create the installation directory and links such that Acrobat
+behaves as if it is installed in <I>/usr/local</I>.
+<PRE>
+<B>mkdir /usr/lib/linux/usr/local/Acrobat3
+cd /usr/local
+ln -s /usr/lib/linux/usr/local/Acrobat3 Acrobat3</B>
+<P><LI>
+From <I>/home/tmp/ILINXR.install</I>, run:
+<PRE>
+<B>./INSTALL</B>
+</PRE>
+<P>
+Follow the installation prompts, accepting the defaults shown.
+Be sure to accept <I>/usr/local/Acrobat3</I> as the installation directory.
+</OL>
+<A NAME=run><H2>Running and troubleshooting Adobe Acrobat</H2></A>
+To run the Adobe Acrobat pdf reader, <B>cd</B> to <I>/usr/lib/linux/usr/local/Acrobat3/bin</I>
+and enter <B>./acroread</B>. 
+<P>
+A basic sanity test is to open the file listed at the bottom of the <B>File</B>
+menu (<I>reader.pdf</I>).
+<P>
+To set up your system to run Adobe Acrobat directly, you can
+either:
+<UL>
+<P><LI>
+create a symbolic link from <I>/usr/lib/linux/usr/local/Acrobat3/bin/acroread</I>
+to <I>/usr/local/bin/acroread</I> <B>and</B> ensure that <I>/usr/local/bin</I>
+is in your PATH, or
+<P><LI>
+add <I>/usr/lib/linux/usr/local/Acrobat3/bin</I> to your PATH
+</UL>
+<H3>Known problems</H3>
+<UL>
+<P><LI>
+This version of the Adobe Acrobat installation has been shown to dump 
+core when run from 
+a <B>dtterm</B> in the CDE Desktop. You can use an <B>xterm</B> in
+the Panorama Desktop or any other non-CDE environment.
+</UL>
+</BODY>
+</HTML>

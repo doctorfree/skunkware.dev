@@ -1,0 +1,110 @@
+#!/bin/ksh
+# @(#) edcron.ksh 2.0 96/01/19
+# 93/02/13 John H. DuBois III (john@armory.com)
+# 93/04/30 Allow user names on command line.
+# 93/07/18 Added options & other functionality.
+# 93/07/26 Fixed removal of tmpfile
+# 93/10/30 Added -c option
+# 94/04/17 Print time of last modification
+# 96/01/19 Moved default tmpdir to home dir for safety
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+# Usage: doed <username>
+# The test for whether a file was modified is to save its contents in a
+# shell variable & check after editing for whether the contents are the same.
+function doed {
+    typeset file ans tmp="$TMPDIR/#$1.$$" user=$1 tfile
+
+    if crontab -l -u "$user" > $tmp || istrue create; then
+	file="$(<$tmp)"
+	$VISUAL $tmp
+	tfile=/usr/spool/cron/crontabs/$user
+	# Print this *after* editing so that it won't be immediately
+	# cleared from the screen by the editor startup (unless more than
+	# one crontab file is being edited)
+	if [ -f $tfile ]; then
+	    set -- $(l $tfile)
+	    print -u2 "$user's crontab file was last modified $6 $7 $8"
+	fi
+	if [ "$file" = "$(<$tmp)" ]; then
+	    print -u2 "Not modified; skipping $user..."
+	else
+	    if istrue interactive; then
+		echo -n "Submit crontab file for $user? "
+		read ans
+		if [[ "$ans" != [yY]* ]]; then
+		    print "crontab for $user not submitted."
+		    rm -f $tmp
+		    return 0
+		fi
+	    fi
+	    crontab -u "$user" $tmp &&
+	    print "crontab for $user submitted."
+	fi
+    else
+	print -u2 "Skipping $user..."
+    fi
+    rm -f $tmp
+}
+
+DefEd=vi
+typeset -i interactive=0 create=0
+: ${VISUAL:=$EDITOR}
+: ${VISUAL:=$DefEd}
+: ${TMPDIR:=$TMP}
+: ${TMPDIR:=$HOME}
+
+name=${0##*/}
+Usage="Usage: $name [-chi] [user ...]"
+
+while getopts :chi opt; do
+    case $opt in
+    h)
+	echo \
+"$name: edit crontab files.
+$Usage
+Each user's crontab file is presented for editing.
+When the editor is exited, the file is submitted to cron and the
+next file, if any, is presented.  If the editor is exited without
+the file being modified, it is not submitted.  If the environment
+variable VISUAL or EDITOR is set, its value is used for the editor.
+If not, $DefEd is used.
+Options:
+-c: Create crontab file if it does not exist.
+-h: Print this help info.
+-i: Interactive operation.  Ask before submitting new crontab file."
+	exit 0
+	;;
+    c)
+	create=1
+	;;
+    i)
+	interactive=1
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+[ $# -lt 1 ] && set -- $USER
+
+for user; do
+    doed "$user"
+done

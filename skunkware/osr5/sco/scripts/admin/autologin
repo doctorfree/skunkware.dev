@@ -1,0 +1,140 @@
+#!/bin/ksh
+# @(#) autologin.ksh 1.1 94/11/16
+# 93/11/15 john h. dubois iii (john@armory.com)
+# 93/12/31 fixed quoting on final exec line
+# 94/02/25 Added -x option
+# 94/06/29 Added -hc.  No setpgrp if no controlling tty.  chown/chmod tty.
+# 94/10/17 Open all 3 terminal fds for both input & output, for e.g. more
+# 94/11/16 Added mnot options.
+
+longName=${0##*/}
+ttyMode=600
+Usage="Usage: 
+$longName [-xhno] [-m<tty-mode>] [-t<termtype>] [-c\"command [arg ...]\"]
+	  <user> <tty> [termio-params]"
+unset TERM	# so we can tell if it's set with -t
+suArg=-
+UserTTY=true
+
+while getopts :xhc:t:nm:o opt; do
+    case $opt in
+    h)
+	echo \
+"$longName: log in a user on a particular tty.
+$Usage
+<user> is the user to log in.  <tty> is the tty line to log the user in on.
+The default termio parameters set are 'sane' and 'echoe'.
+Additional termio parameters can be given after the tty name.
+$longName is typically run from inittab so that the user will be logged in on a
+tty when the system goes multiuser.  Example inittab line:
+Se1f:23:respawn:/bin/autologin johnd tty1f 38400 ixon ixoff
+Additional notes:
+The user is su'd to, and thus must have a shell that can be exec'd.
+If the user's shell is a script, it must be a #! script.
+Also, su does not set supplemental groups correctly when invoked by init.
+The ut_user field of the utmp entry for the tty will be the name of this
+program, rather than that of the user.
+Options:
+-h: Print this help.
+-c<command> <arg> ...: Have user run command after login.  If args are given,
+    the command and args should be quoted together.
+-n: Start a regular shell for the user, rather than a login shell (do not give
+    the '-' argument to su).  If -n is given, the shell will not read its
+    startup files (e.g. .profile for sh users).
+-o: Do not change the owner of the tty to be the user being logged in on it.
+    The tty is opened before the user is su'ed to, so it does not strictly
+    need to be owned by the user.  However, some applications reopen the tty,
+    so it is usually advisible to use -m to make the tty read/writable by all
+    if -o is used.
+-m<tty-mode>: The mode, in the style of chmod(C), to chmod the tty to.  The
+    default is $ttyMode.  Use '-m \"\"' to not attempt to change the tty mode.
+-t<termtype>: Set the value of TERM that will be passed to the user process.
+    By default, the TERM value appropriate to the tty is read from
+    /etc/ttytype.  TERM must be set correctly to run any application that uses
+    a full-screen interface.
+-x: Turn on debugging.  If $longName is run from a terminal, debugging output
+    is sent to the same terminal.  If not (e.g. when run from inittab), output
+    is sent to /dev/console."
+	exit 0
+	;;
+    c)
+	Command="-c $OPTARG";;
+    x)
+	set -x;;
+    m)
+	ttyMode=$OPTARG;;
+    n)
+	suArg=;;
+    t)
+	TERM=$OPTARG;;
+    o)
+	UserTTY=false;;
+    +?)
+	print -u2 "$longName: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$longName: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?) 
+	print -u2 "$longName: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 2 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+# If not being run from a tty, send errors to console
+[ ! -t 1 ] && exec > /dev/console 2>&1
+
+USER=$1
+tty=$2
+shift 2
+[[ "$tty" != /* ]] && tty=/dev/$tty
+if [ ! -c $tty ]; then
+    # Actually only tests if it is a char device.
+    print -u2 "$longName: $tty: not a tty."
+    exit 4
+fi
+
+ttyname=${tty##*/}
+
+if [ -z "$TERM" ]; then
+    # Try to find termtype in database
+    ttytype=/etc/ttytype
+    [ -f $ttytype ] &&
+    egrep "[	]$ttyname($|[ 	])" $ttytype | read TERM garbage
+fi
+export TERM	# export TERM regardless
+
+$UserTTY && chown $USER $tty
+[ -n "$ttyMode" ] && chmod $ttyMode $tty
+
+# Attach to the tty & set its parameters sanely.
+# Then su to the user with '-' to make it act like a login shell.
+# All 3 fds must be opened for both read & write because some programs like
+# 'more' do funky stuff like opening stdout for input.
+FullCmd="exec <>$tty 1>&0 1<&0 2>&0 2<&0;/bin/stty sane echoe $*;
+exec /bin/su $suArg $USER $Command"
+
+# If we can open /dev/tty we have a controlling tty (have been invoked outside
+# of e.g. inittab/sdd) & must use setpgrp to get rid of it so we can get the
+# "login" tty as controlling tty.
+setpgrp=/bin/setpgrp
+if (< /dev/tty) 2>/dev/null && [ -x $setpgrp ]; then
+    # Invoke ksh because setpgrp exec's its arg directly & we need shell syntax
+    # Use ksh instead of sh because sh doesn't do the fd redirection correctly
+    exec $setpgrp /bin/ksh -c "$FullCmd"
+else
+    eval "$FullCmd"
+fi

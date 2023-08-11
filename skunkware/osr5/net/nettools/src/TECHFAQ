@@ -1,0 +1,256 @@
+Frequently asked questions about promiscuous mode, bpf, tcpdump, for SCO
+Open Server Release 5 from past email that I've answered.
+
+Contents:
+
+Q) What cards and drivers support promiscuous mode?
+Q) Where can I get the MDI specification?
+Q) What is the bpf driver?  can the bpf driver be used elsewhere?
+Q) What about the ipf module shipped with TCP/IP?  Can I use it instead of bpf?
+Q) I don't want or need promiscuous mode.  How can I bind to a particular SAP?
+Q) How are the stacks set up on OSR5?
+Q) Why do I have to have a NIC dedicated to tcpdump?
+Q) How are bpf, ipf, and mdi drivers "plumbed" by tcpdump or pppd with STREAMS?
+Q) When I try and use the "push" directive in /etc/strcf.d/* per slink(ADMN)
+   to push the bpf module I get link errors when I try to relink my kernel.  
+   Why?
+Q) When I put ksl.disable in /etc/default/boot (to use the "normal" slink to 
+   push the module), on booting I get some error messages about starting up 
+   RPC (some sort of problem with UDP). TCP still works fine, just RPC and NFS
+   are dead.  Why?
+Q) Where can I get the SCO DLPI specification?
+
+-------------------------------------------------------------------------------
+*******************************************************************************
+Q) What cards and drivers support promiscuous mode?
+
+A) For Open Server Release 5, any of the following cards support promiscuous 
+   mode:
+
+   e3E  - 3Com EtherLink III  (3C509, 3C529, 3C579, 3C589)
+   i3B  - Racal InterLan ES-3210 EISA
+   i6E  - Racal InterLan EtherBlaster ISA (NI6510)
+   sebm - SMC 82M32 Elite32 Ultra Adapter
+   sme  - SMC 8216/8416 Adapter
+   wdn  - Western Digital/SMC 8003/8013  - but use new wdn/Driver.o in nettools
+
+*******************************************************************************
+Q) Where can I get the MDI specification?
+
+A) The Mac Driver Interface (MDI) specification is distributed as part of 
+   the Advanced Hardware Developer's Kit, known as the AHDK.  The MDI 
+   specification is very similar to the DLPI specification but it's 
+   easier to write a driver for MDI than DLPI.  The MDI specification is
+   the only specification you'll need to write a NIC driver.
+
+   From URL http://www.sco.com, click on "Developer's Place", "Developer
+   Products", and "SCO Advanced Hardware Developer's Kit".  Or, 
+   see URL http://www3.sco.com/Products/layered/develop/ahdk.htm
+
+*******************************************************************************
+Q) What is the bpf driver?  can the bpf driver be used elsewhere?
+
+A) the bpf driver in nettools is a STREAMS module.  It can only be I_PUSHed onto
+   an open STREAM.  Also, the device /dev/bpfX does not exist.  Explained below.
+   The bpf STREAMS module doesn't support the BIOCSETIF, BIOCIMMEDIATE, or
+   BIOCGBLEN ioctls other code which uses /dev/bpfX might expect.
+   the bpf STREAMS module _does_ support BIOCGSTATS, BIOCVERSION, and BIOCSETF
+   ioctls.  See the file .bpf.h in the bpf directory and the "plumbing"
+   question later on for more information.
+
+*******************************************************************************
+Q) What about the ipf module shipped with TCP/IP?  Can I use it instead of bpf?
+
+A) No.  The ipf(ADMP) filter used with pppd's packetfilter(SFF) is _almost_
+   the same as bpf except that it always assumes that the incoming
+   data is a raw IP packet without an ethernet header on it as is the
+   case for an incoming PPP packet. ipf also doesn't understand the
+   BIOCVERSION ioctl.  ipf only supports the BIOCGSTATS and BIOCSETF ioctls.
+   When you open /dev/mdi/whatever you will receive raw ethernet frames for 
+   any protocol type.  Otherwise, the ipf and bpf drivers are the same.  
+   See ipf(ADMP) and pppfilter(SFF).
+
+*******************************************************************************
+Q) I don't want or need promiscuous mode.  How can I bind to a particular SAP?
+   so I can send and receive certain frames (Ethernet II/802.x/SNAP/etc.)?
+
+A) open /dev/netX and send the associated DLPI primitives.   The dlpi module
+   won't allow a DL_BIND_REQ to a sap that is already in use.
+
+*******************************************************************************
+Q) How are the stacks set up on OSR5?
+
+A) This is how the stack normally looks before you even get to system 
+   maintainence mode:
+
+   tcp udp icmp igmp rip
+       |
+      ip module
+       |
+   dlpi module (a.k.a /dev/netX)
+       |
+   mdi driver (which may do promiscuous mode).  
+
+   The stack is set up by the ksl driver, which does all of the necessary
+   streamio(M) I_PLINK's before you even get to single user mode.  This is why
+   you can ping/telnet/etc. out of the machine before single user mode (with
+   marginal help from the "tcp::sysinit:/etc/tcp start" line in /etc/inittab)
+
+*******************************************************************************
+Q) Why do I have to have a NIC dedicated to tcpdump?
+
+A) The MDI specification(*) says you can only have ONE consumer
+   using the minor number of the board and that each open must reset the card
+   and turn off promiscuous mode.  In "most" cases this consumer is the DLPI
+   module which is I_PLINKed by ksl earlier.  This is why a command like
+   "hd /dev/mdi/XXX" will fail with Permission Denied.  However, you can
+   prevent ksl from building the stack at boot time by adding the token
+   "ksl.disable" to /etc/default/boot and rebooting(you can also play with
+   /etc/strcf.d/* lines, relink, and reboot - you won't need ksl.disable).
+   This way the stack won't be assembled in single user mode so you can open
+   /dev/mdi/cardname, I_PUSH the bpf driver on top of it, send a BIOCSETF ioctl
+   to program the filter, send MAC_BIND_REQ and MACIOC_PROMISC commands per
+   the MDI spec to bind and put the card in promiscuous mode, and happily
+   call read(S) or getmsg(S) to slurp up the frames off the wire to do
+   whatever you want with them.  This is exactly what tcpdump does.
+   However, this only works in single user mode.  Why?
+   As soon as you go to run level 2, dlpid notices that the stack wasn't
+   assembled so it tries to do the streamio(M) I_LINK of the stack.  How to
+   prevent this? remove the applicable line in /var/opt/K/SCO/lli/5.0.0l/llimdi.
+   This procedure (with gotchas) is explained in more detail in the
+   installation portion of the README that comes with NetTools.
+
+   The device /dev/bpfX doesn't need to exist since all OSR5 network drivers
+   are already accessable as /dev/mdi/cardname.  The filter can simply be
+   I_PUSHed onto the stack.
+
+   In short, if you want promiscuous mode, you will have to dedicate an
+   entire network card to running dhcpd (or tcpdump, arpwatch, etc.) as a
+   stack (the dlpi module in particular) can't use the card at the same time!
+
+   This limitation is not specific to bpf at all -- it is mandated by the Mac 
+   Driver Interface (MDI) specification(*).  The spec says that you can only 
+   have one open of the driver.  That is normally the dlpi STREAMS module (aka 
+   /dev/net*) the dlpi module will NAK any PROMISC ioctls and not pass them 
+   downstream to the MDI driver.  Sooo, you must open the mdi driver 
+   (/dev/mdi/*) directly to send the PROMIS* ioctl to the card to go into 
+   promiscuous mode.  And promiscuous mode support is optional for MDI 
+   conformance, so few drivers actually implement this ioctl, even if the 
+   firmware can implement promiscuous mode support.  If you can open the card, 
+   that means that the dlpi module can't open the card, since you have it open,
+   which means that a stack can't run on it.
+
+   (*) The following MDI sections mandate promiscuous mode behaviour:
+   2.1.3. XXopen()  - Must turn off promiscuous mode (if it was set) at open(S)
+   2.1.3. XXopen()  - XXopen will not be called more than one time before
+                      XXclose is called.  The MDI driver should enfore this by
+                      failing subsequent calls to XXopen.
+   2.4.9. MACIOC_PROMISC ioctl - reset promiscuous mode when the MDI device 
+                                 is closed.
+
+   p.s. I'm working on a "tap" driver which acts as a replacement MDI driver 
+   which allows multiple consumers at one time: the dlpi module, multiple 
+   tcpdump users, or someone wanting to inject their own frames on the wire.
+   This will eliminate the unique NIC requirement and allow you to run tcpdump
+   and multiple stacks at the same time.  However, don't hold your breath: 
+   I can only work on this when time permits.
+   
+*******************************************************************************
+Q) How are bpf, ipf, and mdi drivers "plumbed" by tcpdump or pppd with STREAMS?
+
+A) The notion of plumbing is not done by bpf -- that's left up to someone else.
+   For a normal stack the slink/ksl driver take care of this.  Take a look at
+   /etc/strcf.d/*.  tcpdump opens /dev/mdi/whatever, issues a streams I_PUSH
+   "bpf" ioctl (see streamio(M)), a BIOCSETF ioctl to set the filter, a
+   MACIOC_PROMISC ioctl to put the card into promiscuous mode, and then
+   starts reading the frames from the wire.  Any frames read by the user
+   process will automatically be "valid" since they got passed the filter.
+   The I_PUSH manipulates the STREAM plumbing by adding the bpf module
+   beneath the STREAM head so that after the ioctl the "stack" looks like:
+
+   tcpdump
+      |
+   stream head
+      |
+     bpf
+      |
+   mdi driver
+
+   pppd and slattach do the I_PUSH of "ipf" and a BIOCSETF ioctl if they
+   notice a "pass" keyword in pppfilter (you also need a filter keyword in 
+   ppphosts for PPP or run slattach with the -p option).
+
+   Note that on BSD systems there is a bpf device (usually /dev/bpf000) which 
+   talk directly to the bpf driver.  You issue a BIOCPROMISC ioctl to put the 
+   card into promisuous mode.  This device doesn't exist at all on SCO systems 
+   and causes some confusion.
+
+   Remember that the filtering work doesn't _have_ to be done in kernel space.
+   Certainly it's more efficient to do there.  You can just as easily perform
+   filtering in user space -- just don't I_PUSH bpf -- but you'll still need to
+   send the MACIOC_PROMISC ioctl down to the driver.
+
+*******************************************************************************
+Q) When I try and use the "push" directive in /etc/strcf.d/* per slink(ADMN)
+   to push the bpf module I get link errors when I try to relink my kernel.  
+   Why?
+
+A) This is a known bug in the slink binary and is fixed in a future release
+   with two new binaries: slink and ksl/Driver.o.  slink -G is changed so that
+   instead of calling ksl_sioctl slink calls a new function (defined in the
+   new ksl/Driver.o) called ksl_push.
+ 
+   While you'd think you can fool slink with literal quotes like
+   
+   push ip \"bpf\"
+
+   and the code generated in the space.c will actually compile properly into a
+   valid I_PUSH ioctl, it _still_ won't work: the kernel I_PUSH code calls
+   copyin(K) to get the name of the module from user space.  Except that when
+   you use the ksl driver the name of the module (that you just put in double
+   quotes) gets loaded into kernel address space.  Since the pointer to the 
+   string in double quotes is in kernel space it will have an address above 
+   KVBASE(immu.h) (actually above KVSBASE) and therein lies the problem.  
+   copyin checks to see if the address that you're trying to copy in is above 
+   KVBASE and if so then copyin fails.  Result: the I_PUSH fails so your module
+   never gets pushed.  The new ksl_push routine doesn't do a copyin() so the
+   module gets pushed.
+
+   Enclosed in nettools in the ksl directory are new versions of slink and
+   ksl/Driver.o which can be installed to support the "push" directive 
+   properly.  Copy them to /etc and /etc/conf/pack.d/ksl respectively.
+
+   Applying these fixes are not necessary for normal argus/arpwatch/tcpdump 
+   operation.
+
+*******************************************************************************
+Q) When I put ksl.disable in /etc/default/boot (to use the "normal" slink to 
+   push the module), on booting I get some error messages about starting up 
+   RPC (some sort of problem with UDP). TCP still works fine, just RPC and NFS
+   are dead.  Why?
+
+A) This is a known bug: LTI-1-218.  /etc/rc2.d/S84rpcinit and S85nis assume 
+   that the stack is up and running.
+
+   If you boot with ksl.disable then the stack isn't assembled until S85tcp runs
+   (good 'ol slink) so you get numerous failure messages from portmapper and
+   friends.  To fix, tcp (actually slink) must run before S84rpcinit:
+
+   mv /etc/rc2.d/S85tcp /etc/rc2.d/S83tcp
+
+   See the README in NetTools for more information.
+
+
+*******************************************************************************
+Q) Where can I get the SCO DLPI specification?
+
+A) The SCO DLPI specification is not not needed to develop a NIC driver.  
+   The only specification you need to write a NIC driver is the MDI 
+   specification.
+
+   The SCO DLPI specification describes the programatic interface to 
+   the dlpi STREAMS module, /dev/net*.  It is similar to DLPI 2.0 and
+   is available on a case-by-case basis from the SCO Network Driver 
+   Engineering group.
+
+---the end---

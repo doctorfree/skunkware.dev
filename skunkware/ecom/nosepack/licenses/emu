@@ -1,0 +1,732 @@
+#!/usr/local/bin/perl
+
+# EMU is an event manager processing events from "emsg".
+# VERSION 2.34
+#  Copyright 1999
+#  by Jarrix Systems Pty Ltd.  All rights reserved.  Some individual
+#  files in this distribution may be covered
+#  by other copyrights, as noted in their embedded comments.
+#
+#  Redistribution and use in source and binary forms are permitted
+#  provided that this entire copyright notice is duplicated in all such
+#  copies, and that any documentation, announcements, and other
+#  materials related to such distribution and use acknowledge that the
+#  software was developed at Jarrix Systems Pty Ltd by Jarra and Anna
+#  Voleynik.
+#
+#  No charge, other than an "at-cost" distribution fee, may be charged
+#  for copies, derivations, or distributions of this material without
+#  the express written consent of the copyright holder.
+#
+#  THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY
+#  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR ANY PARTICULAR
+#  PURPOSE.
+
+require 5.002;
+use Socket;
+use Carp;
+use Fcntl;
+use SDBM_File;
+
+# socket init, put here because of perl on Windows NT
+my $proto = getprotobyname('tcp');
+socket(Server, PF_INET, SOCK_STREAM, $proto) or die "\nCannot create socket\n\n";
+
+$port = $ARGV[0];
+$confdir = $ENV{EMUBASE};
+if ($confdir) {
+	$conffile = "$confdir/conf/$port".".cfg";
+} else {
+	$conffile = "/usr/local/emu/conf/$port".".cfg";
+}
+# global variables
+$DEBUG = 0;
+$curday = -1; # force log file creation later on
+$curday2 = 1; # force log file creation later on
+$message_changed = 0; # is 1 if an update_count > 1 and message text has changed
+$severity_changed = 0; # is 1 if an update_count > 1 and message severity has changed
+$class_changed = 0; # is 1 if an update_count > 1 and message class has changed
+$txt_written = 0; # is 1 when txt file has been written
+$name = ""; # the real name of the host sending the message. Remember that the sender host and user name can be changed.
+
+# message attributes
+$key = "";
+$value = "";
+$send_host = "";
+$send_time = "";
+$send_user = "";
+$severity = 1;
+$first_timestamp = 1;
+$update_timestamp = 1;
+$update_count = 0;
+$class = "";
+$ttl = "";
+$savettl = "";
+$lag = 0; #lag for messages of type count
+$password = ""; # password in the message
+$message = "";
+$type = "";
+$msgnum = 0;
+%ENV = {};
+$mcount = 1;
+$discard_msg = 0; # communicates the main loop if message is to be discarded
+
+# config file options
+$input_script = "";
+$output_script = "";
+$delete_script = "";
+$gpassword = ""; # correct password from the config file
+$dbfile = ""; 
+$logdir = ""; 
+$outdir = ""; 
+
+# files
+$textfile = "";
+$lockfile = "";
+
+# socket
+my $paddr;
+
+#######################
+# write_txt_file - write the db contents into a text file
+#######################
+sub write_txt_file {
+	my $wmsgnum,$wsend_time,$wsend_host,$wsend_user,$wttl,$wseverity,$wclass,$wmessage,$wtype,$wcomment,$wfirst_timestamp,$wupdate_timestamp,$wupdate_count;
+	my $wkey,$wvalue;
+
+	return 1 if ($discard_msg);
+     # create lock file to let browsers know
+     print "creating lock file\n" if ($DEBUG);
+     open LOCK, ">$lockfile" or log_err("cannot create $lockfile for txt file access", 0);
+#    print LOCK "\n";
+     close LOCK;
+
+     print "writing text file\n" if ($DEBUG);
+     open TEXT,">>$textfile" or log_err("Cannot open file $textfile", 0);
+	truncate TEXT, 0;
+     while (($wkey,$wvalue) = each %DB) {
+          if ( $wkey eq MSGNUM ) { # skip msgnum counter
+                next;
+          }
+		($wmsgnum,$wsend_time,$wsend_host,$wsend_user,$wttl,$wseverity,$wtype,$wfirst_timestamp,$wupdate_timestamp,$wupdate_count) = unpack("A6A12A64A24A12A12A24A16A16A12",$DB{$wkey});
+		# print messages of type normal
+		if ($wtype eq "normal") {
+			# get the message
+			($wmessage,$wcomment,$wclass) = unpack("A256A256A128",$MDB{$wkey});
+          	print TEXT $wmsgnum,"^","$wkey","^",$wsend_time,"^",$wsend_host,"^",$wsend_user,"^",$wttl,"^",$wseverity,"^",$wclass,"^",$wmessage,"^",$wtype,"^",$wcomment,"^",$wfirst_timestamp,"^",$wupdate_timestamp,"^",$wupdate_count,"\n";
+		}
+     }
+     close TEXT;
+     #remove lock file
+     print "removing lock file\n" if ($DEBUG);
+     unlink ("$lockfile");
+	$txt_written = 1;
+}
+
+#############
+# get_options - get options from config file
+#############
+sub get_options
+{
+     open OPT, "@_" or die "\nCannot open @_\n\n";
+     while(<OPT>) {
+		if(/^\#/) {
+			next;
+		}
+          if(/logdir\s+(.*)/) {
+               $logdir = $1;
+               print "logdir $logdir\n" if ($DEBUG);
+          }
+          if(/password\s+(.*)/) {
+               $gpassword = $1;
+               print "gpassword $gpassword\n" if ($DEBUG);
+          }
+          if(/output_script\s+(.*)/) {
+               $output_script = $1;
+               print "output_script $output_script\n" if ($DEBUG);
+          }
+          if(/delete_script\s+(.*)/) {
+               $delete_script = $1;
+               print "delete_script $delete_script\n" if ($DEBUG);
+          }
+          if(/input_script\s+(.*)/) {
+               $input_script = $1;
+               print "input_script $input_script\n" if ($DEBUG);
+          }
+          if(/dbfile\s+(.*)/) {
+               $dbfile = $1;
+               print "dbfile $dbfile\n" if ($DEBUG);
+          }
+          if(/outdir\s+(.*)/) {
+               $outdir = $1;
+               print "outdir $outdir\n" if ($DEBUG);
+          }
+     }
+	close OPT;
+}
+
+########################
+# set_environ - set up environment variables
+########################
+sub set_environ {
+
+	print "set_environ\n" if ($DEBUG);
+
+	if ("$type" eq "delete") {
+		$ENV{E_KEY} = $object;
+	}
+	else {
+		$ENV{E_KEY} = $key;
+	}
+
+	$ENV{E_MSGNUM} = $msgnum;
+	$ENV{E_TYPE} = $type;
+     $ENV{E_TIME} = $send_time;
+     $ENV{E_USER} = $send_user;
+     $ENV{E_SEV} = $severity;
+     $ENV{E_COUNT} = $update_count;
+    	$ENV{E_CLASS} = $class;
+     $ENV{E_TTL} = $savettl;
+     $ENV{E_HOST} = $send_host;
+     $ENV{E_RHOST} = $name;
+    	$ENV{E_MSG} = $message;
+    	$ENV{E_CHANGED} = $message_changed;
+    	$ENV{E_SEV_CHANGED} = $severity_changed;
+    	$ENV{E_CLASS_CHANGED} = $class_changed;
+    	$ENV{E_COMMENT} = $comment;
+    	$ENV{E_TXT_WRITTEN} = $txt_written;
+}
+
+########################
+# log_err - log errors and warnings
+########################
+sub log_err {
+	my $lmsg = $_[0];
+	my $ex = $_[1];
+
+	print "$lmsg\n" if ($DEBUG);
+	($sec,$min,$hour,$mday,$mon,$year) = localtime(); # get current time
+	$mday2 = sprintf "%02d", $mday;
+	$mon2 = sprintf "%02d", $mon + 1;
+	$hour2 = sprintf "%02d", $hour;
+	$min2 = sprintf "%02d", $min;
+	$year = $year + 1900;
+	open ELOG, ">>$errlogfile";
+	print ELOG "$year$mon2$mday2$hour2$min2 - $lmsg\n";
+	close ELOG;
+	exit 1 if ($ex); 
+}
+
+#######################
+# do_log - put an entry in the log file
+#######################
+sub do_log {
+	my $logfile;
+	my $sec = 0;
+	my $min = 0;
+	my $hour = 0;
+	my $mday = 0;
+	my $mon = 0; # (0-11)
+	my $nmon = 0; # (1-12)
+	my $nmon2 = 0; # (1-12)
+
+	print "do log \n" if ($DEBUG);
+	return 1 if ($discard_msg);
+	set_environ;
+	($sec,$min,$hour,$mday,$mon,$year) = localtime(); # get current time
+	$nmon = $mon + 1;
+	if($mday != $curday) {
+               close LOG if ($curday > 0);;
+			$curday = $mday;
+			$year = $year + 1900;
+			$curday2 = sprintf "%02d", $curday;
+			$nmon2 = sprintf "%02d", $nmon;
+			$logfile = "$logdir/$year"."$nmon2"."$curday2.log";			
+			open LOG, ">>$logfile" or die "\nLog file $logfile can not be created\n\n";
+              	chmod 0640, $logfile;
+   	}
+	select(LOG); $| = 1; # synchronous write for logs
+	printf LOG "%02d%02d%02d%02d|%s|%s|%s|%s|%s|%s|%s|%s|%s\n",$mday,$mon+1,$hour,$min,$type,$send_time,$send_host,$send_user,$severity,$update_count,$class,$savettl,$message;
+	select(STDOUT); $| = 0;
+}
+
+############################
+# do_input_script - run the input script
+############################
+sub do_input_script {
+	my $ret;
+
+	print "do_input_script\n" if ($DEBUG);
+	if( -f $input_script ) {
+		set_environ;
+		$ret = system("$input_script");
+		$ret = $ret / 256;
+		return $ret;
+	}
+}
+
+############################
+# do_output_script - run the output script
+############################
+sub do_output_script {
+	my $ret;
+
+	print "do_output_script\n" if ($DEBUG);
+	return 1 if ($discard_msg);
+	if( -f $output_script ) {
+		set_environ;
+		$ret = system("$output_script &");
+		return $ret;
+	}
+}
+
+############################
+# do_delete_script - run the delete script
+############################
+sub do_delete_script {
+     my $ret;
+
+	print "do_delete_script\n" if ($DEBUG);
+	return 1 if ($discard_msg);
+     if( -f $delete_script ) {
+          set_environ;
+          $ret = system("$delete_script &");
+          return $ret;
+	}
+}
+
+###########################
+# consolidate_nums - re-number messages starting with a 0
+###########################
+sub consolidate_nums
+{
+     my $cmsgnum,$csend_time,$csend_host,$csend_user,$cttl,$cseverity,$cclass,$cmessage,$ctype,$ccomment,$cfirst_timestamp,$cupdate_timestamp,$cupdate_count;
+
+	my $ckey, $cvalue;
+     my $ccounter = 0;
+    
+     while (($ckey,$cvalue) = each %DB) {
+          if ( $ckey eq "MSGNUM" ) { # skip msgnum counter
+                next;
+          }
+		($cmsgnum,$csend_time,$csend_host,$csend_user,$cttl,$cseverity,$ctype,$cfirst_timestamp,$cupdate_timestamp,$cupdate_count) = unpack("A6A12A64A24A12A12A24A16A16A12",$DB{$ckey});
+          print "old $cmsgnum \n" if ($DEBUG);
+          $cmsgnum = $ccounter;
+          print "new $cmsgnum \n" if ($DEBUG);
+		$DB{$ckey} = pack("A6A12A64A24A12A12A24A16A16A12",$cmsgnum,$csend_time,$csend_host,$csend_user,$cttl,$cseverity,$ctype,$cfirst_timestamp,$cupdate_timestamp,$cupdate_count);
+          $ccounter++;
+     }
+     return $ccounter;
+}
+
+###########################
+# get_expiry - calculate ttl if not hh:mm
+###########################
+sub get_expiry
+{
+	my $gttl = $_[0];
+
+	SWITCH: {
+		# seconds
+		$gttl = $gttl + time(), last SWITCH if ($gttl =~ /^\d+s$/);
+		$gttl = $gttl + time(), last SWITCH if ($gttl =~ /^\d+$/);
+		# minutes
+		$gttl = ($gttl*60) + time(), last SWITCH if ($gttl =~ /^\d+m$/);
+		# hours
+		$gttl = ($gttl*3600) + time(), last SWITCH if ($gttl =~ /^\d+h$/);
+		# hh:mm
+		$gttl = $gttl, last SWITCH if ($gttl =~ /^\d\d:\d\d/);
+		$gttl = $gttl, last SWITCH if ($gttl =~ /^-1$/);
+          $gttl = $gttl, last SWITCH if ($gttl =~ /^0$/);
+		log_err("wrong ttl ($gttl) for ($send_host:$object)", 0);
+		$discard_msg = 1; # discard the message
+	}
+	return $gttl;
+}
+	
+##############################
+# add_update - add or update a message
+##############################
+sub add_update {
+     my $umsgnum,$usend_time,$usend_host,$usend_user,$uttl,$useverity,$uclass,$umessage,$utype,$ucomment,$ufirst_timestamp,$uupdate_timestamp,$uupdate_count;
+
+
+	# $key is global now
+
+	print "add_update \n" if ($DEBUG);
+	if (! $DB{$key}) { # doesn't exist in the database
+     	$mcount = 1;
+		$msgnum = $DB{"MSGNUM"};
+          if($msgnum >= 9999) {
+          	$MCOUNT = &consolidate_nums;
+	     	print "consolidate returned $MCOUNT\n" if ($DEBUG);
+          	$msgnum = $MCOUNT;
+          	print "this msgnum = $msgnum\n" if ($DEBUG);
+          	$MCOUNT++;
+          	$DB{"MSGNUM"} = $MCOUNT;
+          	print "next msgnum = $MCOUNT\n" if ($DEBUG);
+          }
+          else {
+          	$DB{"MSGNUM"}++;
+          }
+		$first_timestamp = time(); 
+		$update_timestamp = time(); 
+		$update_count = 1;
+		$ttl = get_expiry($ttl); # get message expiry time
+		return 1 if ($discard_msg);
+		$DB{$key} = pack("A6A12A64A24A12A12A24A16A16A12",$msgnum,$send_time,$send_host,$send_user,$ttl,$severity,$type,$first_timestamp,$update_timestamp,$update_count);
+		$MDB{$key} = pack("A256A256A128", $message,$comment,$class);
+		write_txt_file;
+          print "inserted $key in class $class\n" if ($DEBUG);
+	}
+	else {
+	# update the entry
+		# read the old entry
+		($umsgnum,$usend_time,$usend_host,$usend_user,$uttl,$useverity,$utype,$ufirst_timestamp,$uupdate_timestamp,$uupdate_count) = unpack("A6A12A64A24A12A12A24A16A16A12",$DB{$key});
+		($umessage,$ucomment,$uclass) = unpack("A256A256A128",$MDB{$key});
+		$msgnum = $umsgnum; # set global variable
+		#  masked =>, do nothing unless extending a mask message life
+		if ($utype eq "mask" && $type ne "mask") {
+			print "message ($key) is masked out\n" if ($DEBUG);
+			return 5;
+		}
+		# convert to secs or leave descriptive time (HH:MM)
+		$uupdate_timestamp = time();
+          $uttl = get_expiry($ttl); # get message expiry time
+		return 1 if ($discard_msg);
+		$uupdate_count++;
+		$update_count = $uupdate_count; # set global variable
+		if ($utype =~ /count/ && $lag == $uupdate_count) {
+			$utype = "normal";
+			$type = "normal";
+			$update_count = 1; # reset count to 1
+			$uupdate_count = 1; # reset count to 1
+			print "message ($key) reached a count of $lag\n" if ($DEBUG);
+		} 
+		$message_changed = 1 if ($umessage ne $message); 
+		$umessage = $message;
+		# change severity as it may have changed
+		$severity_changed = 1 if ($useverity ne $severity); 
+		$useverity = $severity;
+		# perharp the class may have changed as well
+		$class_changed = 1 if ($uclass ne $class); 
+		$uclass = $class;
+		#  allow overwrite of message type if not "count"
+		$utype = $type if ($type !~ /count/ );
+		$DB{$key} = pack("A6A12A64A24A12A12A24A16A16A12",$umsgnum,$usend_time,$send_host,$usend_user,$uttl,$useverity,$utype,$ufirst_timestamp,$uupdate_timestamp,$uupdate_count);
+		$MDB{$key} = pack("A256A256A128",$umessage,$ucomment,$uclass);
+		write_txt_file if ( $message_changed || $severity_changed || $class_changed || $update_count < 6 ); 
+		print "updated $key $uclass num - ",$umsgnum," count - ",$uupdate_count,"\n" if ($DEBUG);
+      }
+}
+
+###########################
+# do_delete - delete a message
+###########################
+sub do_delete {
+     my $dkey = $_[0];
+	my $dwrite = $_[1]; # 1 => write text file
+
+	my $dfirst_timestamp,$dupdate_timestamp,$dsend_host,$dtype;
+	
+	return 1 if ($discard_msg);
+	print "deleting $dkey ...\n" if ($DEBUG);
+	# retrieve message attributes for the set_environ procedure
+	($msgnum,$send_time,$dsend_host,$send_user,$savettl,$severity,$dtype,$dfirst_timestamp,$dupdate_timestamp,$update_count) = unpack("A6A12A64A24A12A12A24A16A16A12",$DB{$dkey});
+	($message,$comment,$class) = unpack("A256A256A128",$MDB{$dkey});
+	
+	delete $DB{$dkey};
+	delete $MDB{$dkey};
+	if ($dwrite == 1) {
+          write_txt_file;
+     }
+}
+
+###########################
+# do_wakeup - wake up a sleeping message
+###########################
+sub do_wakeup {
+	my $wkmsgnum,$wksend_time,$wksend_host,$wksend_user,$wkttl,$wkseverity,$wkclass,$wkmessage,$wktype,$wkcomment,$wkfirst_timestamp,$wkupdate_timestamp,$wkupdate_count;
+	my $wkkey = $_[0];
+     my $wkwrite = $_[1]; #  1 => write text file
+	my ($sec,$min,$hour,$mday,$mon) = localtime();
+	
+	return 1 if ($discard_msg);
+	print "do_wakeup \n" if ($DEBUG);
+	($wkmsgnum,$wksend_time,$wksend_host,$wksend_user,$wkttl,$wkseverity,$wktype,$wkfirst_timestamp,$wkupdate_timestamp,$wkupdate_count) = unpack("A6A12A64A24A12A12A24A16A16A12",$DB{$wkkey});
+	$wktype = "normal";
+	$wksend_time = sprintf "%02d/%02d %02d:%02d", $mday, $mon+1, $hour, $min;
+	$wkttl = -1;
+	$wkupdate_count = 1;
+	$DB{$wkkey} = pack("A6A12A64A24A12A12A24A16A16A12",$wkmsgnum,$wksend_time,$wksend_host,$wksend_user,$wkttl,$wkseverity,$wktype,$wkfirst_timestamp,$wkupdate_timestamp,$wkupdate_count);
+
+	($wkmessage,$wkcomment,$wkclass) = unpack("A256A256A128",$MDB{$wkkey});
+	$send_time = $wksend_time;
+	$send_user = $wksend_user;
+	$severity = $wkseverity;
+	$update_count = $wkupdate_count = 1;
+	$class = $wkclass;
+	$savettl = $wkttl;
+	$send_host = $wksend_host;
+	$message = $wkmessage;
+	$comment = $wkcomment;
+	$key = $wkkey;
+
+	if ($wkwrite == 1) {
+          write_txt_file;
+     }
+
+}
+
+###########################
+# do_comment - add a comment to an existing message
+###########################
+sub do_comment {
+	my $comsgnum,$cosend_time,$cosend_host,$cosend_user,$cottl,$coseverity,$coclass,$comessage,$cotype,$cocomment,$cofirst_timestamp,$coupdate_timestamp,$coupdate_count;
+	my $cokey = $_[0];
+     my $cowrite = $_[1]; # 1 => write text file
+
+	return 1 if ($discard_msg);
+	print "do_comment \n" if ($DEBUG);
+	($comessage,$cocomment,$coclass) = unpack("A256A256A128",$MDB{$cokey});
+	$cocomment = $comment;
+	$MDB{$cokey} = pack("A256A256A128",$comessage,$cocomment,$coclass);
+	if ($cowrite == 1) {
+          write_txt_file;
+     }
+
+}
+
+##########################
+# do_query - return a message type if it exists
+##########################
+sub do_query {
+	my $qmsgnum,$qsend_time,$qsend_host,$qsend_user,$qttl,$qseverity,$qclass,$qmessage,$qtype,$qcomment,$qfirst_timestamp,$qupdate_timestamp,$qupdate_qunt;
+	my $qkey = $_[0];
+     my $qwrite = $_[1]; # 1 => write text file
+	my $line;
+	my $RET; # return code
+
+	return 1 if ($discard_msg);
+	print "do_query \n" if ($DEBUG);
+	if($qkey eq "FILE" || $qkey eq "_FILE") {
+		# for security
+		$rest =~ s:\.\.::g;
+		$rest =~ s:\/::g;
+		$file = "$outdir"."/$rest";
+		if( ! -f $file) {
+			print Client "none\n";
+		} 
+		else {
+			open (QRY,"< $file") or log_err("Cannot open $file",0); 
+			while(<QRY>) {
+				$line = $_;
+				print Client "$line";
+			}
+			close QRY;
+			if($qkey eq "FILE") {
+				unlink("$file");
+				$RET = 0;
+			} else {
+				$RET = 1;
+			}
+		}
+		close Client;
+		return $RET;
+	}
+	if(! $DB{$qkey}) {
+		print Client "none\n"; 
+		close Client;
+		return 0;
+	}
+	($qmsgnum,$qsend_time,$qsend_host,$qsend_user,$qttl,$qseverity,$qtype,$qfirst_timestamp,$qupdate_timestamp,$qupdate_qunt) = unpack("A6A12A64A24A12A12A24A16A16A12",$DB{$qkey});
+	print Client "$qtype\n";
+	close Client;
+	return 0;
+}
+
+##########################################################################
+# main program
+##########################################################################
+
+if($#ARGV != 0) {
+     die "\nemu <port>\n\n";
+}
+
+get_options $conffile;
+
+# establish the message db file
+$mdbfile = $dbfile."m";
+
+# open the key database
+tie(%DB, SDBM_File, "$dbfile" ,O_RDWR|O_CREAT,0660) or die "cannot tie the key database";
+untie %DB;
+# open the message database
+tie(%MDB, SDBM_File, "$mdbfile" ,O_RDWR|O_CREAT,0660) or die "cannot tie the message database";
+untie %MDB;
+
+# make sure message count is present
+if( ! $DB{"MSGNUM"}) {
+     $DB{"MSGNUM"} = 0;
+}
+
+# establish the text file for browsers
+$textfile = $dbfile.".txt";
+# establish the lock file for browsers
+$lockfile = $dbfile.".lck";
+# establish the error log file
+$errlogfile = $logdir."/"."err.log";
+
+# get the current process ID for later killing
+$pidfile = $logdir."/"."emu.pid";
+open PID, ">$pidfile" or log_err("Cannot open file $pidfile", 0);
+print PID "$$\n";
+close PID;
+
+# make sure the textfile exists
+if (! -f $textfile) {
+	open TXT, ">$textfile" or log_err("Cannot open file $textfile", 0);
+	close TXT;
+}
+#system("touch $textfile");
+
+# Now the socket stuff
+setsockopt(Server, SOL_SOCKET, SO_REUSEADDR, pack("l",1))
+               or die "\nCannot setsockopt\n\n";
+my $sa = Socket::sockaddr_in($port, INADDR_ANY);
+bind(Server, $sa ) or die "\nCannot bind\n\n";
+listen(Server, SOMAXCONN) or die "\nCannot listen\n\n";
+
+print "EMU server started on port $port\n" if ($DEBUG);
+
+
+for (; $paddr= accept(Client,Server); close Client) {
+     my ($port, $iaddr) = sockaddr_in($paddr);
+     $name = gethostbyaddr($iaddr, AF_INET);
+
+	# open the key database
+	tie(%DB, SDBM_File, "$dbfile" ,O_RDWR|O_CREAT,0660) or die "cannot tie the key database";
+	# open the message database
+	tie(%MDB, SDBM_File, "$mdbfile" ,O_RDWR|O_CREAT,0660) or die "cannot tie the message database";
+
+     while (<Client>) {
+		print "message received from $name\n" if ($DEBUG);
+		$discard_msg = 0;
+		$message_changed = 0;
+		$severity_changed = 0;
+		$class_changed = 0;
+		$txt_written = 0;
+		$update_count = 0;
+		# get message attributes
+		chop;
+		($send_time,$send_host,$send_user,$ttl,$severity,$password,$class,$message,$type) = unpack("A12A64A24A12A12A24A128A256A24",$_);
+		print "$send_time,$send_host,$send_user,$ttl,$severity,$password,$class,$message,$type\n" if $DEBUG;
+
+		# discard if password mismatch
+		print "password check ... +$gpassword+  vs +$password+\n" if $DEBUG;
+		last if ($gpassword ne $password);
+		print "password OK\n" if $DEBUG;
+		
+		# save $ttl
+		$savettl = $ttl;
+		# form key
+			# get the first word of message =>  object
+		$message =~ /^([^ ]+)\s*(.*)$/;
+		($object,$rest) = ($1,$2);
+		print "object = $object\n" if ($DEBUG);
+		$key = "$send_host".":"."$object";
+		print "key = $key\n" if ($DEBUG);
+
+		# check input script
+		print "input_script check ...\n" if $DEBUG;
+		last if (do_input_script > 0);
+		print "input_script OK\n" if $DEBUG;
+
+		# case the message type
+		$comment = "";
+		SWITCH: {
+			if ($type eq "comment") {
+				$comment = $rest; 
+				do_comment ($object, 1);
+				do_log;
+				do_output_script;
+				last SWITCH;
+			}
+			if ($type eq "normal") {
+				$RET = add_update if ($ttl != 0);
+                    do_log;
+                    do_output_script if ($RET != 5); # if not masked out
+				last SWITCH;
+			}
+			if ($type eq "delete") {
+				do_log;
+				do_delete ($object, 1); # message is the key
+				do_delete_script;
+				last SWITCH;
+			}
+			if ($type eq "suspend") {
+				do_log;
+				if ($object =~ /^\d+$/) {
+					untie %DB;
+					untie %MDB;
+					sleep $object;
+					tie(%DB, SDBM_File, "$dbfile" ,O_RDWR|O_CREAT,0660) or die "cannot tie the key database";
+					tie(%MDB, SDBM_File, "$mdbfile" ,O_RDWR|O_CREAT,0660) or die "cannot tie the message database";
+
+				}
+				else {
+					log_err("time ($object) for suspend from ($send_host)", 0);
+				}
+				last SWITCH;
+			}
+			if ($type eq "mask") {
+				add_update;
+				do_log;
+				do_output_script;
+				last SWITCH;
+			}
+			if ($type eq "sleep") {
+				add_update;
+				do_log;
+                    do_output_script;
+				last SWITCH;
+			}
+			if ($type eq "event") {
+				add_update;
+				do_log;
+                    do_output_script;
+				last SWITCH;
+			}
+			if ($type eq "query") {
+				last SWITCH if (do_query($object, 1) == 1); # _FILE 
+				do_log;
+				do_output_script;
+				last SWITCH;
+			}
+			if ($type eq "wakeup") {
+				do_log;
+				do_wakeup ($object, 1); # wake up a sleep message, message is the key
+				do_output_script;
+				last SWITCH;
+			}
+			if ($type =~ /^count\s(\d+)$/) {
+				$lag =  $1;
+				$RET = add_update;
+				do_log;
+				do_output_script if ($RET != 5); # not masked out
+				last SWITCH;
+			}
+#endif
+			log_err("message type ($type) from ($send_host:$object) not supported or invalid", 0);
+		} #_end switch
+	} #_end while
+	untie %DB;
+	untie %MDB;
+} #_end of for
+				
+				
+				
+
+
+

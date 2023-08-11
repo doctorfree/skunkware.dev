@@ -1,0 +1,180 @@
+#!/bin/ksh
+# @(#) ve.ksh 1.2 96/06/15
+# 92/03/06 john h. dubois iii (john@armory.com)
+# 92/10/16 exec editor
+# 92/11/22 pass -opt and +opt to editor
+# 93/04/29 pass + to vi
+# 93/11/19 Added -p option
+# 94/04/23 Read $HOME/.ve
+# 95/05/17 Change window title to reflect files being edited
+# 96/06/15 Added d option.
+# 96/09/03 Remove cwd from filenames.
+
+typeset -i ShowPath=0
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+name=${0##*/}
+rcFile=.ve
+Usage="Usage: $name [-hdnp] [[-+]vi_option] filename ..."
+changeDir=false
+
+while getopts :hdnp opt; do
+    case $opt in
+    h)
+	print -u2 -- \
+"$name: edit a file in EDITPATH.
+$Usage
+For each filename given, $name searches each directory named in the
+environment variable EDITPATH in the order given and finds the first
+instance of filename.  If a file is not found, a message is printed.
+When all of the files have been searched for, $name invokes the editor on
+them.  EDITPATH has the same format as PATH and CDPATH, except that
+directories may be separated by either a ':' or whitespace, and the usual
+ksh variable and filename expansions are done.  Examples:
+dir1:dir2:dir3:...
+dir1{a,b}:dir2/*:dir3:$LIB/foo:~/mail
+EDITPATH can also be set in a file in the user's home directory named
+\"$rcFile\".  To determine what editor to use, $name first looks at the value
+of the environment variable EDITOR, then VISUAL.  If neither is set, vi is
+used.  Initial arguments that start with '-' or '+' are passed to the editor
+without interpretation.  If vi is used, the argument '+' is passed.
+If the environment variables WINTITLE and DISPLAY are set, an xterm escape
+sequence is sent to change the window title to the name of the files being
+edited, followed by the value of WINTITLE in parentheses.  After editing is
+completed, another sequence is sent to change the window title back to
+the value of WINTITLE by itself.
+The directory that the editor is invoked from is removed from the head of any
+filenames that begin with it.
+Options:
+Some of the options below can be turned on by putting varname=1 in the $rcFile
+file, where varname is the variable given in parentheses in the option
+description.
+-h: print this help.
+-d: Change the working directory to the directory that the first file is found
+    in before running the editor, so that if the editor is shelled out of the
+    shell's working directory will be that directory, and if a new file is
+    switched to in the editor the file will be searched for relative to that
+    directory.  (CHANGEDIR)
+-n: Do not send an xterm title escape sequence.  (NOTITLE)
+-p: show what EDITPATH looks like after expansion, then quit."
+	exit 0
+	;;
+    d) changeDir=true;;
+    n) NOTITLE=true;;
+    p) ShowPath=1;;
+    ?)
+	break	# start of vi options
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+editpath=$EDITPATH	# let environment overrule rcfile
+rcFile=$HOME/$rcFile
+[ -f $rcFile -a -r $rcFile ] && . $rcFile
+if [ -z "$editpath" ] ; then
+    if [ -z "$EDITPATH" ] ; then
+	print -ru2 -- "$name: EDITPATH not set."
+	exit 1
+    fi
+    editpath=$EDITPATH
+fi
+
+[ -z "$WINTITLE" -o -z "$DISPLAY" -o -n "$NOTITLE" ] && NOTITLE=true ||
+NOTITLE=false
+
+typeset -i argind=0 numopts i
+unset args error
+while [[ "$1" = [-+]* ]]; do
+    args[argind]=$1
+    let argind+=1
+    shift
+done
+numopts=argind
+
+set -A files -- "$@"
+OIFS=$IFS
+IFS=":$IFS"
+set -- $editpath
+IFS=$OIFS
+
+if istrue ShowPath; then
+    IFS=:
+    print -r -- "$*"
+    exit
+fi
+
+if [ $# -lt 1 ]; then
+    print -ru2 "$Usage
+Use -h for help."
+    exit 1
+fi
+
+for file in "${files[@]}"; do
+    for dir; do
+        if [ -f "$dir/$file" ]; then
+	    args[argind]=$dir/$file
+	    let argind+=1
+	    continue 2
+	fi
+    done
+    print -ru2 -- "$name: $file: file not found."
+    error=1
+done
+
+if [ -n "$error" ]; then
+    if [ argind -gt numopts ]; then
+	print -ru2 -n -- "press return to edit other files..."
+	read
+    else
+	exit
+    fi
+fi
+
+EDITOR=${EDITOR:-${VISUAL:-vi}}
+[[ "$EDITOR" = ?(*/)vi ]] && EDITOR="$EDITOR +"
+
+function ResetTitle {
+    print -n "\033]0;$OWINTITLE\007"
+}
+
+[ -n "$CHANGEDIR" ] && changeDir=true
+if $changeDir; then
+    file1=${args[numopts]}
+    if [[ "$file1" = */* ]]; then
+	dir1=${file1%/*}
+	# This should never happen since we already checked for the existance
+	# of this file, but check anyway.
+	if [ ! -d "$dir1" -o ! -x "$dir1" ]; then
+	    print -n -ru2 \
+    "Cannot change working directory to $dir1.  Press return to continue..."
+	    read
+	else
+	    cd "$dir1"
+	fi
+    fi
+fi
+
+let i=numopts
+while [ i -lt argind ]; do
+    args[i]=${args[i]#$PWD/}
+    let i+=1
+done
+
+if $NOTITLE; then
+    exec $EDITOR "${args[@]}"
+else
+    OWINTITLE=$WINTITLE
+    # Change WINTITLE in environment, so that in case another app that
+    # uses WINTITLE is run from the editor, it will use modified value
+    WINTITLE="${files[*]} ($OWINTITLE)"
+    trap ResetTitle INT QUIT
+    print -n "\033]0;$WINTITLE\007"      # set win title
+    $EDITOR "${args[@]}"
+    ResetTitle
+fi

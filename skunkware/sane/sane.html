@@ -1,0 +1,407 @@
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Mozilla/4.61 [en] (X11; I; UnixWare 5 i386) [Netscape]">
+   <meta name="Author" content="jenss">
+   <title>SANE on UnixWare7</title>
+</head>
+<body text="#000000" bgcolor="#FFFFFF" link="#0000EE" vlink="#551A8B" alink="#FF0000">
+&nbsp;
+<center><table CELLSPACING=10 CELLPADDING=0 >
+<tr>
+<td><img SRC="uw7.jpg" height=253 width=182></td>
+
+<td></td>
+
+<td><img SRC="sane.gif" height=225 width=192></td>
+</tr>
+</table></center>
+
+<p>
+<hr WIDTH="100%">
+<h1>
+Table of Contents</h1>
+
+<h3>
+<a href="#Introduction">Introduction</a></h3>
+
+<h3>
+<a href="#System Requirements">System requirements</a></h3>
+
+<h3>
+<a href="#Installation">Installation</a></h3>
+
+<h3>
+Configuration</h3>
+
+<blockquote>
+<h3>
+<a href="#The SCOadmin Scanner Manager">The SCOadmin Scanner Manager</a></h3>
+
+<h3>
+<a href="#Manual Configuration">Manual Configuration</a></h3>
+</blockquote>
+
+<h3>
+SANE Applications</h3>
+
+<blockquote>
+<h3>
+<a href="#scanimage">scanimage</a></h3>
+
+<h3>
+<a href="#xscanimage">xscanimage</a></h3>
+
+<h3>
+<a href="#xsane">xsane</a></h3>
+
+<h3>
+<a href="#xcam">xcam</a></h3>
+</blockquote>
+
+<h3>
+<a href="#Debugging">Debugging</a></h3>
+
+<h3>
+<a href="#Tested Combinations of Host Bus Adapters (HBAs) and Scanners">Tested
+Combinations of Host Bus Adapters (HBAs) and Scanners</a></h3>
+
+<h3>
+<a href="#Known problems">Known Problems</a></h3>
+
+<h3>
+<a href="#Links">Links</a></h3>
+
+<h3>
+<a href="#Question? Comments?">Questions? Comments?</a></h3>
+
+<h1>
+
+<hr WIDTH="100%"></h1>
+
+<h1>
+<a NAME="Introduction"></a>Introduction (from the SANE <a href="http://www.mostang.com/sane">home
+page</a>)</h1>
+SANE stands for "Scanner Access Now Easy" and is an application programming
+interface (API) that provides standardized access to any raster image scanner
+hardware (flatbed scanner, hand-held scanner, video- and still-cameras,
+frame-grabbers, etc.). The SANE API is public domain and its discussion
+and development is open to everybody. The current source code is written
+for UNIX (including GNU/Linux) and is available under the GNU General Public
+License (the SANE API is available to proprietary applications and backends
+as well, however).
+<p>SANE is a universal scanner interface. The value of such a universal
+interface is that it allows writing just one driver per image acquisition
+device rather than one driver for each device and application. So, if you
+have three applications and four devices, traditionally you'd have had
+to write 12 different programs. With SANE, this number is reduced to seven:
+the three applications plus the four drivers. Of course, the savings get
+even bigger as more and more drivers and/or applications are added.
+<p>Not only does SANE reduce development time and code duplication, it
+also raises the level at which applications can work. As such, it will
+enable applications that were previously unheard of in the UNIX world.
+While SANE is primarily targeted at a UNIX environment, the standard has
+been carefully designed to make it possible to implement the API on virtually
+any hardware or operating system.
+<p>While SANE is an acronym for ``Scanner Access Now Easy'' the hope is
+of course that SANE is indeed sane in the sense that it will allow easy
+implementation of the API while accommodating all features required by
+today's scanner hardware and applications. Specifically, SANE should be
+broad enough to accommodate devices such as scanners, digital still and
+video cameras, as well as virtual devices like image file filters.
+<p>If you're familiar with TWAIN, you may wonder why there is a need for
+SANE. Simply put, TWAIN does not separate the user-interface from the driver
+of a device. This, unfortunately, makes it difficult, if not impossible,
+to provide network transparent access to image acquisition devices (which
+is useful if you have a LAN full of machines, but scanners connected to
+only one or two machines; it's obviously also useful for remote-controlled
+cameras and such). It also means that any particular TWAIN driver is pretty
+much married to a particular GUI API (be it Win32 or the Mac API). In contrast,
+SANE cleanly separates device controls from their representation in a user-interface.
+As a result, SANE has no difficulty supporting command-line driven interfaces
+or network-transparent scanning. For these reasons, it is unlikely that
+there will ever be a SANE backend that can talk to a TWAIN driver. The
+converse is no problem though: it would be pretty straight forward to access
+SANE devices through a TWAIN source. In summary, if TWAIN had been just
+a little better designed, there would have been no reason for SANE to exist,
+but things being the way they are, TWAIN simply isn't SANE.
+<h1>
+<a NAME="System Requirements"></a>System Requirements</h1>
+
+<ul>
+<li>
+A UW7.1.x workstation. SANE uses the SCSI passthrough interface which is
+part of the core OS since UW7.1.0</li>
+
+<li>
+The following pkgadd'able software packages (available from <a href="ftp://ftp.sco.com/skunkware/uw7/Packages">here</a>):</li>
+
+<ul>
+<li>
+<tt>sane-1.0.1.pkg </tt>(contains the SANE binaries, libraries, header,
+doc etc.)</li>
+
+<li>
+<tt>glibs-2.0.3.pkg</tt> (or newer)</li>
+
+<li>
+<tt>gimp-1.0.4.pkg</tt> (The <a href="http://www.gimp.org">GNU Image Manipulator
+Program</a>, this installation of this package is optional)</li>
+
+<li>
+<tt>xsane-0.50.pkg</tt> (optional, see details below, the current version
+is 0.50)</li>
+</ul>
+
+<li>
+A SCSI scanner (the current version of SANE for UW7.1.x doesn't support
+parallel port or USB scanners). SANE contains drivers for the most common
+scanners, like HP, UMAX, Epson, Canon etc. Click here for a full list.</li>
+</ul>
+
+<h1>
+<a NAME="Installation"></a>Installation</h1>
+Before you can install SANE you have to pkgadd the glibs package:
+<blockquote><b>pkgadd -d `pwd`/glibs-2.0.3.pkg</b></blockquote>
+Then pkgadd the SANE package:
+<ul><b>pkgadd -d `pwd`/sane-1.0.1.pkg</b></ul>
+This will install the binaries, librabries, header files, man pages etc.
+in <tt>/usr/local</tt>. Make sure you've got <tt>/usr/local/bin</tt> in
+your $PATH. The installation of XSANE and The Gimp is optional but recommended.
+XSANE offers a number of features xscanimage doesn't provide (xscanimage
+is part of the SANE package). The Gimp is probably the best open source
+image viewer and editor that is currently available.
+<h1>
+Configuration</h1>
+
+<h1>
+<a NAME="The SCOadmin Scanner Manager"></a>The SCOadmin Scanner Manager</h1>
+Before you can use any of the applications, i.e. scanimage/xscanimage/xcam/xsane
+you have to configure the scanner. The easiest way to do so is to use the
+SCOadmin Scanner Manager. Start the client either via the SCOadmin launcher
+or directly from the command line (as root):
+<blockquote># <tt>scoadmin scanner</tt></blockquote>
+
+<hr WIDTH="100%">
+<p><b>Note:</b> The GUI doesn't support the configuration of QuickCam cameras
+yet. The devices have to configured manually by editing the appropriate
+configuration files in <tt>/usr/local/etc/sane.d</tt>.
+<p>
+<hr WIDTH="100%">
+<p><img SRC="scannergui.jpg" height=390 width=662>
+<br>&nbsp;
+<h1>
+<a NAME="Manual Configuration"></a>Manual Configuration</h1>
+Edit the drivers configuration file as root and specify the scanner's SCSI
+address or the address of the parallel port the QuickCam camera is connected
+to. The configuration files are located in <tt>/usr/local/etc/sane.d</tt>,
+e.g. <tt>hp.conf</tt>. Create an entry like:
+<ul>/dev/passthru0:0,0,6,0</ul>
+to reflect your configuration. The syntax is
+<ul>/dev/passthru0:&lt;bus>,&lt;controller>,&lt;id>,&lt;lun></ul>
+It is also necessary to edit <tt>/usr/local/etc/sane.d/dll.conf</tt> to
+enable the backend that is needed to drive the scanner, e.g. <tt>hp</tt>.
+Backends are disabled if the name of the backend is prefixed with a hash,
+e.g. <tt>#hp</tt>. See also <a href="#Debugging">Debugging</a>. Only the
+backends that are not commented out are loaded.
+<h1>
+SANE Applications</h1>
+
+<h1>
+<a NAME="scanimage"></a>scanimage</h1>
+scanimage is a command line interface that if invoked without any options
+reads the data from the scanner and prints the raw data to the screen.
+<p>The command scanimage -L lists the devices that are available, e.g.
+<ul><b>device `hp:/dev/passthru0:0,1,6,0' is a Hewlett-Packard C6270A flatbed
+scanner</b></ul>
+The simplest command to scan an image is:
+<ul><b>scanimage > /tmp/out.pnm</b></ul>
+There's a number of parameters that can be used in addition to control
+the scanner (set the brighness, contrast, resolution etc.), e.g.
+<ul><b>scanimage --resolution=300 --brightness=20 > out.pnm</b></ul>
+
+<hr WIDTH="100%">
+<p><b>Note:</b> Not all scanners support the same set of options. The UMAX
+S6E for example doesn't support the 'brighntess' and the 'contrast' parameters.
+<p>
+<hr WIDTH="100%">
+<p><b>Note:</b> There seems to be a bug in the hp backend. The value for
+the resolution will be ignored if the resolution parameter is specified
+before the mode parameter, and the mode is set to 'color', i.e.:
+<ul><b>scanimage --resolution=100 --mode=color > /tmp/out.pnm</b></ul>
+The scanners default value for the resolution (e.g. 300) will be used instead.
+The problem won't occur if you specify the mode first.
+<p>
+<hr WIDTH="100%">
+<h1>
+<a NAME="xscanimage"></a>xscanimage</h1>
+xscanimage is a graphical frontend to SANE.
+<h1>
+<a NAME="xsane"></a>xsane</h1>
+xsane is another graphical frontend to SANE, but it provides more features
+than xscanimage and is constantly being improved.
+<h1>
+<a NAME="xcam"></a>xcam</h1>
+xcam is an application that provides streaming video from a Connectix QuickCam
+camera. The application is not very stable. It is also not possible to
+write the images continuously to the disk, i.e. record to disk. The other
+SANE frontends can be used to aquire images from QuickCam cameras, too,
+comparable to a snapshot camera.
+<h1>
+<a NAME="Debugging"></a>Debugging</h1>
+There are a number of environment variables that can be set for debugging
+purposes. The numeric value specifies the debug level. The smaller the
+number, the less information is produced, e.g. a value of 1 will only bring
+up important messages such as errors. For example:
+<ul>
+<li>
+<tt>export SANE_DEBUG_DLL=1</tt></li>
+
+<li>
+<tt>export SANE_DEBUG_SANEI_SCSI=64</tt></li>
+
+<li>
+<tt>export SANE_DEBUG_HP=128</tt></li>
+
+<li>
+<tt>export SANE_DEBUG_UMAX=2</tt></li>
+
+<li>
+and so on</li>
+</ul>
+The value can range between 0 (for no output) and 128 (very verbose).
+<h1>
+<a NAME="Tested Combinations of Host Bus Adapters (HBAs) and Scanners"></a>Tested
+Combinations of Host Bus Adapters (HBAs) and Scanners</h1>
+
+<table BORDER CELLPADDING=2 >
+<tr>
+<td></td>
+
+<td><b>UMAX Vista-S6E</b></td>
+
+<td><b>UMAX Astra 610S</b></td>
+
+<td><b>HP ScanJet 6250C</b></td>
+
+<td><b>HP Scanjet 5P</b></td>
+</tr>
+
+<tr>
+<td><b>Adaptec AIC-7880</b>
+<p><b>(adsl)</b></td>
+
+<td>Usually works without problems. From time to time SCSI commands time
+out and cause the machine to hang. If <a href="http://www.sco.com/support/ftplists/uw7list.html">ptf7049e</a>
+is installed the machine will recover.</td>
+
+<td>Usually works without problems. From time to time SCSI commands time
+out and cause the machine to hang. If <a href="http://www.sco.com/support/ftplists/uw7list.html">ptf7049e</a>
+is installed the machine will recover.</td>
+
+<td>No problems.</td>
+
+<td>No problems.</td>
+</tr>
+
+<tr>
+<td><b>Adaptec AHA-2940</b>
+<p><b>(adsl)</b></td>
+
+<td>Usually works without problems. From time to time SCSI commands time
+out and cause the machine to hang. If <a href="http://www.sco.com/support/ftplists/uw7list.html">ptf7049e</a>
+is installed the machine will recover.</td>
+
+<td>Usually works without problems. From time to time SCSI commands time
+out and cause the machine to hang. If <a href="http://www.sco.com/support/ftplists/uw7list.html">ptf7049e</a>
+is installed the machine will recover.</td>
+
+<td>No problems.</td>
+
+<td>- not tested -</td>
+</tr>
+
+<tr>
+<td><b>Buslogic BT-958</b>
+<p><b>(blc)</b></td>
+
+<td>Scanner calibration fails in color mode. Gray and Lineart are ok.</td>
+
+<td>No problems.</td>
+
+<td>No problems.</td>
+
+<td>- not tested -</td>
+</tr>
+
+<tr>
+<td><b>Symbios SYM22801</b>
+<p><b>(c8xx)</b></td>
+
+<td>Scanner initialisation fails. Application runs in a loop. This only
+happens on UW 7.1. Fixed in UW 7.1.1</td>
+
+<td>- not tested -</td>
+
+<td>Kernel panics (only UW 7.1). No problems on a system that runs UW 7.1.1.</td>
+
+<td>- not tested -</td>
+</tr>
+
+<tr>
+<td><b>Symbios 8751sp</b>
+<p><b>(c8xx)</b></td>
+
+<td>Scanner initialisation fails. Application runs in a loop. Fixed in
+7.1.1</td>
+
+<td>Scanner initialisation fails. Application runs in a loop.</td>
+
+<td>Kernel panics (only UW 7.1). No problems on a system that runs 7.1.1.</td>
+
+<td>- not tested -</td>
+</tr>
+
+<tr>
+<td><b>DPT PM2124</b>
+<p><b>(dpt)</b></td>
+
+<td>No problems.</td>
+
+<td>No problems.</td>
+
+<td>Scanner initialisation fails. First TEST_UNIT_READY command fails with
+SDI_CKSTAT.</td>
+
+<td>- not tested -</td>
+</tr>
+</table>
+
+<h1>
+<a NAME="Known problems"></a>Known problems</h1>
+There appears to be a bug in the HP&nbsp;driver. If the user puts a sheet
+of paper into the document feeder and changes the scan mode to something
+else than 'color', the scan geometry gets corrupted. The 'Top-left' slider
+is at maximum but still holds a value of zero. The will cause xscanimage
+to exit with an assertion error. The document feeder works fine if the
+scan mode is set to 'color'.
+<p>Not all scanner identify themselves as scanners (SCSI class 3). Some
+scanners vendors, like HP&nbsp;and Epson chose to report their devices
+as 'Processing Devices' (SCSI class 6). These scanners are not autodetected
+by the SCOadmin Scanner Manager.
+<h1>
+<a NAME="Links"></a>Links</h1>
+
+<blockquote>The <a href="http://www.mostang.com/sane/">SANE Home Page</a>
+<br>The <a href="http://www.wolfsburg.de/~rauch/sane/sane.html">XSANE Home
+Page</a></blockquote>
+
+<h1>
+<a NAME="Question? Comments?"></a>Question? Comments?</h1>
+Let <a href="mailto:jenss@sco.com">me</a> know!
+<br>
+<hr WIDTH="100%">
+<p>Last update: 26/01/2000
+</body>
+</html>

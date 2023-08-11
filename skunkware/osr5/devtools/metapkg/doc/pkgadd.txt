@@ -1,0 +1,80 @@
+MetaPKG pkgadd Backend Notes
+============================
+
+The pkgadd backend is essentially the port to the new MetaPKG framework
+of the original `mkcdmt' program. By and large, the pkgadd backend will
+produce files almost identical to the last version of mkcdmt.
+
+This backend could use some considerable improvements, such as the
+recognition of install scripts, allowing you to specify the size of
+parts, etc. I am no pkgadd expert, and this backend is only as good
+as my very limited knowledge of that somewhat arcane system. If you
+know pkgadd better, please feel free to improve this backend.
+
+Command Line Options
+====================
+
+The pkgadd backend adds 1 mandatory command line option:
+
+-U categroy
+  Sets the `category' for this package or set.
+
+The pkgadd backend adds one optional command line option:
+-l limit
+  Sets the maximum size of each individual part of a datastream to LIMIT.
+  This effectively sets the blocksize for the pkgadd "output device".
+  This should not be set too high, as pkgadd extracts each part into
+  /tmp first, and on many systems this is a relatively small ramdisk.
+  If MetaPKG finds an individual file that is larger than this limit, it
+  will automatically increase the limit to cater for that file. Thus this
+  option specifies the lower limit of each part size.
+
+Mapping to MetaPKG Terms
+========================
+
+It is important to understand the mapping of MetaPKG terminology to
+how the pkgadd backend produces files. This section describes that
+mapping.
+
+At the lowest level, what MetaPKG refers to as a `package' is implemented
+as a pkgadd package `class'. A MetaPKG `component' is implemented as a
+pkgadd `package'. If the product you are manipulating with MetaPKG
+only contains a single component, then a simple pkgadd package is created.
+However, if you have more than one component, then a pkgadd `set' is
+created. This maps to the MetaPKG notion of a `product'.
+
+Control File Integration
+========================
+
+Most of the control file syntax applies equally to CDMT and pkgadd. However,
+the pkgadd backend has some additional requirements, and a few restrictions.
+You should take note of these and conditionalize the usage of these functions
+in the control script by using something similar to:
+
+  ifneq ("METAPKG_BACKEND", "pkgadd")
+     stuff_that_pkgadd_doesnt_support();
+  endif
+
+pkgadd has no notion of a phased installation process, so any keywords
+which control the availability and phasing of files is ignored. However,
+the backend does obey the access control keywords, and will implement
+`config' or `client' files as pkgadd `volatile' files.
+
+pkgadd also has no notion of `exporting' files, so exports are treated
+as symbolic links. If you add additional exports to a file or directory
+in the control file, this will result in symbolic links being created.
+pkgadd deals with symbolic links just fine, unlike Custom.
+
+pkgadd requires the description of dependencies. Thus, the optional
+extra string argument for dependencies is not optional for this
+backend.
+
+The pkgadd driver does not support the upgrades() or requires() keywords
+for components. Their usage should be conditionalized as described above.
+It does not support upgrades(), depends(), replaces() or requires()
+keywords for packages.
+
+One of the more serious outages with pkgadd is that it does not allow
+you to create hierarchies of packages, and have one package or class
+contain another. Thus, components can only contain real packages, not
+container packages.

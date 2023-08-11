@@ -1,0 +1,84 @@
+<HTML>
+<HEAD>
+<TITLE>PGP encryption -- What do I do now that it is working?</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="07.00.Setup_Questions.html">Up</A>&nbsp;&nbsp;<A HREF="07.05.PGP_encryption_Server_Error.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="07.07.How_do_I_get_the_number_of_items.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="PGP_encryption_What_do_I_do_n">PGP encryption -- What do I do now that it is working?</A></H2>
+<P>
+This depends on what you do with orders once you receive them by email.
+
+<P>
+Some 
+<FONT SIZE=-1>PC</FONT> mail agents (notably Eudora) will decrypt the 
+<FONT SIZE=-1>PGP</FONT> message embedded within the message text. In that case, you can simply embed the
+ <CODE>[value mv_credit_card_info]</CODE> call right in the message and be done with it.
+
+<P>
+If your mailer will not decrypt on the fly, the best way to read the credit card number is to set up 
+<FONT SIZE=-1>MIME</FONT> encoding of the order email. To do this, find the order report you are using. In the standard demos it is
+ <CODE>pages/ord/report.html</CODE> or <CODE>etc/report</CODE>.
+
+<P>
+Set up two 
+<FONT SIZE=-1>MIME</FONT> regions in that file. First, at the top of the
+file:
+
+<P>
+<PRE>    [tag mime type TEXT/PLAIN; CHARSET=US-ASCII][/tag]
+    [tag mime Order Text]
+</PRE>
+<P>
+<PRE>    ORDER DATE: [calc]localtime[/calc]
+    ORDER NUMBER: [value mv_order_number]
+</PRE>
+<P>
+<PRE>    Name: [value name]
+    Company: [value company]
+</PRE>
+<P>
+<PRE>    (Rest of order text, including item list)
+    [/tag]
+</PRE>
+<P>
+Then, at the bottom of the report.html file, put the credit card info:
+
+<P>
+<PRE>    [if value mv_credit_card_info]
+    [tag mime type application/pgp-encrypted][/tag]
+    [tag mime Credit Card Information]
+</PRE>
+<P>
+<PRE>    [value mv_credit_card_info]
+</PRE>
+<P>
+<PRE>    [/tag]
+    [/if]
+</PRE>
+<P>
+Once this is done, you can then read mail, using your 
+<FONT SIZE=-1>PGP</FONT> client as a helper application to decode the 
+<FONT SIZE=-1>MIME</FONT> attachment. This does not require a fancy setup -- you can use the standard 
+<FONT SIZE=-1>MIT</FONT> 
+<FONT SIZE=-1>PGP</FONT> 2.6.2 if desired. If you are using 
+<FONT SIZE=-1>UNIX,</FONT> set up as the helper for the 
+<FONT SIZE=-1>MIME</FONT> type
+
+<STRONG>application/pgp-encrypted</STRONG>:
+
+<P>
+<PRE>    xterm -e pgp -m %s
+</PRE>
+<P>
+On windows, it might be:
+
+<P>
+<PRE>    c:\mycommands\pgp -m %s
+</PRE>
+<P>
+More automated or user-friendly setups are left as an exercise for the
+user.
+
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="07.00.Setup_Questions.html">Up</A>&nbsp;&nbsp;<A HREF="07.05.PGP_encryption_Server_Error.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="07.07.How_do_I_get_the_number_of_items.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

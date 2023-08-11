@@ -1,0 +1,106 @@
+<HTML>
+<HEAD>
+<TITLE>We're sorry, the MiniVend server is unavailable...</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="03.00.Configuration_Problems.html">Up</A>&nbsp;&nbsp;<A HREF="03.01.VLINK_or_TLINK_compile_problems.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="03.03.Error_the_MiniVend_server_was.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="We_re_sorry_the_MiniVend_server">We're sorry, the MiniVend server is unavailable...</A></H2>
+<P>
+This is the most common problem on 
+<FONT SIZE=-1>UNIX</FONT> systems. It almost always means that permissions are not properly set up, or that the 
+<FONT SIZE=-1>VLINK</FONT> program is not setuid. Try temporarily changing the permission of the MINIVEND_ROOT/etc/socket file to be read/write to all groups (
+<CODE>chmod 666 etc/socket</CODE>). This must be done <EM>after</EM> the server is started, as MiniVend deletes and recreates the socket every time it starts. If MiniVend then works you will have to make sure the user that the 
+<FONT SIZE=-1>VLINK</FONT> program runs as matches the user who is running the MiniVend daemon.
+
+
+<P>
+&lt;
+<FONT SIZE=-1>HR&gt;</FONT>
+<STRONG>It is not recommended that you install the MiniVend software
+as <CODE>root</CODE>.</STRONG> If you are setting MiniVend up for the entire machine, and not just as a
+virtual host user, it is usual to create a special <CODE>mvend</CODE> or <CODE>minivend</CODE> user to run the daemon and the link program. This means the directory listing for your 
+<FONT SIZE=-1>CGI-BIN</FONT> should be something like:
+
+
+<P>
+-rwsr-xr-x 1 minivend users 6312 Dec 30 11:39 cgi-bin/simple
+
+<P>
+and for the socket file it should be:
+
+<P>
+srw------- 1 minivend users 0 Dec 30 11:41 etc/socket
+
+<P>
+Once you have set up the software, you can easily install catalogs as root <STRONG>as long as your <CODE>umask</CODE> is set to 2 or 22</STRONG>.
+
+<P>
+(The following assumes you have made the MiniVend software owned and run by
+the special user <CODE>mvend</CODE> and that each user has a MiniVend catalogs directory <CODE>/home/user/catalogs</CODE>).
+
+<P>
+<EM>The following policies should be automatically offered when
+installing MiniVend 3.06 or higher.</EM>
+
+
+
+<P>
+The best way to set permissions on a multi-user system is to make all files
+group readable and writable (660 or 664 mode). If you have a system setup
+that places each user in their own group, then make
+<CODE>mvend</CODE> a member of each user's group and set ownership and permissions with:
+
+<P>
+find /home/user/catalogs -print | xargs chown user find /home/user/catalogs
+-print | xargs chgrp user find /home/user/catalogs -print | xargs chmod
+g+rw
+
+<P>
+For best results, make the user's default umask be 2 so that they will by
+default create files that have the proper permissions.
+
+<P>
+If you have all users in the same group, the above is not secure. You
+should put <CODE>mvend</CODE> in a group of which no user is a member (perhaps mvend would be a good
+choice) and then make all files owned by the group mvend and all
+directories be set to mode 2775:
+
+<P>
+find /home/user/catalogs -print | xargs chown user find /home/user/catalogs
+-print | xargs chgrp mvend find /home/user/catalogs -print | xargs chmod
+g+rw find /home/user/catalogs -type d -print | xargs chmod g+s
+
+<P>
+This will make files default to the proper group when created (on most 
+<FONT SIZE=-1>UNIX</FONT> versions, anyway). 
+<FONT SIZE=-1>&lt;HR&gt;</FONT>
+
+
+<P>
+If you are on a virtual hosting system, the procedure varies. Making the program setuid should work for most systems -- if your setup uses 
+<FONT SIZE=-1>CGI-WRAP</FONT> or another setuid scheme it should still work 
+<FONT SIZE=-1>OK,</FONT> though you may have to
+
+<EM>unset</EM> the setuid bit with <CODE>chmod u-s cgi-bin/simple</CODE> or the like. If you have a non-standard 
+<FONT SIZE=-1>CGI</FONT> setup, as some virtual host systems do, you will need to know something about 
+<FONT SIZE=-1>UNIX</FONT> and the web -- or engage a consultant -- to properly set the paths up. Usually switching to 
+<FONT SIZE=-1>TLINK/INET</FONT> mode is the easiest thing to do, though with
+ <STRONG>Iserver</STRONG> and a few others it may take more than that. 
+<FONT SIZE=-1>&lt;HR&gt;</FONT>
+
+<P>
+If you used the <CODE>makecat</CODE> program to build the catalog, it should warn you if it was not able to make
+the link program setuid. To set the program (in the file <CODE>cgi-bin/simple</CODE> in this example) to be setuid, you use the command:
+
+<P>
+<PRE>    chmod u+s cgi-bin/simple
+</PRE>
+<P>
+<STRONG>Please understand that the first remedy in the case of unknown problems will
+be to upgrade Perl to the latest version.</STRONG>
+
+
+
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="03.00.Configuration_Problems.html">Up</A>&nbsp;&nbsp;<A HREF="03.01.VLINK_or_TLINK_compile_problems.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="03.03.Error_the_MiniVend_server_was.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

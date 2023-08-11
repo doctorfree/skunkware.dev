@@ -1,0 +1,1270 @@
+%deffont "standard"   tfont "/usr/java/jre/lib/fonts/LucidaBrightRegular.ttf"
+%deffont "thick"      tfont "/usr/java/jre/lib/fonts/LucidaBrightDemiBold.ttf"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%% Default settings per each line numbers.
+%%
+%default 1 area 70 90 1 10, leftfill, size 2, fore "black", back "white", font "thick"
+%default 2 area 75 90 1 4, size 6, vgap 10, prefix " "
+%default 3 size 2, vgap 10
+%default 4 area 95 70, size 7, vgap 40, prefix " ", fore "black", font "standard"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%
+%% Default settings that are applied to TAB-indented lines.
+%%
+%tab 1 size 7, vgap 40, icon dia "dark blue" 50
+%tab 2 size 5, vgap 40, prefix "      ", icon arc "dark blue" 50
+%tab 3 size 4, vgap 40, prefix "         ", icon delta3 "dark blue" 40
+%tab col size 5, icon box "green" 0
+%tab quo size 4, icon box "green" 0, prefix "   "
+%tab arrow size 4, vgap 40, prefix "        ", icon delta3 "black" 40
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_title.gif" 1024x768
+
+%area 75 100 1 70
+Securing an Edge of Network Server
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Company Overview
+
+%leftfill, size 5
+
+	SCO is committed to UNIX
+%size 2
+%cont
+(R)
+%size 7 
+%cont
+ and will continue to invest in the development and growth of UNIX technology and market opportunities.
+	SCO is committed to providing partners with the tools and support necessary to give customers the solutions they need to effectively run their business.
+	SCO believes in listening to the customer and partners to develop technology that is solid, reliable and cost effective.
+
+%size 4
+UNIX and UnixWare, used under an exclusive license, are registered
+trademarks of The Open Group in the United States and other countries.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Introduction
+
+%leftfill, size 6
+
+In this session, we will explain best practices in securing a SCO Unix server on the edge of network which is providing public services, like DNS, HTTP, Email, and ssh. We will also cover how to configure a server on the edge of network to provide secure remote access to private corporate data and services.
+
+%center
+Ronald Joe Record
+SCO Engineering
+Ph.D. Mathematics, UCSC
+rr@sco.com
+%area 40 100 0 75
+Kirk Larsen
+SCO Engineering
+Chief Security Officer
+security@sco.com
+%area 55 100 45 75
+Evan Hunt
+SCO Engineering
+OpenServer Networking Architect
+evanh@sco.com
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Agenda
+
+
+	Overview
+	Before connecting to the Internet
+	Security Profiles
+	Network Services
+	Best Practices using:
+		DNS (using ISC Bind)
+		HTTP, HTTPS (using Apache)
+		Shell access (via ssh)
+		Anonymous FTP
+	Recovering from a UNIX System Compromise		
+	Setting Up and Using Secure IP (IPsec)
+	Conclusion 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+The BAD news
+
+
+%leftfill, size 5
+"There is no way to make a computer completely secure against unauthorized use (other than to lock it in a room and turn it off)"
+%leftfill, size 3
+UTnet Guide to UNIX System Security, Charles Spurgeon, 1990, University of Texas at Austin (UT NIC)
+%image "../jpeg/thief.jpeg"
+
+%leftfill, size 5
+Since before 1993, port probes and suspicious packets are the reality of the Internet.
+%leftfill, size 3
+See "There Be Dragons, Steven M Bellovin, AT&T Bell Laboratories" http://www.deter.com/unix/papers/dragons_bellovin.pdf
+
+%leftfill, size 4
+SCO advises that this information is provided without warranty. Sites should ensure that actions and procedures taken from this presentation are verified and in accordance with security policies that are in place within their organization. 
+
+Listing of an application program or tool within this document does not constitute endorsement by The SCO Group.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Security Overview
+
+
+%leftfill, size 4
+"In the early days of corporate security, firewalls and proxies were considered a sufficient tool to protect an organization on the Internet. For both the corporate entity and hackers, an Internet connection was expensive, computing equipment was fairly expensive and firewall technology was new and not very well understood.
+
+Those days are over and have been over for a long time. Internet connections are now fast and cheap. Security exploits of all operating systems and security software are available for free on the Internet, and in many cases these are extremely well documented. 
+
+The expensive corporate security suite that you spend thousands of dollars on is available in it's cracked format from numerous download sites. A skilled hacker will be well versed in the use of your security tool. In some cases this individual will have a test lab, where he or she will test techniques such as Firewalking -a method of discovering devices behind a firewalk, Session hijacking- a method of hijacking a TCP/IP connection, to name but a very few, before testing their findings and skills against your system."
+
+%leftfill, size 3
+See "Corporate Security on the Internet, http://www.newsviews.info/techbytes02.html"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Security Overview: Types of Attack
+
+%area 95 70 0 17
+%center
+%image "../gif/normal.gif"
+%image "../gif/interrupt.gif"
+%cont
+%image "../gif/intercept.gif"
+%image "../gif/modification.gif"
+%cont
+%image "../gif/fabrication.gif"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+Security Overview (continued)
+%leftfill, size 5
+The SANS (SysAdmin, Audit, Network, Security) Institute
+
+
+Top Ten Vulnerabilities to UNIX Systems
+
+%leftfill, size 4
+1)  BIND Domain Name System (DNS)
+2)  Remote Procedure Calls (RPC)
+3)  Apache Web Server (HTTP, HTTPS)
+4)  General Unix Accounts with No Passwords or Weak Passwords
+5)  Clear Text Services (r commands, telnet, ftp, etc...)
+6)  Sendmail (SMTP)
+7)  Simple Network Management Protocol (SNMP)
+8)  Secure Shell (SSH)
+9)  NIS/NFS
+10) Open Secure Sockets Layer (SSL) 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+Security Overview (continued)
+SecurityLab report
+
+
+Top 10 Most Critical Vulnerabilities in June 2004
+
+%leftfill, size 4
+1)  Firebird Remote Pre-Authentication Database Name Buffer Overrun
+2)  Squid Proxy NTLM Authentication Buffer Overflow
+3)  Spamguard Multiple Buffer Overflow
+4)  PHP Microsoft Windows Shell Escape Functions Command Execution
+5)  Apache Mod_Proxy Remote Negative Content-Length Buffer Overflow
+6)  CVS Multiple Vulnerabilities
+7)  RealNetwork RealPlayer Media File Heap Overflow
+8)  IBM ACPRunner ActiveX Control Dangerous Method
+9)  Epic Games Unreal Engine Memory Corruption
+10) Oracle E-Business Suite Multiple Unspecified SQL Injection
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Edge of Network, figure 1
+
+
+%center, size 6
+%image "../gif/edge1.gif"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Edge of Network, figure 2
+
+
+%center, size 7
+%area 90 70 5 22
+Zoom on The Corporate Intranet
+%image "../gif/edge2.gif"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Edge of Network, figure 3
+
+
+%center, size 7
+%area 90 70 5 22
+Zoom on The Edge
+%image "../gif/edge3.gif"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Before connecting to the Internet
+
+
+%leftfill, size 5
+
+New security vulnerabilities may have been discovered between the time the computer was built and configured by the manufacturer and the user setting up the computer for the first time.  The average time-to-exploitation on some networks for an unprotected computer is measured in minutes.
+
+Standard advice is to download and install software patches as soon as possible after connecting a new computer to the Internet. However, since the background intruder scanning activity is pervasive, it may not be possible for the user to complete the download and installation of software patches before the vulnerabilities they are trying to fix are exploited.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+%area 85 90 1 4
+Before connecting to the Internet             (continued)...
+
+
+%leftfill, size 5
+A layered approach to security is needed when dealing with any edge of network server. All your network devices need to be considered when looking at security. Firewalls, Inverted Firewalls, Routers, Wireless access points, Web Proxies to name a few.
+
+We will not be going into all the various layers of security needed for an edge of network server, rather we will be focusing on the most used network services on a SCO Unix Server. We won't be able to cover all aspects of keeping a system secure. You can look at The Site Security Handbook rfc-1244 for more information.
+
+We will not have time to go over setup of E-mail but we recommend that you attend the SCO Office Mail Server Release 4.1 session, where security topics will be discussed. Similarly, Network Address Translation can be used to thwart many attacks. Search the SCO Support Knowledge Center for NAT setup and configuration.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+%area 85 90 1 4
+Before connecting to the Internet             (continued)...
+
+
+%leftfill, size 5
+The SCO Group belongs to the Organization for Internet Safety.
+It's members include:
+		@stake
+		BindView
+		The SCO Group
+		Foundstone
+		Guardent
+		ISS
+		Microsoft
+		NAI
+		Oracle
+		SGI
+		Symantec
+
+You can find the Organization for Internet Safety on the web at:
+http://www.oisafety.org/
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+%area 85 90 1 4
+Before connecting to the Internet             (continued)...
+
+
+SCO security information
+
+		Security Advisories for SCO Products
+                http://www.sco.com/support/security/index.html
+
+		SCO Security Announcement Mail List
+                http://www.sco.com/support/forums/security.html
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+%area 85 90 1 4
+Before connecting to the Internet             (continued)...
+
+
+%leftfill, size 6
+1) Disable nonessential services.
+2) Download and install software patches as needed.
+
+Verify the md5 checksum, or PGP signature when possible, of any downloaded patches with a utility like md5(1) or md5sum(1). 
+
+Don't use a file whose signature doesn't match its contents!
+
+3) Connect the new computer behind a network (hardware-based) firewall or firewall router.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Security Profiles
+
+
+%leftfill, size 4
+Security profiles.  You were asked to choose a security profile at installation time. It is possible to later select a different profile by using the SCOadmin Security Profile Manager.
+These profiles are available:
+
+High - Recommended for systems containing confidential information and accessed by many users. Nearly all networking services are disabled; information can be transferred to other systems by users over the network, but cannot be received from other systems. User accounts can be deleted, but the user identification number UID cannot be reused for a specified period. 
+
+Improved - Recommended for systems accessed by groups of users who can share information. Password expiration is more lenient and UIDs can be reused as desired. Most networking services are enabled.
+
+Traditional - Provided for compatibility with other UNIX systems. Passwords are required but they do not expire. All networking services are enabled.
+
+Low - Recommended only for systems which are not publicly accessible and which have a small number of cooperating users.
+
+To change the security profile from the command line, use relax(1M).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+%area 85 90 1 4
+Security Profiles (continued)
+
+
+%leftfill, size 4
+Security parameters for the High security profile on UnixWare
+
+   Passwords
+      Minimum weeks between changes	2
+      Expiration warning (weeks)		6
+      Lifetime (weeks)			12
+      Minimum length			8
+      Password required to login		yes
+
+   Logins
+      Maximum unsuccessful attempts before delay is started	3
+      Delay between attempts (secs)				20
+      Time to complete login (secs)				60
+      Weeks an account can be idle				50
+      Logging threshold for failures				1
+
+   Networking
+      Services disabled		tftp finger systat netstat shell login exec ftp 
+                      			telnet mountd ypupdated ruserd walld sprayd
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+%area 85 90 1 4
+Security Profiles (continued)
+
+%leftfill, size 4
+
+Security parameters for the High security profile on UnixWare continued
+
+   Audit (if configured)
+      Action if audit write error	shutdown
+      Action if audit log is full	switch
+      Events audited		id_auth priv process device cov_chan audit 
+                			file_access io_cntl printer sched
+
+   Other
+      root login on console only			yes
+      Console <Ctrl><Alt><Del> allowed	no
+      su(1) use logged				yes
+      Default umask				077
+      UIDs reusable				Deleted UIDs are reserved for 12 months
+      Users can schedule jobs			deny
+      Home directory permissions		700
+      Restricted chown(1)				users cannot change file ownership.
+      Remote printing access allowed		no
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+%area 85 90 1 4
+Network Services
+
+
+	/etc/inetd.conf
+	/etc/tcp (OpenServer)
+	sacadm (UnixWare and Legend)
+	/etc/rc*.d/*
+	Disable any services which you do not require
+	Use tcp_wrappers or ipfilter to provide greater access and logging on any enabled network services
+	Check what services are running by using netstat and a network sniffer like netcat
+	Check what rpc services are running using rpcinfo
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing DNS 
+
+
+%font "thick"
+Overview
+%font "standard"
+
+Domain name system (DNS) servers translate names suitable for use by people (such as www.example.com) into network addresses (e.g., 192.168.4.22) suitable for use by computers. 
+
+Berkeley Internet Name Domain (BIND), produced by the Internet Software Consortium (http://www.isc.org), is the most widely deployed name server package.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing DNS         (continued)...
+
+
+%%(Denial of service attacks, Spoofing attacks)
+Consider creating two types of name server, each optimized for a particular function: 
+
+	Advertising name server
+		Advertising to the Internet
+	Resolving name server
+		Internal to the company
+
+%leftfill, size 7
+Separation by functionality allows separation of threats and therefore risk.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing DNS         (continued)...
+
+
+%font "thick"
+Advertising name server 
+
+%font "standard"
+An advertising name server would commonly be used as an external name server that is authoritative for your DNS zones.  It would advertise this DNS information to the Internet.
+
+Since it should not be queried for zones for which it is not authoritative, it should be configured as a non-recursive server.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing DNS         (continued)...
+
+
+%font "thick"
+Resolving name server 
+%font "standard"
+
+%leftfill, size 5
+A resolving name server would commonly be used to provide name resolution services to internal clients.  It may or may not be configured as authoritative for internal zones.
+
+Since it must find DNS information requested by internal hosts (regardless of whether it is authoritative for that information or not), it should be configured as a recursive server.
+
+However, it should only answer queries from trusted sources (internal hosts), not from the Internet. By adopting this strategy the external advertising name server is configured to provide little service other than answering queries for which it is authoritative. 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing DNS         (continued)...
+
+
+%leftfill, size 5
+The internal resolving name server must provide recursion, and is therefore somewhat more susceptible to attack since it must accept data from other DNS servers. Additional protection of the resolving name server can be provided via other means such as packet filtering and restricting the server to respond only to known hosts. 
+
+In this manner, if the resolving server were to be compromised or its cache poisoned, the advertising server's authoritative zone information would be unaffected, thus limiting the potential damage. 
+
+Similarly, if the resolving name servers are also configured to be authoritative for internal zones, a compromise of the advertising name server would not affect the normal operation of the internal clients of the resolving name servers.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing DNS         (continued)...
+
+
+%% (Denial of service attacks)
+Eliminate single points of failure 
+
+%leftfill, size 5
+To combat denial of service attacks and prevent accidental service outages, it is necessary to eliminate single points of failure.  Ensure that you have multiple physical paths to your network. 
+
+Some common pitfalls to avoid are placing all of your name servers:
+
+     On a single subnet
+     Behind a single router
+     Behind a single leased line
+     Within a single autonomous system
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing HTTP/HTTPS
+
+
+Update software and apply security fixes
+
+%leftfill, size 5
+The Apache HTTP Server has a good record for security and a developer community highly concerned about security issues. But it is inevitable that some problems will be discovered in software after it is released. For this reason, it is crucial to keep aware of updates to the software. 
+
+Of course, most times that a web server is compromised, it is not because of problems in the HTTP Server code. Rather, it comes from problems in add-on code, CGI scripts, or the underlying Operating System. You must therefore stay aware of problems and updates with all the software on your system.
+
+Apache from SCO comes configured with security in mind, but there are a few common mistakes that can be made when changing the configuration file.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing HTTP/HTTPS (continued)...
+
+
+Configuration
+
+%leftfill, size 4
+%font "thick"
+FollowSymLinks
+%font "standard"
+%cont
+          This directive is enabled by default, so be careful where you create symbolic links to in the document root of the Web server. For instance, it is a bad idea to provide a symbolic link to /.
+
+%font "thick"
+The Indexes Directive
+%font "standard"
+%cont
+  This directive is enabled by default, but may not be desirable. If you do not want users to browse files on the server, it is best to remove this directive.
+
+%font "thick"
+The UserDir Directive
+%font "standard"
+%cont
+  The UserDir directive is disabled by default because it can confirm the presence of a user account on the system. If you wish to enable user directory browsing on the server, use the following directives:
+
+%leftfill, size 3
+%font "thick"
+UserDir enabled 
+UserDir disabled root
+%font "standard"
+
+%leftfill, size 4
+These directives activate user directory browsing for all user directories other than /root. If you wish to add users to the list of disabled accounts, add a space delimited list of users on the UserDir disabled line.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing HTTP/HTTPS (continued)...
+
+
+Configuration continued...
+
+%leftfill, size 4
+%font "thick"
+IncludesNoExec Directive
+%font "standard"
+%cont
+    Do Not Remove the IncludesNoExec Directive.  By default, the server-side includes module cannot execute commands. It is ill advised to change this setting unless you absolutely have to, as it could potentially enable an attacker to execute commands on the system.
+
+Restrict Permissions for Executable Directories. Be certain to only allow write permissions for the root user only for any directory containing scripts or CGIs. Also, always verify that any scripts you are running work as intended before putting them into production.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing HTTP/HTTPS (continued)...
+
+
+Permissions on ServerRoot Directories
+
+%leftfill, size 5
+Apache is started by the root user, and it switches to the user defined in the Apache configuration file to serve web pages. You must take care that ServerRoot Directories are protected from modification by non-root users.
+
+Not only must the files themselves be writable only by root, the directories, and parents of all directories must also be protected. 
+
+If you allow non-root users to modify any files that root either executes or writes on then you open your system to root compromises. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing HTTP/HTTPS (continued)...
+
+
+Server Side Includes
+
+%leftfill, size 4
+Server Side Includes (SSI) present a server administrator with several potential security risks.
+
+Denial of Service - all SSI-enabled files have to be parsed by Apache while this load increase is minor, in a shared server environment it can become significant.
+
+Enabling SSI for files with .html or .htm extensions can be dangerous.  SSI-enabled files should have a separate extension, such as the conventional .shtml. This helps keep server load at a minimum and allows for easier management of risk.  To isolate the damage a wayward SSI file can cause, a server administrator can enable suexec.
+
+SSI files also pose the same risks that are associated with CGI scripts in general. Using the "exec cmd" element, SSI-enabled files can execute any CGI script or program under the permissions of the user and group Apache runs as, as configured in httpd.conf.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing HTTP/HTTPS (continued)...
+
+
+Server Side Includes continued...
+
+%leftfill, size 4
+Another solution is to disable the ability to run scripts and programs from SSI pages. To do this replace Includes with IncludesNOEXEC in the Options directive in the Apache configuration file. 
+
+%leftfill, size 3
+%font "thick"
+Note that users may still use <--#include virtual="..." --> to execute CGI scripts if these scripts are in directories designated by a ScriptAlias directive.
+%font "standard"
+
+%leftfill, size 5
+CGI in General
+
+%leftfill, size 4
+First of all, you always have to remember that you must trust the writers of the CGI scripts/programs.  CGI scripts can run essentially arbitrary commands on your system with the permissions of the web server user and can therefore be extremely dangerous if they are not carefully checked.
+
+All the CGI scripts will run as the same user, so they have potential to conflict with other scripts.  One program which can be used to allow scripts to run as different users is suEXEC which is included with Apache as of 1.2. Another popular way of doing this is with CGIWrap.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing HTTP/HTTPS (continued)...
+
+
+Other sources of dynamic content
+
+%leftfill, size 4
+mod_php, mod_perl, mod_tcl, mod_python, etc..., run under the identity of the server itself, and therefore scripts executed by these engines potentially can access anything the server user can.  Some scripting engines may provide restrictions, but it is better to be safe and assume not.
+
+%leftfill, size 5
+Protecting System Settings
+
+%leftfill, size 4
+To run a really tight ship, you'll want to stop users from setting up .htaccess files which can override security features you've configured. One way of accomplishing this is to add the following to the server configuration file:
+
+%leftfill, size 3
+%font "thick"
+<Directory />
+AllowOverride None
+</Directory>
+%font "standard"
+
+%leftfill, size 4
+This prevents the use of .htaccess files in all directories apart from those explicitly enabled.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing HTTP/HTTPS (continued)...
+
+
+Protect Server Files by Default
+
+%leftfill, size 4
+One aspect of Apache which is occasionally misunderstood is the feature of default access. That is, unless you take steps to change it, if the server can find its way to a file through normal URL mapping rules, it can serve it to clients.
+
+For instance, consider the following example:
+
+%font "thick"
+ # cd $HOME/public_html; ln -s /* .
+%font "standard"
+
+Accessing http://localhost/~$USER/.  This would allow clients to walk through the entire file system. To work around this, add the following block to your server's configuration:
+
+%leftfill, size 3
+%font "thick"
+<Directory />
+Order Deny,Allow
+Deny from all
+</Directory>
+%font "standard"
+
+%leftfill, size 4
+This will forbid default access to file system locations. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing HTTP/HTTPS (continued)...
+
+
+%leftfill, size 4
+Add appropriate Directory blocks to allow access only in those areas you wish. 
+
+%leftfill, size 4
+%font "thick"
+<Directory /u/*/public_html>
+Order Deny,Allow
+Allow from all
+</Directory>
+<Directory /usr/lib/apache/htdocs>
+Order Deny,Allow
+Allow from all
+</Directory>
+%font "standard"
+
+%leftfill, size 4
+Pay particular attention to the interactions of Location and Directory directives; for instance, even if <Directory /> denies access, a <Location /> directive might overturn it  Also be wary of playing games with the UserDir directive; setting it to something like "./" would have the same effect, for root, as the first example above. 
+
+If you are using Apache 1.3 or above, we strongly recommend that you include the following line in your server configuration files:
+
+%leftfill, size 4
+%font "thick"
+UserDir disabled root 
+%font "standard"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing HTTP/HTTPS (continued)...
+
+
+Watching Your Logs
+
+%leftfill, size 4
+To keep up-to-date with what is actually going on against your server you have to check the Log Files. Even though the log files only reports what has already happened, they will give you some understanding of what attacks is thrown against the server and allows you to check if the necessary level of security is present.
+
+A couple of examples:
+
+%font "thick"
+grep -c "/jsp/source.jsp?/jsp/ /jsp/source.jsp??" access_log
+grep "client denied" error_log | tail -n 10
+%font "standard"
+
+The first example will list the number of attacks trying to exploit the Apache Tomcat Source.JSP Malformed Request Information Disclosure Vulnerability. The second example will list the ten last denied clients, for example:
+
+%font "thick"
+[Thu Jul 11 17:18:39 2002] [error] [client foo.bar.com] client denied by server configuration: /usr/lib/apache/htdocs/.htpasswd
+%font "standard"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices securing HTTP/HTTPS (continued)...
+
+
+Watching Your Logs continued...
+
+%leftfill, size 4
+As you can see, the log files only report what already has happened, so if the client had been able to access the .htpasswd file you would have seen something in your Access log similar to:
+
+%font "thick"
+foo.bar.com - - [12/Jul/2002:01:59:13 +0200] "GET /.htpasswd HTTP/1.1"
+%font "standard"
+
+This means you probably commented out the .htaccess protection in your server configuration file.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices using ssh
+
+
+%leftfill, size 5
+SSH is a suite of network connectivity tools. Many users of telnet, rlogin, ftp, rcmd, rcp, and other such programs might not realize that their password is transmitted across the Internet unencrypted, but it is.  
+
+It is trivial to eavesdrop on data as it passes through a network, this is known as "sniffing."  Packet sniffers decode most protocols on the internet. The "Ethereal" packet sniffer decodes over 500 protocols.
+
+SSH encrypts all traffic (including passwords) to effectively eliminate eavesdropping, connection hijacking, and other network-level attacks.  SSH consists of a number of programs:
+		sshd - Server program run on the server machine. 
+		ssh - This is the client program used to log into another machine or to execute commands on the other machine. 
+		scp - Securely copies files from one machine to another.
+		sftp - Secure file transfer program.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Best practices using ssh
+
+
+%leftfill, size 6
+Disable SSHprotocol 1
+
+%leftfill, size 5
+In the Protocol section of /etc/ssh/sshd_config, enable ONLY protocol 2. Protocol 1 isn't secure and there is a risk of a man in the middle attack.
+In order to test SSH deployment, tools like the Cisco content engine and Ettercap (http://ettercap.sourceforge.net) can be used to simulate man in the middle attacks.
+
+%leftfill, size 6
+Only enable PubkeyAuthentication
+
+%leftfill, size 5
+In the Authentication section of /etc/ssh/sshd_config, only enable PubkeyAuthentication. This option grants access only to an user who has a RSA or DSA private certificate in his HOME/.ssh directory and the correspondent public certificate in server's HOME/.ssh/ directory.  If either certificate doesn't exist the user can't login.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+%area 55 90 1 4
+Best practices using ssh (continued)
+
+
+Known hosts / subnets
+
+If you always come from a known host or list of subnets, use the built in allow/deny feature of ssh.  List them in /etc/hosts.allow and set a default deny in /etc/hosts.deny.  In /etc/ssh/sshd_config there are directives to allow and deny various hosts.  
+
+Use your firewall, routers, ipfilter or other such utilities to deny access from certain addresses or address ranges and limit access to certain ports.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Anonymous FTP
+
+%area 95 70 5 20
+%leftfill, size 5
+The anonymous FTP root directory and its subdirectories should not be owned by the ftp account or be in the same group as the ftp account. This is a common configuration problem.  
+
+There is a risk to operating an anonymous FTP service that permits users to store files. CERT
+%size 2
+%cont
+(R)
+%size 5
+%cont
+ strongly recommends that sites do not automatically create a "drop off" directory unless thought has been given to the possible risks of having such a service.
+
+If your site is planning to offer a "drop off" service, it may be desirable to limit the amount of data transferred.  If possible, dedicate a disk drive and mount it as ~ftp/incoming.  The system administrator should monitor this directory on a continuing basis to ensure that it is not being misused. 
+
+%size 4
+"CERT" is registered with the U.S. Patent and Trademark office as a service mark of Carnegie Mellon University. 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+%area 60 90 1 4, size 6
+Recovering from a UNIX System Compromise
+
+
+%leftfill, size 5
+Prepare for a UNIX System Compromise BEFORE it happens.  A method of Recovery should be a part of your Security Policy. 
+
+ Before you get started
+   1. Consult your security policy
+   2. If you do not have a security policy
+         a. Consult with management
+         b. Consult with your legal counsel
+         c. Contact law enforcement agencies
+         d. Notify others within your organization
+   3. Obtain a Forensics Kit
+   4. Document all of the steps you take in recovering
+
+ Regain control
+   1. Disconnect compromised system(s) from the network
+   2. Copy an image of the compromised system(s)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Recovering from a UNIX System Compromise (continued)...
+
+
+%leftfill, size 5
+Analyze the intrusion
+   1. Look for modifications made to system software and configuration files
+   2. Look for modifications to data
+   3. Look for tools and data left behind by the intruder
+   4. Review log files
+   5. Look for signs of a network sniffer
+   6. Check other systems on your network
+   7. Check for systems involved or affected at remote sites
+   8. Use statically linked binaries from a Forensics Utilities Toolkit
+   9. Frequently hacked programs include binaries like ps and netstat
+
+Contact the relevant CSIRT and other sites involved
+   1. Incident Reporting
+   2. Contact the CERT Coordination Center
+   3. Obtain contact information for other sites involved
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Recovering from a UNIX System Compromise (continued)...
+
+
+%leftfill, size 5
+Recover from the intrusion
+   1. Install a clean version of your operating system
+   2. Disable unnecessary services
+   3. Install all vendor security patches
+   4. Consult CERT Advisories, summaries, and vendor-initiated bulletins
+   5. Caution use of data from backups
+   6. Change passwords
+
+Improve the security of your system and network
+   1. Review security using the UNIX configuration guidelines document
+   2. Review the security tools document
+   3. Install security tools
+   4. Enable maximal logging
+   5. Configure firewalls to defend networks
+
+Reconnect to the Internet
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Recovering from a UNIX System Compromise (continued)...
+
+
+%leftfill, size 5
+Update your security policy:
+
+		Document lessons learned from being compromised
+		Calculate the cost of this incident
+		Incorporate necessary changes (if any) in your security policy
+
+One recovery method that could be used is software mirroring.  
+Once a system compromise occurs:
+
+		Remove one of the mirrored drives for later analysis or for evidence
+		Add a new hard drive and install a new OS on that drive
+		Mount the remaining mirrored drive and copy any non-binary data files onto the new drive (This works well with web servers)
+		Then umount the old drive and re-mirror the system, overwriting the old drive
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Setting Up and Using Secure IP
+
+
+%leftfill, size 5
+The IPsec (secure IP) protocol suite and associated tools provides the ability to encrypt and authenticate IP packets transmitted between cooperating hosts or subnets. IPsec is available for UnixWare and Legend.
+
+When IPsec is configured for a given communication path between hosts or subnets, most of the IP header and the entire data portion of each packet sent over the network is encrypted by the sending host, and decrypted by the receiving host. 
+
+This is in contrast to non-IPsec packets, which are not encrypted.
+
+In addition to encrypting IP packets, IPsec can authenticate each packet using the information in the expanded header supported by this protocol. Authentication can also be provided using private keys and signed certificates.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+%area 65 90 1 4
+Setting Up and Using Secure IP (continued)...
+
+
+%leftfill, size 5
+One of the uses of IPsec is to implement a Virtual Private Network (VPN). In a VPN, a non-secure communication path (such as an Internet connection) is used for the transmission of encrypted and authenticated packets between hosts that have been set up to use that path and only provide IPsec packets over the path.
+
+%leftfill, size 5
+A VPN is really a set of security associations established on each host that requires secure IP communications, along with a security policy established for each "subnet" in the VPN. Thus, a corporate VPN might be defined by a gateway router that allows a number of remote systems (or other gateways) to connect over public transmission facilities (phone lines, cable modem, wireless), and access the corporate network. A properly configured IPsec facility on the gateways and the various remote systems prevents the kind of security threats inherent in public transmission systems, such as spoofing, masquerading, denial of service, and others.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Enabling IPsec
+
+%leftfill, size 5
+
+IPsec is disabled by default. Note that it is important to configure IPsec as soon as it is enabled. If IPsec is enabled without being setup (or if it is setup incorrectly), overall system throughput will most likely be reduced due to the extra processing in the kernel required for IPsec.
+
+To enable IPsec:
+
+%leftfill, size 4
+%font "thick"
+   1. Edit the file /etc/conf/pack.d/inet/space.c
+   2. Change the line reading:
+   ipsec_enable = 0
+      to read as follows:
+   ipsec_enable = 1
+      Save the file.
+   3. Rebuild the inet driver:
+   idbuild -M inet
+   4. Reboot the system:
+   shutdown -i6 -g0 -y
+   5. Once the system comes back up, log in as root to configure IPsec.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Configuring IPsec
+
+%leftfill, size 5
+
+IPsec is configured using the 
+%font "thick"
+%cont
+setkey
+%font "standard"
+%cont
+ and 
+%font "thick"
+%cont
+racoon
+%font "standard"
+%cont
+ commands. 
+
+The setkey command is used to tell the kernel which packets must be sent via IPsec, and to configure IPsec options for each host, range of hosts, subnet, etc., to which you want secure communication.
+
+The racoon command is used to provide automatic encryption key and certificate management between hosts. Using racoon is optional, yet recommended. By automating the process of periodically changing and synchronizing keys and certificates within the set of hosts you define for IPsec, you not only reduce maintenance, but also reduce the likelihood that a key will be compromised.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Configuring IPsec (Continued)
+
+%leftfill, size 5
+
+The protocol used by racoon is known as the Internet Key Exchange (IKE) protocol, a hybrid protocol that uses elements of two other protocols (ISAKMP and Oakley) to achieve secure key exchange between hosts.
+
+At a minimum, IKE includes the following attributes:
+
+		encryption algorithm
+		hash algorithm
+		authentication method
+		Diffie-Hellman Exchange group information
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+References
+
+%leftfill, size 4
+
+Corporate Security on the Internet
+http://www.newsviews.info/techbytes02.html
+
+Securing an Edge of Network Server IPSec
+http://ou800doc.sco.com/en/NET_ipsec/ipsec_top.html
+
+UNIX Security Checklist v2.0
+http://www.cert.org/tech_tips/unix_security_checklist2.0.html
+
+UNIX Configuration Guidelines
+http://www.cert.org/tech_tips/unix_configuration_guidelines.html
+
+Anonymous FTP Configuration Guidelines
+http://www.cert.org/tech_tips/anonymous_ftp_config.html
+
+CERT (us)
+http://www.us-cert.gov/
+
+Preventing Denial of Service Attacks
+http://www.onlamp.com/pub/a/bsd/2004/06/24/anti_dos.html
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+References (continued)
+
+
+%leftfill, size 4, vgap 30
+Securing an Internet Name Server
+http://www.cert.org/archive/pdf/dns.pdf
+
+Intruder Detection Checklist
+http://www.cert.org/tech_tips/intruder_detection_checklist.html
+
+Before You Connect a New Computer to the Internet
+http://www.cert.org/tech_tips/before_you_plug_in.html
+
+The Site Security Handbook
+www.faqs.org/rfcs/rfc1244.html
+
+Computer Security and Honeypots
+http://www.cs.mu.oz.au/~bir/auscc03/tutorials/koshy-auscc03.pdf
+
+Storage at the Edge of the Network
+www.winnetmag.com/windowsstorage/Article/ArticleID/20250/windowsstorage_20250.html
+
+Hardening OpenBSD Internet Servers Check List
+http://geodsoft.com/howto/harden/OpenBSD/checklist.htm
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+References (continued)
+
+
+%leftfill, size 4
+OCTAVE Evaluation Method - Identify the risks that affect the information assets important to the mission of your organization.
+http://www.cert.org/octave/
+
+Survivable Systems Analysis - Define and implement system improvements to deal with inevitable intrusions in a proactive manner.
+http://www.cert.org/sna/index.html#ssa
+
+CERT Security Practices - Gain practical guidance that helps you improve security within your organization. Also available in book form.
+http://www.cert.org/security-improvement
+
+CSIRT development - Develop a computer security incident response team (CSIRT) and a body of security practices for your organization.
+http://www.cert.org/csirts
+
+MITRE's free OVAL Reference XML Definition Interpreters can determine if a system has vulnerabilities from the CVE dictionary.
+http://oval.mitre.org/oval/download/interpreter.html
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+References (continued)
+
+
+%leftfill, size 4, vgap 30
+Matt's Unix Security Page
+http://www.deter.com/unix/
+
+The Hack FAQ
+http://www.nmrc.org/pub/faq/hackfaq/
+
+Mirage Networks Inverted Firewall(tm)
+http://www.miragenetworks.com/c_news_031217.html
+
+comp.security.unix Newsgroup FAQs
+http://www.faqs.org/faqs/by-newsgroup/comp/comp.security.unix.html
+
+SANS
+http://www.sans.org/
+
+Security at the edge challenges TCP/IP, WLAN infrastructure
+http://www.us.design-reuse.com/articles/article5071.html
+
+June 21, 2004 Dave Aitel - Beyond Best Practices (Given at OWASP AppSec 2004) 
+http://www.immunitysec.com/downloads/beyond_best_practices.sxi
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Questions and Comments
+
+%leftfill, size 4
+
+%center
+
+%mark
+%newimage -xyscrzoom 80 95 "../gif/dragon_full.gif"
+%pause, again, mark
+%newimage -xyscrzoom 80 95 "../gif/bigbug.gif"
+%pause, again, mark
+%newimage -xyscrzoom 80 95 "../gif/drag2.julia.gif"
+%pause, again, mark
+%newimage -xyscrzoom 80 95 "../gif/dive2.gif"
+%pause, again, mark
+%newimage -xyscrzoom 80 95 "../gif/dragon_full.gif"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+MagicPoint
+
+%leftfill, size 5
+
+This is a MagicPoint presentation running on
+SCO OpenServer 5.0.7.
+
+The MagicPoint home page is http://www.mew.org/mgp/
+
+This system's "/bin/uname -a" command outputs:
+%fore "dark blue"
+%filter "/bin/uname -a"
+%endfilter
+%fore "black"
+
+While the date command says it's:
+%fore "dark blue"
+%filter "date"
+%endfilter
+%fore "black"
+
+I created these slides using Vim (Vi Improved) - http://www.vim.org/
+This 
+%cont
+%fore "dark blue"
+%filter "./owc"
+%endfilter
+%fore "black"
+%cont
+ slide presentation is done with a 
+%cont
+%fore "dark blue"
+%filter "./ols"
+%endfilter
+%fore "black"
+%cont
+ byte plain text file.
+Text in
+%fore "dark blue"
+%cont
+ dark blue
+%fore "black"
+%cont
+ is output from system commands run at display time.
+%image "../jpeg/mgplogo.jpg"
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%PAGE
+%area 100 100
+%bimage "../gif/bg_slide.gif" 1024x768
+
+Securing an Edge of Network Server
+
+
+
+%center, size 6
+Ronald Joe Record
+SCO Engineering
+Ph.D. Mathematics, UCSC
+rr@sco.com
+%area 40 100 0 60
+Kirk Larsen
+SCO Engineering
+Chief Security Officer
+security@sco.com
+%area 55 100 45 60
+Evan Hunt
+SCO Engineering
+OpenServer Networking Architect
+evanh@sco.com

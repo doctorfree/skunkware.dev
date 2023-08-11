@@ -1,0 +1,381 @@
+#!/bin/ksh
+# @(#) chkboot.ksh 2.0 97/05/22
+# chkboot: check/write boot files (masterboot, boot0, and boot1)
+# 91/06/15 john h. dubois iii (john@armory.com)
+# 93/10/30 Added p & d options & checking for devices/files
+# 95/08/30 Added t option.
+# 96/01/20 Create tempfile in $TMP if set.
+# 97/05/22 Check the minor numbers of the devices to be operated on.
+# 97/05/22 Added fDx options.  Made messages more verbose.
+
+name=${0##*/}
+Usage="Usage:
+$name [-fhwt] [-D<drive-num>] [-d<drive-device>] [-p<partition-device>]"
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+typeset -i write=0 err=0
+DriveDev=/dev/hd00
+PartitionDev=/dev/hd0a
+tell=false
+Debug=false
+Force=false
+
+while getopts :fhwtp:d:xD: opt; do
+    case $opt in
+    h)
+	print -r -- \
+"$name: check/write boot files.
+$Usage
+$name checks the masterboot, boot0, and boot1 files against the copies
+stored in /etc.
+Options:
+-D<drive-num>: Check the boot files on drive <drive-num>.  This sets the
+    drive device to /dev/dsk/<drive-num>s0 and the partition device to
+    /dev/dsk/<drive-num>sa.  If -d or -p appears later on the command line,
+    they will override parameters set by -D.
+-f: Force.  Normally $name will not write to devices that do not have minor
+    numbers appropriate to the type of data to be written to them.  If -f
+    is given, this will be overridden.  This can be used to e.g. put boot
+    files on a non-active partition.
+-h: Print this help.
+-w: Write new copies of the boot files into the correct places on the hard
+    drive.
+-t: Tell what commands to use to write new copies of the boot files; does
+    not issue the commands.  This changes all errors to warnings.
+-d<drive-device>: Use drive-device instead of $DriveDev.
+-p<partition-device>: Use partition-device instead of $PartitionDev."
+	exit 0
+	;;
+    t)
+	tell=true
+	write=1
+	;;
+    w)
+	write=1
+	;;
+    f)
+	Force=true
+	;;
+    d)
+	DriveDev=$OPTARG;;
+    p)
+	PartitionDev=$OPTARG;;
+    D)
+	typeset -i driveNum=$OPTARG || exit 1
+	DriveDev=/dev/dsk/${driveNum}s0
+	PartitionDev=/dev/dsk/${driveNum}sa
+	;;
+    x)
+	Debug=true;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :)
+        print -r -u2 -- \
+        "$name: Option '$OPTARG' requires a value.  Use -h for help."
+        exit 1
+        ;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -gt 0 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+# @(#) mktempfile 1.0 96/05/22
+# 96/01/20 jhdiii
+
+# Usage: mkfiles name ...
+# Creates the named files with some attempt at security.
+# This will be more reliable if user do not have chown authority.
+# Any file that contains no / characters is created in the user's tempdir.
+# If TMP was not set, it is set by this function.
+# Returns 0 on success; prints a diagnostic message & returns 1 on failure.
+function mkfiles {
+    typeset file files
+    typeset -i i=0
+
+    : ${TMP:=$TMPDIR}
+    : ${TMP:=/tmp}
+    for file; do
+	[[ "$file" != */* ]] && file="$TMP/$file"
+	files[i]=$file
+	let i+=1
+    done
+    set -- "${files[@]}"
+
+    rm -f "$@" || {
+	# hopefully rm will have printed a more specific message.
+	print -u2 "Could not remove pre-existing files."
+	return 1
+    }
+    for file; do
+	# Use >> to avoid 0'ing the file in case a symlink was just made from
+	# the filename to something we don't want to truncate
+	>> "$file" || {
+	    print -u2 "Could not create temp file $file"
+	    return 1
+	}
+	# These are very suspicious
+	[ -s "$file" ] && {
+	    print -u2 "New tempfile is not empty!!!"
+	    return 1
+	}
+	[ -O "$file" ] || {
+	    print -u2 "Do not own $file!!!"
+	    return 1
+	}
+    done
+    # Could do some more stuff here, but anyone concerned with security should
+    # have chown authorization off for most users.
+    return 0
+}
+
+# Usage: mktempfile name
+# Creates a tempfile name tempdir/#name$$, and sets the global mktempfile_ret
+# to that name.  tempdir is a temp directory in $TMP, $TMPDIR, or /tmp, and $$
+# is the PID of the current process.
+# name should be 8 characters or less, so that the resulting filename will
+# not be more than 14 characters long (a limit on some machines).
+# Returns 0 on success, prints a diagnostic message & returns 1 on failure.
+function mktempfile {
+    typeset file="#$1$$"
+    mkfiles "$file"
+    mktempfile_ret="$TMP/#$1$$"
+}
+
+### Start of kstat lib
+# @(#) kstat.ksh 1.0 96/11/29
+# 96/11/29 john h. dubois iii (john@armory.com)
+
+# Make these print in octal
+typeset -i8  S_IFMT=8#0170000	# File type bitmask
+typeset -i8 S_IRWXU=8#0000700	# Owner perms bitmask
+typeset -i8 S_IRWXG=8#0000070	# Group perms bitmask
+typeset -i8 S_IRWXO=8#0000007	# Other perms bitmask
+typeset -i8 S_IFREG=8#0100000	# Reg file
+typeset -i8 S_IFBLK=8#0060000	# Block file
+typeset -i8 S_IFDIR=8#0040000	# Directory
+typeset -i8 S_IFCHR=8#0020000	# Char file
+typeset -i8 S_IFIFO=8#0010000	# Named pipe
+typeset -i8 S_IFNAM=8#0050000	# Special named file
+typeset -i8 S_IFLNK=8#0120000	# Symlink
+typeset -i8 S_ISUID=8#0004000	# setuid
+typeset -i8 S_ISGID=8#0002000	# setgid
+typeset -i8 S_ISVTX=8#0001000	# sticky bit
+typeset -i8 S_IRUSR=8#0000400	# owner read
+typeset -i8 S_IWUSR=8#0000200	# owner write
+typeset -i8 S_IXUSR=8#0000100	# owner execute
+typeset -i8 S_IRGRP=8#0000040	# group read
+typeset -i8 S_IWGRP=8#0000020	# group write
+typeset -i8 S_IXGRP=8#0000010	# group execute
+typeset -i8 S_IROTH=8#0000004	# other read
+typeset -i8 S_IWOTH=8#0000002	# other write
+typeset -i8 S_IXOTH=8#0000001	# other execute
+
+typeset -i8 ls2mode
+# Usage: ls2mode ls-mode-field
+# Returns the file mode in ls2mode
+function ls2mode {
+    typeset perm nperm comp name=${0##*/}
+    typeset -i ptype ret
+
+    typeset perm=$1
+
+    nperm=${perm#?}
+    case "${perm%$nperm}" in
+    -) ret=S_IFREG;;
+    d) ret=S_IFDIR;;
+    l) ret=S_IFLNK;;
+    b) ret=S_IFBLK;;
+    c) ret=S_IFCHR;;
+    p) ret=S_IFIFO;;
+    s) ret=S_IFNAM;;
+    m) ret=S_IFNAM;;
+    *) print -ru2 -- "$name: unknown type character: ${perm%$nperm}"
+	return 2;;
+    esac
+    perm=$nperm
+
+    for ptype in 6 3 0; do		# get perms for user, group and other
+	for wperm in r w xsStT; do	# strip off each mode letter
+	    nperm=${perm#?}
+	    # get next component of perms
+	    comp=${perm%$nperm}
+	    # Make sure each mode bit has one of the expected values for it
+	    if [[ "$comp" != [-$wperm] ]]; then
+		print -u2 "$name: unrecognized permission character: $comp"
+		return 3
+	    fi
+	    case $comp in
+	    -) ;;
+	    r) ret='ret|4<<ptype';;
+	    w) ret='ret|2<<ptype';;
+	    [xst]) ret='ret|1<<ptype';;
+	    esac
+	    case $comp in
+	    [sS]) [ ptype -eq 3 ] && ret='ret|S_ISGID' ||
+		  ret='ret|S_ISUID'
+		;;
+	    [tT]) ret='ret|S_ISVTX';;
+	    esac
+	    perm=$nperm
+	done
+    done
+    ls2mode=ret
+}
+
+typeset -i8 kstat_mode
+typeset -i kstat_nlink kstat_uid kstat_gid kstat_major kstat_minor kstat_size
+
+# Usage: kstat file ...
+function kstat {
+    typeset file line IFS=" "
+    typeset -i n=0
+
+    ls -lLnd "$@" | while read line; do
+	ls2mode $line
+	kstat_mode[n]=ls2mode
+	set -- $line
+	kstat_nlink[n]=$2
+	# store uid & gid because username and groupname may be ambiguous
+	kstat_uid[n]=$3
+	kstat_gid[n]=$4
+	case "$5" in
+	*,?*)
+	    kstat_major[n]=${5%,*}
+	    kstat_minor[n]=${5#*,}
+	    kstat_size[n]=-1
+	    ;;
+	*,)
+	    kstat_major[n]=${5%,}
+	    kstat_minor[n]=$6
+	    kstat_size[n]=-1
+	    shift
+	    ;;
+	*)
+	    kstat_major[n]=-1
+	    kstat_minor[n]=-1
+	    kstat_size[n]=$5
+	    ;;
+	esac
+	kstat_date[n]="$6 $7 $8"
+	shift 8
+	kstat_name[n]="$*"
+	let n+=1
+    done
+    [ n -gt 0 ] && return 0 || return 1
+}
+### End of kstat lib
+
+function Error {
+    if $tell; then
+	print -u2 "Warning: $*"
+    else
+	print -u2 "Error: $*"
+	err=1
+    fi
+}
+
+# Usage: chkMinor Device minorbits
+# Returns true if low 6 bits of Device's minor number are equal to minorbits
+function chkMinor {
+    typeset device=$1
+    typeset -i chkminor=$2 devminor
+
+    kstat "$device" || Error "Could not stat $device"
+    $Debug && print -ru2 -- \
+    "Device $device: minor=$kstat_minor; want part/dev $chkminor"
+    devminor='kstat_minor&2#111111'
+    [ devminor -eq chkminor ]
+}
+
+# Usage: printStatus data-type device-name exit-status
+function printStatus {
+    typeset dType=$1 devName=$2
+    typeset -i status=$3
+
+    [ status -eq 0 ] && print -nr "Good " || print -nr "Bad "
+    print -r -- "$dType on $devName"
+}
+
+isfalse write && tell=true
+
+oldTell=$tell
+$Force && tell=true
+
+chkMinor $DriveDev 8#00 ||
+Error "$DriveDev is not the whole physical drive device."
+
+chkMinor $PartitionDev 8#57 ||
+Error "$PartitionDev is not the whole active partition device."
+
+tell=$oldTell
+
+for device in $DriveDev $PartitionDev; do
+    [ ! -w $device ] && Error "Cannot write to $device."
+done
+
+for file in /etc/masterboot /etc/hdboot0 /etc/hdboot1; do
+    [ ! -r $file ] && Error "Cannot read $file."
+done
+
+if istrue err; then
+    print -u2 "Aborting."
+    exit 1
+fi
+
+if istrue write; then
+    # Set pairs of sourcefile,extra-dd-params
+    set -- masterboot of=$DriveDev hdboot0 of=$PartitionDev \
+    hdboot1 "of=$PartitionDev bs=1k seek=1"
+    while [ $# -ge 2 ]; do
+	if $tell; then
+	    print "To write $1:"
+	    print -r -- "    dd if=/etc/$1 $2"
+	else
+	    print "Writing new $1..."
+	    dd if=/etc/$1 $2
+	fi
+	shift 2
+    done
+else
+    # check masterboot (/etc/masterboot)
+    set -- `l /etc/masterboot`
+    size=$5
+    dd if=$DriveDev bs=$size count=1 2>/dev/null | cmp -s - /etc/masterboot
+    printStatus masterboot $DriveDev $?
+
+    # check boot0 (/etc/hdboot0)
+    set -- `l /etc/hdboot0`
+    size=$5
+    dd if=$PartitionDev bs=$size count=1 2>/dev/null | cmp -s - /etc/hdboot0
+    printStatus boot0 $PartitionDev $?
+
+    # check boot1 (/etc/hdboot1)
+    set -- `l /etc/hdboot1`
+    bs=1024
+    sz=$(( ($5 + $bs - 1) / $bs ))
+    # use tmp file to avoid limit on size of pipe reads
+    mktempfile chkboot. || {
+	print -u2 "$name: could not make temp file.  Exiting."
+	exit 1
+    }
+    tmpfile=$mktempfile_ret
+    dd if=$PartitionDev ibs=$bs count=$sz skip=1 of=$tmpfile 2>/dev/null
+    dd count=1 ibs=$5 if=$tmpfile 2>/dev/null | cmp -s - /etc/hdboot1
+    printStatus boot1 $PartitionDev $?
+    rm $tmpfile
+fi

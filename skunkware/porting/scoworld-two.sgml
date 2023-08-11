@@ -1,0 +1,541 @@
+<!DOCTYPE Article PUBLIC "-//Davenport//DTD DocBook V3.0//EN">
+<Article>
+<ArtHeader>
+<Title>Porting Open Source Software to SCO</Title>
+<Author><Honorific>Dr</Honorific><FirstName>Ronald Joe</FirstName>
+          <SurName>Record</SurName>
+<Affiliation>
+   <JobTitle>Open Source Program Architect</JobTitle><OrgName>SCO</OrgName>
+</Affiliation>
+</Author>
+<AuthorInitials>
+<Emphasis><ULink URL="mailto:rr@sco.com">(rr@sco.com),</ULink></Emphasis>
+</AuthorInitials>
+<PubDate>November 1, 1999</PubDate>
+</ArtHeader>
+<Para>
+Much of the most useful and popular software today is published and
+distributed in source form. The Apache web server, KDE, the Mtools DOS
+utilities and the GNU C compiler are a few examples of what is commonly 
+referred to as Open Source software. This article attempts to provide some 
+insight, tips, techniques and methodology for building Open Source software 
+on and for <ProductName>SCO OpenServer 5</ProductName>,
+<ProductName>UnixWare 7</ProductName> and in general.
+</Para>
+<SimpleSect><Title>Setting Up Your Development Environment</Title>
+<Para>
+Perhaps the single most important step in porting <Emphasis>any</Emphasis>
+software is the creation of an appropriate build environment. Fortunately,
+on <ProductName>SCO OpenServer 5</ProductName> and 
+<ProductName>UnixWare 7</ProductName>, much of the work has already been done
+for you. On either platform, simply install the base Operating System,
+native development system, Java Development Kit and the SCO Skunkware CD 
+included in the Operating System media kit. 
+</Para>
+<Para>
+If you are not a licensed Development System user you can still build an 
+appropriate development environment by utilizing the GNU development system
+along with the native libraries and headers. On
+<ProductName>OpenServer</ProductName> you will need to
+install the "Linkers and Application Libraries" package of the Development
+System (no license key is required). On either platform you can simply install
+the Development System sans license key.
+</Para>
+
+<Para>
+After having installed the Operating System, development system of choice,
+and SCO Skunkware you will now have access to the standard tools necessary
+to build most Open Source packages. These tools include the GNU Compiler
+Collection, Bison, Flex, GNU Make, autoconf, automake, and a wide variety
+of header files and libraries.
+</Para>
+
+</SimpleSect>
+
+<SimpleSect><Title>Where and How to Obtain Open Source Software</Title>
+
+<Para>
+There are a number of excellent Open Source "portals" on the Internet.
+These are sites which provide links and references to the thousands of
+Open Source projects. Good starting points include:
+<ItemizedList>
+<ListItem>
+<Para>
+The SCO Skunkware web site at
+<ULink URL="http://www.sco.com/skunkware">
+http://www.sco.com/skunkware</ULink>. Each of the Skunkware components
+described here contains a link to the binary distribution for either
+<ProductName>OpenServer</ProductName> or <ProductName>UnixWare 7</ProductName> 
+as well as a link to the original source and
+project home page (if any). Additionally, there's a table of links at
+<ULink URL="http://www.sco.com/skunkware/links.html">
+http://www.sco.com/skunkware/links.html</ULink>. 
+</Para>
+</ListItem>
+<ListItem>
+<Para>
+The Freshmeat web site at
+<ULink URL="http://freshmeat.net">
+http://freshmeat.net</ULink>. 
+</Para>
+</ListItem>
+<ListItem>
+<Para>
+The FileWatcher web site at
+<ULink URL="http://filewatcher.org">
+http://filewatcher.org</ULink>. 
+</Para>
+</ListItem>
+<ListItem>
+<Para>
+The WebWatcher web site at
+<ULink URL="http://webwatcher.org">
+http://webwatcher.org</ULink>. 
+</Para>
+</ListItem>
+<ListItem>
+<Para>
+Sunsite's Linux archive at
+<ULink URL="ftp://sunsite.unc.edu/pub/Linux/welcome.html">
+ftp://sunsite.unc.edu/pub/Linux/welcome.html</ULink>. Note that many
+sites indicate their Open Source projects are for Linux when, in fact,
+the source is portable across most modern UNIX platforms as well.
+</Para>
+</ListItem>
+<ListItem>
+<Para>
+The Open Source Who's Who
+<ULink URL="http://support.lcg.org/Whoswho/">
+http://support.lcg.org/Whoswho/</ULink>. 
+</Para>
+</ListItem>
+<ListItem>
+<Para>
+The Free Software Foundation FTP download area at
+<ULink URL="ftp://ftp.gnu.org/gnu/">
+ftp://ftp.gnu.org/gnu/</ULink>. 
+</Para>
+</ListItem>
+</ItemizedList>
+</Para>
+
+<Para>
+Another method for obtaining access to the very latest development
+sources for many Open Source projects is Anonymous CVS. After installing
+SCO Skunkware you will have the necessary CVS utilities in 
+<Filename>/usr/local/bin</Filename>.
+To download a project's source tree via CVS, login to the CVS server
+with the project password, checkout the desired source, and logout. The
+project home page will supply you with the CVS server name and password
+if they are maintaining an anonymous CVS source repository.
+I've written a script to automate this procedure for several projects.
+You can download this script via
+<ULink URL="http://www.sco.com/skunkware/src/devtools/cvsget.gz">
+http://www.sco.com/skunkware/src/devtools/cvsget.gz</ULink>
+</Para>
+
+</SimpleSect>
+
+<SimpleSect><Title>Configuring Open Source Software for Compilation</Title>
+
+<Para>
+After identifying an Open Source package of interest, locating it, and 
+downloading the source archive it is typically the case that the source
+needs to be unpacked and configured for your platform. Most source archives
+downloadable over the Internet are compressed tar archives. To extract
+on of these, say <Filename>widget-1.0.tar.gz</Filename>, issue the command:
+<LiteralLayout>
+    gzcat widget-1.0.tar.gz | tar xf -
+</LiteralLayout>
+It is often prudent to first simply list the contents of the archive
+to determine if it extracts into it's own subdirectory. If not, create
+a subdirectory and extract the archive from there.
+</Para>
+
+<Para>
+Once extracted the source project needs to be configured for your platform.
+Most modern Open Source projects use GNU Autoconf to provide configuration
+scripts which attempt to automate the configuration process. In the simplest
+cases it will only be necessary to run the <Filename>configure</Filename> 
+script:
+<LiteralLayout>
+    cd widget-1.0 ; ./configure
+</LiteralLayout>
+</Para>
+<Para>
+Unfortunately, it is often necessary to "help" <Filename>configure</Filename> 
+understand your platform. For instance, on 
+<ProductName>UnixWare 7</ProductName> it is sometimes 
+necessary to:
+<ItemizedList>
+<ListItem>
+<Para>
+replace configure's "-lnsl" with "-lsocket -lnsl"
+</Para>
+</ListItem>
+<ListItem>
+<Para>
+replace configure's "-lICE" with "-lSM -lICE"
+</Para>
+</ListItem>
+<ListItem>
+<Para>
+order "-lSM -lICE" after "-lXt" but prior to "-lX11" on the link line
+</Para>
+</ListItem>
+<ListItem>
+<Para>
+rearrange the order of certain graphics libraries like JPEG, TIFF, 
+PNG or others
+</Para>
+</ListItem>
+</ItemizedList>
+A typical link line for a graphical application might include:
+<ProgramListing>
+-L/usr/local/lib -lXpm -ltiff -ljpeg -lpng -lz -lXaw -lXmu -lXt -lSM -lICE -lXext -lX11 -lm -lsocket -lnsl -lgen
+</ProgramListing>
+Many of these idiosyncracies, due in part to the single-pass nature of
+the native linker, can be simply accomodated by 
+rerunning autoconf which regenerates the <Filename>configure</Filename>
+script from the <Filename>configure.in</Filename> file for your platform.
+</Para>
+<Para>
+Another configuration area that often causes problems is the building of
+shared libraries. The <Filename>ltconfig</Filename> script contains the 
+platform-specific instructions and options for creating shared libraries. 
+In order to build shared libraries on <ProductName>UnixWare 7</ProductName> 
+it is necessary to modify <Filename>ltconfig</Filename> and add the following
+to the appropriate case statements:
+
+<ProgramListing Role="C">
+sysv5*)
+  pic_flag='-KPIC'
+  link_static_flag='-Bstatic'
+  wl='-Wl,'
+  ;;
+
+sysv5*)
+  archive_cmds='$LD -G -h $rpath/$soname -o $lib$libobjs'
+  runpath_var=LD_RUN_PATH
+  hardcode_runpath_var=yes
+  hardcode_shlibpath_var=no
+  ;;
+
+sysv5*)
+  version_type=osf
+  soname_spec='$libname.so.$major'
+  library_names_spec='$libname.so.$versuffix $libname.so.$major $libname.so'
+  shlibpath_var=LD_LIBRARY_PATH
+  ;;
+</ProgramListing>
+</Para>
+
+<Para>
+By default, <Filename>configure</Filename> will use the GNU C Compiler.
+If you wish to use an alternate compiler the CC environment variable can
+be set appropriately. On <ProductName>UnixWare 7</ProductName> the Skunkware
+components are built with the native compiler for performance and portability
+reasons. As a convenience i've constructed simple shell scripts to front-end 
+the <Filename>configure</Filename> script. For instance, on UnixWare 7 to use
+the native C compiler:
+<ProgramListing>
+#!/bin/sh
+HOST=i586-sco-sysv5
+[ -f mout-config ] && mv mout-config mout-config$$
+CC="cc"
+CPP="$CC -E"
+CFLAGS="-Xa -Dasm=__asm -DANSICPP -O3 -Kthread -Kalloca -I/usr/local/include -L/usr/local/lib"
+CXX="CC"
+CXXFLAGS="-O3 -I/usr/local/include/stl -I/usr/local/include -L/usr/local/lib"
+RANLIB=true
+MAKE=/usr/local/bin/make
+export CC CPP CXX RANLIB MAKE CFLAGS CXXFLAGS
+./configure $* $HOST 2>&1 | tee mout-config
+</ProgramListing>
+Note the use of "-Kthread -Kalloca". These enable threads and the built-in
+alloca function. The check for threads support in
+<Filename>configure</Filename> often fails on UnixWare 7. If you wish to
+include threads support it may be necessary to modify
+<Filename>configure</Filename> and/or <Filename>config.h</Filename>.
+On <ProductName>SCO OpenServer</ProductName> the use of threads can be
+accomplished via the FSU Pthreads package on Skunkware. To use FSU Pthreads
+the application should include &lt;pthread.h&gt; and link with the
+"-lgthreads" linker option.
+</Para>
+
+<Para>
+After running the <Filename>configure</Filename> script it is a good idea to 
+examine the output which is stored in the file config.log. You may also need 
+to edit the generated <Filename>config.h</Filename>, if any. Running
+<Filename>configure</Filename> with a tee to a log file
+<LiteralLayout>
+    ./configure | tee mout-config
+</LiteralLayout>
+will allow you to examine both the config.log and mout-config for possible 
+errors in the configuration.
+</Para>
+
+<Para>
+Many programs use the Imake system to configure the source for a particular
+platform. These will have an <Filename>Imakefile</Filename> which is used to 
+generate the Makefile. To configure such a source hierarchy for compilation 
+on your system simply run:
+<LiteralLayout>
+    xmkmf -a
+</LiteralLayout>
+</Para>
+
+</SimpleSect>
+
+<SimpleSect><Title>Compiling Open Source Software</Title>
+
+<Para>
+Once configured properly most Open Source software can be compiled
+by simply running "make". I use GNU make almost exclusively due to its
+widespread use in the Open Source community and the incompatibilities
+with System V make and different feature set. To be sure
+you are using GNU make rather than System V make, place 
+<Filename>/usr/local/bin</Filename> prior to <Filename>/bin</Filename> or 
+<Filename>/usr/bin</Filename> in your execution path. For example:
+<LiteralLayout>
+    PATH=/usr/local/bin:$PATH
+    export PATH
+</LiteralLayout>
+To generate a logfile of the output from your compile, make can be piped 
+to a tee as follows:
+<LiteralLayout>
+    make 2&gt;&1 | tee mout
+</LiteralLayout>
+After successfully compiling the source files and reviewing the logfiles
+many Makefiles include a "test" or "check" rule which runs any included
+automated tests. To run these, issue the command:
+<LiteralLayout>
+    make test 2&gt;&1 | tee mout-test
+or
+    make check 2&gt;&1 | tee mout-check
+</LiteralLayout>
+Finally, after compiling and testing the build, install the software with:
+<LiteralLayout>
+    make install 2&gt;&1 | tee mout-install
+</LiteralLayout>
+</Para>
+
+<Para>
+Forum presentation(s)
+</Para>
+
+</SimpleSect>
+
+<SimpleSect><Title>Modifying Open Source Software</Title>
+
+<Para>
+When modifying Open Source software it is important to keep cross-platform
+portability in mind. The source you modify will in all likelihood be built
+on a wide variety of platforms. Your modifications cannot break either the
+build or functionality of the software on any other platform. It's also quite
+possible that your modifications could be useful to another platform. Thus,
+when possible, avoid platform-specific modifications like:
+<ProgramListing Role="C">
+#if defined(_SCO_DS) /* OpenServer */
+#define FOOBAR 0
+#elif defined(__USLC__) /* UnixWare */
+#define FOOBAR 1
+#endif /* _SCO_DS __USLC__ */
+</ProgramListing>
+Whenever possible make such a modification based upon defines generated by
+the <Filename>configure</Filename> script. For example,
+<Filename>configure</Filename> might write out in the 
+<Filename>config.h</Filename>
+file a define of something like HAVE_FOOBAR or NEED_FOOBAR. If so, a more
+portable construct for the same modification might look like:
+<ProgramListing Role="C">
+#if defined(NEED_FOOBAR)
+#define FOOBAR 1
+#endif /* NEED_FOOBAR */
+</ProgramListing>
+When making platform-specific modifications, the __USLC__ manifest define
+can be used for <ProductName>UnixWare</ProductName> and the _SCO_DS for
+<ProductName>OpenServer</ProductName>. If the application has been ported
+to Sun Solaris then it is often possible to simply change:
+<ProgramListing Role="C">
+#if defined(SOLARIS)
+</ProgramListing>
+to
+<ProgramListing Role="C">
+#if defined(SOLARIS) || defined(__USLC__) || defined(_SCO_DS)
+</ProgramListing>
+</Para>
+
+<Para>
+SCO OpenServer and UnixWare 7 are POSIX, XPG4, UNIX 95 and mostly UNIX 98
+compliant. Often there are defines for these either in config.h or another
+header file. Most applications which comply with one or more of these
+standards will simply compile and link. Occasionally trivial modifications
+are necessary. For example, the location of the declaration of a function
+might reside in different header files and libraries on different systems.
+Usually the <Filename>man</Filename> command will indicate the syntax for
+inclusion of the declaration and any additional libraries to link against.
+</Para>
+<Para>
+An excellent document on porting to UnixWare 7 is available at
+<ULink URL="http://www.sco.com/forum1999/conference/develop/d16/">
+http://www.sco.com/forum1999/conference/develop/d16/</ULink>. This
+document goes into these issues in much greater detail than is possible here.
+</Para>
+
+</SimpleSect>
+
+<SimpleSect><Title>Contributing to Open Source Projects</Title>
+
+<Para>
+The Open Source development model relies upon contributions from vendors,
+developers, users and the primary development group. If you have successfully
+ported an Open Source project to a new platform or you have made source level
+modifications to enhance the software or fixed a bug, you can and should return
+your modifications to the project maintainers. In the case of ports and fixes
+for SCO platforms you may wish to first submit your modifications to the
+Skunkware development team for review and integration with other modifications
+to that package. To do so, e-mail your modifications to 
+<ULink URL="mailto:skunkware@sco.com">skunkware@sco.com</ULink>.
+</Para>
+<Para>
+Generally, modifications to an Open Source project are returned by e-mailing
+a context diff of the relevant changes. That is, if you modified source files
+<Filename>foo.c</Filename> and <Filename>bar.h</Filename> of project fubar 
+release 1.0, you would create a context diff of these files:
+<LiteralLayout>
+    diff -c foo.c.00 foo.c &gt; mydiff-fubar-1.0
+    diff -c bar.h.00 bar.h &gt;&gt; mydiff-fubar-1.0
+</LiteralLayout>
+This type of file difference is suitable for input to the patch utility.
+After creating the patch, test it on a fresh fubar 1.0 source tree.
+To return the modification, simply e-mail either the author of the program
+or, more commonly, the developer mailing list for the project. For instance:
+<LiteralLayout>
+    mail fubar-dev@fubar.org
+</LiteralLayout>
+These mailing lists are an excellent means of staying abreast of the latest
+patches, releases, developer discussions, etc. Usually subscription is open
+or the list is archived for perusal by the public. Note that the above example
+is illustrative only. To determine the available mailing lists for a project,
+visit the project web site.
+</Para>
+
+</SimpleSect>
+
+<SimpleSect><Title>Contributing to SCO Skunkware Open Souce Software</Title>
+
+<Para>
+If you would like to contribute to the ongoing effort to provide quality
+Open Source products to SCO customers:
+
+<ItemizedList>
+<ListItem>
+<Para>
+Read the Skunkware FAQ at 
+<ULink URL="http://www.sco.com/skunkware/faq.html">
+http://www.sco.com/skunkware/faq.html</ULink>
+</Para>
+</ListItem>
+<ListItem>
+<Para>
+Read the Skunkware submission guidelines at 
+<ULink URL="http://www.sco.com/skunkware/submission.html">
+http://www.sco.com/skunkware/submission.html</ULink>
+</Para>
+</ListItem>
+<ListItem>
+<Para>
+Join the polecats mailing list by sending an e-mail message 
+to <ULink URL="mailto:polecats-request@scofolks.ocston.org">
+polecats-request@scofolks.ocston.org</ULink> with any subject line 
+and a single line in the body of the message:
+<LiteralLayout>
+      subscribe
+</LiteralLayout>
+
+</Para>
+</ListItem>
+
+</ItemizedList>
+</Para>
+
+<Para>
+The software on the Skunkware CD-ROM is licensed under a variety
+of terms. Much of it is licensed under the terms of the 
+<ULink URL="http://www.sco.com/skunkware/info/gpl.html">
+GNU General Public License</ULink>.
+Some is licensed under the
+<ULink URL="http://www.sco.com/skunkware/info/lgpl.html">
+GNU Library General Public License</ULink>.
+Other components are licensed under the
+<ULink URL="http://www.sco.com/skunkware/info/Artistic">
+Artistic License</ULink>.  Many of the components are
+"Freeware" with no restrictions on their redistribution while a few components
+are "Shareware" meaning the author would like you to try the software and,
+if you wish to use it, send her some money. A few components are commercial
+products which can be used freely for non-commercial purposes.
+Some components simply restrict their use to non-commercial purposes.
+</Para>
+
+<Para>
+The Santa Cruz Operation, Inc. and SCO Skunkware are not
+related to, affiliated with or licensed by the famous Lockheed
+Martin Skunk Works (R), the creator of the F-117 Stealth Fighter,
+SR-71, U-2, Venturestar(tm), Darkstar(tm), and other pioneering
+air and spacecraft.
+</Para>
+
+</SimpleSect>
+
+<SimpleSect><Title>Author and Contributors</Title>
+
+<Para>
+<ULink URL="http://www.ocston.org/~rr">Ronald Joe Record</ULink> has worked for 
+<ULink URL="http://www.sco.com">The Santa Cruz Operation</ULink> 
+for over 16 years.  
+</Para>
+
+<Para>
+Record holds a 
+<ULink URL="http://www.ocston.org/~rr/PhD/intro.html">Ph.D.</ULink> 
+in Mathematics from the 
+<ULink URL="http://www.ucsc.edu">University of California</ULink>.
+</Para>
+
+<Para>
+David Eyes 
+<ULink URL="mailto:davidey@sco.com">
+(davidey@sco.com)</ULink>
+contributed to this document in design, review and editorial matters.
+</Para>
+
+</SimpleSect>
+
+<SimpleSect><Title>About This Document</Title>
+
+<Para>
+This document was created using SGML-Tools 2.0.2, Jade 1.2.1 and teTeX 0.9
+running on <ProductName>UnixWare 7</ProductName>.
+</Para>
+
+<Para>
+The source to this document is maintained at
+<ULink URL="http://www.sco.com/skunkware/sgmldocs/scoworld-two.sgml">
+http://www.sco.com/skunkware/sgmldocs/scoworld-two.sgml
+</ULink>.
+A Makefile and formatted varieties of this document are also available at
+<ULink URL="http://www.sco.com/skunkware/sgmldocs/">
+http://www.sco.com/skunkware/sgmldocs/</ULink>. 
+For instance, you will find a postscript version at
+<ULink URL="http://www.sco.com/skunkware/sgmldocs/ps/scoworld-two.ps">
+http://www.sco.com/skunkware/sgmldocs/ps/scoworld-two.ps
+</ULink>. Finally, an HTML version of this and other porting documents
+will be available at
+<ULink URL="http://www.sco.com/skunkware/porting/">
+http://www.sco.com/skunkware/porting/
+</ULink>.
+</Para>
+</SimpleSect>
+
+</Article>

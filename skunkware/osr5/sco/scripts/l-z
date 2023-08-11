@@ -1,0 +1,74 @@
+#!/bin/ksh
+# @(#) l-z.ksh 1.1 94/08/04
+# 92/09/05 john@armory.com
+# 92/11/05 added ability to read filenames from stdin
+# 93/12/09 Use xargs for command line args too.
+# 94/06/21 Added help.
+# 94/08/04 Added r & I opts.  Pass other options to l.
+# 94/10/06 Added S option.
+# 95/08/03 Added t option.
+
+# Make sure the script is run by ksh.  It can be done this way rather than
+# making the script a #! script so that if invoked by ksh, it can fork to run
+# this and pass more args than can be passed by exec.
+#[ -z "$SECONDS" ] && exec ksh -c "$0" "$@"
+
+name=${0##*/}
+Usage="Usage: $name [-hirt] [l-options] [filename ...]"
+typeset -i ReadInput=0
+
+while getopts :hIrACFLRabcdfignopqstuS opt; do
+    case $opt in
+    h)
+	echo \
+"$name: list files sorted by file size, smallest first.
+$Usage
+If no filenames are given, the files in the current directory are listed.
+Options:
+-h: Print this help.
+-I: Read input for filenames.
+-r: Reverse order of sort (list largest files first).
+-t: Print only as many filenames as will fit on the screen.
+-S: Print filename only.
+Any other - options are passed to l(C)."
+	exit 0
+	;;
+    I)
+	ReadInput=1;;
+    r)
+	SortArgs=-r;;
+    S)
+	CutCmd='| awk "{ print \$NF; }"'
+	;;
+    t)
+	HeadCmd='| head -$((${LINES:-`tput lines`}-2))'
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?)  
+	lArgs="$lArgs$opt"
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+[ -n "$lArgs" ] && lArgs=-$lArgs
+
+if ((ReadInput)); then
+    xargs l $lArgs --
+else
+    # Might have been passed more args than can be passed to exec
+    for arg; do
+	print -r "$arg"
+    done | xargs l $lArgs --
+fi | eval sort +4 -5 -n $SortArgs $CutCmd $HeadCmd

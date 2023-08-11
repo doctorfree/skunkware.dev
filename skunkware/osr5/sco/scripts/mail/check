@@ -1,0 +1,55 @@
+#!/bin/ksh
+# check: report on users' mail
+# @(#) check.ksh 2.0 96/11/01
+# 90/05/30 john h. dubois iii (john@armory.com)
+# 90/11/30 changed to expect mail files in user's home dir
+# 92/02/16 added help option
+# 93/11/30 Made #!/bin/ksh for server
+# 95/12/30 Get home dir from /etc/passwd!
+# 96/11/01 Use ksh to get home dir.  Tell whether user has new mail.
+
+cd /	# for server
+name=check
+if [ "$1" = -h ]; then
+    echo \
+"$name: check for whether users have mail.
+Usage: $name [username ...]
+For each named user whose mail spool file is in a readable directory,
+$name will report the amount of waiting mail and the last time that mail
+was read or received.
+If no username is given, the report is done for the user invoking $name."
+    exit 0
+fi
+typeset -L8 puser
+typeset -i a m c s
+[ $# -eq 0 ] && set -- $USER
+for user in "$@"; do
+    homedir=$(print -r ~$user)
+    if [ "$homedir" = "~$user" ]; then
+	print -ru2 -- "$user: no such user."
+	exit 1
+    fi
+    if [ -x $homedir ]; then
+	puser=$user
+	mailbox="$homedir/.mailbox"
+	if [ -f "$mailbox" ]; then
+	    if type stat > /dev/null; then
+		set -- $(stat -t"%a %b %e '%y %I:%M%p %Z" -nfamcsA '-c ' -- \
+		"$mailbox" 2>/dev/null)
+		a=$1 m=$2 c=$3 s=$4
+		shift 4
+		[ m -ge a -a m -eq c ] && amount=some || amount=none
+		print -r -- \
+    "$puser has $(((s+1023) / 1024))K of mail ($amount new), last received $*"
+	    else
+		set -- $(/bin/ls -og -- "$mailbox")
+		print -- \
+		"$puser has $3 characters of mail, last received $4 $5 $6"
+	    fi
+	else
+	    print -u2 "$puser has no mail spool file."
+	fi
+    else
+	print -u2 "Can't access $user's home directory."
+    fi
+done

@@ -1,0 +1,356 @@
+#!/usr/lib/scosh/utilbin/oash
+# @(#) mmdfsel.oash 1.1 93/12/24
+# 92/09/25 john h. dubois iii (john@armory.com)
+# 92/11/22 Added EditAddress
+# 93/12/15 Added "deliver" action.
+#          Made 'Kill' not be the first action in list.
+#          Fixed bug that caused failure if address field truncated too much.
+#          Change header to 'Select up to 6...' since oash can't handle more.
+# 93/12/20 Pass any options to mmdfq
+# 93/12/24 Use $* instead of $@ for cmd line args due to oash bug
+#          Added +o to mmdfq options
+#          Added Reinject action.
+
+# todo: rewrite this in vtcl.
+
+PATH=/usr/lib/oa/utilbin:/usr/lib/scosh/utilbin:$PATH
+
+# run ourself thru oash 
+oadeinit 2>/dev/null || exec oash $0 "$@"
+
+: ${TMP:=$TMPDIR}
+: ${TMP:=/tmp}
+TmpPref=$TMP/#mmdfsel.$$
+ActionTmp=$TmpPref.p
+ViewFileWin=3
+LogTmp=$TmpPref.l
+
+CloseWindow() {
+    wmove 0
+    wmclose $1
+}
+
+# Print a message centered on the screen.
+# Usage: WinMessage "message" ["title"]
+# If no title is given, the window has no title.
+# WinMessage wait for the use to press <esc>,
+# then closes the window and returns.
+WinMessage() {
+    Message=$1
+    Title=$2
+    Length=`expr length "$Message" + 2`
+    [ $Length -lt 30 ] && Length=30
+    Clean_wmopen 38 3 $Length 10
+    [ $# -gt 1 ] && wmtitle "$Title"
+    wmmessage -r "press <return> to continue"
+    echo "$Message"
+    wrefresh 38
+    read garbage
+    CloseWindow 38
+}
+
+# Usage: Centered_wmopen num lines cols top_row
+# Creates a window centered on column 38/39
+Centered_wmopen() {
+    wmopen $1 $2 $3 $4 `expr 39 - $3 / 2`
+}
+
+# Usage: Clean_wmopen num lines cols top_row
+# Creates a window centered on column 38/39 and clears a border around it.
+# Uses window #30 to clear.
+Clean_wmopen() {
+    N=$1 L=$2 C=$3 X=$4
+    set `ksh -c "echo $(($L+2)) $(($C+2)) $(($X-1)) $((38-$C/2)) $((39-$C/2))"`
+    newwin 30 $1 $2 $3 $4
+    wmclose 30
+    wmopen $N $L $C $X $5
+}
+
+# Usage: ViewFile filename
+# Sets LAST_KEY
+ViewFile() {
+    ViewFileFile=$1
+    wmopen $ViewFileWin $LINES 78 0 0
+    if [ -d "$ViewFileFile" ]; then
+	wmtitle "Viewing directory: $ViewFileFile"
+	l -RA "$ViewFileFile" > $DirList
+	ViewF=$DirList
+    else
+	wmtitle "Viewing file: $ViewFileFile"
+	ViewF=$ViewFileFile
+    fi
+    wmmessage -r "Use arrow keys, <esc> when done"
+    scan -e"$EOFMSG" "$ViewF"
+    CloseWindow $ViewFileWin
+}
+
+mmdf_kill() {
+    oadeinit
+    echo "Killing $*..."
+    for job
+    do
+	echo */$job
+    done | xargs rm -f
+    echo -n "Press return to continue..."
+    read garbage
+    oainit
+}
+
+Deliver() {
+    oadeinit
+    echo "Attempting delivery of $*..."
+    /usr/mmdf/bin/deliver -w $*
+    echo -n "Press return to continue..."
+    read garbage
+    oainit
+}
+
+Reinject() {
+    oadeinit
+    echo "Moving data files for $*..."
+    ReinjectList=
+    # First move message files so original messages won't accidently be
+    # delivered while being reinjected.
+    cd msg
+    for job
+    do
+	if [ ! -f $job ]; then
+	    echo "Cannot find message file for message $job."
+	else
+	    ReinjectList="$ReinjectList $job"
+	fi
+    done
+    if [ -n "$ReinjectList" ]; then
+	mv $ReinjectList ../tmp
+	cd ../tmp
+	echo Reinjecting $ReinjectList...
+	mmdfq +no $ReinjectList | while read q id return recip; do
+	    /usr/lib/mail/execmail -dv -f $return $recip < msg.$id
+	done
+	echo -n "Press return to remove original messages & continue..."
+    else
+	echo "No messages to reinject."
+	echo -n "Press return continue..."
+    fi
+    cd ..
+    read garbage
+    if [ -n "$ReinjectList" ]; then
+	for job in $ReinjectList
+	do
+	    FList="$FList */$job"
+	done
+	rm $FList
+    fi
+    oainit
+}
+
+LogDeliver() {
+    oadeinit
+    echo "Attempting delivery of $*..."
+    /usr/mmdf/bin/deliver -w -VFTR -L$LogTmp $*
+    echo -n "Press return to view delivery log..."
+    read garbage
+    oainit
+    ViewFile $LogTmp
+}
+
+AddrFiles() {
+    # Do this with a separate sh to avoid expensive oainit
+    sh -c '
+    NoLine=-n
+    for job
+    do
+	echo $NoLine ""
+	unset NoLine
+	if [ -f addr/$job ]; then
+	    echo $job:
+	    cat addr/$job
+	else 
+	    set -- q.*/$job
+	    if [ -f $1 ]; then
+		echo $job:
+		cat $1
+	    else
+		echo "$job: No address file."
+	    fi
+	fi
+    done >'" $ActionTmp" $*
+    Clean_wmopen 3 21 60 1
+    wmtitle "Address Files"
+    wmmessage -r "Use arrow keys, <esc> when done"
+    scan -e"$EOFMSG" $ActionTmp
+    CloseWindow 3
+}
+
+EditAddress() {
+    # "edit" cmd fails miserably, so use $VISUAL etc.
+    if [ -z "$VISUAL" ]; then
+	if [ -n "$EDITOR" ]; then
+	    VISUAL=$EDITOR
+	else
+	    VISUAL=vi
+	fi
+    fi
+    EdList=
+    for job
+    do
+	EdList="$EdList addr/$job"
+    done
+    oadeinit
+    $VISUAL $EdList
+    oainit
+}
+
+ViewData() {
+    for job
+    do
+	if [ -r msg/$job ]; then
+	    ViewFile msg/$job
+	else
+	    WinMessage "Cannot open msg/$job"
+	fi
+    done
+}
+
+# Move message files instead of address files because data file will have
+# only one link to restore if neccessary
+MoveJobs() {
+    oadeinit
+    echo "Data files being moved to $PWD/tmp:"
+    echo $*
+    cd msg
+    mv $* ../tmp
+    cd ..
+    echo "Move them back to $PWD/msg to allow them to be processed."
+    echo "Note: files will eventually be removed from tmp by cleanque."
+    echo -n "Press return to continue..."
+    read garbage
+    oainit
+}
+
+# Returns 0 if the action taken may have changed the queued messages,
+# so that the queue should be reexamined.  Returns 1 if 'quit' was selected.
+# Returns 2 if no changes made.
+Action() {
+    while :; do
+	Clean_wmopen 2 10 30 7
+	wmtitle "Select Action"
+	wmmessage -r "<esc> to return"
+
+# this option is disabled because the -L option to deliver has no effect,
+# even for root & mmdf
+#	"Deliver & View Log" \
+
+	pp \
+	"Attempt Delivery" \
+	"Move from queue to tmp" \
+	"View Address Files" \
+	"Edit Address Files" \
+	"View Data Files" \
+	"Reinject messages" \
+	"Kill Messages" \
+	Quit
+	[ $PP_NUM -lt 0 ] && return 2
+	case $PP_ITEM in
+	Attempt*)
+	    Deliver $MessageIDs; break;;
+	Move*)
+	    MoveJobs $MessageIDs; break;;
+	"View Address"*)
+	    AddrFiles $MessageIDs;;
+	Edit*)
+	    EditAddress $MessageIDs;;
+	"View Data"*)
+	    ViewData $MessageIDs;;
+	Reinject*)
+	    Reinject $MessageIDs; break;;
+	Kill*) 
+	    mmdf_kill $MessageIDs; break;;
+	Deliver*)
+	    LogDeliver $MessageIDs; break;;
+	Quit)
+	    return 1;;
+	esac
+    done
+    return 0
+}
+
+GetJobs() {
+    mmdfq +Vow80 $* > $TmpPref
+    {
+	read header
+	read line
+	if [ -z "$line" ]; then
+	    echo "No MMDF jobs queued."
+	    return 1
+	fi
+    } < $TmpPref
+    return 0
+}
+
+Fail() {
+    oadeinit
+    echo "$*"
+    exit 1
+}
+
+SelectJobs() {
+    ret=2
+    while [ $ret -eq 2 ]; do
+	wmopen 1 $LINES 78 0 0
+	wmtitle "Select up to 6 MMDF Jobs"
+	wmmessage -r \
+"Use arrow keys; <space> selects; <Return> when done selecting; <esc> to quit"
+
+	pp -m -f $TmpPref
+
+	[ -z "$PP_ITEM" ] && return 1
+	    
+	set -f
+	set -- $PP_ITEM
+	set +f
+	# Get rid of header if it was selected for some silly reason
+	if [ "$2" = Message ]; then
+	    [ $# -lt 6 ] && Fail "Not enough header fields to shift."
+	    shift 6
+	fi
+	unset MessageIDs
+	while [ $# -gt 2 ]; do
+	    MessageIDs="$MessageIDs msg.$2"
+	    # shift until the date field of the next message is in the correct
+	    # position.  A total of 7 shifts normally works but truncation of
+	    # address fields can mess this up.
+	    [ $# -lt 6 ] && Fail "Wrong number of fields."
+	    shift 5
+	    while [ $# -ge 4 ]; do
+		case "$4" in
+		[0-2][0-9]/[0-3][0-9]/[0-9][0-9]|NO_ADDR)
+		    break;;
+		esac
+		shift
+	    done
+	done
+
+	# Return the return value of Action
+	Action
+	ret=$?
+    done
+    return $ret
+}
+
+# Start of main program
+
+[ -z "$LINES" ] && LINES=`tput lines`
+
+cd /usr/spool/mmdf/lock/home
+GetJobs || exit 0
+
+oainit
+while SelectJobs; do
+    GetJobs || break
+    oainit
+done
+oadeinit
+
+rm -f $TmpPref $ActionTmp $LogTmp
+exit 0

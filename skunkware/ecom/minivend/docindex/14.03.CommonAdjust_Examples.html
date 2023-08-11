@@ -1,0 +1,74 @@
+<HTML>
+<HEAD>
+<TITLE>CommonAdjust Examples</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.02.Price_Maintenance_with_CommonAdj.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.04.PriceBreaks_discounts_and_Pric.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="CommonAdjust_Examples">CommonAdjust Examples</A></H2>
+<P>
+Most examples below use an outboard database table named <STRONG>pricing</STRONG>, but any valid table including the <STRONG>products</STRONG> table can be used. We will refer to this <STRONG>pricing</STRONG> table:
+
+<P>
+<PRE>  code    common  q1     q5     q10    XL    S      red
+  99-102          10     9      8      1     -0.50  0.75
+  00-343                               2
+  red      0.75
+</PRE>
+<P>
+The simplest case is a straight lookup on an attribute; <EM>size</EM> in this case. 
+
+<P>
+<PRE>  10.00, ==size:pricing
+</PRE>
+<P>
+With this value in the <A HREF="#item_price">price</A> field, a base price of 10.00 will be adjusted with the value of the <EM>size</EM> attribute. If size for the item 99-102 is set to <CODE>XL</CODE> then 1.00 will be added for a total price of 11.00; if it is <CODE>S</CODE> then .50 will be subtracted for a total price of 9.50; for any other value
+of <EM>size</EM> no further adjustment would be made. 00-343 would be adjusted up 2.00 only
+for <EM>XL</EM>.
+
+<P>
+<PRE>  10.00, ==size:pricing, ==color:pricing
+</PRE>
+<P>
+This is the same as above, except both size and color are adjusted for. 
+<FONT SIZE=-1>A</FONT> color value of red for item code 99-102 would add
+0.75 to the price. For 00-343 it would have no effect.
+
+<P>
+<PRE>  10.00, ==size:pricing, ==color:pricing:common
+</PRE>
+<P>
+Here price is set based on a common column, keyed by the value of the color
+attribute. Any item with a color value of red would have 0.75 added to the
+base price.
+
+<P>
+<PRE>  pricing:q1,q5,q10:, ;10.00, ==size:pricing, ==color:pricing:common
+</PRE>
+<P>
+Here is a quantity price lookup, with a fallback price setting. If there is
+a valid price found at the quantity of 1, 5, or 10, depending on item
+quantity, then it will be used. The fallback of 10.00 only applies if no
+non-zero/non-blank price was found at the quantity lookup. In either case,
+size/color adjustment is applied.
+
+<P>
+<PRE>  pricing:q1,q5,q10:, ;10.00 ==size:pricing, ==color:pricing:common
+</PRE>
+<P>
+Removing the comma from the end of the fallback string stops color/size
+lookup if it reaches that point. If a quantity price was found, then size
+and color are chained.
+
+<P>
+<PRE>  pricing:q1,q5,q10:, ;products:list_price, ==size:pricing, ==color:pricing
+</PRE>
+<P>
+The value of the database column <CODE>list_price</CODE> is used as a fallback instead of the fixed 10.00 value. The above value
+might be a nice one to use as the default for a typical retail catalog that
+has items with colors and sizes.
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.02.Price_Maintenance_with_CommonAdj.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.04.PriceBreaks_discounts_and_Pric.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

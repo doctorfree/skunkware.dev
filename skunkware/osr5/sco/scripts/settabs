@@ -1,0 +1,47 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# @(#) settabs.gawk 1.0 94/03/09
+# 93/09/27 john h. dubois iii (john@armory.com)
+# 93/10/30 Only set current screen unless an arg is given
+# 93/12/22 Added help, options, and tty args.
+# 94/03/09 Use gawk so - options can be given
+
+BEGIN {
+    # Turn on iBCS2 capabilities and clear all tabs
+    # Make sure we are at column 0
+    Reset = "\033[=3L\033[3g\015"
+    for (tabstop = 0; tabstop <= 9; tabstop++)
+	Reset = Reset "        \033H"
+
+    if (ARGC < 2)
+	print Reset
+    else {
+	if (ARGV[1] ~ /^[-+]h$/) {
+	    Name = "settabs"
+	    print \
+Name ": reset tab stops on console screens.\n"\
+"Usage: " Name " [-ah] [ttynn ...]\n"\
+"A reset string is emitted to set the tabs\n"\
+"on the named ttys to every 8 columns.\n"\
+"If no ttys are named, the string is emitted\n"\
+"to the current screen.\n"\
+"Options:\n"\
+"-h: print this help.\n"\
+"-a: set tabs all console screens."
+	    exit(0)
+	}
+	else if (ARGV[1] ~ /^[-+]a$/)
+	    for (screen = 1; screen <= 12; screen++) {
+		screen = sprintf("/dev/tty%02d",screen)
+		print Reset > screen
+		close(screen)
+	    }
+	else {
+	    for (i = 1; i in ARGV; i++) {
+		screen = "/dev/" ARGV[i]
+		print Reset > screen
+		close(screen)
+	    }
+	}
+    }
+}

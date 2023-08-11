@@ -1,0 +1,163 @@
+#!/bin/sh
+#
+# dist2pkg - creates a pkgadd installable file/filesystem from a gzip'd tar
+#            archive of a binary distribution
+#
+# written 08-Nov-97 by Ron Record (rr@sco.com)
+#
+# usage - dist2pkg [-d path] [-e] [-y] [-n] [-p] [-u] [-z]
+#          where -y indicates a yes answer to all questions
+#                -d path indicates the distribution path
+#                -e indicates the distribution has already been extracted
+#                -n indicates just tell me what you would have done
+#                -p indicates that a prototype file aleady exists
+#                -z indicates only produce new pkg files (skip if exists)
+#                -u produces a usage message
+#
+
+DIST=/home/ftp/pub/uw7/dist
+AUTO=
+VERB=
+EXTR=1
+PROTO=
+UPDATE=
+
+usage() {
+    echo "usage : dist2pkg [-d path] [-e] [-n] [-y] [-p] [-u] [-z]"
+    echo "\twhere -y indicates a yes answer to all questions"
+    echo "\t      -n indicates just tell me what you would have done"
+    echo "\t      -p indicates that a prototype file already exists"
+    echo "\t      -d path indicates the distribution path"
+    echo "\t      -e indicates the distribution has already been extracted"
+    echo "\t      -z indicates only produce new pkg files (skip if exists)"
+    echo "\tand   -u produces a usage message"
+    exit 1
+}
+
+while getopts d:enpuyz c
+do
+    case $c in
+    d)  DIST="$OPTARG"
+        ;;
+    e)  EXTR=
+        ;;
+    n)  VERB=1
+        ;;
+    p)  PROTO=1
+        ;;
+    y)  AUTO=1
+        ;;
+    z)  UPDATE=1
+        ;;
+    u)  usage
+        ;;
+    ?)  usage
+        ;;
+    esac
+done
+shift `expr $OPTIND - 1`
+
+cd $DIST
+
+[ -d ../pkg ] || {
+    if [ "$VERB" ]
+    then
+        echo "mkdir ../pkg"
+    else
+        mkdir ../pkg
+    fi
+}
+
+chkdist
+
+for i in *-dist.tar.gz domestic/*-dist.tar.gz
+do
+    [ "$i" = "*-dist.tar.gz" ] && continue
+    [ "$i" = "domestic/*-dist.tar.gz" ] && continue
+    cd $DIST
+    pkgdir=`echo $i | sed -e "s/-dist.tar.gz//"`
+    p=../pkg/$pkgdir
+    [ -d $p ] || {
+        if [ "$VERB" ]
+        then
+            echo "mkdir $p"
+        else
+            mkdir $p
+        fi
+    }
+    cd $p
+    namrel="`echo $pkgdir | sed -e 's/-/ /' -e 's/domestic\///'`"
+    n=
+    r=
+    for j in $namrel
+    do
+        [ "$n" ] || {
+            n=`echo $j | sed -e "s/_//"`
+            continue
+        }
+        [ "$r" ] || r=$j
+    done
+    nsiz=`echo $n | wc -c`
+    [ $nsiz -gt 10 ] && {
+#       echo "$n package abbreviation exceeds the 9 character limit, skipping"
+#       continue
+        n=`echo $n | cut -c 1-9`
+    }
+    [ "$UPDATE" ] && {
+        [ -f ../../Packages/$n.pkg ] && continue
+        [ -f ../../../Packages/domestic/$n.pkg ] && continue
+    }
+    [ "$AUTO" ] || {
+        echo "Making package for $n $r. Ok ? (y/n) \c"
+        read ans
+        [ "$ans" = "n" ] && continue
+    }
+    [ "$EXTR" ] && {
+        if [ "$VERB" ]
+        then
+            echo "gzcat $DIST/$i | tar xf -"
+        else
+            gzcat $DIST/$i | tar xf -
+        fi
+    }
+    if [ "$PROTO" ]
+    then
+        if [ "$VERB" ]
+        then
+            echo "/usr/local/lib/mkpkg/MakePkg $n"
+        else
+            /usr/local/lib/mkpkg/MakePkg $n
+        fi
+    else
+        if [ "$VERB" ]
+        then
+            # Update implies extract
+            [ "$UPDATE" ] && [ "$EXTR" ] || {
+                echo "gzcat $DIST/$i | tar xf -"
+            }
+            echo "mkpkg $n $r"
+        else
+            # Update implies extract
+            [ "$UPDATE" ] && [ "$EXTR" ] || gzcat $DIST/$i | tar xf -
+            mkpkg $n $r
+        fi
+    fi
+done
+
+#
+# Now create the new symlinks from the Packages directory
+#
+# cd $DIST/../Packages
+# for i in ../pkg/*/*.pkg
+# do
+#     b=`basename $i`
+#     [ -f $b ] && continue
+#     ln -s $i .
+# done
+# cd $DIST/../Packages/domestic
+# for i in ../../pkg/domestic/*/*.pkg
+# do
+#     b=`basename $i`
+#     [ -f $b ] && continue
+#     ln -s $i .
+# done

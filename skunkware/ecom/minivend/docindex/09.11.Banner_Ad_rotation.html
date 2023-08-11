@@ -1,0 +1,256 @@
+<HTML>
+<HEAD>
+<TITLE>Banner/Ad rotation</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.10.FILE_and_INCLUDE.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.12.Tags_for_summarizing_shopping_ba.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Banner_Ad_rotation">Banner/Ad rotation</A></H2>
+<P>
+MiniVend has a built-in banner rotation system designed to show ads or
+other messages according to category and an optional weighting.
+
+<P>
+The <A HREF="#item__banner_">[banner ...]</A> 
+<FONT SIZE=-1>MML</FONT> tag is used to implement it.
+
+<P>
+The weighting system pre-builds banners in the directory 'Banners', under
+the temporary directory. It will build one copy of the banner for every one
+weight. If you weight one banner <CODE>7</CODE>, one <CODE>2</CODE>, and one <CODE>1</CODE>, then a total of 10 pre-built banners will be made. The first will be
+displayed 70% of the time, the second 20%, and the third 10%, in random
+fashion. If you want all equal, place an equal weight of 1.
+
+<P>
+Each category may have separate weighting. If you place the above in
+category <CODE>tech</CODE>, then it will behave as above when you place
+<CODE>[banner category=tech]</CODE> in the page. 
+<FONT SIZE=-1>A</FONT> separate category, say <CODE>art</CODE>, would have its own rotation and weighting.
+
+<P>
+The <A HREF="#item__banner_">[banner ...]</A> tag is based on a database table, named <CODE>banners</CODE>
+by default. It expects a total of five (5) fields in the table:
+
+<DL>
+<DT><STRONG>code</STRONG><DD>
+This is the key for the item. If the banners are not weighted, then this
+should be a category specific code.
+
+</DD><P><DT><STRONG>category</STRONG><DD>
+If you choose to categorize weighted ads, this contains the category to
+select. If empty, it will be placed in the default (or blank) category.
+
+</DD><P><DT><STRONG>weight</STRONG><DD>
+Must be an integer number 1 or greater to include this ad in the weighting.
+If 0 or blank, the ad will be ignored when weighted ads are built.
+
+</DD><P><DT><STRONG><A NAME="item_rotate">rotate</A></STRONG><DD>
+If the weighted banners are not used, this must contain some value. If the
+field is empty, the banner will not be displayed. If the value is
+specifically <CODE>0</CODE> (zero), then the entire contents of the 
+<A HREF="#item_banner">banner</A> field will be displayed when this category is used. If it is non-zero, then
+the contents of the <A HREF="#item_banner">banner</A> field will be split into segments (by the separator <CODE>{or}</CODE>). For each segment, the banners will rotate in sequence <EM>for that user only</EM>. Obviously, the first banner in the sequence is more likely to be
+displayed than the last.
+
+<P>
+Summary of values of rotate field:
+
+<P>
+<PRE>    non-zero, non-blank: Rotating ads
+    blank:               Ad not displayed
+    0:                   Ad is entire contents of banner field
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_banner">banner</A></STRONG><DD>
+This contains the banner text. If more than one banner is in the field,
+they should be separated by the text <CODE>{or}</CODE> (which will not be displayed).
+
+</DD><P></DL>
+<P>
+Minivend expects the <A HREF="#item_banner">banner</A> field to contains the banner text. It can contain more than one banner,
+separated by the string '{or}'. To activate the ad, place any string in the
+field <A HREF="#item_rotate">rotate</A>.
+
+<P>
+The special key ``default'' is the banner that is displayed if no banners
+are found. (Doesn't apply to weighted banners.)
+
+<P>
+Weighted banners are built the first time they are accessed after catalog
+reconfiguration. They will not be rebuilt until either:
+
+<P>
+<PRE>    -- the catalog is reconfigured
+    -- the file tmp/Banners/total_weight or
+       tmp/Banners/&lt;category&gt;/total_weight is removed
+</PRE>
+<P>
+If the option <CODE>once</CODE> is passed (i.e. [banner once=1 weighted=1] then the banners will not be
+rebuilt until the <CODE>total_weight</CODE> file is removed.
+
+<P>
+The database specification should make the <A HREF="#item_weight">weight</A> field numeric so that the proper query can be made. Here is the example
+from MiniVend's demo:
+
+<P>
+<PRE>    Database   banner   banner.txt   TAB
+    Database   banner   NUMERIC      weight
+</PRE>
+<P>
+Examples:
+
+<DL>
+<DT><STRONG><A NAME="item_weighted">weighted, categorized</A></STRONG><DD>
+To select categorized <EM>and</EM> weighted banners:
+
+<P>
+Your <A HREF="#item_banner">banner</A> table would look like:
+
+<P>
+<PRE>    code    category   weight   rotate   banner
+    t1      tech       1                 Click here for a 10% banner
+    t2      tech       2                 Click here for a 20% banner
+    t3      tech       7                 Click here for a 70% banner
+    a1      art        1                 Click here for a 10% banner
+    a2      art        2                 Click here for a 20% banner
+    a3      art        7                 Click here for a 70% banner
+</PRE>
+<P>
+Tag would be:
+
+<P>
+<PRE>    [banner weighted=1 category=&quot;tech&quot;]
+</PRE>
+<P>
+This will find *all* banners with a weight &gt;= 1 where the <A HREF="#item_category">category</A> field is equal to <CODE>tech</CODE>. The files will be made into the director <CODE>tmp/Banners/tech</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item_weighted">weighted</A></STRONG><DD>
+To select weighted banners:
+
+<P>
+<PRE>    [banner weighted=1]
+</PRE>
+<P>
+This will find *all* banners with a weight &gt;= 1. (Remember, integers
+only.) The files will be made into the director <CODE>tmp/Banners</CODE>.
+
+<P>
+<PRE>    code    category   weight   rotate   banner
+    t1      tech       1                 Tech banner 1
+    t2      tech       2                 Tech banner 2
+    t3      tech       7                 Tech banner 3
+    a1      art        1                 Art banner 1
+    a2      art        2                 Art banner 2
+    a3      art        7                 Art banner 3
+</PRE>
+<P>
+Each of the above with a weight of 7 will actually be displayed 35% of the
+time.
+
+</DD><P><DT><STRONG><A NAME="item_categorized">categorized, not rotating</A></STRONG><DD>
+<PRE>    [banner category=&quot;tech&quot;]
+</PRE>
+<P>
+This is pretty much equivalent to:
+
+<P>
+<PRE>    [data table=banner col=banner key=tech
+</PRE>
+<P>
+The differences are:
+
+<P>
+<PRE>    -- not selected if &quot;rotate&quot; field is blank
+    -- if not selected, the default banner is displayed
+</PRE>
+<P>
+Your <A HREF="#item_banner">banner</A> table would look like:
+
+<P>
+<PRE>    code    category   weight   rotate   banner
+    tech               0        0        Tech banner
+</PRE>
+<P>
+You can put MiniVend tags in the category parameter if you wish:
+
+<P>
+<PRE>    [banner category=&quot;[value interest]&quot;]
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_categorized">categorized and rotating</A></STRONG><DD>
+<PRE>    [banner category=&quot;tech&quot;]
+</PRE>
+<P>
+The difference between this and above is the database. Your <A HREF="#item_banner">banner</A> table would look like:
+
+<P>
+<PRE>    code    category   weight   rotate   banner
+    tech               0        1        Tech banner 1{or}Tech banner 2
+    art                0        1        Art banner 1{or}Art banner 2
+</PRE>
+<P>
+This would rotate between banner 1 and 2 for the category tech <EM>for each
+user</EM>. Banner 1 is always displayed first. The <CODE>art</CODE> banner would never be displayed unless you used the tag <CODE>[banner category=art]</CODE>, of course.
+
+<P>
+You can put MiniVend tags in the category parameter if you wish:
+
+<P>
+<PRE>    [banner category=&quot;[value interest]&quot;]
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_multi">multi-level categorized</A></STRONG><DD>
+<PRE>    [banner category=&quot;tech:hw&quot;] or [banner category=&quot;tech:sw&quot;]
+</PRE>
+<P>
+If you have a colon-separated category, Minivend will select the most
+specific ad available. If you <A HREF="#item_banner">banner</A> table looks like:
+
+<P>
+<PRE>    code    category   weight   rotate   banner
+    tech               0        1        Tech banner 1{or}Tech banner 2
+    tech:hw            0        1        Hardware banner 1{or}HW banner 2
+    tech:sw            0        1        Software banner 1{or}SW banner 2
+</PRE>
+<P>
+This works the same as single-level categories, except that the category
+tech:hw will select that banner. The category tech:sw will select its own;
+but the category tech:html would just get the ``tech'' banner.
+
+<P>
+Otherwise, it works just as in other categorized ads -- rotation will work
+if set non-zero/non-blank, and it will be inactive if the rotate field is
+blank. Each category rotates on its own.
+
+</DD><P><DT><STRONG><A NAME="item_ADVANCED">ADVANCED</A></STRONG><DD>
+All parameters are optional since they are marked with an asterisk <CODE>(*)</CODE>.
+
+<P>
+Tag syntax:
+
+<P>
+<PRE>    [banner
+        weighted=1*
+        category=category*
+        once=1*
+        separator=sep*
+        delimiter=delim*
+        table=banner_table*
+        a_field=banner_field*
+        w_field=weight_field*
+        r_field=rotate_field*
+    ]
+</PRE>
+<P>
+Defaults are blank except:
+
+<P>
+<PRE>    table       banner    selects table used
+    a_field     banner    selects field for banner text
+    delimiter   {or}      delimiter for rotating ads
+    r_field     rotate    rotate field
+    separator   :         separator for multi-level categories
+    w_field     weight    rotate field
+</PRE>
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.10.FILE_and_INCLUDE.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.12.Tags_for_summarizing_shopping_ba.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

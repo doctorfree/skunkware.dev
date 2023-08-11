@@ -1,0 +1,153 @@
+<HTML>
+<HEAD>
+<TITLE>Using CyberCash</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.07.Sales_Tax.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.09.CyberCash_3_2.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Using_CyberCash">Using CyberCash</A></H2>
+<P>
+MiniVend will directly interface with Perl libraries provided by CyberCash,
+Inc. This allows direct card billing at the time the order is placed. If
+using CyberCash 2, the module is called CCLib.pm and its version should be
+1.3 or greater. If the library is found at startup, the message ``CyberCash
+2 module found'' will be displayed.
+
+<P>
+MiniVend 3.11 and above support CyberCash 3; see the section below for
+differences when using CyberCash 3.
+
+<P>
+To use CyberCash 2, you must first have a CyberCash Secure Merchant Payment Server 
+<FONT SIZE=-1>(SMPS)</FONT> running on your system. It must be fully enabled, and should be tested 
+<FONT SIZE=-1>OK</FONT> with the CyberCash test suite. This capability has been tested to work with SMPS-2.1.x in
+ <CODE>mauthcapture</CODE> and <CODE>mauthonly</CODE>
+modes. Any modes supported by CyberCash should work.
+
+<P>
+The special mode <CODE>minivend_test</CODE> will cause the transaction to complete successfully and the information
+that would have been sent to the CyberCash server to be logged in the
+catalog <CODE>error.log</CODE> file.
+
+<P>
+The CyberCash Perl library module must be available to MiniVend -- if you
+cannot install it in the main Perl library then the Minivend software
+directory <EM>lib/</EM> will suffice. If it is found at MiniVend startup, a message will be
+displayed.
+
+<P>
+MiniVend only will charge CyberCash in the final phase of the order
+process, i.e. at the time the receipt and order report are generated. The
+full amount as shown by the <CODE>[total-cost]</CODE> tag will be billed -- if you need to do partial charges you will have to
+manage multiple shopping carts.
+
+<P>
+The process of enabling CyberCash processing is something like this:
+
+<OL>
+<LI>
+<P>
+Turn off CreditCardAuto by setting the catalog directive to No. This would
+normally be done right in catalog.cfg, but it also can be done in a
+mv_click subroutine if you wish to mix transaction types:
+
+<P>
+<PRE>    &lt;INPUT TYPE=checkbox NAME=mv_click VALUE=CyberCash&gt; Use CyberCash
+    [set CyberCash]
+        [perl]
+            $Config-&gt;{CreditCardAuto} = 0;
+            $Config-&gt;{CyberCash} = 1;
+            return '';
+        [/perl]
+    mv_cyber_mode=mauthcapture
+    [/set]
+</PRE>
+<LI>
+<P>
+Enable the CyberCash directive in catalog.cfg (or with the technique
+above). Also set the catalog <EM>Variable</EM> value <STRONG>CYBER_SECRET</STRONG> to the ``secret'' for your payment server. If you are not using the default
+values of <STRONG>localhost</STRONG> and <STRONG>8000</STRONG> for your server and port, set the Variables <STRONG>CYBER_HOST</STRONG> and <STRONG>CYBER_PORT</STRONG> as well. In the catalog.cfg file it would look like:
+
+<P>
+<PRE>    CreditCardAuto   No
+    CyberCash        Yes
+    Variable         CYBER_SECRET  first-natl
+    Variable         CYBER_PORT    8000
+    Variable         CYBER_HOST    localhost
+</PRE>
+<LI>
+<P>
+Set your final order screen to accept the user form fields
+<A HREF="#item_mv_credit_card_number">mv_credit_card_number</A> (contains the actual card number),
+<A HREF="#item_mv_credit_card_exp_month">mv_credit_card_exp_month</A> and <A HREF="#item_mv_credit_card_exp_year">mv_credit_card_exp_year</A> (the expiration date month and year), and the fields containing name,
+address, city, state, and country. And <STRONG>you must</STRONG> define the form field <CODE>mv_cyber_mode</CODE>  <STRONG>on the submitting form</STRONG> to enable the processing.
+
+<P>
+The order mode must be final, either by omitting an order profile entirely
+or by defining an order profile that contains &amp;final=yes.
+
+</OL>
+<P>
+The fields containing name and address information should be the same as on
+the standard MiniVend demo order pages:
+
+<P>
+<PRE>    b_name       Billing name      takes priority
+    name         Shipping name     used if b_name empty
+    b_address    Billing address   takes priority
+    address      Shipping address  used if b_address empty
+    b_city       Billing city      takes priority
+    city         Shipping city     used if b_city empty
+    b_state      Billing state     takes priority
+    state        Shipping state    used if b_state empty
+    b_country    Billing country   takes priority
+    country      Shipping country  used if b_country empty
+</PRE>
+<P>
+If you must use other values, they can be redefined in catalog.cfg with the <EM>Variable</EM>  <STRONG>CYBER_REMAP</STRONG> like so:
+
+<P>
+<PRE>    Variable CYBER_REMAP  name=my_name address=my_address
+</PRE>
+<P>
+or like so:
+
+<P>
+<PRE>    Variable &lt;&lt;EOF
+    CYBER_REMAP
+    b_name   my_bname
+    name     my_name
+    address  processed_address
+    city     parsed_city
+    EOF
+</PRE>
+<P>
+<STRONG>NOTE:</STRONG> As always when using the 
+<FONT SIZE=-1>&lt;&lt;EOF</FONT> (here document) capability, the 
+<FONT SIZE=-1>EOF</FONT> must be on a line by itself, with no leading or trailing white space. That includes carriage returns, Windows devotees. Upload in 
+<FONT SIZE=-1>ASCII</FONT> mode!
+
+
+<P>
+If you have defined the directive <EM>EncryptProgram</EM> to be something containing the value <EM>pgp</EM>, then the <EM>CreditCardAuto</EM> method will be used to encrypt the mv_credit_card_number value before it is
+wiped from memory. (Errors in that process will be silently ignored.) It
+will never be written to the user session, at least by MiniVend itself, so
+attempts to recall it on future forms will be in vain.
+
+<P>
+If the authorization fails, the special page <EM>failed</EM> will be displayed, and passed the CyberCash error message for display with
+the <CODE>[subject]</CODE> tag. The order will not complete, i.e. the cart will still be intact and no
+receipt or order report will be generated. The error itself is always
+available as <CODE>[data session cybercash_error]</CODE>.
+
+<P>
+If successful, the receipt page will be displayed, the order report
+emailed, and the cart will be emptied. If you wish to display the order-id
+returned from CyberCash on the receipt, it is available in
+<CODE>[data session cybercash_id]</CODE>. If the order is successful, but is detected as a ``success-duplicate'', <CODE>[data session cybercash_error]</CODE>
+will contain the message returned from CyberCash.
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.07.Sales_Tax.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.09.CyberCash_3_2.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

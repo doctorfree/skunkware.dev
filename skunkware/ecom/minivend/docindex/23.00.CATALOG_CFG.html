@@ -1,0 +1,118 @@
+<HTML>
+<HEAD>
+<TITLE>CATALOG.CFG</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<A HREF="index.html"><B>Index</B></A>&nbsp;&nbsp;<A HREF="22.00.MINIVEND_CFG.html"><B>Previous:</B> MINIVEND.CFG</A>&nbsp;&nbsp;&nbsp;<A HREF="24.00.Configuration_Directives_in_cata.html"><B>Next:</B> Configuration Directives in catalog.cfg</A><HR><H1><A NAME="CATALOG_CFG">CATALOG.CFG</A></H1>
+<P>
+If multiple catalogs are to be run, each must have a <CODE>catalog.cfg</CODE>
+file located in the catalog base directory. It contains most of the
+configurable parameters for MiniVend -- each is independent from catalog to
+catalog.
+
+<P>
+In the catalog configuration file, the directives MailOrderTo and VendURL
+are <STRONG>required</STRONG>. They are not defined with defaults, and no catalog will operate unless
+and until they are set with a value.
+
+<P>
+Many powerful procedures are available in the catalog.cfg file. First, you
+can set a <CODE>Variable</CODE> and use its results in a subsequent configuration setting if <CODE>ParseVariables</CODE> is on:
+
+<P>
+<PRE>    Variable   SERVER_NAME  www.minivend.com
+    Variable   CGI_URL      /cgi-bin/demo
+  
+    ParseVariables Yes
+    VendURL    <A HREF="http://__SERVER_NAME____CGI_URL__">http://__SERVER_NAME____CGI_URL__</A>
+    ParseVariables No
+</PRE>
+<P>
+You can define values in multiline form by using the 
+<FONT SIZE=-1>&lt;&lt;HERE</FONT> document method:
+
+<P>
+<PRE>    Variable MYSTUFF &lt;&lt;EOF
+        This is my stuff, and I
+        am pretty proud of it.
+    EOF
+</PRE>
+<P>
+As with all here documents, the terminating string must be the 
+<FONT SIZE=-1>ONLY</FONT> 
+<FONT SIZE=-1>THING</FONT> 
+<FONT SIZE=-1>ON</FONT> 
+<FONT SIZE=-1>THE</FONT> 
+<FONT SIZE=-1>LINE.</FONT> No leading or trailing characters are allowed, even whitespace.
+
+
+<DL>
+<DT><STRONG><A NAME="item_Include">Include single setting from file</A></STRONG><DD>
+<P>
+You can pull a value from a file with &lt;file:
+
+<P>
+<PRE>    Variable MYSTUFF &lt;file
+</PRE>
+<P>
+This works well for includes that must be of the highest possible performance -- they can be simply placed in a page with 
+<FONT SIZE=-1>__VARIABLE__.</FONT>
+
+
+<DT><STRONG>Include multiple settings from file</STRONG><DD>
+<P>
+You can set common settings in one file:
+
+<P>
+<PRE>    #include common.cfg
+</PRE>
+<P>
+Or all files in one directory
+
+<P>
+<PRE>    #include usertag/*
+</PRE>
+<LI>
+<P>
+You can use #ifdef / #endif and #ifndef / #endif pairs:
+
+<P>
+<PRE>    Variable ORDERS_TO email_address
+  
+    #ifdef ORDERS_TO
+    ParseVariables Yes
+    MailOrderTo __ORDERS_TO__
+    ParseVariables No
+    #endif
+  
+    #ifdef ORDERS_TO =~ /foo.com/
+    # Send all orders at foo.com to one place now
+    # Set ORDERS_TO to stop default setting
+    Variable  ORDERS_TO  1
+    MailOrderTo   orders@foo.com
+    #endif
+  
+    #ifdef ORDERS_TO eq 'nobody@nowhere.com'
+    # Better change to something else, set ORDERS_TO to stop default
+    Variable  ORDERS_TO  1
+    MailOrderTo   someone@somewhere.com
+    #endif
+  
+    #ifndef ORDERS_TO
+    #Needs to go somewhere....
+    MailOrderTo  webmaster@localhost
+    #endif
+</PRE>
+<DT><STRONG><A NAME="item_Define">Define subroutine watches</A></STRONG><DD>
+<P>
+You can set up almost any configuration variable to be tied to a subroutine
+if you have the Tie::Watch module installed. It uses a notation like the
+&lt;&lt;
+<FONT SIZE=-1>HERE</FONT> document, but &lt;<CODE>&amp;HERE</CODE> is the notation. See <CODE>MiniVend Programming</CODE>
+for details.
+
+</DL>
+<P>
+<HR>
+<UL><LI><A HREF="23.01.Programming_watch_points_in_cata.html">Programming watch points in catalog.cfg</A></LI>
+</UL><BR><HR><A HREF="index.html"><B>Index</B></A>&nbsp;&nbsp;<A HREF="22.00.MINIVEND_CFG.html"><B>Previous:</B> MINIVEND.CFG</A>&nbsp;&nbsp;&nbsp;<A HREF="24.00.Configuration_Directives_in_cata.html"><B>Next:</B> Configuration Directives in catalog.cfg</A></BODY></HTML>

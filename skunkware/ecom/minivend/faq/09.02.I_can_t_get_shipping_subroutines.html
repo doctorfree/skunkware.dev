@@ -1,0 +1,65 @@
+<HTML>
+<HEAD>
+<TITLE>I can't get shipping subroutines to work (Minivend 3)</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.Shipping_questions.html">Up</A>&nbsp;&nbsp;<A HREF="09.01.I_am_using_price_as_the_shippi.html">&lt;&lt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="I_can_t_get_shipping_subroutines">I can't get shipping subroutines to work (Minivend 3)</A></H2>
+<P>
+
+<FONT SIZE=-1>I</FONT> don't blame you. The interface is terrible and has
+gone away in MiniVend 4.
+
+<P>
+The best way to do this is to define a UserTag and use it as the subroutine
+method. For example, in the <CODE>flycat</CODE> demo (or in the MiniVend 4 <CODE>usertag/</CODE>
+directory) you will see a UserTag:
+
+<P>
+<PRE>    UserTag  ups-query  Order  mode origin zip weight country
+    UserTag  ups-query  Routine &lt;&lt;EOR
+    sub {
+        my( $mode, $origin, $zip, $weight, $country) = @_;
+        BEGIN {
+            eval {
+                require Business::UPS;
+                import Business::UPS;
+            };
+        };
+        $country = uc $country;
+        $country = undef if $country eq 'US';
+        my ($shipping, $zone, $error) =
+            getUPS( $mode, $origin, $zip, $weight, $country);
+        if($error) {
+            $Vend::Session-&gt;{ship_message} .= &quot; $mode: $error&quot;;
+            return 0;
+        }
+        return $shipping;
+    }
+    EOR
+</PRE>
+<P>
+This is called via entries in shipping.asc:
+
+<P>
+<PRE>  GNDRES  Ground Residential  weight  0   150 f [ups-query
+                                                    origin=&quot;[dv origin_zip]&quot;
+                                                    zip=&quot;[default zip 98366]&quot;
+                                                    country=&quot;[default country US]&quot;
+                                                    mode=&quot;GNDRES&quot; weight=&quot;@@TOTAL@&quot;
+                                                ] [dv ups_adder]
+</PRE>
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> The above should be all on one line, or you need
+to escape the newline with a \.
+
+<P>
+This is very flexible, but you can make the call much less complex if you
+do the parameter checks and substitutions in your own routine (i.e. read
+the value of $::Values-&gt;{country} or $Values-&gt;{country} instead of
+passing a parameter).
+
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.Shipping_questions.html">Up</A>&nbsp;&nbsp;<A HREF="09.01.I_am_using_price_as_the_shippi.html">&lt;&lt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

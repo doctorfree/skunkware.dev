@@ -1,0 +1,71 @@
+<HTML>
+<HEAD>
+<TITLE>Database Tracking</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="18.00.TRACKING_AND_BACKEND_ORDER_ENTRY.html">Up</A>&nbsp;&nbsp;<A HREF="18.01.ASCII_Backup_Order_Tracking.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="18.03.Custom_Order_Routing.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Database_Tracking">Database Tracking</A></H2>
+<P>
+Once the order report is processed, you can be sure the order will
+complete. Therefore it is the perfect place to put MiniVend tags that make
+order entries in database tables.
+
+<P>
+
+<FONT SIZE=-1>A</FONT> good model is to place a single record in a database
+summarizing the order, and a series of lines that correspond to each line
+item in the order. This can be in the same database table; if the order
+number itself is the key for the summary, you can append a line number to
+the order number to show each line of the order.
+
+<P>
+The following would summarize a sample order number 
+<FONT SIZE=-1>S00001</FONT> for part number 00-0011 and 99-102:
+
+<P>
+<PRE>    code     order_number part_number  quantity   price    shipping  tax
+    S00001   S00001                    3          2010     12.72     100.50
+    S00001-1 S00001       00-0011      2          1000     UPS       yes
+    S00001-2 S00001       99-102       1          10       UPS       yes
+</PRE>
+<P>
+You can add fields as appropriate, perhaps with order status, shipping
+tracking number, address, customer number, or other information.
+
+<P>
+The above can be easily done with MiniVend's <CODE>[import ....]</CODE> tag using the convenient <CODE>NOTES</CODE> format:
+
+<P>
+<PRE>    [set import_status]
+    [import table=orders type=LINE continue=NOTES]
+</PRE>
+<P>
+<PRE>    code: [value mv_order_number]
+    order_number: [value mv_order_number]
+    quantity: [nitems]
+    price: [subtotal noformat=1]
+    shipping: [shipping noformat=1]
+    tax: [salestax noformat=1]
+</PRE>
+<P>
+<PRE>    [/import]
+  
+    [item-list]
+    [import table=orders type=LINE continue=NOTES]
+</PRE>
+<P>
+<PRE>    code: [value mv_order_number]-[item-increment]
+    order_number: [value mv_order_number]
+    quantity: [item-quantity]
+    price: [item-price noformat=1]
+    shipping: [shipping-description]
+    tax: [if-item-field nontaxable]No[else]Yes[/else][/if]
+</PRE>
+<P>
+<PRE>    [/import][/item-list]
+</PRE>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="18.00.TRACKING_AND_BACKEND_ORDER_ENTRY.html">Up</A>&nbsp;&nbsp;<A HREF="18.01.ASCII_Backup_Order_Tracking.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="18.03.Custom_Order_Routing.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

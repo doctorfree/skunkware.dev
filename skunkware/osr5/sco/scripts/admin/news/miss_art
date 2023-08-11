@@ -1,0 +1,92 @@
+:
+# @(#) miss_art.sh 1.0 93/01/22
+# 93/01/22 john h. dubois iii (john@armory.com)
+
+while getopts h opt; do
+    case $opt in
+    h) echo \
+"Usage: $0 newsgroup-name
+$0 reports how many news articles in the given newsgroup are
+unreferenced and how many referenced articles are missing."
+	exit;;
+    esac
+done
+
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 [-h] newsgroup-name"
+    exit
+fi
+
+cd /usr/spool/news/`echo $1 | tr . /` || exit
+
+for article in *
+do
+    echo "$article"
+done | awk '
+{
+    NumArt++
+    article = $0
+    GoodReferences = GoodMessageID = 0
+    printf "%s\015",article
+    while (getline HeaderLine < article) {
+	if (HeaderLine == "") {
+	    if (!GoodMessageID)
+		printf "Message-ID not found: %s\n",article > "/dev/stderr"
+	    break
+	}
+	#Message-ID: <1568@ke4zv.UUCP>
+	else if (HeaderLine ~ "^Message-ID:") {
+	    NumF = split(HeaderLine,F)
+	    if (NumF == 2) {
+		if (F[2] in MessageIDs)
+		    printf "Duplicate Message-ID in article %s\n",
+		    article > "/dev/stderr"
+		MessageIDs[F[2]]++
+		if (GoodReferences)
+		    break
+		else
+		    GoodMessageID = 1
+	    }
+	    else {
+		printf "Bad Message-ID in article %s:\n%s\n",
+		article,HeaderLine > "/dev/stderr"
+		break
+	    }
+	}
+	#References: <66927@iuvax.cs.indiana.edu> <90298.143116FQV@psuvm.psu.edu> <1990Oct29.213028.18754@kodak.kodak.com> <14280@smoke.brl.mil>
+	else if (HeaderLine ~ "^References:") {
+	    NumF = split(HeaderLine,F)
+	    if (NumF >= 2) {
+		for (i = 2; i <= NumF; i++)
+		    References[F[i]]++
+		if (GoodMessageID)
+		    break
+		else
+		    GoodReferences = 1
+	    }
+	    else {
+		printf "Bad References in article %s\n",article > "/dev/stderr"
+		break
+	    }
+	}
+    }
+    close(article)
+}
+
+END {
+#    printf "Missing articles:\n"
+    for (Reference in References)
+	if (Reference in MessageIDs)
+	    delete MessageIDs[Reference]
+	else {
+#	    printf "%3d %s\n",References[Reference],Reference
+	    Missing++
+	}
+#    printf "Unreferenced articles:\n"
+    for (ID in MessageIDs) {
+#	printf "%3d %s\n",MessageIDs[ID],ID
+	Unref++
+    }
+    printf "%d found; %d missing; %d unreferenced.\n",NumArt,Missing,Unref
+}
+'

@@ -1,0 +1,211 @@
+<HTML>
+<HEAD>
+<TITLE>Item Attributes</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.04.PriceBreaks_discounts_and_Pric.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.06.Product_Discounts.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Item_Attributes">Item Attributes</A></H2>
+<P>
+MiniVend allows item attributes to be set for each ordered item. This
+allows a size, color, or other modifier to be attached to a common part
+number. If multiple attributes are set, then they should be separated by
+commas. Previous attribute values can be saved by means of a hidden field
+on a form, and multiple attributes for each item can be <EM>stacked</EM> on top of each other.
+
+<P>
+The configuration file directive <EM>UseModifier</EM> is used to set the name of the modifier or modifiers. For example
+
+<P>
+<PRE>    UseModifier        size,color
+</PRE>
+<P>
+will attach both a size and color attribute to each item code that is
+ordered.
+
+<P>
+<STRONG>IMPORTANT NOTE:</STRONG> You may not use the following names for attributes:
+
+<P>
+<PRE>    item  group  quantity  code  mv_ib  mv_mi  mv_si
+</PRE>
+<P>
+You can also set it in scratch with the mv_UseModifier scratch variable -- <CODE>[set mv_UseModifier]size color[/set]</CODE> has the same effect as above. This allows multiple options to be set for
+products. Whichever one is in effect at order time will be used. Be
+careful, you cannot set it more than once on the same page. Setting the <CODE>mv_separate_items</CODE> or global directive <EM>SeparateItems</EM>
+places each ordered item on a separate line, simplifying attribute
+handling. The scratch setting for <CODE>mv_separate_items</CODE> has the same effect.
+
+<P>
+The modifier value is accessed in the <CODE>[item-list]</CODE> loop with the
+<CODE>[item-modifier attribute]</CODE> tag, and form input fields are placed with the
+<CODE>[modifier-name attribute]</CODE> tag. This is similar to the way that quantity is handled, except that
+attributes can be ``stacked'' by setting multiple values in an input form.
+
+<P>
+You cannot define a modifier name of <EM>code</EM> or <EM>quantity</EM>, as they are already used. You must be sure that no fields in your forms
+have digits appended to their names if the variable is the same name as the
+attribute name you select, as the <CODE>[modifier-name size]</CODE> variables will be placed in the user session as the form variables size0,
+size1, size2, etc. 
+
+<P>
+You can use the <CODE>[loop arg=&quot;item item item&quot;]</CODE> list to reference multiple display or selection fields for modifiers (in
+MiniVend 3.0, you can have it automatically generated --see below). The
+modifier value can then be used to select data from an arbitrary database
+for attribute selection and display.
+
+<P>
+Below is a fragment from a shopping basket display form which shows a
+selectable size with ``sticky'' setting. Note that this would always be
+contained within the <CODE>[item_list]</CODE>  <CODE>[/item-list]</CODE>
+pair.
+
+<P>
+<PRE>    &lt;SELECT NAME=&quot;[modifier-name size]&quot;&gt;
+    &lt;OPTION  [selected [modifier-name size] S]&gt; S
+    &lt;OPTION  [selected [modifier-name size] M]&gt; M
+    &lt;OPTION  [selected [modifier-name size] L]&gt; L
+    &lt;OPTION [selected [modifier-name size] XL]&gt; XL
+    &lt;/SELECT&gt;
+</PRE>
+<P>
+It could just as easily be done with a radio button group combined with the <CODE>[checked ...]</CODE> tag.
+
+<P>
+MiniVend 3.0 will automatically generate the above select box when the <CODE>[accessories &lt;code</CODE> size]&gt; or <CODE>[item-accessories size]</CODE>
+tags are called. They have the syntax:
+
+<P>
+<PRE>   [item_accessories attribute*, type*, field*, database*, name*, outboard*]
+  
+   [accessories code attribute*, type*, field*, database*, name*, outboard*]
+</PRE>
+<DL>
+<DT><STRONG>code</STRONG><DD>
+Not needed for item-accessories, this is the product code of the item to
+reference. =item attribute
+
+<P>
+The item attribute as specified in the UseModifier configuration directive.
+Typical are <A HREF="#item_size">size</A> or <A HREF="#item_color">color</A>.
+
+</DD><P><DT><STRONG><A NAME="item_type">type</A></STRONG><DD>
+The action to be taken. One of:
+
+<P>
+<PRE>  select          Builds a dropdown &lt;SELECT&gt; menu for the attribute.
+                  NOTE: This is the default.
+ 
+  multiple        Builds a multiple dropdown &lt;SELECT&gt; menu for the
+                  attribute.  The size is equal to the number of
+                  option choices.
+                   
+  display         Shows the label text for *only the selected option*.
+   
+  show            Shows the option choices (no labels) for the option.
+   
+  radio           Builds a radio box group for the item, with spaces
+                  separating the elements.
+                   
+  radio nbsp      Builds a radio box group for the item, with &amp;nbsp;
+                  separating the elements.
+                   
+  radio left n    Builds a radio box group for the item, inside a
+                  table, with the checkbox on the left side. If &quot;n&quot;
+                  is present and is a digit from 2 to 9, it will align
+                  the options in that many columns.
+                   
+  radio right n   Builds a radio box group for the item, inside a
+                  table, with the checkbox on the right side. If &quot;n&quot;
+                  is present and is a digit from 2 to 9, it will align
+                  the options in that many columns.
+</PRE>
+<P>
+<PRE>   
+  check           Builds a checkbox group for the item, with spaces
+                  separating the elements.
+                   
+  check nbsp      Builds a checkbox group for the item, with &amp;nbsp;
+                  separating the elements.
+                   
+  check left n    Builds a checkbox group for the item, inside a
+                  table, with the checkbox on the left side. If &quot;n&quot;
+                  is present and is a digit from 2 to 9, it will align
+                  the options in that many columns.
+                   
+  check right n   Builds a checkbox group for the item, inside a
+                  table, with the checkbox on the right side. If &quot;n&quot;
+                  is present and is a digit from 2 to 9, it will align
+                  the options in that many columns.
+</PRE>
+<P>
+The default is 'select', which builds an 
+<FONT SIZE=-1>HTML</FONT> select form entry for the attribute. Also
+recognized is 'multiple', which generates a multiple-selection drop down
+list, 'show', which shows the list of possible attributes, and 'display',
+which shows the label text for the selected option only.
+
+</DD><P><DT><STRONG><A NAME="item_field">field</A></STRONG><DD>
+The database field name to be used to build the entry (usually a field in
+the products database). Defaults to a field named the same as the
+attribute.
+
+</DD><P><DT><STRONG><A NAME="item_database">database</A></STRONG><DD>
+The database to find <STRONG>field</STRONG> in, defaults to the first products file where the item code is found.
+
+</DD><P><DT><STRONG>name</STRONG><DD>
+Name of the form variable to use if a form is being built. Defaults to
+mv_order_<STRONG>attribute</STRONG> -- i.e. if the attribute is <STRONG>size</STRONG>, the form variable will be named <STRONG>mv_order_size</STRONG>.
+
+</DD><P><DT><STRONG><A NAME="item_outboard">outboard</A></STRONG><DD>
+If calling the item-accessories tag, and you wish to select from an
+outboard database, you can pass the key to use to find the accessory data.
+
+</DD><P></DL>
+<P>
+When called with an attribute, the database is consulted and looks for a
+comma-separated list of attribute options. They take the form:
+
+<P>
+<PRE>    name=Label Text, name=Label Text*
+</PRE>
+<P>
+The label text is optional -- if none is given, the <STRONG>name</STRONG> will be used.
+
+<P>
+If an asterisk is the last character of the label text, the item is the
+default selection. If no default is specified, the first will be the
+default. An example:
+
+<P>
+<PRE>    [item_accessories color]
+</PRE>
+<P>
+This will search the product database for a field named ``color''. If an
+entry ``beige=Almond, gold=Harvest Gold, White*, green=Avocado'' is found,
+a select box like this will be built:
+
+<P>
+<PRE>    &lt;SELECT NAME=&quot;mv_order_color&quot;&gt;
+    &lt;OPTION VALUE=&quot;beige&quot;&gt;Almond
+    &lt;OPTION VALUE=&quot;gold&quot;&gt;Harvest Gold
+    &lt;OPTION SELECTED&gt;White
+    &lt;OPTION VALUE=&quot;green&quot;&gt;Avocado
+    &lt;/SELECT&gt;
+</PRE>
+<P>
+In combination with the <CODE>mv_order_item</CODE> and <CODE>mv_order_quantity</CODE> variables this can be used to allow entry of an attribute at time of order.
+
+<P>
+If used in an item list, and the user has changed the value, the generated
+select box will automatically retain the current value the user has
+selected.
+
+<P>
+The value can then be displayed with <CODE>[item-modifier size]</CODE> on the order report, order receipt, or any other page containing an
+<CODE>[item-list]</CODE>. 
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.04.PriceBreaks_discounts_and_Pric.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.06.Product_Discounts.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

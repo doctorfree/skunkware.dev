@@ -1,0 +1,321 @@
+<HTML>
+<HEAD>
+<TITLE>accessories</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="03.00.TAGS.html">Up</A>&nbsp;&nbsp;<A HREF="03.02.and.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="accessories">accessories</A></H2>
+<DL>
+<DT><STRONG><A NAME="item_CALL">CALL INFORMATION</A></STRONG><DD>
+Parameters: <STRONG>code arg</STRONG>
+
+
+
+<P>
+Positional parameters in same order.
+
+<P>
+<STRONG>The attribute hash reference is passed</STRONG> to the subroutine after the parameters as the last argument.
+<STRONG>This may mean that there are parameters not shown here.</STRONG>
+
+
+
+<P>
+Must pass named parameter interpolate=1 to cause interpolation.
+
+<P>
+Invalidates cache: <STRONG>no</STRONG>
+
+
+
+<P>
+Called Routine: 
+
+<P>
+ASP/perl tag calls:
+
+<P>
+<PRE>    $Tag-&gt;accessories(
+        {
+         code =&gt; VALUE,
+         arg =&gt; VALUE,
+        }
+    )
+  
+ OR
+ 
+    $Tag-&gt;accessories($code, $arg, $ATTRHASH);
+</PRE>
+<P>
+Attribute aliases
+
+<P>
+<PRE>            base ==&gt; table
+            col ==&gt; column
+            database ==&gt; table
+            db ==&gt; table
+            field ==&gt; column
+            key ==&gt; code
+            row ==&gt; code
+</PRE>
+<P>
+<PRE> 
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_DESCRIPTION">DESCRIPTION</A></STRONG><DD>
+The <CODE>[accessories ...]</CODE> tag allows you to access MiniVend's option attribute facility in any of
+several ways.
+
+<P>
+If passed any of the optional arguments, initiates special processing of
+item attributes based on entries in the product database.
+
+<P>
+MiniVend allows item attributes to be set for each ordered item. This
+allows a size, color, or other modifier to be attached to a line item in
+the shopping cart. Previous attribute values can be resubmitted by means of
+a hidden field on a form.
+
+<P>
+The <CODE>catalog.cfg</CODE> file directive <EM>UseModifier</EM> is used to set the name of the modifier or modifiers. For example
+
+<P>
+<PRE>    UseModifier        size color
+</PRE>
+<P>
+will attach both a size and color attribute to each item code that is
+ordered.
+
+<P>
+<STRONG>IMPORTANT NOTE:</STRONG> You may not use the following names for attributes:
+
+<P>
+<PRE>    item  group  quantity  code  mv_ib  mv_mi  mv_si
+</PRE>
+<P>
+You can also set it in scratch with the mv_UseModifier scratch variable -- <CODE>[set mv_UseModifier]size color[/set]</CODE> has the same effect as above. This allows multiple options to be set for
+products. Whichever one is in effect at order time will be used. Be
+careful, you cannot set it more than once on the same page. Setting the <CODE>mv_separate_items</CODE> or global directive <EM>SeparateItems</EM>
+places each ordered item on a separate line, simplifying attribute
+handling. The scratch setting for <CODE>mv_separate_items</CODE> has the same effect.
+
+<P>
+The modifier value is accessed in the <CODE>[item-list]</CODE> loop with the
+<CODE>[item-param attribute]</CODE> tag, and form input fields are placed with the
+<CODE>[modifier-name attribute]</CODE> tag. This is similar to the way that quantity is handled.
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> You must be sure that no fields in your forms
+have digits appended to their names if the variable is the same name as the
+attribute name you select, as the <CODE>[modifier-name size]</CODE> variables will be placed in the user session as the form variables size0,
+size1, size2, etc.
+
+<P>
+MiniVend will automatically generate the select boxes when the <CODE>[accessories &lt;code</CODE> size]&gt; or <CODE>[item-accessories size]</CODE>
+tags are called. They have the syntax:
+
+<P>
+<PRE>   [item_accessories attribute, type*, column*, table*, name*, outboard*]
+  
+   [accessories code=sku
+                attribute=modifier
+                type=&quot;select|radio|display|show|checkbox|text|textarea&quot;*
+                column=column_name*
+                table=db_table*
+                name=varname
+                outboard=key
+                passed=&quot;value=label, value2, value3=label 3&quot; ]
+</PRE>
+<DL>
+</DD><P><DT><STRONG><A NAME="item_code">code</A></STRONG><DD>
+Not needed for item-accessories, this is the product code of the item to
+reference. =item attribute
+
+<P>
+The item attribute as specified in the UseModifier configuration directive.
+Typical are <CODE>size</CODE> or <CODE>color</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item_type">type</A></STRONG><DD>
+The action to be taken. One of:
+
+<P>
+<PRE>  select          Builds a dropdown &lt;SELECT&gt; menu for the attribute.
+                  NOTE: This is the default.
+ 
+  multiple        Builds a multiple dropdown &lt;SELECT&gt; menu for the
+                  attribute.  The size is equal to the number of
+                  option choices.
+                   
+  display         Shows the label text for *only the selected option*.
+   
+  show            Shows the option choices (no labels) for the option.
+   
+  radio           Builds a radio box group for the item, with spaces
+                  separating the elements.
+                   
+  radio nbsp      Builds a radio box group for the item, with &amp;nbsp;
+                  separating the elements.
+                   
+  radio left n    Builds a radio box group for the item, inside a
+                  table, with the checkbox on the left side. If &quot;n&quot;
+                  is present and is a digit from 2 to 9, it will align
+                  the options in that many columns.
+                   
+  radio right n   Builds a radio box group for the item, inside a
+                  table, with the checkbox on the right side. If &quot;n&quot;
+                  is present and is a digit from 2 to 9, it will align
+                  the options in that many columns.
+</PRE>
+<P>
+<PRE>   
+  check           Builds a checkbox group for the item, with spaces
+                  separating the elements.
+                   
+  check nbsp      Builds a checkbox group for the item, with &amp;nbsp;
+                  separating the elements.
+                   
+  check left n    Builds a checkbox group for the item, inside a
+                  table, with the checkbox on the left side. If &quot;n&quot;
+                  is present and is a digit from 2 to 9, it will align
+                  the options in that many columns.
+                   
+  check right n   Builds a checkbox group for the item, inside a
+                  table, with the checkbox on the right side. If &quot;n&quot;
+                  is present and is a digit from 2 to 9, it will align
+                  the options in that many columns.
+</PRE>
+<P>
+<PRE>  textarea_XX_YY  A textarea with XX columns and YY rows
+</PRE>
+<P>
+<PRE>  text_XX         A text box with XX size in characters
+</PRE>
+<P>
+The default is 'select', which builds an 
+<FONT SIZE=-1>HTML</FONT> select form entry for the attribute. Also
+recognized is 'multiple', which generates a multiple-selection drop down
+list, 'show', which shows the list of possible attributes, and 'display',
+which shows the label text for the selected option only.
+
+</DD><P><DT><STRONG><A NAME="item_column">column</A></STRONG><DD>
+The database column name to be used to build the entry (usually a field in
+the products database). Defaults to a field named the same as the
+attribute.
+
+</DD><P><DT><STRONG><A NAME="item_table">table</A></STRONG><DD>
+The database table to find <STRONG>column</STRONG> in, defaults to the first products file where the item code is found.
+
+</DD><P><DT><STRONG><A NAME="item_name">name</A></STRONG><DD>
+Name of the form variable to use if a form is being built. Defaults to
+mv_order_<STRONG>attribute</STRONG> -- i.e. if the attribute is <STRONG>size</STRONG>, the form variable will be named <STRONG>mv_order_size</STRONG>. If the variable is set in the user session, the widget will ``remember''
+its previous setting.
+
+</DD><P><DT><STRONG><A NAME="item_outboard">outboard</A></STRONG><DD>
+If calling the item-accessories tag, and you wish to select from an
+outboard database table with a different key from the item code, you can
+pass the key to use to find the accessory data.
+
+</DD><P></DL>
+<P>
+When called with an attribute, the database is consulted and looks for a
+comma-separated list of attribute options. They take the form:
+
+<P>
+<PRE>    name=Label Text, name=Label Text*
+</PRE>
+<P>
+The label text is optional -- if none is given, the <STRONG>name</STRONG> will be used.
+
+<P>
+If an asterisk is the last character of the label text, the item is the
+default selection. If no default is specified, the first will be the
+default. An example:
+
+<P>
+<PRE>    [item_accessories color]
+</PRE>
+<P>
+This will search the product database for a field named ``color''. If an
+entry ``beige=Almond, gold=Harvest Gold, White*, green=Avocado'' is found,
+a select box like this will be built:
+
+<P>
+<PRE>    &lt;SELECT NAME=&quot;mv_order_color&quot;&gt;
+    &lt;OPTION VALUE=&quot;beige&quot;&gt;Almond
+    &lt;OPTION VALUE=&quot;gold&quot;&gt;Harvest Gold
+    &lt;OPTION SELECTED&gt;White
+    &lt;OPTION VALUE=&quot;green&quot;&gt;Avocado
+    &lt;/SELECT&gt;
+</PRE>
+<P>
+In combination with the <CODE>mv_order_item</CODE> and <CODE>mv_order_quantity</CODE> variables this can be used to allow entry of an attribute at time of order.
+
+<P>
+If used in an item list, and the user has changed the value, the generated
+select box will automatically retain the current value the user has
+selected.
+
+<P>
+The value can then be displayed with <CODE>[item-modifier size]</CODE> on the order report, order receipt, or any other page containing an
+<CODE>[item-list]</CODE>. 
+
+<P>
+When called with an attribute, the database is consulted and looks for a
+comma-separated list of attribute options. They take the form:
+
+<P>
+<PRE>    name=Label Text, name=Label Text*
+</PRE>
+<P>
+The label text is optional -- if none is given, the <STRONG>name</STRONG> will be used.
+
+<P>
+If an asterisk is the last character of the label text, the item is the
+default selection. If no default is specified, the first will be the
+default. An example:
+
+<P>
+<PRE>    [accessories TK112 color]
+</PRE>
+<P>
+This will search the product database for a field named ``color''. If an
+entry ``beige=Almond, gold=Harvest Gold, White*, green=Avocado'' is found,
+a select box like this will be built:
+
+<P>
+<PRE>    &lt;SELECT NAME=&quot;mv_order_color&quot;&gt;
+    &lt;OPTION VALUE=&quot;beige&quot;&gt;Almond
+    &lt;OPTION VALUE=&quot;gold&quot;&gt;Harvest Gold
+    &lt;OPTION SELECTED&gt;White
+    &lt;OPTION VALUE=&quot;green&quot;&gt;Avocado
+    &lt;/SELECT&gt;
+</PRE>
+<P>
+In combination with the <EM>mv_order_item</EM> and <EM>mv_order_quantity</EM> variables this can be used to allow entry of an attribute at time of order.
+
+<DL>
+<DT><STRONG><A NAME="item_EMULATING">EMULATING WITH LOOP</A></STRONG><DD>
+Below is a fragment from a shopping basket display form which shows a
+selectable size with ``sticky'' setting and a price that changes based upon
+the modifier setting. Note that this would normally be contained within the <CODE>[item_list]</CODE>  <CODE>[/item-list]</CODE>
+pair.
+
+<P>
+<PRE>    &lt;SELECT NAME=&quot;[modifier-name size]&quot;&gt;
+    [loop option=&quot;[modifier-name size]&quot; list=&quot;S, M, L, XL&quot;]
+    &lt;OPTION&gt; [loop-code] -- [price code=&quot;[item-code]&quot; size=&quot;[loop-code]&quot;]
+    [/loop]
+    &lt;/SELECT&gt;
+</PRE>
+<P>
+The above is essentially the same as would be output with the
+[item-accessories size] tag if the product database field <CODE>size</CODE>
+contained the value <CODE>S, M, L, XL</CODE>, but contains the adjusted price.
+
+</DD><P></DL>
+</DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="03.00.TAGS.html">Up</A>&nbsp;&nbsp;<A HREF="03.02.and.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

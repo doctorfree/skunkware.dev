@@ -1,0 +1,209 @@
+#! /usr/bin/metapkg -p
+# mkcdmt control file for package: extshells
+#
+# Requires at least version 2.0.1 of MetaPKG
+want (2,0,1);
+# Requires version 1.0.5 or later of the CDMT backend
+want ("cdmt", 1, 0, 5);
+# Requires version 1.0.1 or later of the PKGADD backend
+want ("pkgadd", 1, 0, 1);
+
+set ("product-code", "EXTSHELLS");
+set ("component-code", "extshells");
+set ("description", "Extended Shells");
+set ("version", "1.3.0Eb");
+set ("component-mode", 0);
+
+define ("GWXDESC", "Supplemental Graphics, Web and X11 Libraries");
+define ("ZSHVER", "4.2.5");
+define ("BASHVER", "3.0");
+
+ifndef ("EXTSHOS")
+  error ("EXTSHOS not set - must be one of OSR5, OSR6 or UW7");
+endif
+
+ifeq ("EXTSHOS", "OSR5")
+  define ("EXTSHOK", "1");
+  define ("DEPVENDOR", "SCO:");
+endif
+
+ifeq ("EXTSHOS", "OSR6")
+  define ("EXTSHOK", "1");
+  define ("DEPVENDOR", "SCO:");
+endif
+
+ifeq ("EXTSHOS", "UW7")
+  define ("EXTSHOK", "1");
+  backend ("pkgadd");
+  set ("pkgadd-category", "application");
+  define ("PKGADD", "1");
+  define ("DEPVENDOR", "");
+else
+  backend ("cdmt");
+  set ("dont-harden-symlinks", 0);
+  set ("dont-export-symlinks", 0);
+endif
+
+ifneq ("EXTSHOK", "1")
+  error ("EXTSHOS=${EXTSHOS} not recognised - must be one of OSR5, OSR6 or UW7");
+endif
+
+
+prepare ("Setting up") {
+  script ("@@@@",
+@@@@
+[ -n "$DEBUG" ] && set -x
+origpwd=`pwd`
+
+[ -z "$HANDOFFS" ] && {
+  echo "ERROR: \$HANDOFFS not set. Set to directory that contains the"
+  echo "       *.extshells handoffs files"
+  exit 1
+}
+
+# Make sure zsh is a symlink
+if [ ! -g zsh/usr/bin/zsh ]; then
+  rm -f zsh/usr/bin/zsh
+  ln -s zsh-${ZSHVER} zsh/usr/bin/zsh
+fi
+
+[ "$EXTSHOS" = "UW7" ] || {
+  [ -d cntl ] || mkdir cntl
+
+  [ -f cntl/cqs ] || {
+    if [ "$EXTSHOS" = "OSR5" ]; then
+      cp -f $HANDOFFS/common/cqs.osr5 cntl/cqs
+    else
+      cp -f $HANDOFFS/common/cqs.osr6 cntl/cqs
+    fi
+    chmod 755 cntl/cqs
+  }
+
+  for i in bash tcsh zsh; do
+    [ -d $i/usr/lib/mkuser ] || {
+      mkdir -p $i/usr/lib/mkuser
+      cp -r $HANDOFFS/extshells/$i $i/usr/lib/mkuser
+    }
+  done
+
+  [ -f cntl/cmpnt.desc ] || {
+    cat > cntl/cmpnt.desc <<EOF
+CMPNTCHECK=extshells
+CMPNTNAME=extshells
+CMPNTDESC="${METAPKG_DESCRIPTION}"
+EOF
+  }
+
+  [ -f cntl/badver ] || {
+    if [ "$EXTSHOS" = "OSR5" ]; then
+      cp -f $HANDOFFS/common/badver.osr5 cntl/badver
+    else
+      cp -f $HANDOFFS/common/badver.osr6 cntl/badver
+    fi
+    chmod 755 cntl/badver
+  }
+
+  [ "$EXTSHOS" = "OSR5" ] && {
+    [ -f cntl/need646 ] || {
+      cp -f $HANDOFFS/common/need646 cntl/need646
+      chmod 755 cntl/need646
+    }
+
+    [ -f cntl/needMP3 ] || {
+      cp -f $HANDOFFS/common/needMP3 cntl/needMP3
+      chmod 755 cntl/needMP3
+    }
+  }
+
+  [ -f cntl/ccs ] || {
+    cp -f $HANDOFFS/ccs.extshells cntl/ccs
+    chmod 755 cntl/ccs
+  }
+}
+
+@@@@ );
+
+  ifneq ("EXTSHOS", "UW7")
+    exists ("/cntl/ccs", FALSE);
+  endif
+  ifeq ("EXTSHOS", "OSR5")
+    exists ("/cntl/cqs", FALSE);
+    exists ("/cntl/need646", FALSE);
+    exists ("/cntl/needMP3", FALSE);
+    exists ("/cntl/badver", FALSE);
+  endif
+  remove ("/usr/gnu/info/dir");
+  auto_strip (TRUE, TRUE);
+  auto_compress_texinfo ();
+  auto_format_mansource ();
+}
+
+package ("/bash", "GNU Bourne-Again Shell (bash) 3.0", "BASH") {
+  ifneq ("EXTSHOS", "UW7")
+    allfiles ("/usr/lib/mkuser/bash/*") {
+      owner ("root");
+      group ("auth");
+      mode (0660);
+    }
+
+    file ("/usr/lib/mkuser/bash/bashrc") {
+      access (CLIENT);
+    }
+
+    file ("/usr/lib/mkuser/bash/profile") {
+      access (CLIENT);
+    }
+  endif
+}
+
+package ("/zsh", "The Z-Shell (zsh) 4.2.5", "ZSH") {
+  directory ("/etc/zsh-site") {
+      access (CLIENT);
+  }
+
+  directory ("/etc/zsh") {
+      access (SERVER);
+  }
+
+  ifneq ("EXTSHOS", "UW7")
+    allfiles ("/usr/lib/mkuser/zsh/*") {
+      owner ("root");
+      group ("auth");
+      mode (0660);
+    }
+
+    file ("/usr/lib/mkuser/zsh/zshrc") {
+      access (CLIENT);
+    }
+
+    file ("/usr/lib/mkuser/zsh/profile") {
+      access (CLIENT);
+    }
+  endif
+}
+
+package ("/tcsh", "Enhanced C-Shell (tcsh) 6.13", "TCSH") {
+  ifneq ("EXTSHOS", "UW7")
+    allfiles ("/usr/lib/mkuser/tcsh/*") {
+      owner ("root");
+      group ("auth");
+      mode (0660);
+    }
+
+    file ("/usr/lib/mkuser/tcsh/cshrc") {
+      access (CLIENT);
+    }
+
+    file ("/usr/lib/mkuser/tcsh/login") {
+      access (CLIENT);
+    }
+  endif
+}
+
+component ("extshells", "${METAPKG_VERSION}", "${METAPKG_DESCRIPTION}") {
+  upgrades ("^1\\\\.0\\\\..*");
+  upgrades ("^1\\\\.1\\\\..*");
+  upgrades ("^1\\\\.2\\\\..*");
+  dependency ("${DEPVENDOR}gwxlibs", "${GWXDESC}");
+}
+

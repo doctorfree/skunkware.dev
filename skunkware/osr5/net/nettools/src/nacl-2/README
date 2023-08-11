@@ -1,0 +1,166 @@
+                                NACL
+                 Access control lists for BSD sockets
+
+About the NACL driver
+---------------------
+
+NACL is a BSD socket Network Access Control List device driver.  This means
+that nacl will catch certain system calls as sent by a user process and
+determine if that process is allowed to execute that system call.  Certain
+criteria are used to make this decision:  If the binary is allowed, who is 
+running the binary (real and effective), the group (real and effective)
+the user is in, the type of socket desired, the port, and the IP address.
+
+The following system calls are NOT caught by nacl:
+accept, recv, recvfrom, recvmsg
+
+The following system calls ARE caught by nacl and the configuration file 
+will determine if the system call succeeds or fails:
+bind, connect, sendto, socket, sendmsg
+
+The following system calls are ignored by nacl and passed through to the 
+socket driver:
+getpeername, getsockname, getsockopt, listen, setsockopt, shutdown,
+gethostname, sethostname, adjtime, setreuid, setregid, gettimeofday, 
+settimeofday, socketpair, send(caught with connect)
+ 
+These system calls are used by many other library routines in 
+/usr/lib/libsocket.{a,so}
+
+NACL traps these system calls before they are sent to the socket driver to
+determine if the call is allowed.  If ACL enforcement is enabled, the ACL 
+file is searched from the top until a complete match is found.  
+If a match cannot be found then access is denied and the system call 
+returns failure and errno is set to EACCES (Permission denied).  
+Root (real uid 0) is always allowed to perform the system call, and 
+no logging will take place for real root.  
+Set-uid root binaries run by a non-root user are still checked.   
+
+If ACL enforcement is disabled, then no checks and logging take place, and 
+the system call is sent to the socket driver as if the NACL driver was 
+not installed.
+
+Limitations
+-----------
+NACL does not trap TLI/XTI calls (t_open, t_bind, etc.) and will not affect
+a TLI program.  Since nearly all binaries shipped with the system use
+BSD sockets instead of the TLI (exceptions: snmpd and trap) this limitation 
+is not serious unless you have a compiler and the libc/libnsl/libxti libraries
+installed or someone is able to install these on your system.  
+With a compiler and libraries, a smart user can create binaries that use
+the TLI and bypass NACL enforcement.
+
+You can determine if a running program is currently using BSD sockets or 
+the TLI by using sockinfo -t and searching for "(timod)", indicating a TLI
+or XTI descriptor, or "(socket)", indicating a BSD socket descriptor.  
+
+NACL support for TLI calls should be added in a future release.
+
+Contents
+--------
+The NACL package consists of a device driver which is loaded into the kernel,
+a user level nacl utility, and a sample ACL file.  
+
+Installation
+------------
+run the "go" script provided in the drv directory as root.  This will 
+install the nacl driver into your link kit.  Relink the kernel and reboot.  
+
+Disabling NACL
+--------------
+Edit /etc/conf/sdevice.d/nacl and change field two(2) to a 'N'.  Relink and
+reboot.
+
+Removing NACL
+-------------
+rm -rf /etc/conf/pack.d/nacl
+rm /etc/conf/sdevice.d/nacl
+rm nacl line in /etc/conf/cf.d/mdevice
+relink and reboot.
+
+Configuration
+-------------
+Edit the sample ACL file provided or create your own.  Run nacl to load
+the ACL file into the kernel and to enable enforcement of the ACL list
+you configured.
+
+Logging
+-------
+NACL has flexible logging capabilities that are performed by either
+strace(ADM) or strerr(ADM).  These programs require that the "log"
+driver be enabled (it normally is, but check /etc/conf/sdevice.d/log field 2
+to be sure).  To get logging information, enable ACL enforcement (nacl -e) 
+and decide:
+
+- what information to log (nacl -f and nacl -g)
+- where that information should go (nacl -h and nacl -i)
+  If sending to strace(ADM), start the strace binary
+  strerr is started automatically by TCP/IP in /etc/rc2.d/S*tcp.
+
+Use nacl -s to determine if logging is enabled and where it is going.
+
+When using nacl -h, logging information will be sent to strace(ADM), which you
+need to start yourself as root:
+
+# strace 123 all all       - show all nacl log messages for any process.
+Logging information can also be filtered by uid: 
+# strace 123 uid all       - show all nacl log messages for the given numeric 
+                             uid from /etc/passwd.
+
+If strace isn't running then logging information will not be saved.  
+
+When using nacl -i, logging information will be sent to strerr(ADM), which 
+is already started and running by /etc/rc2.d/S*tcp.  strerr will place
+the logging information in a file called error.<DATE> in the 
+/usr/adm/streams directory.   Use strclean(ADM) to manage these files.
+
+You can log to both strace and strerr at the same time.
+If you aren't running strace, then turn off logging to strace with nacl -h.
+
+Turning off logging altogether with nacl -f and nacl -g but leaving
+"log to strace" and "log to strerr" on will not cause any performance
+degradation.
+
+When using the M.I.M (Mail If Match) feature you must be running strerr.
+strerr will send the mail from root to root.  Unfortunately, there is 
+no "Subject:" field to filter this information elsewhere in your
+.forward or .maildelivery files.  However, strerr uses the command 
+"mail root" to send mail via /bin/sh (see popen(S)), so you can set PATH 
+appropriately in /etc/rc2.d/S*tcp prior to starting strerr so that 
+strerr will use a different mail program other than /bin/mail.
+
+Wildcards
+---------
+Nearly every field can have a '*' to denote "anything".  It is faster than
+specifying each possible combination on separate lines.  Use nacl -p to
+see how the field is parsed.
+
+Usage
+-----
+nacl usage is displayed by running nacl without any options: 
+
+nacl version 2
+Usage: nacl option(s), where option is:
+ -c         	clear driver statistics
+ -d         	disable enforcement of ACLs in driver
+ -e         	enable enforcement of ACLs in driver
+ -f         	enable/disable logging of failures
+ -g         	enable/disable logging of successes
+ -h         	enable/disable logging to strace(ADM)
+ -i         	enable/disable logging to strerr(ADM)
+ -j         	dump current ACL list in kernel
+ -l filename	load driver ACL list from file filename
+            	this automatically enables the driver
+ -p filename	show how ACL file filename would be parsed
+ -s         	show status of driver
+
+All options must be run with effective uid 0 (i.e. root) except
+the -j and -s flags, which can be run by anyone.
+
+Note that enforcement of ACLs is disabled by default and is automatically
+enabled by loading an ACL into the kernel.
+
+Questions or comments about NACL should be sent via email to nathan@sco.com.
+
+Nathan
+17 July 1996

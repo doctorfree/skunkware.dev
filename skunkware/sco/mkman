@@ -1,0 +1,41 @@
+:
+# mkman - format unformatted man pages in all subdirectories man*
+#         and put the formatted output in subdirectories cat*
+#
+# Written by Ron Record (rr@sco.com)
+#
+
+# Just tell me what you would do if given the -n argument
+TELLME=
+
+HERE=`pwd`
+
+[ "$1" = "-n" ] && TELLME=1
+
+for i in 1 2 3 4 5 6 7 8 9 n .1 .2 .3 .4 .5 .6 .7 .8 .9 .n
+do
+    [ -d man$i ] && {
+        for j in man$i/*
+        do
+            [ "$j" = "man$i/*" ] && continue
+            page=`echo $j | sed -n "s/man$i\///p"`
+            [ -f cat$i/$page ] && continue
+            if [ "$TELLME" ]
+            then
+                [ -d cat$i ] || echo "mkdir cat$i"
+                       case $j in
+                *.Z) echo "zcat $j | /usr/ucb/nroff -man > cat$i/$page" ;;
+                *.gz) echo "gzcat $j | /usr/ucb/nroff -man > cat$i/$page" ;;
+                *) echo "/usr/ucb/nroff -man $j > cat$i/$page" ;;
+                esac
+            else
+                [ -d cat$i ] || mkdir cat$i
+                case $j in
+                *.Z) zcat $j | /usr/ucb/nroff -man > cat$i/$page ;;
+                *.gz) gzcat $j | /usr/ucb/nroff -man > cat$i/$page ;;
+                *) /usr/ucb/nroff -man $j > cat$i/$page ;;
+                esac
+            fi
+        done
+    }
+done

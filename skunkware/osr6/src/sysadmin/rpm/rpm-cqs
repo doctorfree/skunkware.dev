@@ -1,0 +1,30 @@
+#!/bin/sh
+
+CMT="RPM User Account" 
+
+chkrpm() {
+    echo "ADD=1" > /tmp/chk$$
+    awk ' BEGIN { FS=":" } { print $1 } ' $1 | while read f
+    do
+        [ "$f" = "rpm" ] && echo "ADD=" > /tmp/chk$$
+    done
+}
+
+addgrprpm() {
+    groupadd rpm
+}
+
+addusrrpm() {
+    useradd -g rpm -d /var/lib/rpm -s /bin/false -c "$CMT" rpm
+}
+
+chkrpm /etc/group
+. /tmp/chk$$
+[ "$ADD" ] && addgrprpm
+chkrpm /etc/passwd
+. /tmp/chk$$
+[ "$ADD" ] && {
+    addusrrpm
+}
+rm -f /tmp/chk$$
+

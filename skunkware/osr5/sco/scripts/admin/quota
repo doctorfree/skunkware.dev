@@ -1,0 +1,2036 @@
+#!/usr/local/bin/gawk -f
+# *** NOTE!!! ***
+# This is one of three programs you will need to implement advisory quotas.
+# There is also a related utility to actually pare down users' usage.
+# The complete set consists of quota, usage, pareacct, and gawk (quota is
+# written in gawk; it requires gawk to interpret/run it).
+# The URLs to retrieve these are:
+# ftp://ftp.armory.com/pub/admin/quota
+# ftp://ftp.armory.com/pub/admin/usage
+# ftp://ftp.armory.com/pub/admin/pareacct
+# ftp://ftp.armory.com/pub/scobins/gawk (binary for SCO UNIX 3.2v5)
+
+# Make line 1 of this program point to wherever gawk is located on your system.
+# This program was written for gawk 2.15.5 and later, and is liable to fail if
+# used with earlier versions, since 2.15.5 had several important bugfixes.
+# If you are running a version of UNIX that does not have hashbang (like
+# SCO UNIX prior to 3.2v4), or on which it is turned off, you can invoke the
+# script by putting it into a file named e.g. /usr/lib/quota.awk and running
+# it as follows:
+# gawk -f /usr/lib/quota.awk [arguments]
+# If you do not have gawk, replace the first line with this:
+#!/usr/bin/awk -f
+# You will then have to give all options to the program with '+' instead of '-'
+# since it is a feature of gawk that '-' options can be used.  You will also
+# have to do this if using an older version of gawk.   e.g. you would do
+# 'quota +d /u' instead of 'quota -d /u'.  You can also pass the program
+# file to awk explicitly (without using #!) as in the example for gawk.
+# If you are using the #! method of invoking awk or gawk on this program and
+# get the error "quota: not found" even when you give an explicit path to the
+# quota program, it probably means that the path to gawk that comes after #!
+# is incorrect.
+# Note: I have only done superficial testing of this program to see if it 
+# works with awk.
+# A binary for gawk 2.15.6 compiled for SCO UNIX can be found on ftp.armory.com
+# in pub/scobins/gawk.  The source, ready to compile (with gcc) for SCO and
+# including man pages, etc. is also there in pub/source/gawk-2.15.6.tar.Z
+
+# @(#) quota.gawk 2.6 97/07/14
+# 94/03/03 John H. DuBois III (john@armory.com)
+# 94/03/06 Fixed Usage var name conflict so gawk no longer core dumps.
+# 94/03/14 Avoid gawk bug by only putting indexes in Usage[] for explicitly
+#          named users and those using more than their quota.
+# 94/03/18 Added q option
+# 94/03/20 Added usage-last-checked field to output
+# 94/03/25 Added total overusage display
+# 94/04/01 Fixed d option
+# 94/07/11 Read date from usage file
+# 94/07/14 Added p option.
+# 94/07/15 Added code to deal with warning level lower than real-quota.
+# 94/07/20 No quota if user not listed and no DEFAULT.
+#          Let aliases be given for quotas.
+#          Let more than one filesystem be named with -d.
+# 95/01/07 Indicate error if bad user name given.
+# 95/01/14 Let '-' indicate no quota in cases when DEFAULT is set.
+# 95/02/01 Added t and s options.
+# 95/05/10 Changed meaning of p option so that it doesn't turn on o option too,
+#          so it can be used for a general report.
+# 95/05/12 Rewrote report printer.  Added [ru] options.
+# 95/07/02 Began adding code for inode quotas
+# 95/07/22 Make DEFAULT default to no quota.
+# 95/08/03 Fixed spurious complaint re OverUse & Rept not in agreement.
+#          Warn if invoking user is root & no quota or usage files are found.
+#          Do not report on nonexistant users.
+# 95/08/11 Added c option.
+# 95/09/12 Fixed name of Quotas file in help, and made -c option explicitly
+#          refer to Quotas files.
+# 95/12/16 Make sort option work correctly.
+# 96/03/11 Better formatting of warning message.
+# 96/04/15 Added H option; added overuse amount to -o report.
+# 97/03/01 Read config file.
+# 97/04/20 Added l option.
+# 97/07/14 2.6 Changed -q option to -R; added new q option; added O option.
+
+# Lame substitute for real disk quotas.
+
+BEGIN {
+    Name = "quota"
+    rcFile = "/etc/default/" Name
+    HUsage = \
+"Usage: " Name " [-cCehHropPRstw] [-d<mountdir[,mountdir...]>] [-u<usage>]\n"\
+"             [-q<quota[:warn-quota]>] [-O<min-over-use>] [username ...]"
+    ARGC = Opts(Name,HUsage,"d:slq:cCheHRwoO>rpPtxu<",0,rcFile,
+    "FILESYSTEMS,SORTUSAGE,LASTLOGIN,QUOTA")
+    if ("h" in Options) {
+	printf \
+"%s: Report filesystem usage and quotas.\n"\
+"%s\n"\
+"%s reports users' disk usage and quotas on filesystems that\n"\
+"have disk usage database files (as built by the 'usage' program).\n"\
+"Options:\n"\
+"Some of the following options can also be set by assigning values to\n"\
+"variables in a configuration file named %s.  Variables are\n"\
+"assigned to with the syntax:  varname=value  or in the case of flags, by\n"\
+"simply putting the indicated variable name in the file without a value.\n"\
+"Options given on the command line override assigments in the configuration\n"\
+"file.  Flag options set in the configuration file can be turned off on the\n"\
+"command line by following them immediately with \"-\", e.g. -v- to turn\n"\
+"off the v option in such a way that it cannot be turned on in the config\n"\
+"file.  Variable names appear in parentheses in the option descriptions.\n"\
+"-t: Print a total line.\n"\
+"-H: Do not print column headers.\n"\
+"-d<mountdir[,mountdir...]>: Report quotas on the filesystems mounted on\n"\
+"    the named directories.  (FILESYSTEMS)\n"\
+"-q<quota[:warning-quota]>: Set the quota for all users to <quota>\n"\
+"    kilobytes.  If two numbers are given separated by a colon, the second\n"\
+"    sets the warning quota; if not, both the quota and warning quota are\n"\
+"    set to the single value given.  No quota file is read or needed.  By\n"\
+"    default, the quota is applied to all filesystems, which is probably\n"\
+"    not the desired behaviour, so -d should generally be used with this\n"\
+"    option.  (QUOTA)\n"\
+"The rest of the options all change the output format or relate to the\n"\
+"options that change the output format:\n"\
+"-c: Check the local quota configuration.  All mounted directories are\n"\
+"    checked for Quotas and Usage files, etc.  Use this option after\n"\
+"    configuring the quota system.\n"\
+"-C: Like -c, except that a list of every user who does not have a quota\n"\
+"    on the filesystem that their home directory is on is printed.\n"\
+"-e: Print a description of the quota configuration file.\n"\
+"-h: Print this help.\n"\
+"-r: Read a list of user names from the standard input, one per line,\n"\
+"    rather than taking them from the command line.\n"\
+"-o: Print a report on users who have exceeded their quotas.  The format is\n"\
+"    the same as the single-user report, except that each line is prefixed\n"\
+"    by the user name.  Output is sorted by total overusage.  -u may be used\n"\
+"    with this option to set a minimal usage (not overusage) for a user to\n"\
+"    be reported on, but only users who exceed their quota will be listed.\n"\
+"-l: Like -o, except that the time of the most recent shell login or\n"\
+"    popmail access is included for each user in the report.  If set in a\n"\
+"    config file, its effect is to make -o behave like -l.  This option\n"\
+"    requires the \"lastlogin\" utility to be available.  (LASTLOGIN)\n"\
+"-p: Print a report more suitable for processing by further programs: each\n"\
+"    line contains a user name followed by triples of (filesystem, usage,\n"\
+"    quota). Each user will be listed on only one line, with all of the\n"\
+"    filesystems being reported on on that line.  No headers are printed.\n"\
+"    If -o is also given, only those filesystems on which the user is\n"\
+"    exceeding quota are listed.\n"\
+"-s: Sort output by total usage.  (SORTUSAGE)\n"\
+"-u<usage>: Report on users whose usage on a filesystem exceeds <usage>\n"\
+"    kilobytes.\n"\
+"-O<min-over-use>: Report on users whose usage on a filesystem exceeds\n"\
+"    <min-over-use> kilobytes.  Normally used to set a minimum threshold\n"\
+"    for the -o and -l reports.\n"\
+"-w: Print a warning for any filesystem on which the warning threshold has\n"\
+"    been exceeded.  %s -w is typically put in /etc/profile and\n"\
+"    /etc/login.  The -d option may be used with this to make the command\n"\
+"    run faster by avoiding the need to find mounted filesystems.\n"\
+"-R: Use the real quota for the warning threshold (for use with -w).\n",
+	Name,HUsage,Name,rcFile,Name
+	exit 0
+    }
+    if ("e" in Options) {
+	printf \
+"     The quota configuration file for each filesystem is named Quotas and\n"\
+"is located in the root directory of the filesystem.  The root directory of\n"\
+"a filesystem is the directory that appears at the mount point when the\n"\
+"filesystem is mounted; e.g. if a filesystem is mounted on /u, the root\n"\
+"directory for the filesystem mounted there is /u.  If a Quotas file does\n"\
+"not exist in a filesystem root directory, there are no quotas on that\n"\
+"filesystem (unless -q is used, in which case no quota files are searched\n"\
+"for or used).  Typically, a Quotas file is created for each filesystem that\n"\
+"user accounts are stored on and possibly for other filesystems that users\n"\
+"store files on, and \"usage\" is run at regular intervals to keep the\n"\
+"Usage file for each of those filesystems up to date.\n"\
+"     The Quotas file must be readable by users to be acted on. For\n"\
+"non-root users, no warning is produced if there is no Quotas file for a\n"\
+"filesystem even if the filesystem was named with the -d option, or if\n"\
+"there is a Quotas file and no Usage file or vice versa, to avoid confusing\n"\
+"users if a Quotas file is temporarily removed or unreadable.  \n"\
+"     File format:\n"\
+"username real-quota warning-quota\n"\
+"username is a user login, an alias, or the special name DEFAULT which\n"\
+"takes effect for all users not explicitly named.  real-quota and\n"\
+"warning-quota are either aliases or values given in 1K blocks.  A quota of\n"\
+"'-' means the user has no quota.  Any other non-numeric value is taken to\n"\
+"be an alias; a quota line must be given for an alias before it can be used.\n"\
+"The real-quota is the amount of disk space the user is allowed to use.  It\n"\
+"is what usage is checked against when the -o and -p options are used, and\n"\
+"is what the user is informed the quota is.  The warning-quota is used to\n"\
+"give the users a bit of leeway before they are warned.  When -w is used,\n"\
+"no warning is printed unless the warning-quota has been exceeded (but in\n"\
+"the warning message, if any, the real-quota is still used).  If a\n"\
+"warning-quota is given for a user, it should be equal to or greater than\n"\
+"the real-quota for the user.  If -q is used with -w, the real-quota is\n"\
+"used instead.  If no warning-quota is given in the Quotas file, real-quota\n"\
+"is always used.  Blank lines and lines beginning with # are comments and\n"\
+"are ignored.  If there is no DEFAULT line, users who are not listed have\n"\
+"no quota on the given filesystem and no line will be printed for it when\n"\
+"they run \"%s\".\n"\
+"Example Quotas file:\n"\
+"# User	Quota	Warn level (both in K)\n"\
+"DEFAULT	5000	7000\n"\
+"# armorites\n"\
+"Arm 40000\n"\
+"spcecdt	70000\n"\
+"zap	Arm\n"\
+"crisper	Arm\n"\
+"# others\n"\
+"falcon	15000\n"\
+"taz	15000\n",Name
+	exit 0
+    }
+    Debug = "x" in Options
+    Parseable = "p" in Options
+    rStdin = "r" in Options
+    Check = "c" in Options || "C" in Options
+    Warn = "w" in Options	# Print a warning message.
+    DoTotal = "t" in Options
+    if ("O" in Options)
+	minOverUse = Options["O"]
+    if ("q" in Options) {
+	if ((nElem = split(Options["q"],Elem,":")) > 2) {
+	    printf "%s: Bad value given with -q option: too many fields.\n",
+	    Name > "/dev/stderr"
+	    exit(1)
+	}
+	if (Elem[1] !~ /^[0-9]+$/ || Elem[1]+0 == 0 || nElem == 2 && \
+	(Elem[2] !~ /^[0-9]+$/ || Elem[2]+0 == 0)) {
+	    printf "%s: Values given with -q must be positive integers.\n",
+	    Name > "/dev/stderr"
+	    exit(1)
+	}
+	globalQuota = Elem[1]
+	globalWarnQuota = (nElem == 2) ? Elem[2] : globalQuota
+    }
+    Headers = !("H" in Options || Parseable || Warn)
+    # OverUse is set if it was specified or if -l given on command line
+    OverUse = "o" in Options || OptsGiven(Options,"l",1,0,0)
+    LastLogin = OverUse && "l" in Options
+
+    # Trust USER var to avoid running id, since the files are readable anyway.
+    if ("USER" in ENVIRON) {
+	user = ENVIRON["USER"]
+	uid = (user != "root")	# set to 0 if user is root
+    }
+    else {
+	id(IDs)
+	uid = IDs["uid"]
+	user = IDs["user"]
+	UIDs[user] = uid
+    }
+    RealUsers[user]
+    if (Check)
+	uid = 0		# Do all checks
+
+    tfTime = "%a %b %d %H:%M"	# 24 hour time format
+
+    # Build list of filesystems to check.
+    # Let -d "" override FILESYSTEMS
+    if (!Check && (DirsGiven = ("d" in Options)) && Options["d"] != "")
+	split(Options["d"],Mounted,",")
+    else
+	if (GetMount(Mounted)) {
+	    printf "%s: Could not get mount table.\n",Name > "/dev/stderr"
+	    exit(1)
+	}
+
+    NamesGiven = (OverUse || uid == 0) && (ARGC > 1 || rStdin)
+    # If nonroot user or no user names given, report on current user.
+    # The output will tell who it's really for.
+    if (!NamesGiven) {
+	ARGV[1] = user
+	ARGC = 2
+    }
+    # If -r given, add user names read from stdin to list of users to report on
+    if ((OverUse || uid == 0) && rStdin)
+	while ((getline < "/dev/stdin") == 1)
+	    ARGV[ARGC++] = $0
+
+    # Build set of users to gather data on (but not neccessarily report on).
+    for (UserNum = 1; UserNum < ARGC; UserNum++)
+	Users[ARGV[UserNum]]
+    Users["DEFAULT"]
+
+    # If checking, get usage for all users
+    MinUsage = Check ? 0 : ("u" in Options ? Options["u"] : -1)
+    # Gather data on specified users, or on overuse.
+    # Also, if overuse or -u report is requested, add all users matching given
+    # usage criteria to Users[]
+    for (Device in Mounted) {
+	MountDir = Mounted[Device]
+	gotQuotas = 0
+	if (globalQuota) {
+	    Quotas[MountDir,"DEFAULT"] = globalQuota
+	    WarnQuot[MountDir,"DEFAULT"] = globalWarnQuota
+	    gotQuotas = 1
+	}
+	else
+	    if (GetQuotas(MountDir,Quotas,WarnQuot,"R" in Options)) {
+		if (DirsGiven && !uid)
+		    printf "%s: Warning: No Quotas file found on %s\n",
+		    Name,MountDir > "/dev/stderr"
+	    }
+	    else
+		gotQuotas = 1
+	if (gotQuotas) {
+	    FoundQuota = 1
+	    if (GetUsage(MountDir,Users,WarnQuot,IWarnQuot,OverUse,Usage,
+	    Inodes,MinUsage,-1,NamesGiven) && !uid)
+		printf "%s: Warning: No Usage file found on %s\n",
+		Name,MountDir > "/dev/stderr"
+	    QuotaDev[Device]
+	}
+    }
+    if (!uid && !FoundQuota)
+	printf "%s: No Quotas files found.\n",Name > "/dev/stderr"
+
+    # If an overuse or over-specified-value report was requested,
+    # users matching given criteria are added to Users[];
+    # now add them to the list of users to be checked/reported on,
+    # with ARGC/ARGV the same as they are normally set up
+    # (1st param is ARGV[1], ARGC = number of params + 1)
+    if (!NamesGiven && (OverUse || "u" in Options)) {
+	ARGC = 1
+	for (User in Users)
+	    ARGV[ARGC++] = User
+    }
+    Sort = "s" in Options || OverUse || MinUsage > -1
+
+    # Report on each user in ARGV[]
+    # Do this even if doing Check, as an extra test; nothing will be printed
+    # except on error because Check sets MinUsage which sets Sort.
+    for (UserNum = 1; UserNum < ARGC; UserNum++) {
+	CUser = ARGV[UserNum]
+	if (Debug)
+	    print "Processing user: " CUser > "/dev/stderr"
+	OverSum += ProcUser(ARGV[UserNum],UIDs,QuotaDev,Mounted,Usage,Quotas,
+	WarnQuot,Warn,OverUse,Parseable,DoTotal,Sort,Reports,ReptUsage,MinUsage,
+	minOverUse)
+    }
+
+    if (Check) {
+	DoCheck(Mounted,QuotaDev,Quotas,Usage,"C" in Options)
+	exit(0)
+    }
+    if (Sort) {
+	if ("Header" in Reports) {
+	    if (LastLogin)
+		sub("\n","  last login\n",Reports["Header"])
+	    printf "%s",Reports["Header"]
+	}
+	# If multiline report, print newline between reports for each user.
+	nlFmt = (OverUse || MinUsage > -1 || Parseable) ? "%s" : "\n%s"
+	Num = qsortArbIndByValue(ReptUsage,k)
+	if (Num > 0) {
+	    if (LastLogin) {
+		Cmd = "lastlogin -zlpES"
+		for (User in Reports)
+		    Cmd = Cmd " " User
+		Cmd = Cmd " 2>/dev/null"
+		while (Cmd | getline) {
+		    User = $1
+		    if (!(User in Reports))
+			printf "%s: Strange line returned by lastlogin: %s\n",
+			Name,$0 > "/dev/stderr"
+		    else {
+			$1 = ""
+			sub("\n"," " $0 "\n",Reports[User])
+		    }
+		}
+		close(Cmd)
+		sub("\n","  last login\n",Reports["Header"])
+	    }
+	    printf "%s",Reports[k[1]]
+	    for (i = 2; i <= Num; i++)
+		printf nlFmt,Reports[k[i]]
+	}
+    }
+	
+    if (DoTotal && ARGC > 2)
+	printf "\nTotal usage: %d\n",AllUsage
+    if (OverUse && Headers)
+	printf "Total overusage: %d\n",OverSum
+}
+
+# Tells what filesystem File is on.
+# MountDirs[] is a list of mount directories, indexed by device.  It
+# is used only the first time this function is called.
+# This function will only work with absolute paths that do not include .,
+# .., and do not have more than one / after each directory.
+function FileDevice(File,MountDirs,  i,dev,dir) {
+    if (IsEmpty(_SortedMountDirs)) {
+	for (dev in MountDirs) {
+	    dir = MountDirs[dev]
+	    if (dir !~ "/$")	# make the comparisons later easier
+		dir = dir "/"
+	    _SortedMountDirs[++i] = dir
+	}
+	qsortNumIndByValue(_SortedMountDirs,1,i)
+	_NumMountDirs = i
+    }
+    File = File "/"	# In case it is one of the mount dirs
+    for (i = _NumMountDirs; i >= 1; i--)
+	if (index(File,dir = _SortedMountDirs[i]) == 1) {
+	    if (dir != "/")
+		sub("/$","",dir)
+	    return dir
+	}
+}
+
+# Put a list of login shells (from /etc/shells) into set LoginShells[].
+# Returns -1 if /etc/shells could not be read, else the number of shells found.
+function ReadShells(LoginShells,  ret,Num,Line) {
+    while (ret = ((getline Line < "/etc/shells") == 1))
+	if (Line ~ "^/") {
+	    Num++
+	    sub(/[ \t]+/,"",Line)
+	    LoginShells[Line]
+	}
+    close("/etc/shells")
+    return ret ? -1 : Num
+}
+
+function DoCheck(Mounted,QuotaDev,Quotas,Usage,ListUsers,
+Device,NoQuota,LoginShells,Dir,RealUsers,Values,WarnQuot,NumNoQuota,Name) {
+    print "Quotas exist (Quotas file found) for these filesystems:"
+    for (Device in Mounted)
+	if (Device in QuotaDev)
+	    printf "%s (%s)\n",Mounted[Device],Device
+	else
+	    NoQuota[Device]
+    print ""
+    print "No quotas exist (no Quotas file found) for these filesystems:"
+    for (Device in NoQuota)
+	printf "%s (%s)\n",Mounted[Device],Device
+    print ""
+    if (ReadShells(LoginShells) == -1) {
+	printf "%s: Could not read /etc/shells; exiting.\n",Name > "/dev/stderr"
+	exit 1
+    }
+    while (getpwent(PWent))
+	if (PWent[PW_SHELL] in LoginShells && PWent[PW_UID] >= 200) {
+	    Dir = FileDevice(PWent[PW_HOME],Mounted)
+	    Name = PWent[PW_NAME]
+	    if (!GetQuota(Values,Name,Dir,Quotas,WarnQuot,RealUsers)) {
+		NumNoQuota[Dir]++
+		if (Debug)
+		    printf "%s has no quota on %s\n",Name,Dir
+		if (ListUsers)
+		    NoQuota[Dir] = NoQuota[Dir] Name " "
+	    }
+	}
+    for (Dir in NumNoQuota) {
+	printf \
+	"%d user(s) whose home directories are under %s\n"\
+	"have no quota on that filesystem%s\n",NumNoQuota[Dir],Dir,
+	ListUsers ? ":" : "."
+	if (ListUsers)
+	    print NoQuota[Dir] "\n"
+    }
+}
+
+# ProcUser: print usage report.
+# Returns: overusage.
+# Uses globals: RealUsers[]
+# Sets/uses globals: AllUsage, Printed
+
+# If Sort is true, report lines are returned in Reports[] with the user name
+# as index.
+# The user's overusage or total usage is stored in ReptUsage[user].
+# If Sort is not true, messages are printed directly.
+# If MinUsage is not -1, it sets a minimum per-filesystem usage below which
+# users are not reported on.
+# Headers must be global so it can be turned off after 1st header by OverUse
+
+function ProcUser(User,UIDs,QuotaDev,Mounted,Usage,Quotas,WarnQuot,Warn,
+OverUse,Parseable,DoTotal,Sort,Reports,ReptUsage,MinUsage,minOverUse,
+Format,Device,MountDir,Index,DUsage,WarnLevel,Quota,ChkTime,OverAmt,
+TotUsage,TotQuota,Rept,Values,ret,Header) {
+    # DidName is used by the Parseable option to record whether the name at
+    #   the start of the line has been recorded yet, and to indicate that some
+    #   data is being returned for this user.
+    # Rept is used to build up the report to be printed or stored in Reports[]
+
+    # Make usage report similar to BSD quota report
+    # filesys usage quota [overuse] last-usage-check
+    Format = "%-10s %6s %6s%" (OverUse ? 8 : ".0") "s  %s\n"
+
+    # If generating a per-user multiline report, make header etc.
+    if (!OverUse && MinUsage == -1 && !Parseable) {
+	
+	if (Printed && !Sort) # Don't print separator if we aren't printing.
+	    # If a user report has been already been printed, print a newline
+	    # before continuing so that user reports will be separated by
+	    # blank lines.
+	    print ""
+	else
+	    Printed = 1
+
+	if (!Warn) {
+	    if (User in UIDs)
+		Header = \
+		Header sprintf("Disk quotas for %s (uid %d):\n",User,UIDs[User])
+	    else
+		Header = Header sprintf("Disk quotas for %s:\n",User)
+	}
+    }
+    for (Device in QuotaDev) {
+	MountDir = Mounted[Device]
+	Index = MountDir SUBSEP User
+	if (Index in Usage)
+	    DUsage = Usage[Index] + 0
+	else
+	    DUsage = 0
+	ChkTime = Usage[MountDir]
+
+	if ((ret = GetQuota(Values,User,MountDir,Quotas,WarnQuot,RealUsers)) \
+	!= 1)
+	    if (!ret)	# no quota on this device
+		continue
+	    else	# bad user
+		return 0
+	Quota = Values["quota"]
+	WarnLevel = Values["warn"] + 0
+
+	# If we are doing an overuse warning or report and the user's usage
+	# is below the warning level, OR there is a minimum usage set (with
+	# -u) and the user's usage is below it, OR there is a minimum overusage
+	# set and the user's usage is below it, skip the reporting/recording.
+	if ((Warn || OverUse) && (DUsage <= WarnLevel) || \
+	MinUsage > -1 && DUsage < MinUsage || \
+	minOverUse && (DUsage - WarnLevel) < minOverUse)
+	    continue
+	Rept = Rept fsMessage(Warn,Parseable,OverUse || MinUsage > -1,OverUse,
+	DUsage,Quota,MountDir,ChkTime,User,Format)
+	if (Debug)
+	    print "Report is now:\n" Rept > "/dev/stderr"
+
+	TotUsage += DUsage
+	TotQuota += Quota
+
+	if ((DUsage - Quota) > 0)
+	    OverAmt += DUsage - Quota
+
+    }
+    if (Debug)
+	printf "OverAmt=%d\n",OverAmt
+    if (Rept == "" && OverAmt > 0)
+	printf "%s: Report and OverAmt are not in agreement for user %s!\n",
+	Name,User > "/dev/stderr"
+    # If anything was recorded for this user, need username & trailing newline
+    if (Parseable)
+	Rept = User Rept "\n"
+
+    # If doing OverUse report, we only want a global total.
+    if (!OverUse && MinUsage == -1 && DoTotal)
+	Rept = Rept sprintf(Format,"Total",TotUsage,TotQuota,"",
+	FormatTime(tfTime,ChkTime))
+    AllUsage += TotUsage
+    if (Rept != "") {
+	if (Headers) {	# If function was called to build headers...
+	    Header = Header sprintf(Format,"filesys","usage","quota","overuse",
+	    "last usage check")
+	}
+	if (Sort) {
+	    if (Headers)
+		if (OverUse)
+		    Reports["Header"] = sprintf("%8s ","user") Header
+		else
+		    Rept = Header Rept
+	    ReptUsage[User] = OverUse ? OverAmt : TotUsage
+	    Reports[User] = Rept
+	}
+	else
+	    printf "%s",Header Rept
+	if (OverUse)	# Only print one header
+	    Headers = 0
+    }
+    return OverAmt
+}
+
+function FormatTime(Format,Time) {
+    if (Time + 0 != 0)	# epoch time; format it
+	return strftime(Format,Time)
+    else	# preformatted
+	return Time
+}
+
+# Warn, Parseable, and IncUser set the type of report to be generated.
+# If Warn is true, a warning message is returned.
+# If Parseable is true, the message returned is a triple to be included in a
+# single-line message.  It is not newline-terminated.
+# If neither Warn nor Parseable are true, a BSD-style usage line is returned;
+# if IncUser is true, this line is preceded by the user name.
+# Note that the 'Warn' message will only be meaningful if the
+# user has exceeded quota.
+# DUsage, Quota, MountDir, ChkTime, and User are used in the returned messages.
+# Format is the printf format to use for BSD style output.
+function fsMessage(Warn,Parseable,IncUser,OverUse,DUsage,Quota,MountDir,
+ChkTime,User,Format,  Rept,Elem,i,maxLen,S,When) {
+    if (Warn) {
+	if (ChkTime+0 != 0) {
+	    When = sprintf("%s ago, at %s",approxTime(systime()-ChkTime),
+	    FormatTime("%I:%M %p %Z",ChkTime))
+	}
+	else
+	    When = ChkTime
+    split(sprintf(\
+"\n"\
+"  W A R N I N G  \n"\
+"\n"\
+"YOU ARE EXCEEDING YOUR DISK QUOTA ON %s.\n"\
+"YOU MUST REDUCE YOUR DISK USAGE OF %sK\n"\
+"BY %sK (TO %sK) OR RISK HAVING FILES\n"\
+" REMOVED \n"\
+"(last checked %s)\n",
+	MountDir,DUsage,DUsage-Quota,Quota,When),Elem,"\n")
+	for (i = 1; i in Elem; i++)
+	    maxLen = max(length(Elem[i]),maxLen)
+	for (i = 1; i in Elem; i++) {
+	    S[1] = Elem[i]
+	    Rept = Rept MakeRow("*","*","",
+	    (S[1] ~ /^( |$)/) ? "*" : " ",maxLen+3,1,S) "\n"
+	}
+	return "\007\007\007\007" Rept
+    }
+    else {
+	if (Parseable)
+	    Format = " %s %d %d"
+	if (IncUser)
+	    Rept = sprintf("%8s ",User)
+	OverUsage = DUsage - Quota
+	return Rept sprintf(Format,MountDir,DUsage,Quota,
+	((OverUsage > 0) ? OverUsage : "-"),FormatTime(tfTime,ChkTime))
+    }
+}
+
+# Left & right are the characters for the left & right edges;
+# Sep is for the horizontal separators, and Fill is for the characters
+# in between.  Width is the cell width.  CellsAcross is the number of
+# cells to make.
+# S[1..CellsAcross] contains strings to center in the spaces in the cells,
+# padded on left & right with Fill.
+function MakeRow(Left,Right,Sep,Fill,Width,CellsAcross,S,
+Line,i,BlankFill,Template) {
+    for (i = 1; i < Width; i++)
+	Template = Template Fill
+    for (i = 1; i <= CellsAcross; i++) {
+	if (i in S) {
+	    Len = length(S[i])
+	    Blank = (Width - Len - 1) / 2
+	    BlankFill = \
+	    substr(Template,1,Blank) S[i] substr(Template,1,Blank + 0.6)
+	}
+	else
+	    BlankFill = Template
+	if (i < CellsAcross)
+	    Line = Line BlankFill Sep
+	else
+	    Line = Line BlankFill
+    }
+    return Left Line Right
+}
+
+function approxTime(time,  units) {
+    if (time < 60)
+	units = "second"
+    else if ((time/=60) < 60)
+	units = "minute"
+    else if ((time/=60) < 24)
+	units = "hour"
+    else if ((time/=24) < 7)
+	units = "day"
+    else if ((time/=7) < (365.25/7))
+	units = "week"
+    else {
+	time/=(365.25/7)
+	units = "year"
+    }
+    time = int(time)
+    if (time != 1)
+	units = units "s"
+    return time " " units
+}
+
+# Return the quota and warn value for user for the filesys mounted on MountDir
+# The quota is returned in Values["quota"], warn value in Values["warn"].
+# If the user has no quota, 0 is returned; if the user does not exist, -1 is
+# returned; otherwise 1 is returned.
+# Uses global BadUsers[] to record bad usernames.
+function GetQuota(Values,User,MountDir,Quotas,WarnQuot,RealUsers,  Index) {
+    Index = MountDir SUBSEP User
+
+    if (Index in Quotas) {
+	Quota = Quotas[Index]
+	if (Quota == -1)
+	    return 0	# No quota
+	WarnLevel = WarnQuot[Index]
+    }
+    else if (User == "DEFAULT")
+	# If DEFAULT is not given a specific quota, it defaults to no quota.
+	return 0
+    else {
+	# Users who are not mentioned in the Quotas file get the default
+	# quota.  But, must ensure that only real users are given the
+	# default quota, else quota given a bogus name (probably as a
+	# result of a typo) will give that nonexistant user the default
+	# quota and not indicate an error.  So, check in /etc/passwd for
+	# such users, but only if we don't already know they exist, because
+	# the passwd routines are slow (can add several seconds to run
+	# time).  Users already known to exist are the invoking user and
+	# any user whose name appeared in any of the quota or usage files.
+	if (!(User in RealUsers) && !getpwnam(User,PWent)) {
+	    if (!(User in BadUsers)) {
+		# Only report on a bad user once
+		printf "%s: No such user.\n",User > "/dev/stderr"
+		BadUsers[User]
+	    }
+	    return -1
+	}
+	if ((MountDir,"DEFAULT") in Quotas) {
+	    Quota = Quotas[MountDir,"DEFAULT"]
+	    WarnLevel = WarnQuot[MountDir,"DEFAULT"]
+	}
+	else
+	    return 0	# No quota
+    }
+    Values["quota"] = Quota
+    Values["warn"] = WarnLevel
+    return 1
+}
+
+# If there is a Usage file in MountDir, reads it to find usage for each
+# user that is an index of Users.
+# Puts the usage (in Kbytes) for each user in Usage[MountDir,User].
+# If inode counts given, puts the count for each user in Inodes[MountDir,User].
+# Puts the time the usage file was last updated in Usage[MountDir].
+# If Quota is >= 0, the usage of any user with a usage higher than Quota
+# is also put in Usage[]; likewise for IQuota and Inodes[].
+# If OverUse is true, the usage of any user with a usage higher than the
+# user's warning level (from WarnQuot) is also put in Usage[]; likewise for
+# IWarnQuot and Inodes[].
+# If the file doesn't exist or any other error occurs, returns nonzero.
+# NamesGiven is true if user names were given on the command line.  If it is
+# true and either OverUse is true or Quota > -1, any user exceeding the warning
+# level is added to Users[]; likewise for inodes.
+function GetUsage(MountDir,Users,WarnQuot,IWarnQuot,OverUse,Usage,Inodes,Quota,
+IQuota,NamesGiven,
+UsageFile,ret,Line,Index,WarnLevel,IWarnLevel,Cmd,Date,User,K,IRec) {
+    UsageFile = MountDir "/Usage"
+    # If a raw quot output file, the first line of the file will the the 
+    # fs name; if a Usage file, it will be the date.
+    getline < UsageFile
+    if (NF > 2) {	# save time of last update
+	if ($1 + 0 > 0)
+	    # new format: 1st field is UNIX epoch time, which is better
+	    # than preformatted time because it can be formatted by quota
+	    # using the user's timezone, and various format strings.
+	    Usage[MountDir] = $1
+	else
+	    Usage[MountDir] = $0
+    }
+    while ((ret = (getline < UsageFile)) == 1) {
+	Line++
+	if (IRec = (NF == 3))	# Blocks and inodes
+	    User = $3
+	else if (NF == 2)	# Block usage only
+	    User = $2
+	else		# garbage
+	    continue
+	if ($1 !~ "^[0-9]+") {
+	    if (!uid)
+		printf "%s: Bad usage on line %d of usage file %s:\n%s\n",
+		Name,Line,UsageFile,$0 > "/dev/stderr"
+	    break
+	}
+	RealUsers[User]
+	Index = MountDir SUBSEP User
+	if (OverUse) {
+	    if (Index in WarnQuot)
+		WarnLevel = WarnQuot[Index]
+	    else
+		WarnLevel = WarnQuot[MountDir,"DEFAULT"]
+	    if (IRec && Index in IWarnQuot)
+		IWarnLevel = IWarnQuot[Index]
+	    else
+		IWarnLevel = IWarnQuot[MountDir,"DEFAULT"]
+	}
+	K = $1 / 2
+	if (Quota > -1 && K >= Quota || OverUse && K > WarnLevel ||
+	User in Users) {
+	    Usage[Index] = K
+	    if (!NamesGiven && (OverUse || Quota > -1))
+		Users[User]
+	}
+# must wait until the rest of the code is ready
+#	if (IRec && (IQuota > -1 && $2 >= IQuota || OverUse && $2 > IWarnLevel\
+#	|| User in Users)) {
+#	    ;
+#	    Inodes[Index] = $2
+#	    if (!NamesGiven && (OverUse || IQuota > -1))
+#		Users[User]
+#	}
+    }
+    close(UsageFile)
+    return ret
+}
+
+# Return values: quota, or -1 for no quota, or -2 for error
+function QuotaVal(Val,MountDir,Quotas,Line,QuotaFile) {
+    if (Val ~ "^[0-9]+")
+	return (Val)+0
+    else if (Val == "-")
+	return -1
+    else {
+	if (!((MountDir,Val) in Quotas)) {
+	    if (!uid)
+		printf "%s: Bad quota on line %d of quota file %s:\n"\
+		"undefined value '%s'\n%s\n",Name,
+		Line,QuotaFile,Val,$0 > "/dev/stderr"
+	    return -2
+	}
+	return Quotas[MountDir,Val]	# Use alias value
+    }
+}
+
+# If there is a Quotas file in MountDir, reads it to find quota for each user.
+# Puts the quota for each user in Quotas[MountDir,User]
+# and the warning level for each user in WarnQuot[MountDir,User].
+# If the file doesn't exist or any other error occurs, returns nonzero.
+# If UseReal is true, the real quota is used for the warning threshold.
+function GetQuotas(MountDir,Quotas,WarnQuot,UseReal,
+QuotaFile,ret,Line,RealQuota,WarnLevel,User) {
+    QuotaFile = MountDir "/Quotas"
+    while ((ret = (getline < QuotaFile)) == 1) {
+	Line++
+	if (NF > 0 && $1 !~ "^#") {
+	    if (NF != 3 && NF != 2) {
+		if (!uid)
+		    printf "%s: Bad quota on line %d of quota file %s:\n"\
+		    "Wrong number of fields.\n%s\n",Name,
+		    Line,QuotaFile,$0 > "/dev/stderr"
+	    }
+	    else {	
+		# Process everyone since any name might be an alias used later
+		if ((RealQuota = \
+		QuotaVal($2,MountDir,Quotas,Line,QuotaFile)) == -2 ||
+		(WarnLevel = \
+		QuotaVal($NF,MountDir,WarnQuot,Line,QuotaFile)) == -2)
+		    continue
+		if (WarnLevel < RealQuota) {
+		    if (!uid)
+			printf "%s: Bad quota on line %d of quota file %s:\n"\
+			"warning level less than quota\n%s\n",Name,
+			Line,QuotaFile,$0 > "/dev/stderr"
+		    WarnLevel = RealQuota
+		}
+		RealUsers[User = $1]
+		Quotas[MountDir,User] = RealQuota
+		if (UseReal)
+		    WarnQuot[MountDir,User] = RealQuota
+		else
+		    WarnQuot[MountDir,User] = WarnLevel
+	    }
+	}
+    }
+    close(QuotaFile)
+    return ret
+}
+
+# For each mounted filesystem reported by mount(NADM),
+# puts the mount directory in MountDirs with an index of its filesystem
+# device name.
+function GetMount(MountDirs,  Cmd,ret) {
+    Cmd = "exec /etc/mount"
+    while ((ret = (Cmd | getline)) == 1)
+	MountDirs[$3] = $1
+    close(Cmd)
+    return ret
+}
+
+# id returns the user name of the user who owns the current process.
+# In the array IDs, elements are set as follows:
+# uid: numeric user id
+# gid: numeric group id
+# group: group name, if any
+# user: user name, if any
+function id(IDs,  Cmd,line,elem) {
+    Cmd = "exec id"
+    Cmd | getline line
+    split(line,elem,"[()=]")
+    close(Cmd)
+    IDs["user"] = elem[3]
+    IDs["gid"] = elem[5]
+    IDs["group"] = elem[6]
+    return IDs["uid"] = elem[2]
+}
+
+### Begin pwent library
+
+# @(#) pwent.awk 1.2 96/06/27
+# 92/08/10 john h. dubois III (john@armory.com)
+# 93/12/13 fixed to not clobber $*
+# 96/01/05 Send error messages to /dev/stderr
+# 96/05/24 Let getpwnam() return a specific field if requested.
+#          Added PW_REAL and PW_OFFICE.
+# 96/06/03 Added Type field to getpwent()
+# 96/06/24 Allow a Field to be requested for getpwent() also.
+# 96/06/29 Added PW_RECORD, and getpwreal().
+#          Changed PWLines to be index by record number instead of name.
+# 96/11/17 Added getpwuid()
+
+# Require: ReadShells()
+
+# getpwent, getpwnam: get an entry from the passwd file.
+# Each of the following passwd functions returns an array which contains
+# a passwd file entry.  The array contains the fields of the entry.
+# Global variables:
+# The following variables are defined with the values of the indexes of the
+# entries: PW_NAME, PW_PASSWORD, PW_UID, PW_GID, PW_GCOS, PW_HOME, PW_SHELL
+# PWLines[] contains the lines of the password file, indexed by record number,
+# starting with 1.
+# _pwNames[] is a mapping of name to passwd record number.
+# getpwentNum is the number of the next entry to be returned by getpwent().
+
+# Left FS global because making it local does not work in gawk.
+function ReadPasswd(  User,Line,i,Ind,ret,OFS) {
+    if (PW_Name)
+	return 1
+    PW_NAME = 1
+    PW_PASSWORD = 2
+    PW_UID = 3
+    PW_GID = 4
+    PW_GCOS = 5
+    PW_HOME = 6
+    PW_SHELL = 7
+    PW_REAL = -1	# for PWGetFields()
+    PW_OFFICE = -2
+    PW_RECORD = -3
+
+    Ind = getpwentNum = 1
+    OFS = FS
+    FS = ":"
+    while ((ret = (getline Line < "/etc/passwd")) == 1) {
+	User = Line
+	sub(":.*","",User)
+	_pwNames[User] = Ind
+	PWLines[Ind++] = Line
+    }
+    FS = OFS
+    close("/etc/passwd")
+    if (ret) {
+	printf "ReadPasswd(): Could not open /etc/passwd.\n" > "/dev/stderr"
+	return 0
+    }
+    return 1
+}
+
+# setpwent resets the passwd file entry pointer used by getpwent
+# to the first entry.
+function setpwent() {
+    getpwentNum = 1
+}
+
+# getpwent sets PWEnt to the next entry in the passwd file.
+# If Type is set to -1, the entry for the next "real" user is returned (others
+# are skipped over), where a real user is a user whose login shell is listed in
+# /etc/shells.  This requires the ReadShells() function.  Other values for
+# Type are not yet defined and are ignored.
+# If the last entry has already been returned, 0 is return if Field is null,
+# ":" if not.
+# If the entry for the next real user has been requested and /etc/shells
+# cannot be read, -1 is returned if Field is null, "\n" if not.
+# See PWGetFields() for other return values and the meaning of the Field
+# parameter.
+function getpwent(PWEnt,Type,Field,  entNum) {
+    if (!PW_NAME)
+	ReadPasswd()
+    if (!(getpwentNum in PWLines))
+	return Field ? ":" : 0
+    if (Type == -1) {
+	if (!_DidReadShells && ReadShells(LoginShells) == -1)
+	    return Field ? "\n" : -1
+	split(PWLines[getpwentNum++],PWEnt,":")
+	while (!(PWEnt[PW_SHELL] in LoginShells)) {
+	    if (!(getpwentNum in PWLines))
+		return Field ? ":" : 0
+	    split(PWLines[getpwentNum++],PWEnt,":")
+	}
+	return PWGetFields("",PWEnt,Field,getpwentNum - 1)
+    }
+    else {
+	entNum = getpwentNum
+	return PWGetFields(PWLines[getpwentNum++],PWEnt,Field,entNum)
+    }
+}
+
+function MakeInd(  Elem,Ind,Line,uid,home) {
+    for (Ind = 1; Ind in PWLines; Ind++) {
+	Line = PWLines[Ind]
+	split(Line,Elem,":")
+	uid = Elem[PW_UID]
+	if (!(uid in uidInd))
+	    uidInd[uid] = Ind
+	home = Elem[PW_HOME]
+	if (!(home in HomeInd))
+	    HomeInd[home] = Ind
+    }
+    IndDone = 1
+}
+
+# PWGetFields() splits PWLine into PWEnt[], and optionally returns a field
+# from it.  If PWLine is null, PWEnt[] is assumed to have already been filled
+# in with a password entry.
+# If Field is not passed or is null, the return value is 1.
+# If Field is non-null, it should a PW_ value.  In this case, the value of the
+# requested field is returned.
+# entNum is the value that PWEnt[PW_RECORD] should be set to.  It should be
+# the index in PWLines[] of the record being processed.
+# In addition to the PW_ values used by the rest of the functions in this
+# library, this function can be passed PW_REAL and PW_OFFICE.
+# PW_REAL will get the part of the GCOS field before the first comma.
+# PW_OFFICE will get the part of the GCOS field after the first comma.
+# If either of these is requested, both values will also be assigned to their
+# indices in PWEnt[], unless there is no comma in the GCOS field, in which case
+# PW_OFFICE will not be set.
+# NOTE: since the global field names are set in ReadShells(), it must be
+# executed before any of the field name can be passed.
+function PWGetFields(PWLine,PWEnt,Field,entNum,  gcos,ind) {
+    if (PWLine != "")
+	split(PWLine,PWEnt,":")
+    PWEnt[PW_RECORD] = entNum
+    if (!Field)
+	return 1
+    if (Field < 0) {
+	if (ind = index(gcos = PWEnt[PW_GCOS],",")) {
+	    PWEnt[PW_OFFICE] = substr(gcos,ind+1)
+	    PWEnt[PW_REAL] = substr(gcos,1,ind-1)
+	}
+	else
+	    PWEnt[PW_REAL] = gcos
+    }
+    return PWEnt[Field]
+}
+
+# getpwnam sets PWEnt to the passwd entry for login name Name.
+# If Name does not exist in the password file, the return value is ":"
+# if Field was passed, 0 if not.
+# For other return values and parameter explanation, see PWGetFields()
+function getpwnam(Name,PWEnt,Field) {
+    if (!PW_NAME)
+	ReadPasswd()
+    if (Name in _pwNames)
+	return PWGetFields(PWLines[_pwNames[Name]],PWEnt,Field,_pwNames[Name])
+    else
+	return Field ? ":" : 0
+}
+
+# getpwhome sets PWEnt to the passwd entry whose home dir is Home.
+# See getpwnam() for return values and the meaning of the Field param.
+function getpwhome(Home,PWEnt,Field) {
+    if (!PW_NAME)
+	ReadPasswd()
+    if (!IndDone)
+	MakeInd()
+    if (Home in HomeInd)
+	return PWGetFields(PWLines[HomeInd[Home]],PWEnt,Field,HomeInd[Home])
+    else
+	return Field ? ":" : 0
+}
+
+# getpwuid sets PWEnt to the passwd entry whose uid is UID.
+# See getpwnam() for return values and the meaning of the Field param.
+function getpwuid(UID,PWEnt,Field) {
+    if (!PW_NAME)
+	ReadPasswd()
+    if (!IndDone)
+	MakeInd()
+    if ((UID + 0) in uidInd)
+	return PWGetFields(PWLines[uidInd[UID]],PWEnt,Field,uidInd[UID])
+    else
+	return Field ? ":" : 0
+}
+
+# Make an index by real name.  For each passwd file entry, the real-name
+# is lowercased and split into components on non-alphanums.   The passwd entry
+# index that the name came from is added to the value of each such component
+# in the global _RealInd[].  The indexes stored this way are separated by
+# commas.  If the real-name contains no alphanums, its index is stored under
+# the null index.
+function _makeRealInd(  PWEnt,ret,Elem,nelem,i,Component) {
+    setpwent()
+    while ((ret = getpwent(PWEnt,"",PW_REAL)) != ":") {
+	nelem = split(tolower(ret),Elem,/[^a-z0-9]+/)
+	for (i = 1; i <= nelem; i++) {
+	    Component = Elem[i]
+	    if (Component == "" && nelem > 1)
+		continue
+	    if (Component in _RealInd)
+		_RealInd[Component] = _RealInd[Component] "," PWEnt[PW_RECORD]
+	    else
+		_RealInd[Component] = PWEnt[PW_RECORD]
+	}
+    }
+    _realIndDone = 1
+}
+
+# Make Name into a pattern that will match a name that contains all of the
+# same name components (sequences of alphanums) in the same order.  If Name
+# contains no name components, a null string is returned.
+function MakeNamePat(Name,  Elem,nelem,i,Pat,e) {
+    nelem = split(Name,Elem,/[^a-zA-Z0-9]+/)
+    for (i = 1; i <= nelem; i++) {
+	if ((e = Elem[i]) == "")
+	    continue
+	if (Pat == "")
+	    Pat = "(^|[^a-zA-Z0-9])" e
+	else
+	    Pat = Pat "[^a-zA-Z0-9](.*[^a-zA-Z0-9])?" e
+    }
+    if (Pat == "")	# If Name contained no alphanums...
+	return ""
+    Pat = Pat "([^a-zA-Z0-9]|$)"
+    return Pat
+}
+
+# getpwgreal sets PWEnt to the first passwd entry whose PW_REAL (see
+# PWGetFields()) field matches Real.  Matching occurs if the alphanumeric
+# components of Real occur in the same order in the entry.  Non-alphanums are
+# ignored.  All of the components in Real must occur in the entry, but not all
+# of the components in the entry must occur in Real.
+# If the given name does not exist in the password file,
+# the return value is ":" if Field was passed, 0 if not.
+# If Next is true, getpwreal() sets PWEnt to the next passwd entry whose
+# PW_REAL field matches the last previous Real parameter passed.
+# In this case,  if the last entry has already been returned,
+# the return value is ":" if Field was passed, 0 if not.
+# Different IgnoreCase and Full parameters may be given when doing a Next
+# search.  Both must always be passed; they do not default to the original
+# values when doing a Next search.  The only parameter ignored when doing a
+# Next search is Real.
+# If IgnoreCase is true, case is ignored when searching.
+# If Full is true, a match of the full name is required (including any
+# punctuation).
+# For successful return values and Field parameter explanation,
+# see PWGetFields()
+# Globals: For the Next search, between invokations these varies store values:
+# _getpwrealInd[]: The set of pw indices that matched the query.
+# _getpwrealIndInd: The next index in _getpwrealInd[] to look at.
+# _getpwrealReal: The Real value passed with the original query.
+# _getpwrealPat: Real converted to a component order search pattern.
+function getpwreal(Real,PWEnt,Field,IgnoreCase,Full,Next,  ind,name,Pat) {
+    if (!Next) {
+	if (!PW_NAME)
+	    ReadPasswd()
+	if (!_realIndDone)
+	    _makeRealInd()
+	_getpwrealReal = Real
+	_getpwrealPat = MakeNamePat(Real)
+	# Get first component from Real
+	Real = tolower(Real)
+	gsub("^[^a-z0-9]+","",Real)
+	gsub("[^a-z0-9].*","",Real)
+	if (!(Real in _RealInd))
+	    return Field ? ":" : 0
+	split(_RealInd[Real],_getpwrealInd,",")
+	_getpwrealIndInd = 1
+    }
+    if (Full)
+	Pat = _getpwrealReal
+    else
+	Pat = _getpwrealPat
+    if (IgnoreCase)
+	Pat = tolower(Pat)
+    while (_getpwrealIndInd in _getpwrealInd) {
+	ind = _getpwrealInd[_getpwrealIndInd++]
+	name = PWGetFields(PWLines[ind],PWEnt,PW_REAL,ind)
+	if (IgnoreCase)
+	    name = tolower(name)
+	if (Full ? (name == Pat) : (name ~ Pat))
+	    return PWGetFields("",PWEnt,Field,ind)
+    }
+    return Field ? ":" : 0
+}
+
+### End pwent library
+
+# Returns 1 if Set is empty, 0 if not.
+function IsEmpty(Set,  i) {
+    for (i in Set)
+	return 0
+    return 1
+}
+
+### Begin min,max,In routines
+
+function min(a,b) {
+    if (a < b)
+	return a
+    else
+	return b
+}
+
+function max(a,b) {
+    if (a > b)
+	return a
+    else
+	return b
+}
+
+function In(Val,Min,Max) {
+    return (Min <= Val && Val <= Max)
+}
+
+# Return (in Ind) the indices of the elements with the smallest value in A.
+# The smallest value is returned as the function value.
+# If there are no elements in A, null is returned.
+function arrMin(A,Ind,  i,min) {
+    for (i in A)
+	if (min == "" || A[i] < min) {
+	    DeleteAll(Ind)
+	    min = A[i]
+	    Ind[i]
+	}
+	else if (A[i] == min)
+	    Ind[i]
+    return min
+}
+
+### End min,max,In routines
+### Begin qsort routines
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k[] are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its elements.
+# The return value is the number of elements in the arrays (n).
+function qsortArbIndByValue(Arr,k,  ArrInd,ElNum) {
+    ElNum = 0
+    for (ArrInd in Arr)
+	k[++ElNum] = ArrInd
+    qsortSegment(Arr,k,1,ElNum)
+    return ElNum
+}
+
+# Sort a segment of an array.
+# Arr[] contains data with arbitrary indices.
+# k[] has indices 1..nelem, with the indices of arr[] as values.
+# This function sorts the elements of arr that are pointed to by
+# k[start..end], swapping the values of elements of k[] so that
+# when this function returns arr[k[start..end]] will be in order.
+function qsortSegment(Arr,k,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((end - start) == 1) {
+	if (Arr[tmps = k[start]] > Arr[tmpe = k[end]]) {
+	    k[start] = tmpe
+	    k[end] = tmps
+	}
+	return
+    }
+    # Make sure comparisons act on these as numbers
+    left = start+0
+    right = end+0
+    sepval = Arr[k[int((left + right) / 2)]]
+    # Make every element <= sepval be to the left of every element > sepval
+    while (left < right) {
+	while (Arr[k[left]] < sepval)
+	    left++
+	while (Arr[k[right]] > sepval)
+	    right--
+	if (left < right) {
+	    tmp = k[left]
+	    k[left++] = k[right]
+	    k[right--] = tmp
+	}
+    }
+    if (left == right)
+	if (Arr[k[left]] < sepval)
+	    left++
+	else
+	    right--
+    if (start < right)
+	qsortSegment(Arr,k,start,right)
+    if (left < end)
+	qsortSegment(Arr,k,left,end)
+}
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its indices.
+# The return value is the number of elements in the arrays (n).
+# If the indexes are numeric, Numeric should be true, so that they can be
+# compared as such rather than as strings.  Numeric indexes do not have to be
+# contiguous.
+function qsortByArbIndex(Arr,k,Numeric,  ArrInd,ElNum) {
+    ElNum = 0
+    if (Numeric)
+	# Indexes do not preserve numeric type, so must be forced
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd+0
+    else
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd
+    qsortNumIndByValue(k,1,ElNum)
+    return ElNum
+}
+
+# Arr is an array of elements with contiguous numeric indexes to be sorted
+# by value.
+# start and end are the starting and ending indexes of the range to be sorted.
+function qsortNumIndByValue(Arr,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((start - end) == 1) {
+	if ((tmps = Arr[start]) > (tmpe = Arr[end])) {
+	    Arr[start] = tmpe
+	    Arr[end] = tmps
+	}
+	return
+    }
+    left = start+0
+    right = end+0
+    sepval = Arr[int((left + right) / 2)]
+    while (left < right) {
+	while (Arr[left] < sepval)
+	    left++
+	while (Arr[right] > sepval)
+	    right--
+	if (left <= right) {
+	    tmp = Arr[left]
+	    Arr[left++] = Arr[right]
+	    Arr[right--] = tmp
+	}
+    }
+    if (start < right)
+	qsortNumIndByValue(Arr,start,right)
+    if (left < end)
+	qsortNumIndByValue(Arr,left,end)
+}
+
+### End qsort routines
+### Start of ProcArgs library
+# @(#) ProcArgs 1.12 97/02/22
+# 92/02/29 john h. dubois iii (john@armory.com)
+# 93/07/18 Added "#" arg type
+# 93/09/26 Do not count -h against MinArgs
+# 94/01/01 Stop scanning at first non-option arg.  Added ">" option type.
+#          Removed meaning of "+" or "-" by itself.
+# 94/03/08 Added & option and *()< option types.
+# 94/04/02 Added NoRCopt to Opts()
+# 94/06/11 Mark numeric variables as such.
+# 94/07/08 Opts(): Do not require any args if h option is given.
+# 95/01/22 Record options given more than once.  Record option num in argv.
+# 95/06/08 Added ExclusiveOptions().
+# 96/01/20 Let rcfiles be a colon-separated list of filenames.
+#          Expand $VARNAME at the start of its filenames.
+#          Let varname=0 and -option- turn off an option.
+# 96/05/05 Changed meaning of 7th arg to Opts; now can specify exactly how many
+#          of the vars should be searched for in the environment.
+#          Check for duplicate rcfiles.
+# 96/05/13 Return more specific error values.  Note: ProcArgs() and InitOpts()
+#          now return various negatives values on error, not just -1, and
+#          Opts() may set Err to various positive values, not just 1.
+#          Added AllowUnrecOpt.
+# 96/05/23 Check type given for & option
+# 96/06/15 Re-port to awk
+# 96/10/01 Moved file-reading code into ReadConfFile(), so that it can be
+#          used by other functions.
+# 96/10/15 Added OptChars
+# 96/11/01 Added exOpts arg to Opts()
+# 96/11/16 Added ; type
+# 96/12/08 Added Opt2Set() & Opt2Sets()
+# 96/12/27 Added CmdLineOpt()
+# 97/02/22 Remove packed elements.
+# 97/02/28 Make sequence # for rcfiles & environ be "f" and "e".
+#          Replaced CmdLineOpt() with OptsGiven().
+
+# optlist is a string which contains all of the possible command line options.
+# A character followed by certain characters indicates that the option takes
+# an argument, with type as follows:
+# :	String argument
+# ;	Non-empty string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# The only difference the type of argument makes is in the runtime argument
+# error checking that is done.
+
+# The & option is a special case used to get numeric options without the
+# user having to give an option character.  It is shorthand for [-+.0-9].
+# If & is included in optlist and an option string that begins with one of
+# these characters is seen, the value given to "&" will include the first
+# char of the option.  & must be followed by a type character other than ":"
+# or ";".
+# Note that if e.g. &> is given, an option of -.5 will produce an error.
+
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-"
+# or "+" is taken to be a non-option string; like other non-option strings,
+# it stops the scanning of argv and is left in argv[].
+# An argument of "--" or "++" also stops the scanning of argv[] but is removed.
+# If an option takes an argument, the argument may either immediately
+# follow it or be given separately.
+# "-" and "+" options are treated the same.  "+" is allowed because most awks
+# take any -options to be arguments to themselves.  gawk 2.15 was enhanced to
+# stop scanning when it encounters an unrecognized option, though until 2.15.5
+# this feature had a flaw that caused problems in some cases.  See the OptChars
+# parameter to explicitly set the option-specifier characters.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in Options and its value is set to the
+# number of times it occurs in argv[].
+
+# If an option that does take an argument is given, an index with its name is
+# created in Options and its value is set to the value of the argument given
+# for it, and Options[option-name,"count"] is (initially) set to the 1.
+# If an option that takes an argument is given more than once,
+# Options[option-name,"count"] is incremented, and the value is assigned to
+# the index (option-name,instance) where instance is 2 for the second occurance
+# of the option, etc.
+# In other words, the first time an option with a value is encountered, the
+# value is assigned to an index consisting only of its name; for any further
+# occurances of the option, the value index has an extra (count) dimension.
+
+# The sequence number for each option found in argv[] is stored in
+# Options[option-name,"num",instance], where instance is 1 for the first
+# occurance of the option, etc.  The sequence number starts at 1 and is
+# incremented for each option, both those that have a value and those that
+# do not.  Options set from a config file get a sequence number of "f", and
+# options set in the environment get a sequence number of "e".
+
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps left in the indices of argv[].
+# If compress is nonzero, argv[] is packed by moving its elements so that
+# they have contiguous integer indices starting with 0.
+# Option processing will stop with the first unrecognized option, just as
+# though -- was given except that unlike -- the unrecognized option will not be
+# removed from ARGV[].  Normally, an error value is returned in this case.
+# If AllowUnrecOpt is true, it is not an error for an unrecognized option to
+# be found, so the number of remaining arguments is returned instead.
+# If OptChars is not a null string, it is the set of characters that indicate
+# that an argument is an option string if the string begins with one of the
+# characters.  A string consisting solely of two of the same option-indicator
+# characters stops the scanning of argv[].  The default is "-+".
+# argv[0] is not examined.
+# The number of arguments left in argc is returned.
+# If an error occurs, the global string OptErr is set to an error message
+# and a negative value is returned.
+# Current error values:
+# -1: option that required an argument did not get it.
+# -2: argument of incorrect type supplied for an option.
+# -3: unrecognized (invalid) option.
+function ProcArgs(argc,argv,OptList,Options,compress,AllowUnrecOpt,OptChars,
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos,NumOpt,Value,HadValue,specGiven,
+NeedNextOpt,GotValue,OptionNum,Escape,dest,src,count,c,OptTerm,OptCharSet)
+{
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in OptList of the option being processed.
+# NumOpt is true if a numeric option may be given.
+    ArgsLeft = argc
+    NumOpt = index(OptList,"&")
+    OptionNum = 0
+    if (OptChars == "")
+	OptChars = "-+"
+    while (OptChars != "") {
+	c = substr(OptChars,1,1)
+	OptChars = substr(OptChars,2)
+	OptCharSet[c]
+	OptTerm[c c]
+    }
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	Arg = argv[ArgNum]
+	if (length(Arg) < 2 || !((specGiven = substr(Arg,1,1)) in OptCharSet))
+	    break	# Not an option; quit
+	if (Arg in OptTerm) {
+	    delete argv[ArgNum]
+	    ArgsLeft--
+	    break
+	}
+	ArgLen = length(Arg)
+	for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+	    Option = substr(Arg,ArgInd,1)
+	    if (NumOpt && Option ~ /[-+.0-9]/) {
+		# If this option is a numeric option, make its flag be & and
+		# its option string flag position be the position of & in
+		# the option string.
+		Option = "&"
+		Pos = NumOpt
+		# Prefix Arg with a char so that ArgInd will point to the
+		# first char of the numeric option.
+		Arg = "&" Arg
+		ArgLen++
+	    }
+	    # Find position of flag in option string, to get its type (if any).
+	    # Disallow & as literal flag.
+	    else if (!(Pos = index(OptList,Option)) || Option == "&") {
+		if (AllowUnrecOpt) {
+		    Escape = 1
+		    break
+		}
+		else {
+		    OptErr = "Invalid option: " specGiven Option
+		    return -3
+		}
+	    }
+
+	    # Find what the value of the option will be if it takes one.
+	    # NeedNextOpt is true if the option specifier is the last char of
+	    # this arg, which means that if the option requires a value it is
+	    # the next arg.
+	    if (NeedNextOpt = (ArgInd >= ArgLen)) { # Value is the next arg
+		if (GotValue = ArgNum + 1 < argc)
+		    Value = argv[ArgNum+1]
+	    }
+	    else {	# Value is included with option
+		Value = substr(Arg,ArgInd + 1)
+		GotValue = 1
+	    }
+
+	    if (HadValue = AssignVal(Option,Value,Options,
+	    substr(OptList,Pos + 1,1),GotValue,"",++OptionNum,!NeedNextOpt,
+	    specGiven)) {
+		if (HadValue < 0)	# error occured
+		    return HadValue
+		if (HadValue == 2)
+		    ArgInd++	# Account for the single-char value we used.
+		else {
+		    if (NeedNextOpt) {	# option took next arg as value
+			delete argv[++ArgNum]
+			ArgsLeft--
+		    }
+		    break	# This option has been used up
+		}
+	    }
+	}
+	if (Escape)
+	    break
+	# Do not delete arg until after processing of it, so that if it is not
+	# recognized it can be left in ARGV[].
+	delete argv[ArgNum]
+	ArgsLeft--
+    }
+    if (compress != 0) {
+	dest = 1
+	src = argc - ArgsLeft + 1
+	if (src != dest) {
+	    for (count = ArgsLeft - 1; count; count--) {
+		ARGV[dest] = ARGV[src]
+		dest++
+		src++
+	    }
+	    for (; dest < src; dest++)
+		delete ARGV[dest]
+	}
+    }
+    return ArgsLeft
+}
+
+# Assignment to values in Options[] occurs only in this function.
+# Option: Option specifier character.
+# Value: Value to be assigned to option, if it takes a value.
+# Options[]: Options array to return values in.
+# ArgType: Argument type specifier character.
+# GotValue: Whether any value is available to be assigned to this option.
+# Name: Name of option being processed.
+# OptionNum: Number of this option (starting with 1) if set in argv[],
+#     or 0 if it was given in a config file or in the environment.
+# SingleOpt: true if the value (if any) that is available for this option was
+#     given as part of the same command line arg as the option.  Used only for
+#     options from the command line.
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Global variables: OptErr
+# Return value: negative value on error, 0 if option did not require an
+# argument, 1 if it did & used the whole arg, 2 if it required just one char of
+# the arg.
+# Current error values:
+# -1: Option that required an argument did not get it.
+# -2: Value of incorrect type supplied for option.
+# -3: Bad type given for option &
+function AssignVal(Option,Value,Options,ArgType,GotValue,Name,OptionNum,
+SingleOpt,specGiven,  UsedValue,Err,NumTypes) {
+    # If option takes a value...    [
+    NumTypes = "*()#<>]"
+    if (Option == "&" && ArgType !~ "[" NumTypes) {	# ]
+	OptErr = "Bad type given for & option"
+	return -3
+    }
+
+    if (UsedValue = (ArgType ~ "[:;" NumTypes)) {	# ]
+	if (!GotValue) {
+	    if (Name != "")
+		OptErr = "Variable requires a value -- " Name
+	    else
+		OptErr = "option requires an argument -- " Option
+	    return -1
+	}
+	if ((Err = CheckType(ArgType,Value,Option,Name,specGiven)) != "") {
+	    OptErr = Err
+	    return -2
+	}
+	# Mark this as a numeric variable; will be propogated to Options[] val.
+	if (ArgType != ":" && ArgType != ";")
+	    Value += 0
+	if ((Instance = ++Options[Option,"count"]) > 1)
+	    Options[Option,Instance] = Value
+	else
+	    Options[Option] = Value
+    }
+    # If this is an environ or rcfile assignment & it was given a value...
+    else if (!OptionNum && Value != "") {
+	UsedValue = 1
+	# If the value is "0" or "-" and this is the first instance of it,
+	# do not set Options[Option]; this allows an assignment in an rcfile to
+	# turn off an option (for the simple "Option in Options" test) in such
+	# a way that it cannot be turned on in a later file.
+	if (!(Option in Options) && (Value == "0" || Value == "-"))
+	    Instance = 1
+	else
+	    Instance = ++Options[Option]
+	# Save the value even though this is a flag
+	Options[Option,Instance] = Value
+    }
+    # If this is a command line flag and has a - following it in the same arg,
+    # it is being turned off.
+    else if (OptionNum && SingleOpt && substr(Value,1,1) == "-") {
+	UsedValue = 2
+	if (Option in Options)
+	    Instance = ++Options[Option]
+	else
+	    Instance = 1
+	Options[Option,Instance]
+    }
+    # If this is a flag assignment without a value, increment the count for the
+    # flag unless it was turned off.  The indicator for a flag being turned off
+    # is that the flag index has not been set in Options[] but it has an
+    # instance count.
+    else if (Option in Options || !((Option,1) in Options))
+	# Increment number of times this flag seen; will inc null value to 1
+	Instance = ++Options[Option]
+    Options[Option,"num",Instance] = OptionNum
+    return UsedValue
+}
+
+# Option is the option letter
+# Value is the value being assigned
+# Name is the var name of the option, if any
+# ArgType is one of:
+# :	String argument
+# ;	Non-null string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Returns null on success, err string on error
+function CheckType(ArgType,Value,Option,Name,specGiven,  Err,ErrStr) {
+    if (ArgType == ":")
+	return ""
+    if (ArgType == ";") {
+	if (Value == "")
+	    Err = "must be a non-empty string"
+    }
+    # A number begins with optional + or -, and is followed by a string of
+    # digits or a decimal with digits before it, after it, or both
+    else if (Value !~ /^[-+]?([0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)$/)
+	Err = "must be a number"
+    else if (ArgType ~ "[#<>]" && Value ~ /\./)
+	Err = "may not include a fraction"
+    else if (ArgType ~ "[()<>]" && Value < 0)
+	Err = "may not be negative"
+    # (
+    else if (ArgType ~ "[)>]" && Value == 0)
+	Err = "must be a positive number"
+    if (Err != "") {
+	ErrStr = "Bad value \"" Value "\".  Value assigned to "
+	if (Name != "")
+	    return ErrStr "variable " substr(Name,1,1) " " Err
+	else {
+	    if (Option == "&")
+		Option = Value
+	    return ErrStr "option " specGiven substr(Option,1,1) " " Err
+	}
+    }
+    else
+	return ""
+}
+
+# Note: only the above functions are needed by ProcArgs.
+# The rest of these functions call ProcArgs() and also do other
+# option-processing stuff.
+
+# Opts: Process command line arguments.
+# Opts processes command line arguments using ProcArgs()
+# and checks for errors.  If an error occurs, a message is printed
+# and the program is exited.
+#
+# Input variables:
+# Name is the name of the program, for error messages.
+# Usage is a usage message, for error messages.
+# OptList the option description string, as used by ProcArgs().
+# MinArgs is the minimum number of non-option arguments that this
+# program should have, non including ARGV[0] and +h.
+# If the program does not require any non-option arguments,
+# MinArgs should be omitted or given as 0.
+# rcFiles, if given, is a colon-seprated list of filenames to read for
+# variable initialization.  If a filename begins with ~/, the ~ is replaced
+# by the value of the environment variable HOME.  If a filename begins with
+# $, the part from the character after the $ up until (but not including)
+# the first character not in [a-zA-Z0-9_] will be searched for in the
+# environment; if found its value will be substituted, if not the filename will
+# be discarded.
+# rcfiles are read in the order given.
+# Values given in them will not override values given on the command line,
+# and values given in later files will not override those set in earlier
+# files, because AssignVal() will store each with a different instance index.
+# The first instance of each variable, either on the command line or in an
+# rcfile, will be stored with no instance index, and this is the value
+# normally used by programs that call this function.
+# VarNames is a comma-separated list of variable names to map to options,
+# in the same order as the options are given in OptList.
+# If EnvSearch is given and nonzero, the first EnvSearch variables will also be
+# searched for in the environment.  If set to -1, all values will be searched
+# for in the environment.  Values given in the environment will override
+# those given in the rcfiles but not those given on the command line.
+# NoRCopt, if given, is an additional letter option that if given on the
+# command line prevents the rcfiles from being read.
+# See ProcArgs() for a description of AllowUnRecOpt and optChars, and
+# ExclusiveOptions() for a description of exOpts.
+# Special options:
+# If x is made an option and is given, some debugging info is output.
+# h is assumed to be the help option.
+
+# Global variables:
+# The command line arguments are taken from ARGV[].
+# The arguments that are option specifiers and values are removed from
+# ARGV[], leaving only ARGV[0] and the non-option arguments.
+# The number of elements in ARGV[] should be in ARGC.
+# After processing, ARGC is set to the number of elements left in ARGV[].
+# The option values are put in Options[].
+# On error, Err is set to a positive integer value so it can be checked for in
+# an END block.
+# Return value: The number of elements left in ARGV is returned.
+# Must keep OptErr global since it may be set by InitOpts().
+function Opts(Name,Usage,OptList,MinArgs,rcFiles,VarNames,EnvSearch,NoRCopt,
+AllowUnrecOpt,optChars,exOpts,  ArgsLeft,e) {
+    if (MinArgs == "")
+	MinArgs = 0
+    ArgsLeft = ProcArgs(ARGC,ARGV,OptList NoRCopt,Options,1,AllowUnrecOpt,
+    optChars)
+    if (ArgsLeft < (MinArgs+1) && !("h" in Options)) {
+	if (ArgsLeft >= 0) {
+	    OptErr = "Not enough arguments"
+	    Err = 4
+	}
+	else
+	    Err = -ArgsLeft
+	printf "%s: %s.\nUse -h for help.\n%s\n",
+	Name,OptErr,Usage > "/dev/stderr"
+	exit 1
+    }
+    if (rcFiles != "" && (NoRCopt == "" || !(NoRCopt in Options)) &&
+    (e = InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch)) < 0)
+    {
+	print Name ": " OptErr ".\nUse -h for help." > "/dev/stderr"
+	Err = -e
+	exit 1
+    }
+    if ((exOpts != "") && ((OptErr = ExclusiveOptions(exOpts,Options)) != ""))
+    {
+	printf "%s: Error: %s\n",Name,OptErr > "/dev/stderr"
+	Err = 1
+	exit 1
+    }
+    return ArgsLeft
+}
+
+# ReadConfFile(): Read a file containing var/value assignments, in the form
+# <variable-name><assignment-char><value>.
+# Whitespace (spaces and tabs) around a variable (leading whitespace on the
+# line and whitespace between the variable name and the assignment character) 
+# is stripped.  Lines that do not contain an assignment operator or which
+# contain a null variable name are ignored, other than possibly being noted in
+# the return value.  If more than one assignment is made to a variable, the
+# first assignment is used.
+# Input variables:
+# File is the file to read.
+# Comment is the line-comment character.  If it is found as the first non-
+#     whitespace character on a line, the line is ignored.
+# Assign is the assignment string.  The first instance of Assign on a line
+#     separates the variable name from its value.
+# If StripWhite is true, whitespace around the value (whitespace between the
+#     assignment char and trailing whitespace on the line) is stripped.
+# VarPat is a pattern that variable names must match.  
+#     Example: "^[a-zA-Z][a-zA-Z0-9]+$"
+# If FlagsOK is true, variables are allowed to be "set" by being put alone on
+#     a line; no assignment operator is needed.  These variables are set in
+#     the output array with a null value.  Lines containing nothing but
+#     whitespace are still ignored.
+# Output variables:
+# Values[] contains the assignments, with the indexes being the variable names
+#     and the values being the assigned values.
+# Lines[] contains the line number that each variable occured on.  A flag set
+#     is record by giving it an index in Lines[] but not in Values[].
+# Return value:
+# If any errors occur, a string consisting of descriptions of the errors
+# separated by newlines is returned.  In no case will the string start with a
+# numeric value.  If no errors occur,  the number of lines read is returned.
+function ReadConfigFile(Values,Lines,File,Comment,Assign,StripWhite,VarPat,
+FlagsOK,
+Line,Status,Errs,AssignLen,LineNum,Var,Val) {
+    if (Comment != "")
+	Comment = "^" Comment
+    AssignLen = length(Assign)
+    if (VarPat == "")
+	VarPat = "."	# null varname not allowed
+    while ((Status = (getline Line < File)) == 1) {
+	LineNum++
+	sub("^[ \t]+","",Line)
+	if (Line == "")		# blank line
+	    continue
+	if (Comment != "" && Line ~ Comment)
+	    continue
+	if (Pos = index(Line,Assign)) {
+	    Var = substr(Line,1,Pos-1)
+	    Val = substr(Line,Pos+AssignLen)
+	    if (StripWhite) {
+		sub("^[ \t]+","",Val)
+		sub("[ \t]+$","",Val)
+	    }
+	}
+	else {
+	    Var = Line	# If no value, var is entire line
+	    Val = ""
+	}
+	if (!FlagsOK && Val == "") {
+	    Errs = Errs \
+	    sprintf("\nBad assignment on line %d of file %s: %s",
+	    LineNum,File,Line)
+	    continue
+	}
+	sub("[ \t]+$","",Var)
+	if (Var !~ VarPat) {
+	    Errs = Errs sprintf("\nBad variable name on line %d of file %s: %s",
+	    LineNum,File,Var)
+	    continue
+	}
+	if (!(Var in Lines)) {
+	    Lines[Var] = LineNum
+	    if (Pos)
+		Values[Var] = Val
+	}
+    }
+    if (Status)
+	Errs = Errs "\nCould not read file " File
+    close(File)
+    return Errs == "" ? LineNum : substr(Errs,2)	# Skip first newline
+}
+
+# Variables:
+# Data is stored in Options[].
+# rcFiles, OptList, VarNames, and EnvSearch are as as described for Opts().
+# Global vars:
+# Sets OptErr.  Uses ENVIRON[].
+# If anything is read from any of the rcfiles, sets READ_RCFILE to 1.
+function InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch,
+Line,Var,Pos,Vars,Map,CharOpt,NumVars,TypesInd,Types,Type,Ret,i,rcFile,
+fNames,numrcFiles,filesRead,Err,Values,retStr) {
+    split("",filesRead,"")	# make awk know this is an array
+    NumVars = split(VarNames,Vars,",")
+    TypesInd = Ret = 0
+    if (EnvSearch == -1)
+	EnvSearch = NumVars
+    for (i = 1; i <= NumVars; i++) {
+	Var = Vars[i]
+	CharOpt = substr(OptList,++TypesInd,1)
+	if (CharOpt ~ "^[:;*()#<>&]$")
+	    CharOpt = substr(OptList,++TypesInd,1)
+	Map[Var] = CharOpt
+	Types[Var] = Type = substr(OptList,TypesInd+1,1)
+	# Do not overwrite entries from environment
+	if (i <= EnvSearch && Var in ENVIRON &&
+	(Err = AssignVal(CharOpt,ENVIRON[Var],Options,Type,1,Var,"e")) < 0)
+	    return Err
+    }
+
+    numrcFiles = split(rcFiles,fNames,":")
+    for (i = 1; i <= numrcFiles; i++) {
+	rcFile = fNames[i]
+	if (rcFile ~ "^~/")
+	    rcFile = ENVIRON["HOME"] substr(rcFile,2)
+	else if (rcFile ~ /^\$/) {
+	    rcFile = substr(rcFile,2)
+	    match(rcFile,"^[a-zA-Z0-9_]*")
+	    envvar = substr(rcFile,1,RLENGTH)
+	    if (envvar in ENVIRON)
+		rcFile = ENVIRON[envvar] substr(rcFile,RLENGTH+1)
+	    else
+		continue
+	}
+	if (rcFile in filesRead)
+	    continue
+	# rcfiles are liable to be given more than once, e.g. UHOME and HOME
+	# may be the same
+	filesRead[rcFile]
+	if ("x" in Options)
+	    printf "Reading configuration file %s\n",rcFile > "/dev/stderr"
+	retStr = ReadConfigFile(Values,Lines,rcFile,"#","=",0,"",1)
+	if (retStr > 0)
+	    READ_RCFILE = 1
+	else if (ret != "") {
+	    OptErr = retStr
+	    Ret = -1
+	}
+	for (Var in Lines)
+	    if (Var in Map) {
+		if ((Err = AssignVal(Map[Var],Var in Values ? Values[Var] : "",
+		Options,Types[Var],Var in Values,Var,"f")) < 0)
+		    return Err
+	    }
+	    else {
+		OptErr = sprintf(\
+		"Unknown var \"%s\" assigned to on line %d\nof file %s",Var,
+		Lines[Var],rcFile)
+		Ret = -1
+	    }
+    }
+
+    if ("x" in Options)
+	for (Var in Map)
+	    if (Map[Var] in Options)
+		printf "(%s) %s=%s\n",Map[Var],Var,Options[Map[Var]] > \
+		"/dev/stderr"
+	    else
+		printf "(%s) %s not set\n",Map[Var],Var > "/dev/stderr"
+    return Ret
+}
+
+# OptSets is a semicolon-separated list of sets of option sets.
+# Within a list of option sets, the option sets are separated by commas.  For
+# each set of sets, if any option in one of the sets is in Options[] AND any
+# option in one of the other sets is in Options[], an error string is returned.
+# If no conflicts are found, nothing is returned.
+# Example: if OptSets = "ab,def,g;i,j", an error will be returned due to
+# the exclusions presented by the first set of sets (ab,def,g) if:
+# (a or b is in Options[]) AND (d, e, or f is in Options[]) OR
+# (a or b is in Options[]) AND (g is in Options) OR
+# (d, e, or f is in Options[]) AND (g is in Options)
+# An error will be returned due to the exclusions presented by the second set
+# of sets (i,j) if: (i is in Options[]) AND (j is in Options[]).
+# todo: make options given on command line unset options given in config file
+# todo: that they conflict with.
+function ExclusiveOptions(OptSets,Options,
+Sets,SetSet,NumSets,Pos1,Pos2,Len,s1,s2,c1,c2,ErrStr,L1,L2,SetSets,NumSetSets,
+SetNum,OSetNum) {
+    NumSetSets = split(OptSets,SetSets,";")
+    # For each set of sets...
+    for (SetSet = 1; SetSet <= NumSetSets; SetSet++) {
+	# NumSets is the number of sets in this set of sets.
+	NumSets = split(SetSets[SetSet],Sets,",")
+	# For each set in a set of sets except the last...
+	for (SetNum = 1; SetNum < NumSets; SetNum++) {
+	    s1 = Sets[SetNum]
+	    L1 = length(s1)
+	    for (Pos1 = 1; Pos1 <= L1; Pos1++)
+		# If any of the options in this set was given, check whether
+		# any of the options in the other sets was given.  Only check
+		# later sets since earlier sets will have already been checked
+		# against this set.
+		if ((c1 = substr(s1,Pos1,1)) in Options)
+		    for (OSetNum = SetNum+1; OSetNum <= NumSets; OSetNum++) {
+			s2 = Sets[OSetNum]
+			L2 = length(s2)
+			for (Pos2 = 1; Pos2 <= L2; Pos2++)
+			    if ((c2 = substr(s2,Pos2,1)) in Options)
+				ErrStr = ErrStr "\n"\
+				sprintf("Cannot give both %s and %s options.",
+				c1,c2)
+		    }
+	}
+    }
+    if (ErrStr != "")
+	return substr(ErrStr,2)
+    return ""
+}
+
+# The value of each instance of option Opt that occurs in Options[] is made an
+# index of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Set(Options,Opt,Set,  count) {
+    if (!(Opt in Options))
+	return 0
+    Set[Options[Opt]]
+    count = Options[Opt,"count"]
+    for (; count > 1; count--)
+	Set[Options[Opt,count]]
+    return count
+}
+
+# The value of each instance of option Opt that occurs in Options[] that
+# begins with "!" is made an index of nSet[] (with the ! stripped from it).
+# Other values are made indexes of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Sets(Options,Opt,Set,nSet,  count,aSet,ret) {
+    ret = Opt2Set(Options,Opt,aSet)
+    for (value in aSet)
+	if (substr(value,1,1) == "!")
+	    nSet[substr(value,2)]
+	else
+	    Set[value]
+    return ret
+}
+
+# Returns true if any option in the string Opts was given, as indicated by the
+# data in Options[]. If any of Arg, Env, or File are true, the given opts are
+# only considered to have been set if they were set in the command line
+# arguments, environment, or in a configuration file, respectively. 
+function OptsGiven(Options,Opts,Arg,Env,File,  l,i,Opt,j,c) {
+    if (!Arg && !Env && !File)
+	Arg = Env = File = 1
+    l = length(Opts)
+    for (i = 1; i <= l; i++) {
+	Opt = substr(Opts,i,1)
+	for (j = 1; (Opt,"num",j) in Options; j++) {
+	    c = Options[Opt,"num",j]
+	    if (Arg && c+0 > 0 || File && c == "f" || Env && c == "e")
+		return 1
+	}
+    }
+    return 0
+}
+### End of ProcArgs library

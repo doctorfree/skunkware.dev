@@ -1,0 +1,68 @@
+#!/bin/ksh
+# @(#) shorten.ksh 1.1 97/03/26
+# 92/10/24 john h. dubois iii (john@armory.com)
+# 92/12/05 changed -<maxlength> option to -m<maxlength>
+# 97/03/26 Fixed calculation done for -aA
+
+name=${0##*/}
+Usage="Usage: $name [-ht] [-m<maxlength>|-[aA]<names-across>] filename ..."
+length=23
+cmd=mv
+
+while getopts :hta:A:m: opt; do
+    case $opt in
+    h) echo \
+"${0##*/}: shorten filenames.
+${0##*/} truncates filenames to a given maximum length.  The default is 23.
+${0##*/} will not overwrite files when renaming.
+$Usage
+Options:
+-m<maxlength>: truncate filenames to <maxlength> characters.
+-a<names-across>: truncate filenames to the maximum length that will
+   allow lf to print <names-across> filenames across an 80-column display.
+-A<names-across>: same as -a except that if the environment variable COLUMNS
+   is set it is used for the display width.
+-t: test.  ${0##*/} reports what it would do but does not rename any files.
+-h: print this help."
+       exit 0;;
+    # lf uses this formula which puts 2 unneeded spaces at the end of the line.
+    a) length="80/$OPTARG-3";;
+    A) [ -z "$COLUMNS" ] && COLUMNS=80
+       length="$COLUMNS/$OPTARG-3";;
+    m) length=$OPTARG;;
+    t) cmd="echo mv";;
+    +?) echo "$name: options should not be preceded by a '+'."; exit 1;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) echo "$name: $OPTARG: bad option.  Use -h for help."; exit 1;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+# If a non-number was given for a numeric option,
+# this will make length empty.
+typeset -i length
+
+if [ $# -lt 1 -o length -eq 0 ]; then
+    echo "$Usage"
+    exit 1
+fi
+
+typeset -L$length fixwid
+
+for file; do
+    fixwid=$file
+    newname=${fixwid%%*( )}	# get rid of space padding done by typeset -L
+    [ "$file" = "$newname" ] && continue
+    if [[ -a "$newname" ]]; then
+	print -u2 "$newname exists.  $file not renamed."
+	continue
+    fi
+    $cmd "$file" "$newname"
+done

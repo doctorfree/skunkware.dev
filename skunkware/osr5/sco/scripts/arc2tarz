@@ -1,0 +1,46 @@
+#!/bin/ksh
+# arc2tarz: convert arced file to tarred, compressed form.
+# @(#) arc2tarz.ksh 1.0 96/01/19
+# 91/03/28 john h. dubois iii (john@armory.com)
+# 92/02/16 added -h option for help
+# 96/01/19 Exit if can't make tmpdir.
+
+unset ENV
+
+if [ $# = 0 -o "$1" = -h ]; then
+	echo \
+"Usage: $0 arcfile [ tarzfile ]
+arcfile is the name of an arc file to convert to tarred, compressed form. 
+The file must have a .arc extension, but only the base name needs to be
+given.  If no output file name is given, it will be created in the current
+directory with the name being the arcfile basename followed by .tar.Z
+If the basename is too long the extension may be truncated.  All upper
+case letters in the names of files in the archive are moved to lower case."
+	exit
+fi
+
+[ -z "$TMP" ] && tmpdir=/tmp/arc2tarz.$$ || tmpdir=$TMP/arc2tarz.$$
+
+[[ $1 != *.arc ]] && arcfile=$1.arc || arcfile=$1
+if [ ! -f $arcfile -o ! -r $arcfile ]; then
+	echo "Could not open arc file \"$arcfile\"."
+	exit 1
+fi
+[[ $arcfile != /* ]] && arcfile=$PWD/$arcfile
+
+basename=${arcfile%.arc}
+basename=${basename##*/}
+[ $# -lt 2 ] && tarzname=$PWD/$basename.tar.Z || tarzname=$2
+
+mkdir $tmpdir || {
+    print -u2 "Could not make tmpdir $tmpdir; exiting."
+    exit 1
+}
+cd $tmpdir
+echo "unarcing files..."
+arc -ie $arcfile
+lcase
+echo "tarring/compressing files..."
+tar cf - * | compress > $tarzname
+cd -
+rm -r $tmpdir

@@ -1,0 +1,92 @@
+#!/bin/sh
+#
+# ftpindex - create index files in the pub directory of my ftp server
+#
+# Written 29-Oct-97 by Ronald Joe Record (rr@sco.com)
+#
+# Creates :
+#    an "ls -lR" listing 
+#    a compressed "ls -lR" listing
+#    listings of files modified in the last 1, 5 and 9 days 
+#    HTML versions of the last 1, 5 and 9 day listings.
+#    a listing of all files contained under FTPHOME
+#    an HTML version of the listing of all files contained under FTPHOME
+#
+
+FTPHOME=/home/ftp/pub
+DAYLIST="1 5 9"
+
+#
+# I don't want to list all of the VOL media images. If any have changed,
+# I just list the directory since you will need to pull them all down if
+# any have changed.
+#
+check_archives() {
+  ARCH=
+  find osr5/archives -type f -mtime -$1 -print > /tmp/archives$$
+  [ -s /tmp/archives$$ ] && ARCH=1
+  rm -f /tmp/archives$$
+}
+
+htmlify() {
+    T=`echo $1 | sed -e "s/_/ /g"`
+    echo "<HTML>
+<HEAD>
+<TITLE>Files Modified In The $T</TITLE>
+</HEAD>
+<BODY BGCOLOR=#FFFFFF>
+<CENTER>
+<H1>Files Modified In The $T</H1>
+</CENTER>
+<P>
+<HR>
+<P>
+<UL>" > $1.html
+    while read f
+    do
+        echo "<LI><A HREF=\"$f\">$f</A>" >> $1.html
+    done < $1
+    echo "</UL></BODY></HTML>" >> $1.html
+}
+
+cd $FTPHOME
+ls -lR > ls-lR
+rm -f ls-lR.gz
+/usr/local/bin/gzip -9 ls-lR
+
+#
+# Here I create a list of regular expressions to egrep out of the list
+# of files that have changed. Most of these change every night anyway
+# and aren't something you'd want to download.
+#
+echo "^./incoming/
+^./gif/
+^./osr5/archives/
+^./susv2/
+^./uw7/pkg/
+^./wais/
+^./maillog/
+^./ls-lR
+^./Last_" > /tmp/exclude$$
+
+for i in $DAYLIST
+do
+ find . -type f -mtime -$i -print | egrep -v -f /tmp/exclude$$ > Last_0${i}_Days
+ check_archives $i 
+ [ "$ARCH" ] && echo "./osr5/archives/" >> Last_0${i}_Days
+ htmlify Last_0${i}_Days
+done
+#
+# Now create the indices of ALL files
+#
+find . -type f -print | egrep -v -f /tmp/exclude$$ > CONTENTS
+echo "./gif/
+./wais/
+./maillog/
+./osr5/archives/
+./susv2/
+./uw7/pkg/
+./ls-lR.gz" >> CONTENTS
+htmlify CONTENTS
+
+rm -f /tmp/exclude$$

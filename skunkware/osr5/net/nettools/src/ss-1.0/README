@@ -1,0 +1,56 @@
+ss is a no-frills tool to show internal information about STREAMS on your 
+system.  It shows all queues from the stream head and those queues which are
+not reachable from the stream head, how many bytes are in the queue,
+as well as any flow control and (if possible) the responsible process 
+or TCP/IP connection.  
+
+Aside from being an educational tool, ss can be used to determine if STREAMS 
+blocks aren't being released to the system because they're stuck in a 
+full queue somewhere, possibly leading to STREAMS allocation failures.  
+This can happen when TCP can't send any more data without exceeding 
+the window size.  netstat -a will show this in the "Send-Q" column too.  
+NOTE: STREAMS blocks that are allocated with allocb(K) and not freed (freeb(K))
+and not stuck on a queue will *not* show up with ss -- there's no way to 
+know which driver is still using them (or lost track of them).
+Note that the Open Server 5.0.x TCP/IP stack caches these blocks - see below.
+
+You can get the same information from crash(ADM)'s "queue" and "stream"
+commands.  The flags are the same as crash and represent the following
+from /usr/include/sys/stream.h:
+
+en = QENAB
+wr = QWANTR
+ww = QWANTW
+fl = QFULL
+rr = QREADR
+us = QUSE
+ne = QNOENB
+
+ss doesn't have any options.  It assumes /unix and /dev/kmem.
+
+An early ODT3.0 version is buried on SLS net382e (ftp from ftp.sco.com in 
+/SLS), although you must tar it off manually.
+
+A totally unknown fact is that Open Server 5 TCP/IP caches 256 byte, 2K, and 4K
+blocks controlled by the kernel parameter NSTRPAGES / 8  ***in each class***.  
+As you increase NSTRPAGES, TCP/IP increases its internal cache.  
+In other words, from a crash/strstat perspective, these blocks 
+have been allocated but never returned to the system, so another driver
+(IPX, MDI NIC, etc.) may not be able to obtain a STREAM block for
+its own use.   When you shut down the stack with slink -u the blocks 
+are returned via freeb/freemsg.  You can monitor how many blocks TCP/IP
+is currently caching with the new-to-OSR5 undocumented netstat -ma flag.  
+look at the
+
+inet mblk cache: 256 = 0, 2048 = 125, 4096 = 15
+
+line.  These blocks would otherwise be in the FREE column in crash's 
+strstat output and available for another driver to use.
+
+The cache size is controlled by a variable in /etc/conf/pack.d/socket/space.c  
+called in_proto_tot.  By setting it to zero you will eliminate the cache. 
+
+The ss program will not see any of TCP/IP's cached blocks as they aren't
+on a queue.
+
+

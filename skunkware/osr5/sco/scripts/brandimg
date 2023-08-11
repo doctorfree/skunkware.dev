@@ -1,0 +1,566 @@
+#!/bin/ksh
+# @(#) brandimg.ksh 1.2 96/11/27
+# 94/04/17 john h. dubois iii (john@armory.com)
+# 94/12/13 ksh compatibility fix
+# 95/01/03 More fixes for pd-ksh compatibility
+# 96/01/19 Added T option.
+# 96/11/27 Allow other input formats than pnm.  Added GE extension.
+
+# Replacement for print, because pd-ksh(?) doesn't have -u option.
+alias print=uprint
+function uprint {
+    if [ "$1" = -u2 ]; then
+	shift	# get rid of -u2
+	\print "$@" >&2
+    else
+	\print "$@"
+    fi
+}
+
+# Usage: pnminfo File
+# Puts the width of File in InfX, and the height in InfY
+# Changed to use command line substitution because pd-ksh creates a
+# separate shell for pipes, so pipe-into-read doesn't work the way we want.
+typeset -i InfX InfY
+function pnminfo {
+#    typeset j1 j2 j3 j4
+
+    if [ $# -gt 0 ]; then
+#	pnmfile "$1" | read j1 type j2 InfX j3 InfY j4
+	set -- $(pnmfile "$1")
+	InfX=$4 InfY=$6
+    else
+#	pnmfile | read j1 type j2 InfX j3 InfY
+	set -- $(pnmfile)
+	InfX=$4 InfY=$6
+    fi
+}
+
+# Finds the width and height of the piece to cut out of the image for branding,
+# and stores them in globals Width and Height.
+# Also sets ExtractProc and InsertProc to pipelines that should be used in
+# extracting material from image and inserting modified material back into
+# image, if it is neccessary to flip the material or truncate the brand.
+# Usage: FindCutParms filename brand-width brand-height
+# filename is the image file to cut from.
+# brand-width and brand-height are the dimensions of the branding files.
+# Other global vars used: Debug
+typeset -i Width Height
+function FindCutParms {
+    typeset File=$1 Flip=false
+    typeset -i BrandWidth=$2 BrandHeight=$3 tm
+
+    ExtractProc=
+    InsertProc=
+    Width=BrandWidth
+    Height=BrandHeight
+    pnminfo $File
+    $Debug && print -u2 "Image $File: width=$InfX height=$InfY"
+    # -le is used instead of -lt because image must be one pixel larger
+    # than brand due to bug in some pnm utilities
+    if [ InfX -le BrandWidth ]; then
+	if [ InfY -gt BrandWidth ]; then
+	    Flip=true
+	else
+	    $Debug && print -u2 "Brand won't fit; truncating."
+	    let Width=Width-1
+	    ExtractProc="|Expand 0 $((BrandWidth-Width)) 0 0"
+	    InsertProc="pnmcut 0 0 $Width $Height|"
+	    print -u2 \
+"Truncated brand for $File to $(((100*Width)/BrandWidth))% of original length."
+	    [ InfX -lt InfY ] && Flip=true
+	fi
+    fi
+    if $Flip; then
+	tm=Width
+	Width=Height
+	Height=tm
+	ExtractProc="|pnmflip -ccw $ExtractProc"
+	InsertProc="$InsertProc pnmflip -cw|"
+	$Debug && print -u2 "Inserting brand vertically."
+    else
+	$Debug && print -u2 "Inserting brand horizontally."
+    fi
+    $Debug && print -u2 \
+    "Addtl extraction pipe: $ExtractProc\nAddtl insertion pipe: $InsertProc"
+    return 0
+}
+
+# Usage: Invert conversion-type source-material mask
+# Operations are performed on the source material to make it suitable for
+# branding.
+# Material is then cut out using mask and sent to the standard output.
+# Conversion is one of [iIbBmM]
+# iI Invert only	bB Quantize to 8 colors        mM Render in black/white
+# IBM Convolve first
+# Source is inverted, then convolved if required, 
+# then quantized or reduced to black/white if required.
+# Global vars used: ConvolTmp, QuantTmp
+function Invert {
+    typeset Conversion=$1 Source=$2 Mask=$3 Cmd=
+
+    if [[ "$Conversion" = [IBM] ]]; then
+	# This convolution replaces each pixel with the average of its
+	# neighbors, with no weight given to the pixel itself.
+	# Note that the edges pixels won't be convolved since it's only
+	# done on pixels that have neighbors all around.
+	Cmd="|pnmconvol $ConvolTmp"
+	[ ! -f $ConvolTmp ] && echo \
+"P2
+3 3
+16
+9 9 9
+9 8 9
+9 9 9" > $ConvolTmp
+    fi
+
+    case "$Conversion" in
+    [bB]) Cmd="$Cmd | ppmquant -map $QuantTmp"
+	# This will push colors to 0 or full value
+	[ ! -f $QuantTmp ] && echo \
+"P3
+8 1
+255
+  0   0   0
+255   0   0
+  0 255   0
+  0   0 255
+255 255   0
+255   0 255
+  0 255 255
+255 255 255" > $QuantTmp
+	;;
+    [mM])
+	Cmd="$Cmd | ppmtopgm | pgmtopbm -threshold -value 0.5"
+	;;
+    esac
+    # Convert source to the form that we want to use,
+    # and then cut what we want out of it
+    $Debug && print -u2 \
+    "Inversion type: $Conversion\nInversion pipe extra commands: $Cmd
+Inversion source file: $Source\nInversion mask: $Mask"
+    eval pnminvert $Source $Cmd | pnmarith -mult $Mask -
+    return 0
+}
+
+# Usage: MakeText "text" output-file border-width [fontfile]
+# Makes pbm text, using fontfile if given, and puts output in output-file.
+# The text is cropped to remove margins.
+# If border-width is nonzero, a margin of the given thickness is left.
+# Sets globals TextWidth and TextHeight to width and height of output file.
+# Other global variables: CroppedTmp, Debug
+function MakeText {
+    typeset Text=$1 OutputFile=$2 FontOpt FontFile TmpOutput
+    typeset -i BorderWidth=$3
+
+    if [ $# -eq 4 ]; then
+	FontFile=$4
+	$Debug && print -u2 "Font file is $FontFile"
+	if [ ! -r "$FontFile" ]; then
+	    print -u2 "Cannot read font file $FontFile.  Exiting."
+	    exit 1
+	fi
+	FontOpt="-font $FontFile"
+    fi
+    [ $BorderWidth -eq 0 ] && TmpOutput=$OutputFile || TmpOutput=$CroppedTmp
+    # Fonts are black on white.
+    # Crop white off, then invert to give white on black.
+    pbmtext $FontOpt "$Text" | pnmcrop -white | pnminvert > $TmpOutput
+    pnminfo $TmpOutput
+    if [ $BorderWidth -ne 0 ]; then
+	# Add margin around text.
+	TextWidth="InfX+(2*BorderWidth)"
+	TextHeight="InfY+(2*BorderWidth)"
+	pbmmake -black $TextWidth $TextHeight |
+	pnmpaste -replace $TmpOutput $BorderWidth $BorderWidth > $OutputFile
+    else
+	TextWidth=InfX
+	TextHeight=InfY
+    fi
+    $Debug && print -u2 "Text width=$TextWidth; height=$TextHeight"
+    return 0 
+}
+
+# Usage: 
+# MakeMasks text width height border-width text-color allmask-file bmask-file
+# Make a white-on-black masks for the border and for all of the fixed material
+# (the text mask is the text itself).  
+# Textfile should be white on black.  Its size is given by width & height.
+# Border mask is written to bmask-file.
+# All-fixed-mask is written to allmask-file.
+# Text is grown by border-width (1 or more) pixels.  The grown part is the
+# border mask; the text and grown part is the all-mask.
+# If text-color is n (indicating that only the border will be masked into the
+# image), the grown part only is used for the all-mask.
+# Global vars used: FullMaskInTmp, FullMaskOutTmp
+function MakeMasks {
+    typeset GrowConv tm TextFile=$1 Cmd= FullTee= BOnlyTee=
+    typeset -i TextWidth=$2 TextHeight=$3 BorderWidth=$4
+    typeset TextColor=$5 AllMaskFile=$6 BorderMaskFile=$7
+
+    GrowConv="P2
+3 3
+2
+2 2 2
+2 2 2
+2 2 2"
+    # First, make a mask that is one pixel larger, because pnmconvol won't
+    # operate on the outermost pixels given a 3x3 convolution matrix
+    pbmmake -black $((TextWidth+2)) $((TextHeight+2)) |
+    pnmpaste -replace $TextFile 1 1 > $FullMaskInTmp
+    # Run as many iterations as neccessary.
+    # Use pnmconv & pgmtopbm instead of using pbmmask because pbmmask will
+    # decide the text is the background if it gets too fat.  Also, pbmmask
+    # fills in enclosed areas, which we don't want.
+    while [ BorderWidth -gt 1 ]; do
+	echo "$GrowConv" | pnmconvol - $FullMaskInTmp | 
+	pgmtopbm -threshold -value 0.1 > $FullMaskOutTmp
+	# Swap names of input & output
+	tm=$FullMaskOutTmp
+	FullMaskOutTmp=$FullMaskInTmp
+	FullMaskInTmp=$tm
+	let BorderWidth-=1
+    done
+
+    # Insert the tee that writes the all-mask-file either before or after
+    # the text is XORed out.
+    [ "$TextColor" = n ] && BOnlyTee="| tee $AllMaskFile" ||
+    FullTee="| tee $AllMaskFile"
+
+    $Debug && print -u2 "No-text-cmd: $Cmd"
+    # Do last grow step.
+    # Cut off the temporary margin that was added.
+    # If image will be left where original text is, subtract it from mask.
+    echo "$GrowConv" | pnmconvol - $FullMaskInTmp | 
+    pgmtopbm -threshold -value 0.1 | 
+    eval pnmcut 1 1 $TextWidth $TextHeight - $FullTee |
+    eval pnmpaste -xor $TextFile 0 0 - $BOnlyTee > $BorderMaskFile
+}
+
+# Make fixed-color text and/or border & write it to stdout
+# Usage: MakeFixed text-color border-color text-mask border-mask
+# text-mask and border-mask are white-on-black masks to colorize.
+# Globals used: BorderTmp, Debug
+function MakeFixed {
+    typeset TextColor=$1 BorderColor=$2 TextMask=$3 BorderMask=$4
+    typeset RealBorder RealText BorderCmd
+
+    # Make text/border black if they won't included or if their color will
+    # be derived from image material
+    [[ "$BorderColor" = [niIbBmM] ]] && RealBorder=black ||
+    RealBorder=$BorderColor
+    [[ "$TextColor" = [niIbBmM] ]] && RealText=black || RealText=$TextColor
+    $Debug && print -u2 "Real colors: border=$RealBorder, text=$RealText"
+
+    if [ $RealBorder = black ]; then
+	# BorderMask will not exist if no border
+	pgmtoppm $RealText $TextMask
+    else
+    	pgmtoppm $RealBorder $BorderMask > $BorderTmp
+	$Debug && print -u2 "Adding border and text."
+	pgmtoppm $RealText $TextMask | pnmarith -add $BorderTmp -
+    fi
+    return 0
+}
+
+# Usage: GetUnCom filename.ext
+# Sets global getUnCom_ret to the name of an uncompressor appropriate for the
+# given file, based on its extension.  If no appropriate uncompressor is known,
+# getUnCom_ret is set to a null string.
+function getUnCom {
+    case "${1##*.}" in
+    [jJ][pP]?([eE])[gG])
+	getUnCom_ret=djpeg
+	getUnCom_un=cjpeg
+	;;
+    [gG][iI][fF])
+	getUnCom_ret=giftopnm
+	getUnCom_un=ppmtogif
+	;;
+    [pP][bBgGpPnN][mM])
+	getUnCom_ret=cat
+	getUnCom_un=cat
+	;;
+    *)
+	getUnCom_ret=
+	getUnCom_un=
+	;;
+    esac
+}
+
+# Usage: topnm filename [command [args]]
+# A converter to pnm format is chosen based on the filename extension.
+# If a command is given, the output of the converter is piped into it;
+# otherwise it is sent to the standard output.
+# As an optimization, if the file is already in pnm format and a command is
+# given, it is passed as the final argument to command.  Therefore, a command
+# should only be given if it is appropriate to pass it a pnm file after all
+# of its fixed arguments.
+# The global DEF_EXT may provide a default for files with unknown extensions.
+# The global name should be set to the program name.
+function topnm {
+    typeset uncom= ext filename=$1
+    shift
+
+    getUnCom "$filename"
+    [ -z "$getUnCom_ret" -a -n "$DEF_EXT" ] && getUnCom "$DEF_EXT"
+    if [ -z "$getUnCom_ret" ]; then
+	print -u2 -- "$name: Do not know how to convert file: $filename"
+	return 1
+    fi
+    if [ $# -gt 0 ]; then
+	[ "$getUnCom_ret" = cat ] && "$@" "$filename" ||
+	"$getUnCom_ret" < "$filename" | "$@"
+    else
+	"$getUnCom_ret" < "$filename"
+    fi
+    return $?
+}
+
+name=${0##*/}
+Usage=\
+"Usage: $name [-hoPx] [-b<text-border-type>] [-t<text-type>] [-e<extension>]
+       [-w<border-width>] [-f<pbm-font-file>] [-T<tmp-prefix>] \"text\"
+       image-file ..."
+
+BorderColor=blue TextColor=white Extension=.B
+Debug=false Preserve=false Stdout=false
+typeset -i BorderWidth=1
+Tmp=
+progress=false
+DEF_EXT=
+
+while getopts :e:f:hb:t:w:oxPT:E:G opt; do
+    case $opt in
+    h)
+	echo \
+"$name: imprint text on an image.
+$name masks the given text into the bottom of an image, right adjusted and
+surrounded by a one-pixel-wide border to ensure that the text can be seen
+regardless of the color of the area it is inserted into.  The border is not a
+box; it flows around the text itself.
+If the text is too long to fit, it is put along the right of the image, bottom
+adjusted.  If it is still too long to fit, it is put along the longer dimension
+with the right of the text truncated and a warning is printed.
+Output is written to a file with name of the source file with .B appended, and
+is in the same format as the input file.  The file type is derived from the
+filename extension.  $name knows how to deal with jpeg, gif, and pbm/pgm/ppm
+files.
+$Usage
+Options:
+-h: Print this help.
+-b, -t: These options specify alternate material to use for the border and text
+    respectively.  The default is $TextColor text with a $BorderColor border.
+    A value of 'n' turns off that component.  -bn removes the border; -tn makes
+    the image show through inside the border.  If either is given and the
+    material inserted is the same color as the insertion area, it won't show
+    up.  A value of 'i' makes that component consist of the image material
+    with red, green, and blue each inverted separately.  The closer the 
+    insertion area is to 50% intensity gray, the less the text will show up.
+    A value of 'b' is like i, except that the results of the inversion are
+    thresholded such that each color has either 0 or full intensity.
+    A value of 'm' is like b, except that only black and white are used.
+    I, B, and M are the like i, b, and m except that the image material that
+    will be used for the text is first run through a convolution such that each
+    pixel is replaced with an average of its neighbors, with 0 weight given to
+    the pixel itself, so that the color of the text will be derived from the
+    pixels that will be next to it rather than the pixels that are replaced.
+    If any other value is given with -b or -t, it is taken to be a color to set
+    that part to.  See the pgmtoppm man page for a description of how colors
+    may be specified.
+-o: Write output to standard output.  Only one filename should be given.
+-x: Turn on debugging.
+-P: Preserve (do not remove) tmp files.
+-G: Print a progress indication to the standard error output.  As each file is
+    about to be processed, its name is printed.
+-T: Set the tmp file prefix.  By default, tempfiles are placed in the invoking
+    user's home directory (or the directory specified by the TMP environment
+    variable, if set), and begin with '#b'.  If a prefix is given with -T,
+    tempfile names are prefixed with the prefix.  If the prefix does not
+    include a directory component, tempfiles are placed in the current working
+    directory.
+-e: Write output to files with the given extension appended, instead of \".B\".
+-E: The given extension specifies a default type for files that have no
+    extension or whose extension is not recognized.  The extension given should
+    be one of gif, jpg, pbm, pgm, or ppm.
+-w: Set the border width (thickness).  The default is 1 pixel.
+-f: Use a font other than the default.  The font file should be created by
+    the means described in the pbmtext man page."
+	exit 0
+	;;
+    b)  BorderColor=$OPTARG
+	[ "$BorderColor" = n ] && BorderWidth=0
+	;;
+    t)  TextColor=$OPTARG
+	;;
+    T)  Tmp=$OPTARG;;
+    o)	Stdout=true; unset OutFile;;
+    x)  Debug=true;;
+    G)  progress=true;;
+    P)  Preserve=true;;
+    e)	Extension=$OPTARG;;
+    E)	DEF_EXT=$OPTARG
+	getUnCom "$DEF_EXT"
+	if [ -z "$getUnCom_ret" ]; then
+	    print -u2 "$name: Unrecognized extension given with -E: $DEF_EXT"
+	    exit 1
+	fi
+	;;
+    w)	BorderWidth=$OPTARG;;
+    f)  FontFile=$OPTARG;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -u2 "$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+if [ "$BorderColor" = n -a "$TextColor" = n ]; then
+    print -u2 "No border or text to be inserted.  Aborting."
+    exit 1
+fi
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+# Need at least text and one image file
+if [ $# -lt 2 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+# Quit if anything goes wrong
+set -e
+
+Text=$1
+shift
+
+: ${Tmp:=${TMP:-$HOME}/#b}
+BorderTmp=$Tmp.fixbdr.$$	# Fixed border material
+ImageBdrTmp=$Tmp.imgbdr.$$	# Image-derived border material
+BorderMaskTmp=$Tmp.brdmsk.$$	# Mask for border material
+ConvolTmp=$Tmp.imgcnv.$$	# Image convolution matrix
+CroppedTmp=$Tmp.rawtxt.$$	# pbm text, after cropping & before expansion
+TextMaskTmp=$Tmp.exptxt.$$	# White-on-black expanded text
+FullMaskInTmp=$Tmp.bdr-in.$$	# Used in generating border
+FullMaskOutTmp=$Tmp.bdrout.$$	# Used in generating border
+ImagePieceTmp=$Tmp.img-pc.$$	# Text-size piece cut from image
+ImgMaskTmp=$Tmp.imgmsk.$$	# Mask used to cut space in image for brand
+AllBrandTmp=$Tmp.albrnd.$$	# Fixed and image-derived brand to add to image
+FixedMtlTmp=$Tmp.fxbrnd.$$	# Fixed branding material (text and/or border)
+QuantTmp=$Tmp.quantz.$$		# Quantization colors
+ConvertTmp=$Tmp.conv.$$		# Image converted to pnm
+
+$Debug && print -u2 "tmpfile prefix is $Tmp"
+
+$Preserve ||
+trap "rm -f $FixedMtlTmp $ImgMaskTmp $BorderTmp $TextMaskTmp $CroppedTmp "\
+"$FullMaskInTmp $FullMaskOutTmp $ImagePieceTmp $AllBrandTmp $QuantTmp "\
+"$ConvolTmp $BorderMaskTmp $ImageBdrTmp $ConvertTmp" EXIT 1 2 3 15
+
+typeset -i TextWidth TextHeight
+
+# Make raw text & put in $TextMaskTmp
+MakeText "$Text" $TextMaskTmp $BorderWidth $FontFile
+
+# BorderMaskTmp is set up only if there is a border
+if [ $BorderWidth -gt 0 ]; then
+    # Make mask for fixed material & put it in $ImgMaskTmp
+    MakeMasks $TextMaskTmp $TextWidth $TextHeight $BorderWidth $TextColor \
+    $ImgMaskTmp $BorderMaskTmp
+else
+    ImgMaskTmp=$TextMaskTmp
+fi
+
+# Put the fixed-color part of the material to be masked in in $FixedMtlTmp.
+MakeFixed $TextColor $BorderColor $TextMaskTmp $BorderMaskTmp > $FixedMtlTmp
+
+# FixedMtlTmp is the fixed-color material.
+# ImgMaskTmp is the mask, white where image should be removed.
+# TextMaskTmp is the white-on-black text bitmap.
+# BorderTmp & CroppedTmp vars are no longer used but may refer to the same
+# files as the other vars.
+
+# Put 'do' on separate line, for pd-ksh
+for infile
+do
+    $progress && print -u2 -- "$infile"
+    if [ ! -f "$infile" -o ! -r "$infile" ]; then
+	print -u2 -- "$name: Cannot read file: $infile"
+	exit 1
+    fi
+    getUnCom "$infile"
+    case "$getUnCom_ret" in
+    cat)
+	file=$infile
+	unConvert=
+	;;
+    "")
+	print -u2 -- "$name: Do not know how to convert file: $infile"
+	continue
+	;;
+    *)
+	topnm "$infile" > $ConvertTmp || {
+	    print -u2 -- \
+	    "$name: Conversion to pnm format failed for file: $infile"
+	    continue
+	}
+	file=$ConvertTmp
+	unConvert="| $getUnCom_un"
+	;;
+    esac
+    # Set Width & Height to dimensions of piece to cut out, etc.
+    FindCutParms $file $TextWidth $TextHeight
+
+    # Do not rely in existance of /dev/stdout et al
+    $Stdout || {
+	if [ "$infile" -ef $infile$Extension ]; then
+	    print -u2 "Input and output are the same file."
+	    continue
+	fi
+	OutFile="> '$infile$Extension'"
+    }
+    $Debug && print -u2 "Stdout=$Stdout.  Output is $OutFile"
+
+    # Get image piece
+    eval pnmcut -$Width -$Height $Width $Height '"$file"' $ExtractProc \
+    > $ImagePieceTmp
+
+    # Make image-derived brand components, if neccessary
+    if [[ "$TextColor" = [iIbBmM] || "$BorderColor" = [iIbBmM] ]]; then
+	# Don't bother adding fixed color material if it's just black
+	if [[ "$TextColor" != [niIbBmM] || "$BorderColor" != [niIbBmM] ]]; then
+	    FixedCmd="| pnmarith -add - $FixedMtlTmp" # Add fixed part of brand
+	    $Debug && print -u2 "Fixed material add command: $FixedCmd"
+	else
+	    $Debug && print -u2 "No fixed material to add."
+	fi
+	TextInvCmd="Invert $TextColor $ImagePieceTmp $TextMaskTmp"
+	BorderInvCmd="Invert $BorderColor $ImagePieceTmp $BorderMaskTmp"
+	if [[ "$TextColor" != [iIbBmM] ]]; then	# Only border is image derived
+	    eval $BorderInvCmd $FixedCmd
+	elif [[ "$BorderColor" != [iIbBmM] ]]; then  # Only text image derived
+	    eval $TextInvCmd $FixedCmd
+	else	# Both are image derived
+	    eval $BorderInvCmd > $ImageBdrTmp
+	    eval $TextInvCmd $FixedCmd | pnmarith -add - $ImageBdrTmp
+	fi > $AllBrandTmp
+    else
+	AllBrandTmp=$FixedMtlTmp
+    fi
+
+    # Put it all back together
+    pnmarith -sub $ImagePieceTmp $ImgMaskTmp | # Cut mask out of image
+    pnmarith -add - $AllBrandTmp | # Add brand
+    eval $InsertProc pnmpaste -replace - -$Width -$Height '"$file"' \
+    $unConvert $OutFile
+done

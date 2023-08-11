@@ -1,0 +1,65 @@
+<HTML>
+<HEAD>
+<TITLE>Sub</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="24.00.Configuration_Directives_in_cata.html">Up</A>&nbsp;&nbsp;<A HREF="24.84.StaticSuffix.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="24.86.TaxShipping.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Sub">Sub</A></H2>
+<P>
+Defines a catalog subroutine for use by the <CODE>[perl][/perl]</CODE>
+or [mvasp] embedded perl languages. Use the ``here document'' capability of
+MiniVend configuration files to make it easy to define:
+
+<P>
+<PRE>    Sub &lt;&lt;EOF
+    sub sort_cart_by_quantity {
+        my($items) = @_;
+        $items = $Items if ! $items;
+        my $out = '&lt;TABLE BORDER=1&gt;';
+        @$items = sort { $a-&gt;{quantity} &lt;=&gt; $b-&gt;{quantity} } @$items;
+        foreach $item (@$items) {
+            my $code = $item-&gt;{code};
+            $out .= '&lt;TR&gt;&lt;TD&gt;';
+            $out .= $code;
+            $out .= '&lt;/TD&gt;&lt;TD&gt;';
+            $out .= $Tag-&gt;data('products', 'name', $code);
+            $out .= '&lt;/TD&gt;&lt;TD&gt;';
+            $out .= $Tag-&gt;data('products', 'price', $code);
+            $out .= '&lt;/TD&gt;&lt;/TR&gt;';
+        }
+        $out .= '&amp;lt/TABLE&gt;';
+        return $out;
+    }
+    EOF
+</PRE>
+<P>
+As with Perl ``here documents'', the 
+<FONT SIZE=-1>EOF</FONT> (or other end marker) must be the 
+<FONT SIZE=-1>ONLY</FONT> thing on the line, with no leading or trailing white space. Do not append a semicolon to the marker.
+
+
+<P>
+The above would be called with:
+
+<P>
+<PRE>    [perl]
+        my $cart = $Carts-&gt;{main};
+        return sort_cart($cart);
+    [/perl]
+</PRE>
+<P>
+and will display an 
+<FONT SIZE=-1>HTML</FONT> table of the items in the current shopping cart,
+sorted by the quantity. Syntax errors will be reported at catalog startup
+time. 
+
+<P>
+Catalog subroutines may not perform unsafe operations -- the <EM>Safe.pm</EM>
+module enforces this unless global operations are allowed for the catalog.
+See <CODE>AllowGlobal</CODE>.
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="24.00.Configuration_Directives_in_cata.html">Up</A>&nbsp;&nbsp;<A HREF="24.84.StaticSuffix.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="24.86.TaxShipping.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

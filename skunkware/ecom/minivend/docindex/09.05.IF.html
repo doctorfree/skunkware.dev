@@ -1,0 +1,368 @@
+<HTML>
+<HEAD>
+<TITLE>IF</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.04.LOOP.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.06.TAG_the_catch_all.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="IF">IF</A></H2>
+<DL>
+<DT><STRONG>[if type field op* compare*]</STRONG><DD>
+named attributes: <CODE>[if type=&quot;type&quot; term=&quot;field&quot; op=&quot;op&quot; compare=&quot;compare&quot;]</CODE>
+
+
+
+</DD><P><DT><STRONG>[if !type field op* compare*]</STRONG><DD>
+named attributes: <CODE>[if type=&quot;!type&quot; term=&quot;field&quot; op=&quot;op&quot; compare=&quot;compare&quot;]</CODE>
+
+
+
+</DD><P></DL>
+<P>
+Allows conditional building of 
+<FONT SIZE=-1>HTML</FONT> based on the setting of various MiniVend session
+and database values. The general form is:
+
+<P>
+<PRE>    [if type term op compare]
+    [then]
+                                If true, this is printed on the document.
+                                The [then] [/then] is optional in most
+                                cases. If ! is prepended to the type
+                                setting, the sense is reversed and
+                                this will be output for a false condition.
+    [/then]
+    [elsif type term op compare]
+                                Optional, tested when if fails
+    [/elsif] 
+    [else]
+                                Optional, printed when all above fail
+    [/else]
+    [/if]
+</PRE>
+<P>
+The <CODE>[if]</CODE> tag can also have some variants:
+
+<P>
+<PRE>    [if explicit][condition] CODE [/condition]
+                Displayed if valid Perl CODE returns a true value.
+    [/if]
+</PRE>
+<P>
+You can do some Perl-style regular expressions, and combine conditions:
+
+<P>
+<PRE>    [if value name =~ /^mike/i]
+                                This is the if with Mike.
+    [elsif value name =~ /^sally/i]
+                                This is an elsif with Sally.
+    [/elsif]
+    [elsif value name =~ /^barb/i]
+    [or value name =~ /^mary/i]
+                                This is an elsif with Barb or Mary.
+    [elsif value name =~ /^pat/i]
+    [and value othername =~ /^mike/i]
+                                This is an elsif with Pat and Mike.
+    [/elsif]
+    [else]
+                                This is the else, no name I know.
+    [/else]
+    [/if]
+</PRE>
+<P>
+While the named parameter tag syntax works for <CODE>[if ...]</CODE>, it is more convenient to use the positional syntax in most cases. The
+only exception is if you are planning on doing a test on the results of
+another tag sequence:
+
+<P>
+<PRE>    [if value name =~ /[value b_name]/]
+        Shipping name matches billing name.
+    [/if]
+</PRE>
+<P>
+Oops! This will not work. You must do instead
+
+<P>
+<PRE>    [if type=value term=name op=&quot;=~&quot; compare=&quot;/[value b_name]/&quot;]
+        Shipping name matches billing name.
+    [/if]
+</PRE>
+<P>
+or
+
+<P>
+<PRE>    [if type=value term=high_water op=&quot;&lt;&quot; compare=&quot;[shipping]&quot;]
+        Shipping cost is too high, charter a truck.
+    [/if]
+</PRE>
+<P>
+If you wish to do 
+<FONT SIZE=-1>AND</FONT> and 
+<FONT SIZE=-1>OR</FONT> operations, you will have to use
+ 
+<CODE>[if explicit]</CODE>. This allows complex testing and parsing of values.
+
+<P>
+There are many test targets available:
+
+<DL>
+<DT><STRONG>config Directive</STRONG><DD>
+The MiniVend configuration variables. These are set by the directives in
+your MiniVend configuration file (or the defaults).
+
+<P>
+<PRE>    [if config CreditCardAuto]
+    Auto credit card validation is enabled.
+    [/if]
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_data">data  database::field::key</A></STRONG><DD>
+The MiniVend databases. Retrieves a field in the database and returns true
+or false based on the value.
+
+<P>
+<PRE>    [if data products::size::99-102]
+    There is size information.
+    [else]
+    No size information.
+    [/else]
+    [/if]
+</PRE>
+<P>
+<PRE>    [if data products::size::99-102 =~ /small/i]
+    There is a small size available.
+    [else]
+    No small size available.
+    [/else]
+    [/if]
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_discount">discount</A></STRONG><DD>
+Checks to see if a discount is present for an item.
+
+<P>
+<PRE>    [if discount 99-102]
+    Item is discounted.
+    [/if]
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_explicit">explicit</A></STRONG><DD>
+
+<FONT SIZE=-1>A</FONT> test for an explicit value. If perl code is placed
+between a <CODE>[condition]</CODE>  <CODE>[/condition]</CODE> tag pair, it will be used to make the comparison. Arguments can be passed
+to import data from user space, just as with the <CODE>[perl]</CODE> tag.
+
+<P>
+<PRE>    [if explicit]
+    [condition]
+        $country = '[value country]';
+        return 1 if $country =~ /u\.?s\.?a?/i;
+        return 0;
+    [/condition]
+    You have indicated a US address.
+    [else]
+    You have indicated a non-US address. 
+    [/else]
+    [/if]
+</PRE>
+<P>
+This example is a bit contrived, as the same thing could be accomplished
+with <CODE>[if value country =~ /u\.?s\.?a?/i]</CODE>, but you will run into many situations where it is useful.
+
+<P>
+This will work for <EM>Variable</EM> values:
+
+<P>
+<PRE>    [if explicit &quot;__MYVAR__&quot;] .. [/if]
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_file">file</A></STRONG><DD>
+Tests for existence of a file. Useful for placing image tags only if the
+image is present.
+
+<P>
+<PRE>    [if file /home/user/www/images/[item-code].gif]
+    &lt;IMG SRC=&quot;[item-code].gif&quot;&gt;
+    [/if]
+</PRE>
+<P>
+<PRE>    or 
+</PRE>
+<P>
+<PRE>    [if type=file term=&quot;/home/user/www/images/[item-code].gif&quot;]
+    &lt;IMG SRC=&quot;[item-code].gif&quot;&gt;
+    [/if]
+</PRE>
+<P>
+The <A HREF="#item_file">file</A> test requires that the <EM>SafeUntrap</EM> directive contains
+<CODE>ftfile</CODE> (which is the default).
+
+</DD><P><DT><STRONG><A NAME="item_items">items</A></STRONG><DD>
+The MiniVend shopping carts. If not specified, the cart used is the main
+cart. Usually used as a litmus test to see if anything is in the cart, for
+example:
+
+<P>
+<PRE>  [if items]You have items in your shopping cart.[/if]
+  
+  [if items layaway]You have items on layaway.[/if]
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_ordered">ordered</A></STRONG><DD>
+Order status of individual items in the MiniVend shopping carts. If not
+specified, the cart used is the main cart. The following items refer to a
+part number of 99-102.
+
+<P>
+<PRE>  [if ordered 99-102] ... [/if]
+    Checks the status of an item on order, true if item
+    99-102 is in the main cart.
+</PRE>
+<P>
+<PRE>  [if ordered 99-102 layaway] ... [/if]
+    Checks the status of an item on order, true if item
+    99-102 is in the layaway cart.
+</PRE>
+<P>
+<PRE>  [if ordered 99-102 main size] ... [/if]
+    Checks the status of an item on order in the main cart,
+    true if it has a size attribute.
+</PRE>
+<P>
+<PRE>  [if ordered 99-102 main size =~ /large/i] ... [/if]
+    Checks the status of an item on order in the main cart,
+    true if it has a size attribute containing 'large'.
+    THE CART NAME IS REQUIRED IN THE OLD SYNTAX. The new
+    syntax for that one would be:
+</PRE>
+<P>
+<PRE>    [if type=ordered term=&quot;99-102&quot; compare=&quot;size =~ /large/i&quot;]
+</PRE>
+<P>
+<PRE>    To make sure it is exactly large, you could use:
+</PRE>
+<P>
+<PRE>    [if ordered 99-102 main size eq 'large'] ... [/if]
+</PRE>
+<P>
+<PRE>  [if ordered 99-102 main lines] ... [/if]
+      Special case -- counts the lines that the item code is
+      present on. (Only useful, of course, when mv_separate_items
+      or SeparateItems is defined.)
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_salestax">salestax</A></STRONG><DD>
+The salestax database.
+
+<P>
+<PRE>    [if salestax [value state] &gt; 0]
+    There is salestax for your state.
+    [else]
+    No salestax for your state.
+    [/else]
+    [/if]
+</PRE>
+<P>
+Key matching is case-insensitive.
+
+</DD><P><DT><STRONG><A NAME="item_scratch">scratch</A></STRONG><DD>
+The MiniVend scratchpad variables, which can be set with the <CODE>[set name]value[/set]</CODE> element. 
+
+<P>
+<PRE>    [if scratch mv_separate_items]
+    Ordered items will be placed on a separate line.
+    [else]
+    Ordered items will be placed on the same line.
+    [/else]
+    [/if]
+</PRE>
+</DD><P><DT><STRONG>session</STRONG><DD>
+The MiniVend session variables. Of particular interest are <EM>login</EM>, <EM>frames</EM>, <EM>secure</EM>, and <EM>browser</EM>.
+
+</DD><P><DT><STRONG><A NAME="item_shipping">shipping</A></STRONG><DD>
+The shipping database.
+
+</DD><P><DT><STRONG><A NAME="item_validcc">validcc</A></STRONG><DD>
+
+<FONT SIZE=-1>A</FONT> special case, takes the form <CODE>[if validcc no type exp_date]</CODE>. Evaluates to true if the supplied credit card number, type of card, and expiration date pass a validity test. Does a 
+<FONT SIZE=-1>LUHN-10</FONT> calculation to weed out typos or phony card numbers.
+
+
+</DD><P><DT><STRONG><A NAME="item_value">value</A></STRONG><DD>
+The MiniVend user variables, typically set in search, control, or order
+forms. Variables beginning with <CODE>mv_</CODE>
+are MiniVend special values, and should be tested/used with caution.
+
+</DD><P></DL>
+<P>
+The <EM>field</EM> term is the specifier for that area. For example,
+<CODE>[if session frames]</CODE> would return true if the <CODE>frames</CODE>
+session parameter was set.
+
+<P>
+As an example, consider buttonbars for frame-based setups. It would be nice
+to display a different buttonbar (with no frame targets) for sessions that
+are not using frames:
+
+<P>
+<PRE>    [if session frames]
+        [buttonbar 1]
+    [else]
+        [buttonbar 2]
+    [/else]
+    [/if]
+</PRE>
+<P>
+Another example might be the when search matches are displayed. If you use
+the string <CODE>[value mv_match_count] titles found</CODE>, it will display a plural for only one match. Use:
+
+<P>
+<PRE>    [if value mv_match_count != 1]
+        [value mv_match_count] matches found.
+    [else]
+        Only one match was found.
+    [/else]
+    [/if]
+</PRE>
+<P>
+The <EM>op</EM> term is the compare operation to be used. Compare operations are as in
+Perl:
+
+<P>
+<PRE>    ==  numeric equivalence
+    eq  string equivalence
+    &gt;   numeric greater-than
+    gt  string greater-than
+    &lt;   numeric less-than
+    lt  string less-than
+    !=  numeric non-equivalence
+    ne  string equivalence
+</PRE>
+<P>
+Any simple perl test can be used, including some limited regex matching.
+More complex tests are best done with <CODE>[if explicit]</CODE>.
+
+<DL>
+<DT><STRONG><A NAME="item__then_">[then] text [/then]</A></STRONG><DD>
+This is optional if you are not nesting if conditions, as the text
+immediately following the <CODE>[if ..]</CODE> tag is used as the conditionally substituted text. If nesting <CODE>[if ...]</CODE> tags you should use a <CODE>[then][/then]</CODE>
+on any outside conditions to ensure proper interpolation.
+
+</DD><P><DT><STRONG><A NAME="item__elsif">[elsif type field op* compare*]</A></STRONG><DD>
+named attributes: <CODE>[elsif type=&quot;type&quot; term=&quot;field&quot; op=&quot;op&quot; compare=&quot;compare&quot;]</CODE>
+
+
+
+<P>
+Additional conditions for test, applied if the initial <CODE>[if ..]</CODE> test fails.
+
+</DD><P><DT><STRONG><A NAME="item__else_">[else] text [/else]</A></STRONG><DD>
+The optional else-text for an if or if-item-field conditional.
+
+</DD><P><DT><STRONG><A NAME="item__condition_">[condition] text [/condition]</A></STRONG><DD>
+Only used with the <CODE>[if explicit]</CODE> tag. Allows an arbitrary expression
+<STRONG>in Perl</STRONG> to be placed inside, with its return value interpreted as the result of the
+test. If arguments are added to <CODE>[if explicit args]</CODE>, those will be passed as arguments are in the <CODE>[perl]</CODE> construct.
+
+</DD><P><DT><STRONG><A NAME="item__if_">[/if]</A></STRONG><DD>
+Terminates an if conditional.
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.04.LOOP.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.06.TAG_the_catch_all.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

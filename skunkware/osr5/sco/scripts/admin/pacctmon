@@ -1,0 +1,129 @@
+#!/bin/ksh
+# @(#) pacctmon.ksh 1.2 96/03/16
+# 1990     john h. dubois iii (john@armory.com)
+# 92/03/15 change acctcom line to use -o (write rn procs in pacct format)
+# 92/05/29 keep track of dialout processes
+# 92/06/28 keep acct files in /usr/adm/pa
+#          use ln -f and umask 033 to avoid need for rm and chmod
+# 92/07/25 pk is kermit dialout now
+# 93/05/19 Stop recording dialout use; ttylogger does that
+# 93/06/15 changed stty onlcr->sane; needed when script is run by setpgrp
+# 94/08/05 Set umask
+# 94/12/08 Allow /usr/adm/pa to not exist, to indicate that only daily log
+#          should be kept.
+# 94/12/16 Only restart process monitor screen if it was running,
+#          called with argument 'start' (for use at boot time).
+# 94/12/24 Use ksh to get -ef test operator
+# 95/04/24 Give acctcom -h flag (show hog factor), since kcore stuff isn't
+#          esp. meaningful.
+# 95/07/08 Added stop capability, expanded help.
+# 95/08/26 Added status printing capability.
+# 95/08/28 Added f option to acctcom to get fork/exec flags and exit status
+# 95/12/04 Discard StopMon output in one more place.
+# 96/03/03 For 'clean', always restart monitoring.  Relying on detecting the
+#          old process to determine if a new one should be started was not
+#          reliable.
+# 96/03/16 Pipe acctcom output through tr to get rid of control characters,
+#          since output is likely to be sent to console tty (annoyance/danger
+#          of switch screen, media copy, etc. escape sequences)
+
+# It would be nice to filter the output of acctcom to replace control chars
+# with ? for safety.  However, when its output is not a tty acctcom buffers
+# enough data that it does not give a realtime display.
+
+# Save interesting info from process accounting logs & 
+# restart accounting with zero-length logfile
+
+# make saved process accounting files be 644
+umask 033
+
+. /usr/local/admin/setpath
+acctuser=sysinfo
+accttty=/dev/tty10
+lngname=${0##*/}
+StopMon="/usr/local/bin/maim -u $acctuser tail"
+Usage="Usage: $lngname [-h|start|stop|clean]"
+acctdir=/usr/adm
+archdir=$acctdir/pa
+accountFile=$acctdir/pacct
+
+function StartMon {
+    nice -15 su $acctuser -c "
+    stty sane
+    cd /usr/adm
+    exec tail -32cf $accountFile | acctcom -hf" > $accttty < $accttty &
+}
+
+case "$1" in
+"")
+    /usr/local/bin/maim -n -u $acctuser tail > /dev/null 2>&1 &&
+    print "The process accounting monitor is running." ||
+    print "The process accounting monitor is not running."
+    exit 0
+    ;;
+start)
+    $StopMon > /dev/null 2>&1
+    StartMon
+    ;;
+stop)
+    $StopMon
+    ;;
+clean)	# daily cleanup
+    # Put any special record archiving here, as in this example.
+    # Send header to /dev/null
+    #acctcom -n '^cu$' -o /tmp/dialouts > /dev/null
+    #cat /tmp/dialouts >> dialouts
+
+    umask 033	# make file readable if created
+
+    if [ -d $archdir ]; then
+	todayacct=$archdir/`date +%d`
+	> $todayacct
+	# force new link
+	[ $todayacct -ef $accountFile ] || ln -f $todayacct $accountFile
+    else
+	mv $accountFile $accountFile-
+	> $accountFile
+    fi
+
+    PATH=$PATH:/usr/lib/acct
+    accton
+    accton $accountFile
+    # Restart monitor so that it will read new pacct file
+    $StopMon > /dev/null 2>&1
+    StartMon
+    ;;
+-h)
+    print \
+"$lngname starts, stops, performs daily cleanup of, or reports the status of a
+process accounting monitor.  The monitor uses the process accounting system to
+display the name and other information about each process as it exits.  This is
+done by turning on process accounting and then reading from the end of the
+process accounting file as process accounting records are added to it.
+$Usage
+$lngname -h prints this help.
+$lngname without any arguments reports whether a monitor is currently running
+	 or not.
+$lngname start  kills any currently running instance of $lngname (actually, it
+	 kills any 'tail' process being run by the $lngname owner, $acctuser),
+	 and then starts up a new instance of the monitor.
+$lngname stop   kills any currently running instance of $lngname.
+$lngname clean  cleans up the process acccounting files.  If the archiving
+	 directory $archdir exists, a file named by the current day of the
+	 month is created in it and the main process accounting file
+	 ($accountFile) is linked to it.  If not, $accountFile is moved to
+	 $accountFile-.  Then the process accounting system is stopped and
+	 started so that it will begin logging to $accountFile again.
+	 Finally, monitoring is stopped and started so that it too will use the
+	 new file.
+See the acct(S), acct(FP), and acctcom(ADM) man pages for process accounting
+details."
+    exit 0
+    ;;
+*)
+    print -u2 \
+"$Usage
+Use -h for help"
+    exit 1
+    ;;
+esac

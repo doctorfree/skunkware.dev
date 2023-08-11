@@ -1,0 +1,186 @@
+<HTML>
+<HEAD>
+<TITLE>Price Maintenance with CommonAdjust</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.01.Simple_pricing.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.03.CommonAdjust_Examples.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Price_Maintenance_with_CommonAdj">Price Maintenance with CommonAdjust</A></H2>
+<P>
+As of MiniVend 3.11, a flexible chained pricing scheme is available when
+the <EM>CommonAdjust</EM> directive is set.
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> For compatibility with older carts, if both
+PriceAdjustment and CommonAdjust are set, and CommonAdjust contains a valid
+database identifier, the CommonAdjust value is used to set pricing
+adjustments based on item attributes. This is not discussed further in this
+section; all items below assume <EM>PriceAdjustment</EM> is not in use.
+
+<P>
+We talk below about a <EM>CommonAdjust string</EM>; it will be defined in due time.
+
+<P>
+
+<FONT SIZE=-1>A</FONT> few rules about CommonAdjust, all assuming the <EM>PriceField</EM> directive is set to <A HREF="#item_price">price</A>:
+
+<OL>
+<LI>
+<P>
+If <CODE>CommonAdjust</CODE> is set to any value, a valid <EM>CommonAdjust string</EM> or not, extended price adjustments are enabled. It may also hold the
+default pricing scheme.
+
+<LI>
+<P>
+The <A HREF="#item_price">price</A> field may also hold a <EM>CommonAdjust string</EM>. It takes precedence over the default.
+
+<LI>
+<P>
+If the value of the <CODE>CommonAdjust</CODE> directive is set to a CommonAdjust string, and the <A HREF="#item_price">price</A> field is empty or specifically <EM>0</EM>, then it will be used to set the price of the items.
+
+<LI>
+<P>
+If PriceBreaks is in use, it's price will take precedence over the value of <CODE>CommonAdjust</CODE>, though it may also contain a CommonAdjust string.
+
+<LI>
+<P>
+If no CommonAdjust strings are found, then the price will be 0, subject to
+any later application of discounts.
+
+<LI>
+<P>
+If another CommonAdjust string is found as the result of an operation, it
+will be re-parsed and the result applied. Chaining is retained; a fallback
+may be passed and will take effect.
+
+</OL>
+<P>
+Prices may be adjusted in several ways, and the individual actions are
+referred to below as <EM>atoms</EM>. Price atoms they may be <EM>final</EM>,
+<EM>chained</EM>, or <EM>fallback</EM>. 
+<FONT SIZE=-1>A</FONT> final price atom is always applied if it does not evaluate to zero. 
+<FONT SIZE=-1>A</FONT> chained price atom is subject to further adjustment. 
+<FONT SIZE=-1>A</FONT> fallback price atom is skipped if a previous chained price was not zero.
+
+
+<P>
+Atoms are separated by whitespace, and may be quoted (although there should not normally be whitespace in a setting). 
+<FONT SIZE=-1>A</FONT> chained item ends with a comma. 
+<FONT SIZE=-1>A</FONT> fallback item has a leading semi-colon. Final atoms have no comma appended or semi-colon prepended.
+
+
+<P>
+
+<FONT SIZE=-1>A</FONT> <EM>settor</EM> is the means by which the price is set. There are There are eight different
+types of price settors. All settors can then yield another CommonAdjust
+string. 
+
+<P>
+It is quite possible to create endless loops, so the maximum number of
+initial CommonAdjust strings is set to 16, and there may be only 20
+iterations before the price will return zero on an error.
+
+<P>
+<STRONG>NOTE</STRONG>: Common needs are easily shown but not so easily explained; skip to the
+examples if the reference below if your vision starts to blur when reading
+the next section. 8-)
+
+<P>
+
+<FONT SIZE=-1>USAGE:</FONT> Optional items below have asterisks appended.
+The asterisk should not be used in the actual string. Optional <STRONG>base</STRONG> or <STRONG>table</STRONG> always defaults to the active <A HREF="#item_products">products</A> database table. The optional <STRONG>key</STRONG>
+defaults to the item code except in a special case for the attribute-based
+lookup. The <STRONG>field</STRONG> name is not optional except in the case of an attribute lookup.
+
+<DL>
+<DT><STRONG><A NAME="item_N">N.NN or -N.NN</A></STRONG><DD>
+where 
+<FONT SIZE=-1>N</FONT> is a digit. 
+<FONT SIZE=-1>A</FONT> number which is applied directly; for instance 10 will yield a price of 10. May be a positive or negative number.
+
+
+</DD><P><DT><STRONG><A NAME="item_N">N.NN%</A></STRONG><DD>
+where 
+<FONT SIZE=-1>N</FONT> is a digit. 
+<FONT SIZE=-1>A</FONT> number which is applied as a percentage of the
+ <EM>current</EM> price value. May be a positive or negative number. For example, if the
+price is 10 and -8% is applied, the next price value will be 9.20.
+
+</DD><P><DT><STRONG><A NAME="item_table">table*:column:key*</A></STRONG><DD>
+Causes a straight lookup in a database table. The optional <STRONG>table</STRONG> 
+defaults to the main products database table for the item (subject of
+course to multiple product files). The <STRONG>column</STRONG> must always be present. The optional <STRONG>key</STRONG> defaults to the item code except in a special case for the attribute-based
+lookup. The return value is then re-parsed as another price settor.
+
+</DD><P><DT><STRONG><A NAME="item_table">table*:col1..col5,col10:key*</A></STRONG><DD>
+Causes a quantity lookup in database table <STRONG>table</STRONG> (which defaults to the products database), with a set of comma-separated
+fields, looked up by the optional <STRONG>key</STRONG>. (Key defaults to the item code, of course). If ranges are specified with
+.., each column in the sequence will be used; Therefore
+
+<P>
+<PRE>    pricing:p1,p2,p3,p4,p5,p10:
+</PRE>
+<P>
+is the same as
+
+<P>
+<PRE>    pricing:p1..p5,p10:
+</PRE>
+<P>
+Leading non-digits are stripped, and the item quantity is compared with the
+numerical portion of the column name. The price is set to the value of the
+database column (numeric portion) that is at least equal to it but doesn't
+yet reach the next break.
+
+<P>
+
+<FONT SIZE=-1>WARNING:</FONT> If the field at the appropriate quantity
+level is blank, a zero cost will be returned from the atom. It is important
+to have all columns populated.
+
+</DD><P><DT><STRONG><A NAME="item__attribute_table_column_key_">==attribute:table*:column*:key*</A></STRONG><DD>
+Does an attribute-based adjustment. The attribute is looked up in the
+database <STRONG>table</STRONG>, with the optional <STRONG>column</STRONG> defaulting to the same name as the <EM>value</EM> of the <STRONG>attribute</STRONG>. If the column is not left blank, the <EM>key</EM> is set to the <EM>value</EM> of the <STRONG>attribute</STRONG> if blank.
+
+</DD><P><DT><STRONG>&amp;amp; CODE</STRONG><DD>
+The leading <CODE>&amp;</CODE> sign is stripped and the code is passed to the equivalent of a <CODE>[calc]</CODE> tag. No MiniVend tags can be used, but the <CODE>&amp;tag_data</CODE>
+routine is available, the current value of the price and quantity are
+available as <CODE>$s</CODE>, and the current item (code, quantity, price, and any attributes) are
+available as <CODE>$item</CODE>, all forced to the package Vend::Interpolate. That means that in a
+UserTag:
+
+<P>
+<PRE>  $Vend::Interpolate::item          is the current item
+  $Vend::Interpolate::item-&gt;{code}  gives key for current item
+  $Vend::Interpolate::item-&gt;{size}  gives size for current item (if there)
+  $Vend::Interpolate::item-&gt;{mv_ib} gives database ordered from
+</PRE>
+</DD><P><DT><STRONG><A NAME="item__valid">[valid minivend tags]</A></STRONG><DD>
+If the settor begins with a square bracket (<CODE>[</CODE>) or underscore, it is parsed for MiniVend tags with variable substitution
+(but no Locale substitution). You may define a price in a <EM>Variable</EM> in this fashion. The string is re-submitted as an atom, so it may yield yet
+another settor.
+
+</DD><P><DT><STRONG><A NAME="item__">$</A></STRONG><DD>
+Tells MiniVend to look in the <CODE>mv_price</CODE> attribute of the shopping cart, and apply that price as the final price, if
+it exists. The attribute must be a numerical value.
+
+</DD><P><DT><STRONG><A NAME="item__word">&gt;&gt;word</A></STRONG><DD>
+Tells the routine to return <A HREF="#item_word">word</A> directly as the result. This is not useful in pricing, as it will evaluate
+to zero. But when CommonAdjust is used for shipping, it is a way of
+re-directing shipping modes.
+
+</DD><P><DT><STRONG><A NAME="item_word">word</A></STRONG><DD>
+The value of <A HREF="#item_word">word</A>, which must not match any of the other settors, is available as a key for
+the next lookup (only). If the next settor is a database lookup, and it
+contains a dollar sign (<CODE>$</CODE>) the <A HREF="#item_word">word</A>
+will be substituted; i.e. <CODE>table:column:$</CODE> becomes <CODE>table:column:word</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item__">( settor )</A></STRONG><DD>
+The value returned by <CODE>settor</CODE> will be used as a key for the next lookup, as above.
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.01.Simple_pricing.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.03.CommonAdjust_Examples.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

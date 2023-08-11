@@ -1,0 +1,142 @@
+<HTML>
+<HEAD>
+<TITLE>More on UPS-style lookup</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="16.00.SHIPPING.html">Up</A>&nbsp;&nbsp;<A HREF="16.04.How_shipping_is_calculated.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="16.06.Geographic_qualification.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="More_on_UPS_style_lookup">More on UPS-style lookup</A></H2>
+<P>
+The UPS-style lookup uses two files for its purposes, both of which need to be in a format like 
+<FONT SIZE=-1>UPS</FONT> distributes for 
+<FONT SIZE=-1>US</FONT> shippers.
+
+
+<P>
+The <EM>zone file</EM> is a file that is usually specific to the originating location. For 
+<FONT SIZE=-1>US</FONT> shippers shipping to 
+<FONT SIZE=-1>US</FONT> locations, it is named for the first three digits of the originating zip code with a 
+<FONT SIZE=-1>CSV</FONT> extenstion -- for example,
+ <CODE>450.csv</CODE>.
+
+<P>
+It has a format similar to:
+
+<P>
+<PRE>    low - high, zone,zone,zone,zone
+</PRE>
+<P>
+The <CODE>low</CODE> entry is the low bound of the geographic location -- <CODE>high</CODE>
+is the high bound. (By <EM>geographic location</EM> we mean zip code.) If the first digits of the zip code, compared
+alphanumerically, fall between the low and high values, that zone is used
+as the column name for a lookup in the <EM>rate database</EM>. The weight is used as the row key.
+
+<P>
+The first operative row of the zone file (one without leading quotes) is used to determine the zone column name. In the 
+<FONT SIZE=-1>US,</FONT> it looks something like
+ 
+
+<P>
+Dest. ZIP,Ground,3 Day Select,2nd Day Air,2nd Day Air A.M.,Next Day Air
+Saver,Next Day Air
+
+<P>
+MiniVend strips all non-alpha characters and comes up with:
+
+<P>
+DestZIP,Ground,3DaySelect,2ndDayAir,2ndDayAirAM,NextDayAirSaver,NextDayAir
+
+<P>
+Therefore, the zone column (shipping type) that you would use use for 
+<FONT SIZE=-1>UPS</FONT> ground would be ``Ground'', and that is what the
+database should be named. To support the above, you would want a <CODE>shipping.asc</CODE> line that reads:
+
+<P>
+<PRE>    upsg  UPS Ground  weight  0  150  u Ground [default zip 983]
+</PRE>
+<P>
+and a <CODE>catalog.cfg</CODE> database callout of:
+
+<P>
+<PRE>    Database  Ground  Ground.csv  CSV
+</PRE>
+<P>
+You can change these column names as long as they correspond to the <CODE>identifier</CODE> of your rate database.
+
+<P>
+The <EM>rate database</EM> is a standard MiniVend database. For 
+<FONT SIZE=-1>US</FONT> shippers, 
+<FONT SIZE=-1>UPS</FONT> distributes their rates in a fairly standard comma-separated value format, with weight being the first (or key) column and the remainder of the columns corresponding to the zone -- which you obtain from the lookup in the zone file.
+
+
+<P>
+To adapt other shipper zone files to MiniVend's lookup, you will need to make it fit the 
+<FONT SIZE=-1>UPS</FONT> 
+<FONT SIZE=-1>US</FONT> format. (Most of the 
+<FONT SIZE=-1>UPS</FONT> international files don't follow the 
+<FONT SIZE=-1>US</FONT> format). For example, the 1998 Ohio-US to Canada file begins:
+
+
+<P>
+<PRE>    Canada Standard Zone Charts from Ohio
+    Locate the zone by cross-refrencing the first three
+    characters of the destination Postal Code in the Postal
+    Range column.
+ 
+    Postal Range  Zone
+    A0A  A9Z      54
+    B0A  B9Z      54
+    C0A  C9Z      54
+    E0A  E9Z      54
+    G0A  G0A      51
+    G0B  G0L      54
+    G0M  G0S      51
+    G0T  G0W      54
+</PRE>
+<P>
+You need to change it to
+
+<P>
+<PRE> 
+    Destination,canstnd
+    A0A-A9Z, 54
+    B0A-B9Z, 54
+    C0A-C9Z, 54
+    E0A-E9Z, 54
+    G0A-G0A, 51
+    G0B-G0L, 54
+    G0M-G0S, 51
+    G0T-G0W, 54
+</PRE>
+<P>
+and match it with a <CODE>canstnd</CODE> 
+<FONT SIZE=-1>CSV</FONT> database that looks like
+
+<P>
+<PRE>    Weight,51,52,53,54,55,56
+    1,7.00,7.05,7.10,11.40,11.45,11.50
+    2,7.55,7.65,7.75,11.95,12.05,12.10
+    3,8.10,8.15,8.40,12.60,12.70,12.85
+    4,8.65,8.70,9.00,13.20,13.30,13.55
+    5,9.20,9.25,9.75,13.85,13.85,14.20
+    6,9.70,9.85,10.35,14.45,14.50,14.90
+    7,10.25,10.40,11.10,15.15,15.15,15.70
+    8,10.80,10.95,11.70,15.70,15.75,16.35
+    9,11.35,11.55,12.30,16.40,16.45,17.20
+</PRE>
+<P>
+and is called out in catalog.cfg with:
+
+<P>
+<PRE>    Database canstnd canstnd.csv CSV
+</PRE>
+<P>
+With the above, a 4-pound shipment to postal code 
+<FONT SIZE=-1>E5C</FONT> 
+<FONT SIZE=-1>4TL</FONT> would yield a cost of 13.20.
+
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="16.00.SHIPPING.html">Up</A>&nbsp;&nbsp;<A HREF="16.04.How_shipping_is_calculated.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="16.06.Geographic_qualification.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

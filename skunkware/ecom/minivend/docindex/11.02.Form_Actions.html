@@ -1,0 +1,141 @@
+<HTML>
+<HEAD>
+<TITLE>Form Actions</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="11.00.FORMS_AND_MINIVEND.html">Up</A>&nbsp;&nbsp;<A HREF="11.01.Special_Form_Fields.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="11.03.One_click_Multiple_Variables.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Form_Actions">Form Actions</A></H2>
+<P>
+MiniVend form processing is based on an <CODE>action</CODE> and a <CODE>todo</CODE>. The predefined actions at the first level are:
+
+<P>
+<PRE>    process       process a todo
+    search        form-based search
+    scan          path-based search
+    order         order an item
+    minimate      get access to a database via MiniMate
+</PRE>
+<P>
+You can define any action you desire with <CODE>ActionMap</CODE>.
+
+<P>
+The <CODE>process</CODE> action has a second <CODE>todo</CODE> level called with <CODE>mv_todo</CODE>
+or <A HREF="#item_mv_doit">mv_doit</A>. The <CODE>mv_todo</CODE> takes preference over <A HREF="#item_mv_doit">mv_doit</A>, which can be used to set a default if no <CODE>mv_todo</CODE> is set.
+
+<P>
+The action can be specified either with:
+
+<DL>
+<DT><STRONG><A NAME="item_page">page name</A></STRONG><DD>
+Calling the page ``search'' will cause the search action, <CODE>process</CODE>
+will cause a form process action, etc. Examples:
+
+<P>
+<PRE>    &lt;FORM ACTION=&quot;/cgi-bin/simple/search&quot; METHOD=POST&gt;
+    &lt;INPUT NAME=mv_searchspec&gt;
+    &lt;/FORM&gt;
+</PRE>
+<P>
+The above is a complete search in MiniVend -- it causes a simple text
+search of the default products <CODE>database(s).</CODE> Normally you don't
+use hard-coded paths, but use a minivend tag to specify it for portability:
+
+<P>
+<PRE>    &lt;FORM ACTION=&quot;[area search]&quot; METHOD=POST&gt;
+    &lt;INPUT NAME=mv_searchspec&gt;
+    &lt;/FORM&gt;
+</PRE>
+<P>
+You will often see the tag <CODE>[process]</CODE> in MiniVend forms. The above can be called equivalently with:
+
+<P>
+<PRE>    &lt;FORM ACTION=&quot;[process]&quot; METHOD=POST&gt;
+    &lt;INPUT TYPE=hidden NAME=mv_todo VALUE=search&gt;
+    &lt;INPUT NAME=mv_searchspec&gt;
+    &lt;/FORM&gt;
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_mv_action">mv_action</A></STRONG><DD>
+Setting the special variable <A HREF="#item_mv_action">mv_action</A> causes the page name to be ignored as the action source. The above forms
+can use this as a synonym:
+
+<P>
+<PRE>    &lt;FORM ACTION=&quot;[area foo]&quot; METHOD=post&gt;
+    &lt;INPUT TYPE=hidden NAME=mv_action VALUE=search&gt;
+    &lt;INPUT NAME=mv_searchspec&gt;
+    &lt;/FORM&gt;
+</PRE>
+<P>
+The page name will be used to set <A HREF="#item_mv_nextpage">mv_nextpage</A> if it is not otherwise defined; if <A HREF="#item_mv_nextpage">mv_nextpage</A> is present in the form it will be ignored. 
+
+</DD><P></DL>
+<P>
+The second level <CODE>todo</CODE> for the <CODE>process</CODE> action has these defined by default:
+
+<P>
+<PRE>    search   Trigger a search
+    submit   submit a form for validation (and possibly a final order)
+    go       Go to C&lt;mv_nextpage&gt;
+    return   Go to C&lt;mv_nextpage&gt;
+    set      Update a database table
+    refresh  Go to C&lt;mv_orderpage|mv_nextpage&gt; and check for
+             ordered items
+    cancel   Erase the user session
+</PRE>
+<P>
+If you define a page name as an action with <CODE>ActionMap</CODE>, or use of MiniVend's predefined action <CODE>process</CODE>, it will cause form processing. first level is setting the special page
+name <CODE>process</CODE>, or speciis set to do a form <CODE>process</CODE>, the for MiniVend form can be used for any number of actions. The actions
+are mapped by the <EM>ActionMap</EM> directive in the catalog configuration file, and are selected on the form
+with either the <EM>mv_todo</EM> or <EM>mv_doit</EM>
+variables.
+
+<P>
+To set a default action for a <CODE>process</CODE> form, set the variable <A HREF="#item_mv_doit">mv_doit</A> as a hidden variable:
+
+<P>
+<PRE>    &lt;INPUT TYPE=hidden NAME=mv_doit VALUE=refresh&gt;
+</PRE>
+<P>
+When the <EM>mv_todo</EM> value is not found, the <EM>refresh</EM> action defined in <EM>mv_doit</EM> will be used instead.
+
+<P>
+More on the defined actions:
+
+<DL>
+<DT><STRONG><A NAME="item_cancel">cancel</A></STRONG><DD>
+All user information is erased, and the shopping cart is emptied. The user
+is then sent to mv_nextpage.
+
+</DD><P><DT><STRONG><A NAME="item_refresh">refresh</A></STRONG><DD>
+Checks for newly-ordered items in <CODE>mv_order_item</CODE>, looking for on-the-fly items if that is defined, then updates the
+shopping cart with any changed quantities or options. Finally updates the
+user variables and returns to the page defined in mv_orderpage or
+mv_nextpage (in that order of preference).
+
+</DD><P><DT><STRONG><A NAME="item_return">return</A></STRONG><DD>
+Updates the user variables and returns to the page defined in mv_nextpage.
+
+</DD><P><DT><STRONG>search</STRONG><DD>
+The shopping cart and user variables are updated, then the form variables
+are interpreted and the search specification contained therein is
+dispatched to the search engine -- results are returned on the defined
+search page (set by <EM>mv_search_page</EM> or the search page directives).
+
+</DD><P><DT><STRONG><A NAME="item_submit">submit</A></STRONG><DD>
+Submit the form for order processing. If no order profile is defined with
+the <A HREF="#item_mv_order_profile">mv_order_profile</A> variable, the order is checked to see if the current cart contains any
+items and the order is submitted.
+
+<P>
+If there is an order profile defined, the form will be checked against the
+definition in the order profile and submitted if the pragma
+<CODE>&amp;final</CODE> is set to <STRONG>yes</STRONG>. If <CODE>&amp;final</CODE> is set to <STRONG>no</STRONG> (the default), and the check succeeds, the user will be routed to the
+MiniVend page defined in mv_successpage, or mv_nextpage. Finally, if the
+check fails, the user will be routed to mv_failpage or mv_nextpage in that
+order.
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="11.00.FORMS_AND_MINIVEND.html">Up</A>&nbsp;&nbsp;<A HREF="11.01.Special_Form_Fields.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="11.03.One_click_Multiple_Variables.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

@@ -1,0 +1,100 @@
+#!/bin/ksh
+# @(#) mailias.ksh 1.2 93/07/16
+# mailias: sort mail alias & print with maximum-length lines
+# 91/01/13 john h. dubois iii (john@armory.com)
+# 91/02/25 Converted to use builtin shell sort.
+# 93/07/16 Cleaned up a bit.
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+# Print words passed as args with max line length
+# Usage: PrintMaxLines <maxlinelength> <sep> <end> word ...
+# <sep> is used to separate words on a line.
+# <end> is put at the end of each line except the last.
+function PrintMaxLines {
+    typeset maxline=$1 sep=$2 end=$3 outline= word
+    typeset -i printedline=0 extra=${#sep}+${#end}
+
+    shift 3
+    for word; do
+	if [[ $(( ${#outline}+${#word}+$extra )) -gt $maxline ]]; then
+	    isfalse printedline && printedline=1 || print -r "$end"
+	    print -nr "$outline"
+	    outline=$word
+	else
+	    [ -z "$outline" ] && outline=$word || outline="$outline$sep$word"
+	fi
+    done
+    # print final line if it hasn't been printed yet
+    istrue printedline && print -r "$end"
+    print -r "$outline"
+}
+
+set -e
+
+name=${0##*/}
+Syntax="Syntax: $name [-h] [linelength]"
+
+if [ "$1" = -h ]; then
+    echo \
+"$name: sort names on a mail alias and print it with maximum-length lines.
+$Syntax
+
+$name processes mail aliases that have this form:
+
+alias foo user1 user2 user3 user4 user5\
+user6 user7 user8
+
+There can be any number of lines, each optionally terminated with a backslash.
+The first word of the first line must be \"alias\"; the second word is the
+alias name.
+The alias is read from the input, and a new alias is printed on the output.
+The new alias has the word \"alias\", followed by the alias name, followed
+by the sorted user names.
+As many names as will fit are printed on each line.
+The default line length is 79 characters.
+A number given on the command line will override the default.
+Every line except the last one is terminated with a backslash."
+    exit
+fi
+
+typeset -i maxline=79
+case $# in
+    0) 
+	;;
+    1) 
+	maxline=$1;;
+    *) 
+	echo "$Syntax"
+	exit 1;;
+esac
+
+set -o noglob
+
+# read first line
+read -r alias name line
+if [ -z "$line" ]; then
+    print -u2 "Not a good alias."
+    exit 1
+fi
+
+if [ $alias != alias ]; then
+    print -u2 'No "alias" keyword.'
+    exit 1
+fi
+
+# Read the alias into var "list";
+# remove trailing backslashes and any whitespace that follows them
+# (whitespace is removed by read)
+list="${line%\\}"
+while read -r line; do
+    list="$list ${line%\\}"
+done 
+
+# sort names on list
+set -- $list
+set -s
+
+PrintMaxLines $maxline " " \\ alias "$name" "$@"
+print -r ""

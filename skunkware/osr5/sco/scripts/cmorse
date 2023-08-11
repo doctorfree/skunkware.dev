@@ -1,0 +1,187 @@
+:
+# Morse to console-tone translator
+# Designed for XENIX console; depends on SYSV tty modes (cr2 and bs1)
+# and SCO ANSI set-beep-length escape code
+# Stuck at max 12 wpm by shortest console beep (0.1s)
+# @(#) cmorse.sh 92/11/10
+# 90/11/01 john h. dubois iii (john@armory.com)
+# 91/01/27 modified to use &1 instead of /dev/tty for sttys so that
+#	   output can be redirected;
+#	   added ability to read text from command line.
+# 92/04/12 Added alternate timing for UNIX.
+# 92/09/19 Added -<wpm> option; made timing more accurate.
+# 92/11/10 Make nonchars into spaces & squeeze multiple spaces.
+# 93/12/21 Changed name to 'cmorse'
+
+name=$0
+
+if [ "$1" = -o ]; then
+    shift
+else
+    case "$TERM" in
+    *ansi*) ;;
+    *) echo \
+"This program only works on terminals that understand
+the SCO ANSI set-beep-length escape code."; exit;;
+    esac
+fi
+
+if [ "$1" = -h ]; then
+    echo \
+"$name: translate ASCII characters to Morse code.
+Usage: $name [-ho] [-<wpm>] [word ...]
+$name takes its command line arguments, if any, or characters sent to its
+standard input, and translates them into Morse code.  The Morse code is
+output as beeps.  The bell is set to 1/10 second so that a short beep can
+be produced; since it is not possible to determine what the bell was
+previously set to, it is not reset when the program is done.  This program
+will only work on terminals that understand the SCO ANSI set-beep-length
+escape code.
+Options:
+-h prints this help.
+-o overrides the check that ensures that $name is running on some sort of
+ANSI-type terminal (though just being an ANSI terminal does not guarantee
+that $name will work on it).
+-<wpm> sets the transmission rate to approximately <wpm> words per minute.
+The default and maximum is approximately 12 words per minute.  The rate is
+reduced by lengthening the pause period between characters and words
+(Farnsworth method).  The length of the tones used to transmit each character
+and the pauses between them are left at what they would be for 12 wpm."
+    exit
+fi
+
+# We use HZ to determine what the beep length will be.
+# If HZ not set, set it according to uname.
+if [ -z "$HZ" ]; then
+    "/bin/uname -r" | getline Sys
+    case $Sys in
+    2*) HZ=50;;
+    *) HZ=100;;	# Wrong for 3.2v0 (should be 60), but not actually used.
+    esac
+fi
+
+# make unit 3 available for commands which have output redirected
+exec 3<&1
+# save tty mode so it can be reset
+ttymode=`stty -g <&3`
+# reset tty mode if program aborted by int or quit
+trap "stty $ttymode <&1" 2 3
+# set cr2 and bs1 so that cr and bs delays can be used for timing
+stty cr2 bs1 -onlret -ofill <&1
+
+# Nuke some common env vars to make sure there's enough arg space for prog
+PATH= CDPATH= TERMCAP= /usr/bin/awk "
+BEGIN {
+    HZ=$HZ"'
+    WPM = 12
+    ARGp = 1
+    if (ARGC > 1 && ARGV[ARGp] ~ "^-[0-9]+$") {
+	WPM = substr(ARGV[ARGp++],2) + 0
+	if (!(1 <= WPM && WPM <= 12)) {
+	    printf "%s: bad WPM value.\n",WPM
+	    exit
+	}
+    }
+    # ideal: 
+    # element pause = dot pause = 1 unit
+    # dash pause = interchar pause = 3 units
+    # interword pause = 7 units
+    # 1 word-length including interchar and interword pause is 50 units (avg.)
+    # and contains 5 characters.
+    # In non-Farnsworth transmission, there are a total of 14 non-element
+    # pause units per word: 2 extra after each char of a 5-char word (1 unit
+    # of the 3-unit pause is added for the last element), and 4 extra between
+    # words (1 unit of the 7-unit pause is added for the last element, and 2
+    # are added for the last char).
+    # Therefore, 5/7 (10/14) of the pause units go to chars, and the word
+    # pause is twice the char pause.
+    # This program runs at 600 units/minute.
+    # Cancelled 5/5 (numerator of 5/7 and # of chars/word)
+    PauseUnitsPerChar = int((600 - WPM * 36) / (7 * WPM) + 0.5)
+    CharPause = PauseUnits(PauseUnitsPerChar)
+    WordPause = PauseUnits(PauseUnitsPerChar * 2)
+
+    Beep = "\07"
+    # ; represents . and _ represents - so they will not be subbed
+    A2Morse = "A.- B-... C-.-. D-.. E. F..-. G--. H.... I.. J.--- K-.- L.-.."\
+" M-- N-. O--- P.--. Q--.- R.-. S... T- U..- V...- W.-- X-..- Y-.-- Z--.."\
+" a.- b-... c-.-. d-.. e. f..-. g--. h.... i.. j.--- k-.- l.-.."\
+" m-- n-. o--- p.--. q--.- r.-. s... t- u..- v...- w.-- x-..- y-.-- z--.."\
+" ,--..-- ;.-.-.- _-...- =-...- /-..-. ?..--.. $.-.-."\
+" 0----- 1.---- 2..--- 3...-- 4....- 5..... 6-.... 7--... 8---.. 9----."
+    gsub("\\.",Beep PauseUnits(2),A2Morse)
+    gsub("-",Beep Beep Beep PauseUnits(4),A2Morse)
+    sub("_","-",A2Morse)
+    sub(";",".",A2Morse)
+    split(A2Morse,Data," ")
+    for (i in Data)
+	Symbol2Code[substr(Data[i],1,1)] = substr(Data[i],2)
+    Symbol2Code[" "] = WordPause
+    # set bell to 1/(1487*840.3ns) Hz (800 Hz), 100 mS duration
+    # note: bell is *not* reset at end of script, 
+    # since there is no way to tell what it was set to from a script
+    printf "\033[=1487;1B"
+    if (ARGp < ARGC) {
+	Args = ARGV[ARGp++]
+	for (; ARGp < ARGC; ARGp++)
+	    Args = Args " " ARGV[ARGp]
+	TranslateLine(Args)
+    }
+    else {
+	# UNIX awk lets you read from "/dev/std...", XENIX awk does not.
+	# Neither pays attention to changes to ARGC/ARGV.
+	if (Sys ~ "^2")
+	    while (("cat" | getline) == 1)
+		TranslateLine($0)
+	else
+	    while ((getline < "/dev/stdin") == 1)
+		TranslateLine($0)
+    }
+    printf Symbol2Code["$"]
+}
+
+# Uses globals ExactPause, RPause, and ExactDiv as static vars
+# Sets global Sys to system release.
+function PauseUnits(Units,  Pause) {
+    # cr (015) is supposed to be ~0.10s; it is 0.11s under 3.2v4
+    # bs (010) is supposed to be ~0.05s; it is 0.08s under 3.2v4
+    # Both are exactly twice as long under XENIX,
+    # perhaps due to halved tick rate.
+    if (ExactDiv == "") {
+	if (HZ == 50) {	# XENIX
+	    ExactDiv = 6
+	    RPause[1] = ""
+	    RPause[2] = "\010"
+	    RPause[3] = "\015"
+	    RPause[4] = "\015\010"
+	    RPause[5] = "\010\010\010"
+	}
+	else {			# UNIX
+	    ExactDiv = 3
+	    RPause[1] = "\010"
+	    RPause[2] = "\015\010"
+	}
+	ExactPause = "\015\015\010"
+    }
+
+    Pause = RPause[Units % ExactDiv]
+    
+    for (Units = int(Units / ExactDiv); Units; Units--)
+	Pause = Pause ExactPause
+    return Pause
+}
+
+function TranslateLine(Line,  Code) {
+    # Convert multiple nonchars/spaces into single spaces
+    # because there really is no such thing as multiple space in Morse
+    gsub("([^-A-Za-z,.=/?$0-9]| )+"," ",Line)
+    sub("^ ","",Line) # Get rid of space at the start of a line
+    # Translate entire line before output to minimize effect of load on timing
+    len = length(Line);
+    for (i = 1; i <= len; i++)
+	Code = Code Symbol2Code[substr(Line,i,1)] CharPause
+    Code = Code WordPause
+    printf("%s",Code);
+}
+' "$@"
+stty "$ttymode" <&1

@@ -55,9 +55,9 @@ an HTTP server and HTML documents with links to SCO `Custom+` installable packag
 [NCSA Mosaic](<https://en.wikipedia.org/wiki/Mosaic_(web_browser)>) had been
 licensed by SCO shortly after its first release in 1993 and was used by
 Skunkware as the primary interface to browse the mounted CD-ROM. The CD also
-contained a `Custom+` installable Skunkware SSO which installed the Skunkware
-website in `/usr/local` on the system along with the HTTPD server which could
-then be used to run a Skunkware website from your system.
+contained a `Custom+` installable Skunkware SSO (Software Storage Object) which
+installed the Skunkware website in `/usr/local` on the system along with the
+HTTPD server which could then be used to run a Skunkware website from your system.
 
 In later editions of Skunkware, the CD itself was a `Custom+` installable SSO
 on both OpenServer and UnixWare.

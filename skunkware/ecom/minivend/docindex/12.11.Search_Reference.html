@@ -1,0 +1,439 @@
+<HTML>
+<HEAD>
+<TITLE>Search Reference</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="12.00.THE_SEARCH_ENGINE.html">Up</A>&nbsp;&nbsp;<A HREF="12.10.Search_Profiles.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="12.12.The_Results_Page.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Search_Reference">Search Reference</A></H2>
+<P>
+The supplied <CODE>simple/srchform.html</CODE> and <CODE>simple/results.html</CODE> pages show example search forms. You can modify them to present the search
+in any way you like -- just be careful to use the proper variable names for
+passing to MiniVend. It is also necessary that you copy the hidden
+variables as-is -- they are required to interpret the request as a search.
+
+<P>
+<STRONG>NOTE:</STRONG> The following definitions frequently refer to <EM>field name</EM>
+and <EM>column</EM> and <EM>column number</EM> -- all are the references to the columns of a searched text file as
+separated by delimiter characters.
+
+<P>
+The field names can be specified in several ways.
+
+<DL>
+<DT><STRONG><A NAME="item_ProductFiles">ProductFiles</A></STRONG><DD>
+If the file to be searched is left empty in the search form or definition
+(it is set with <A HREF="#item_mv_search_file">mv_search_file (fi)</A>), then the text files associated with the products databases will be
+searched, and field names are already available as named in the first line
+of the <CODE>file(s).</CODE> (This is defined to be <CODE>products.txt</CODE>
+in the MiniVend demonstrations.)
+
+<P>
+Careful if you are using 
+<FONT SIZE=-1>SQL!</FONT> If you change your database and don't export it
+with <CODE>[tag export products][/tag]</CODE>, you will not find what you want.
+
+</DD><P><DT><STRONG><A NAME="item_other">other database files</A></STRONG><DD>
+If the file or files to be searched are 
+<FONT SIZE=-1>ASCII</FONT> delimited files, and have field names specified
+on the first line of the file, MiniVend will read the first line (of the
+first file) and determine the field names.
+
+</DD><P><DT><STRONG>other files</STRONG><DD>
+If the file or files to be searched are 
+<FONT SIZE=-1>ASCII</FONT> delimited files, but
+<STRONG>don't</STRONG> have field names specified on the first line of the file, you can set the
+variable <A HREF="#item_mv_field_names">mv_field_names</A> to a comma-separated list of field names as they will be referenced.
+
+</DD><P></DL>
+<P>
+Fields can also always be specified by an integer column number, with 0 as
+the first column.
+
+<DL>
+<DT><STRONG><A NAME="item_mv_all_chars">mv_all_chars</A></STRONG><DD>
+Scan abbreviation: ac=[1|0]
+
+<P>
+Set this if you anticipate searching for lots of punctuation characters
+that might be special characters for Perl -- the characters ()[]\$^ are
+included.
+
+</DD><P><DT><STRONG><A NAME="item_mv_base_directory">mv_base_directory</A></STRONG><DD>
+Scan abbreviation: bd=/directory/name
+
+<P>
+In the text search, set to the directory from which to base file searches.
+File names without leading / characters will be based from there. In the
+Glimpse search, passed to Glimpse with the <CODE>-H</CODE> option, and Glimpse will look for its indices there. Default is ProductDir.
+
+<P>
+If you use an absolute path directory, for security you must enable it in
+the users session with:
+
+<P>
+<PRE>    [set /directory/name]1[/set]
+</PRE>
+<P>
+This prevents users from setting an arbitrary value and viewing arbitrary
+files.
+
+</DD><P><DT><STRONG><A NAME="item_mv_begin_string">mv_begin_string</A></STRONG><DD>
+If this is set, the string will only match if it is at the beginning of a field. The handling is a bit different for the default 
+<FONT SIZE=-1>AND</FONT> search compared to the 
+<FONT SIZE=-1>OR</FONT> search. With 
+<FONT SIZE=-1>OR</FONT> searches all words are searched for from the beginning of the field, with 
+<FONT SIZE=-1>AND</FONT> searches all are.
+
+
+<P>
+This is a multiple parameter. If mv_coordinate is in force, then it should
+be set as many times as necessary to match the field/searchstring
+combination. If set only once, it applies to all fields. If set more than
+once but not as many times as the fields, it will default to off.
+
+</DD><P><DT><STRONG><A NAME="item_mv_case">mv_case</A></STRONG><DD>
+If this item is set to <A HREF="#item_no">no</A>, the search will return items without regard to upper or lower case. This
+is the default -- set to <A HREF="#item_yes">yes</A> if case should be matched. Implement with a checkbox 
+<FONT SIZE=-1>&lt;INPUT</FONT> 
+<FONT SIZE=-1>TYPE=CHECKBOX&gt;</FONT> field.
+
+
+<P>
+If stacked to match the mv_search_field and mv_searchspec variables, and <A HREF="#item_mv_coordinate">mv_coordinate</A> is set, it will operate only for the corresponding field.
+
+</DD><P><DT><STRONG><A NAME="item_mv_coordinate">mv_coordinate</A></STRONG><DD>
+If this item is set to <EM>yes</EM>, and the number of search fields equals the number of search specs, the
+search will return only items that match field to spec. (The search
+specifications are set by stacked
+<A HREF="#item_mv_searchspec">mv_searchspec</A> and <A HREF="#item_mv_search_field">mv_search_field</A> variables.)
+
+<P>
+Case sensitivity, substring matching, and negation all work on a field-by
+field basis according to the following:
+
+<UL>
+<LI>
+<P>
+If only one instance of the option is set, then it will affect all fields.
+
+<LI>
+<P>
+If the number of instances of the option is greater than or equal to the
+number of search specs, all will be used independently. Trailing instances
+will be ignored.
+
+<LI>
+<P>
+If more than one instance of the options are set, but fewer than the number
+of search specifications, the default setting will be used for the trailing
+unset options.
+
+<P>
+If a search specification is blank, it will be removed and all
+case-sensitivity/negation/substring options will be adjusted accordingly.
+
+</UL>
+</DD><P><DT><STRONG><A NAME="item_mv_dict_end">mv_dict_end</A></STRONG><DD>
+If the string at the beginning of a line lexically exceeds this value,
+matching will stop. Ignored without mv_dict_look.
+
+</DD><P><DT><STRONG><A NAME="item_mv_dict_fold">mv_dict_fold</A></STRONG><DD>
+Make dictionary matching case-insensitive. Ignored without mv_dict_look. 
+<FONT SIZE=-1>NOTE:</FONT> This is the reverse sense from mv_case.
+
+</DD><P><DT><STRONG><A NAME="item_mv_dict_limit">mv_dict_limit</A></STRONG><DD>
+Automatically set the limiting string (mv_dict_end) to be one character greater than the mv_dict_look variable, at the character position specified. 
+<FONT SIZE=-1>A</FONT> value of 1, for instance, will set the limiting string to ``fprsythe'' if the value of
+ <A HREF="#item_mv_dict_look">mv_dict_look</A> is ``forsythe''. 
+<FONT SIZE=-1>A</FONT> useful value is -1, which will increment the last
+character (setting the mv_dict_end to ``forsythf'' in our example). This
+prevents having to scan the whole file once a unique match is found.
+
+<P>
+The order of this and the <A HREF="#item_mv_dict_end">mv_dict_end</A> variable is significant -- each will overwrite the other.
+
+<P>
+If this is set to a non-numeric value, an automatic mode is entered which
+looks for a dictionary-indexed file that corresponds to the file name plus
+<A HREF="#item__field">.field</A>, where <A HREF="#item_field">field</A> is what you have set <A HREF="#item_mv_dict_limit">mv_dict_limit</A> to. The actual value of mv_dict_limit is set to <CODE>-1</CODE>. If the file does not exist, then the original file is silently used (this
+might not be what you want!). Also, the value of <A HREF="#item_mv_return_fields">mv_return_fields</A> is set to <CODE>1</CODE> to correspond to the location of the key in the auto-indexed file.
+
+<P>
+To illustrate:
+
+<P>
+<PRE>    &lt;INPUT TYPE=hidden NAME=mv_dict_limit  VALUE=category&gt;
+    &lt;INPUT TYPE=hidden NAME=mv_search_file VALUE=&quot;products.txt&quot;&gt;
+</PRE>
+<P>
+is equal to:
+
+<P>
+<PRE>    &lt;INPUT TYPE=hidden NAME=mv_dict_limit    VALUE=&quot;-1&quot;&gt;
+    &lt;INPUT TYPE=hidden NAME=mv_search_file   VALUE=&quot;products.txt.category&quot;&gt;
+    &lt;INPUT TYPE=hidden NAME=mv_return_fields VALUE=&quot;1&quot;&gt;
+</PRE>
+<P>
+The real utility would be in a form construct like
+
+<P>
+<PRE>    Search for
+    &lt;SELECT NAME=mv_dict_limit&gt;
+    &lt;OPTION&gt; author
+    &lt;OPTION&gt; title
+    &lt;/SELECT&gt; beginning with &lt;INPUT NAME=mv_dictlook&gt;
+</PRE>
+<P>
+which would allow automatic binary search file selection.
+
+<P>
+Combined with the <CODE>INDEX</CODE> attribute to the <EM>Database</EM> directive, this allows fast binary search qualification combined with
+regular
+<A HREF="#item_mv_searchspec">mv_searchspec</A> text searches.
+
+</DD><P><DT><STRONG><A NAME="item_mv_dict_look">mv_dict_look</A></STRONG><DD>
+The string at which to begin matching at in a dictionary-based search. If
+not set, the mv_dict_end, mv_dict_fold, and mv_dict_case variables will be
+ignored. May be set in a search profile based on other form variables.
+
+</DD><P><DT><STRONG><A NAME="item_mv_dict_order">mv_dict_order</A></STRONG><DD>
+Make dictionary matching follow dictionary order, where only word
+characters and whitespace matter. Ignored without mv_dict_look.
+
+</DD><P><DT><STRONG><A NAME="item_mv_doit">mv_doit</A></STRONG><DD>
+This must be set to <A HREF="#item_search">search</A> to make this a search page.
+
+</DD><P><DT><STRONG><A NAME="item_mv_exact_match">mv_exact_match</A></STRONG><DD>
+Normally MiniVend searches match words, as opposed to sentences. This
+behavior can be overridden with mv_exact_match, which when set will place
+quotes around any value in mv_searchspec or mv_dict_look.
+
+</DD><P><DT><STRONG><A NAME="item_mv_field_names">mv_field_names</A></STRONG><DD>
+Deprecated in favor of in-list sorting.
+
+<P>
+Defines the field names for the file being searched. This guarantees that they will be available, and prevents a disk access if using named fields on a search file (that is not the product database 
+<FONT SIZE=-1>ASCII</FONT> source, where field names are already known). This
+ <STRONG>must</STRONG> be exactly correct, or it will result in anomalous search operation.
+Usually passed in a hidden field or search profile as a comma-separated
+list.
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> You should use this on the product database only
+if you plan on both pre-sorting with <A HREF="#item_mv_sort_field">mv_sort_field</A> and then post-sorting
+<CODE>with [sort]field:opt[/sort]</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item_mv_first_match">mv_first_match</A></STRONG><DD>
+Normally MiniVend will return the first page of a search. If you set this
+variable it will start the search return at the match specified, even if
+there is only one page. If set to a value greater than the number of
+matches, it will act as if no matches were found.
+
+</DD><P><DT><STRONG><A NAME="item_mv_head_skip">mv_head_skip</A></STRONG><DD>
+Normally MiniVend searches all lines of an index/product file but the
+first. Set this to the number of lines to skip at the beginning of the
+index. Default is 1 for the text search, which skips the header line in the
+product file. Default is 0 for a Glimpse search.
+
+</DD><P><DT><STRONG><A NAME="item_mv_index_delim">mv_index_delim</A></STRONG><DD>
+Sets the delimiter for counting fields in a search index. The default is 
+<FONT SIZE=-1>TAB.</FONT>
+
+</DD><P><DT><STRONG><A NAME="item_mv_matchlimit">mv_matchlimit</A></STRONG><DD>
+The page size for matches that are returned. If more matches than
+<STRONG>mv_matchlimit</STRONG> are found, the search paging mechanism will be employed if the proper <CODE>[more-list]</CODE> is present. Can be implemented as a scrolling list 
+<FONT SIZE=-1>(INPUT</FONT> 
+<FONT SIZE=-1>TYPE=SELECT)</FONT> or radiobox 
+<FONT SIZE=-1>(INPUT</FONT> 
+<FONT SIZE=-1>TYPE=RADIO)</FONT> field.
+
+
+</DD><P><DT><STRONG><A NAME="item_mv_max_matches">mv_max_matches</A></STRONG><DD>
+The maximum number of records that will be returned in a search. Default is
+2000. <STRONG>This only applies to Glimpse</STRONG>. Use mv_matchlimit to set the search page size.
+
+</DD><P><DT><STRONG><A NAME="item_mv_min_string">mv_min_string</A></STRONG><DD>
+Sets the minimum size of a search string for a search operation. Default is
+4 for the Glimpse search, and 1 for the text search.
+
+</DD><P><DT><STRONG><A NAME="item_mv_negate">mv_negate</A></STRONG><DD>
+Specifies that records 
+<FONT SIZE=-1>NOT</FONT> matching the search criteria will be returned.
+Default is no. It is not operative for the Glimpse search.
+
+<P>
+If stacked to match the mv_search_field and mv_searchspec variables, and
+mv_coordinate is set, it will operate only for the corresponding field.
+
+</DD><P><DT><STRONG><A NAME="item_mv_orsearch">mv_orsearch</A></STRONG><DD>
+If this item is set to <EM>yes</EM>, the search will return items matching any of the words in <EM>searchspec</EM>. The default is <EM>no</EM>.
+
+</DD><P><DT><STRONG><A NAME="item_mv_profile">mv_profile</A></STRONG><DD>
+Selects one of the pre-defined search specifications set by the
+<EM>SearchProfile</EM> directive. If the special variable within that file,
+<CODE>mv_last</CODE>, is defined, it will prevent the scanning of the form input for further
+search modifications. The values of <A HREF="#item_mv_searchspec">mv_searchspec</A> and
+<A HREF="#item_mv_dict_look">mv_dict_look</A> are always scanned, so you can specify this to do the equivalent of setting
+multiple checkboxes or radioboxes with one click, while still reading the
+search input text.
+
+</DD><P><DT><STRONG><A NAME="item_mv_range_alpha">mv_range_alpha</A></STRONG><DD>
+Sets the type of match, numeric or alphanumeric, for the range search in
+its corresponding range field. The search will return true (assuming it is
+greater than the mv_range_min specification) if the field searched is less
+than or equal to mv_range_max, in an alphanumeric sense.
+
+</DD><P><DT><STRONG><A NAME="item_mv_range_look">mv_range_look</A></STRONG><DD>
+This sets a field to scan for a range of numbers. It must be accompanied
+with corresponding mv_range_min and mv_range_max variables. It can be
+specified with either a field name or a column number.
+
+</DD><P><DT><STRONG><A NAME="item_mv_range_max">mv_range_max</A></STRONG><DD>
+Sets the high bound for the range search in its corresponding range field.
+The search will return true (assuming it is greater than the mv_range_min
+specification) if the field searched is less than or equal to mv_range_max.
+To set the bound at infinity, or whatever your integer limit is, set
+mv_range_min to 0.
+
+</DD><P><DT><STRONG><A NAME="item_mv_range_min">mv_range_min</A></STRONG><DD>
+Sets the low bound for the range search in its corresponding range field.
+The search will return true (assuming it is less than the mv_range_max
+specification) if the field searched is less than or equal to mv_range_min.
+
+</DD><P><DT><STRONG><A NAME="item_mv_record_delim">mv_record_delim</A></STRONG><DD>
+Sets the delimiter for counting records in a search index. The default is
+newline, which works for the products and most line-based index files.
+
+</DD><P><DT><STRONG><A NAME="item_mv_return_fields">mv_return_fields</A></STRONG><DD>
+The fields that should be returned by the match, specified either by field
+name or by column number. You should almost always specify 0 as the first
+field to be returned if searching the products database, since that is the
+key for accessing database fields.
+
+</DD><P><DT><STRONG><A NAME="item_mv_return_spec">mv_return_spec</A></STRONG><DD>
+Returns the string specified as the search (i.e. the value of <A HREF="#item_mv_searchspec">mv_searchspec</A>) as the one and only match. Typically used in a SKU/part number search.
+
+</DD><P><DT><STRONG><A NAME="item_mv_search_field">mv_search_field</A></STRONG><DD>
+The <CODE>field(s)</CODE> to be searched, specified either by column name
+or by column number.
+
+<P>
+If the number of instances matches the number of fields specified in the
+<A HREF="#item_mv_searchspec">mv_searchspec</A> variable, and <A HREF="#item_mv_coordinate">mv_coordinate</A> is set to true, each search field (in order specified on the form) will be
+matched with each search spec (again in that order).
+
+</DD><P><DT><STRONG><A NAME="item_mv_search_file">mv_search_file</A></STRONG><DD>
+In the text search, set this variable to the <CODE>file(s)</CODE> to be
+scanned for a match. The default, if not set, is to scan the default
+ProductFiles (i.e. products.txt). If set multiple times in a form (for a
+text search), will cause a search all the files. One file name per
+instance.
+
+<P>
+In the Glimpse search, follows the Glimpse wildcard-based file name
+matching scheme. Use with caution and a liberal dose of the Glimpse man
+page.
+
+</DD><P><DT><STRONG><A NAME="item_mv_search_match_count">mv_search_match_count</A></STRONG><DD>
+Set by the search to indicate the total number of matches found.
+
+</DD><P><DT><STRONG><A NAME="item_mv_search_over_msg">mv_search_over_msg</A></STRONG><DD>
+The message that should be displayed if there is an overflow condition (<A HREF="#item_mv_matchlimit">mv_matchlimit</A> is exceeded). Overrides the SearchOverMsg directive -- it is cleared by
+MiniVend if there is no overflow. Somewhat deprecated by match paging.
+
+</DD><P><DT><STRONG><A NAME="item_mv_search_page">mv_search_page</A></STRONG><DD>
+The MiniVend-style name of the page that should display the search results.
+Overrides the FrameSearchPage directive, and the default value of <A HREF="#item_search">search</A>.
+
+</DD><P><DT><STRONG><A NAME="item_mv_searchspec">mv_searchspec</A></STRONG><DD>
+The actual search string that is typed in by the customer. It is a text 
+<FONT SIZE=-1>INPUT</FONT> 
+<FONT SIZE=-1>TYPE=TEXT</FONT> field, or can be put in a select (drop-down) list to enable category searches. If multiple instances are found, they will be concatenated just as if multiple words had been placed in a text field.
+
+
+<P>
+The user can place quotes around words to specify that they match as a
+string. To enable this by default, use the <A HREF="#item_mv_exact_match">mv_exact_match</A>
+variable.
+
+<P>
+If <A HREF="#item_mv_dict_look">mv_dict_look</A> has a value, and <A HREF="#item_mv_searchspec">mv_searchspec</A> does <STRONG>not</STRONG>, then mv_searchspec will be set to the value of mv_dict_look.
+
+<P>
+If the number of instances matches the number of fields specified in the
+<A HREF="#item_mv_search_field">mv_search_field</A> variable, and <A HREF="#item_mv_coordinate">mv_coordinate</A> is set to true, each search field (in order specified on the form) will be
+matched with each search spec (again in that order).
+
+</DD><P><DT><STRONG><A NAME="item_mv_searchtype">mv_searchtype</A></STRONG><DD>
+If set to <EM>glimpse</EM>, selects the Glimpse search (if Glimpse is defined).
+
+<P>
+If set to <EM>sql</EM>, formulates an 
+<FONT SIZE=-1>SQL</FONT> select statement to return the search list. 
+
+<P>
+If set to <EM>db</EM>, iterates over every row of the database (not the associated text source
+file).
+
+<P>
+If set to <EM>text</EM>, selects the text-based search.
+
+<P>
+Defaults to <EM>text</EM> if <EM>Glimpse</EM> is not defined, to Glimpse if it is. This can allow use of both search
+types if that is desirable -- for instance, searching for very common
+strings is better done by the text-based search. An example might be
+searching for categories of items instead of individual items.
+
+</DD><P><DT><STRONG><A NAME="item_mv_sort_field">mv_sort_field</A></STRONG><DD>
+The file <CODE>field(s)</CODE> the search is to be sorted on, specified in
+one of two ways. If the <CODE>file(s)</CODE> to be searched have a header
+line (the first line) that contains delimiter-separated field names, it can
+be specified by field name. If can also be specified by column number (the
+code or key is specified with a value of 0, for both types). These can be
+stacked, if coming from a form, or placed in a single specification
+separated by commas.
+
+<P>
+
+<FONT SIZE=-1>NOTE</FONT> 
+<FONT SIZE=-1>FOR</FONT> 
+<FONT SIZE=-1>ADVANCED</FONT> 
+<FONT SIZE=-1>USERS:</FONT> If specifying a sort for the product database,
+
+<A HREF="#item_mv_field_names">mv_field_names</A> must be specified if you will be doing a fieldname-addressed post-sort.
+
+</DD><P><DT><STRONG><A NAME="item_mv_sort_option">mv_sort_option</A></STRONG><DD>
+The way that each field should be sorted. The flags are <CODE>r</CODE>, <CODE>n</CODE>, and <A HREF="#item_f">f</A> -- for reverse, numeric, and case-insensitive respectively. These can be
+stacked, if coming from a form, or placed in a single specification
+separated by commas. The stacked options will be applied to the sort fields
+as they are defined, presuming those are stacked.
+
+</DD><P><DT><STRONG><A NAME="item_mv_spelling_errors">mv_spelling_errors</A></STRONG><DD>
+The number of spelling errors that will be tolerated. Ignored unless using
+Glimpse. If you have a large catalog, you might wish to limit this to two.
+
+</DD><P><DT><STRONG><A NAME="item_mv_substring_match">mv_substring_match</A></STRONG><DD>
+If <A HREF="#item_mv_substring_match">mv_substring_match</A> is set to <EM>yes</EM>, matches on substrings as well as whole words. You would typically want to
+set this for dictionary-based searches.
+
+<P>
+If stacked to match the <A HREF="#item_mv_search_field">mv_search_field</A> and <A HREF="#item_mv_searchspec">mv_searchspec</A> variables, and <A HREF="#item_mv_coordinate">mv_coordinate</A> is set, it will operate only for the corresponding field.
+
+</DD><P><DT><STRONG><A NAME="item_mv_unique">mv_unique</A></STRONG><DD>
+If set to a true value, causes the sort to return only unique results. This
+operates on whatever the search return is, as defined by
+<A HREF="#item_mv_return_fields">mv_return_fields</A>.
+
+</DD><P><DT><STRONG><A NAME="item_mv_value">mv_value</A></STRONG><DD>
+This is normally only used in the one-click search (va=var=value). It
+allows setting of a session variable based on the clicked link, which makes
+for easy definition of headers and other display choices. (If you had
+trouble using <A HREF="#item_mv_searchspec">mv_searchspec</A> for this before, this is what you need.)
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="12.00.THE_SEARCH_ENGINE.html">Up</A>&nbsp;&nbsp;<A HREF="12.10.Search_Profiles.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="12.12.The_Results_Page.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

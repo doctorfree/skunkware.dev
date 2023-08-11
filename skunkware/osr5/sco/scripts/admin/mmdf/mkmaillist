@@ -1,0 +1,320 @@
+#!/bin/ksh
+# @(#) mkmaillist.ksh 1.2 97/01/19
+# 96/09/05 john h. dubois (john@armory.com)
+# 96/09/20 Let <listname> and <list-owner> be derived from <listfile>.
+#          Added all options.
+# 96/10/11 Added cm options.  Format alias file entries by tab padding them.
+
+aliasDir=/usr/mmdf/table
+defAliasFile=userlist.ali
+Tell=false
+rcFile=/etc/default/mkmaillist
+CreateFile=false
+majordomo=false
+
+long_name=${0##*/}
+Usage="Usage:
+$long_name [-chmt] [-a<alias-file>] <listfile> [<listname> [<list-owner>]]"
+
+while getopts a:chmt opt; do
+    case $opt in
+    h)
+	print -r -- \
+"$long_name: Create an MMDF mailing list.
+$long_name builds an alias table entry to set up an included mail alias (an
+alias whose contents are read from a file each time the alias is expanded).
+The alias is set up in such a way that the MMDF list processor channel is used.
+The three aliases that are created for each mailing list have this format:
+    listname:		listname-outbound@list-processor
+    listname-request:	list-owner
+    listname-outbound:	< included-filename
+Thus, for each mailing list, three items of information must be known: the
+mailing list name, the mailing list owner, and the name of the file to read
+when the list is expanded.  All three of these may be given explicitly, or
+may be derived from each other.
+After the alias entry has been built, it is appended to the appropriate alias
+table file and the MMDF dbm database is rebuilt.
+
+$Usage
+     If <listfile> ends in a /, <listname> is appended to it.  This assumes
+that the file takes the same name as the list name.
+     If <listfile> does not begin with a /, <list-owner> is taken to be a user
+name, and the user's home directory is prepended to <listfile>.
+     If <list-owner> is not given, the owner is set to be the user whose home
+directory <listfile> is in.  In this case, <listfile> must begin with a '/'.
+     If <listname> is also not given (or is given as a '-'), the list name is
+set to be the final component of <listfile>.  In this case <listfile> must not
+end in a '/'.
+     <listfile> must exist at the time the mailing list is made.
+Options:
+-h: Print this help.
+-c: If the named mailing list file doesn't exist, create it, set the owner
+    of the file to the list owner, set the group to 'group', and set the
+    permissions appropriately.  If the list owner is not a local user, the
+    ownership of the file is set to the user under whose home directory it is
+    created.
+-a<alias-file>: Write aliases to <alias-file>.  If <alias-file> does not begin
+    with a '/', it is assumed to be relative to $aliasDir.  The default
+    alias file is $aliasDir/$defAliasFile.  This parameter may also be set
+    by assigning a value to ALIASFILE in the file $rcFile.
+    Example: ALIASFILE=list.ali
+-m: Create a majordomo mailing list.  If <listfile> contains no '/' characters,
+    it is assumed to reside in the directory ~majordom/Lists.  If the file does
+    not exist, it is created, the owner is set to majordom, the group is set to
+    majordom, and the mode is set to 664.
+    Three additional aliases are set up:
+    owner-listname:         list-owner
+    listname-approval:      list-owner
+    listname-error:         owner-listname
+-t: Tell what would be added to the alias file, without doing it."
+	exit 0
+	;;
+    t)
+	Tell=true
+	;;
+    a)
+	aliasFile=$OPTARG
+	;;
+    c)
+	CreateFile=true
+	;;
+    m)
+	majordomo=true
+	CreateFile=true
+	;;
+    ?)
+	print -r -u2 "Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# Find the user whose home directory the file/directory $1 is in, dealing with
+# nested home directories (ick).
+# The user name is returned in the global variable getHomeDirUser
+function getHomeDirUser {
+    # Assume the file is a dir; can't hurt
+    awk -v "path=$1/" '
+BEGIN {
+    mlen = 0
+    FS = ":"
+}
+{
+    homedir = $6 "/"
+    if (length(homedir) > mlen && index(path,homedir) == 1) {
+	user = $1
+	mlen = length(homedir)
+    }
+}
+END {
+    print user
+}
+' /etc/passwd | read getHomeDirUser_ret
+}
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    print -r -u2 -- "$Usage
+Use -h for help."
+    exit 1
+fi
+
+if [ $# -eq 0 -o $# -gt 3 ]; then
+    print -ru2 -- \
+    exit 1
+fi
+
+if [ -z "$aliasFile" -a -f "$rcFile" -a -r "$rcFile" ]; then
+    . "$rcFile"
+    aliasFile=$ALIASFILE
+fi
+if [ -z "$aliasFile" ]; then
+    aliasFile=$defAliasFile
+fi
+[[ "$aliasFile" != /* ]] && aliasFile="$aliasDir/$aliasFile"
+if [ ! -w "$aliasFile" ]; then
+    print -ru2 -- "Cannot write to alias file $aliasFile"
+    exit 1
+fi
+
+file=$1
+if [ $# -lt 2 -o "$2" = - ]; then
+    listname=${file##*/}
+    if [ -z "$listname" ]; then
+	print -ru2 \
+    "List filename ends in /, so <listname> must be given.  Use -h for help."
+	exit 1
+    fi
+else
+    listname=$2
+fi
+if [ $# -lt 3 ]; then
+    if [[ "$file" != /* ]]; then
+	print -ru2 \
+	"List filename must begin with / if <list-owner> is not given."
+	exit 1
+    fi
+    
+
+    getHomeDirUser "$file"
+    listOwner=$getHomeDirUser_ret
+    if [ -z "$listOwner" -o "$listOwner" = root ]; then
+	print -ru2 \
+"List filename: $file
+is not in any user's home directory.  If the list is to be owned by root, root
+must be explicitly given on the command line."
+	exit 1
+    fi
+else
+    listOwner=$3
+fi
+
+if [[ "$listname" != +([-a-zA-Z_0-9]) ]]; then
+    print -ru2 "$listname: Bad list name."
+    exit 1
+fi
+
+if [[ "$(/usr/mmdf/bin/malias $listname)" != "no aliases "* ]]; then
+    print -ru2 "The mail name '$listname' is already in use.  Aborting."
+    exit 1
+fi
+
+[[ "$file" = */ ]] && file="$file$listname"
+if [[ "$file" != /* ]]; then
+    if $majordomo; then
+	fileOwner=majordom
+    else
+	fileOwner=$listOwner
+    fi
+    OIFS=$IFS
+    IFS=:
+    egrep "^$fileOwner:" /etc/passwd 2>/dev/null |
+    read u p uid gid name homeDir shell
+    if [ -z "$homeDir" ]; then
+	if $majordomo; then
+	    print -ru2 -- \
+"The user majordom does not exist.  A full path must be given
+for the list filename."
+	else
+	    print -ru2 -- \
+"$listOwner is not a local user, so <listfile> must be given as a full path
+from the root directory.  Use -h for help."
+	fi
+	exit 1
+    fi
+    $majordomo && file="$homeDir/Lists/$file" || file="$homeDir/$file"
+    IFS=$OIFS
+fi
+
+if [ -f "$file" ]; then
+    if $CreateFile; then
+	print -ru2 -- \
+	"Note: mailing list file already existed; not created: $file"
+    fi
+else
+    if $CreateFile; then
+	if $Tell; then
+	    print -r "Would create mailing list file: $file"
+	else
+	    touch "$file" || {
+		print -ru2 -- "Could not create mailing list file: $file"
+		exit 1
+	    }
+	fi
+	if $majordomo; then
+	    fileOwner=majordom
+	    fileGroup=majordom
+	    mode=664
+	else
+	    if egrep "^$listOwner:" /etc/passwd >/dev/null; then
+		fileOwner=$listOwner
+	    else
+		getHomeDirUser "$file"
+		fileOwner=$getHomeDirUser_ret
+	    fi
+	    mode=644
+	    fileGroup=group
+	fi
+	if $Tell; then
+	    print -r "Would chown file $file to $fileOwner"
+	    print -r "Would chgrp file $file to $fileGroup"
+	    print -r "Would chmod $mode file $file"
+	else
+	    if chown "$fileOwner" "$file" &&
+	    chgrp "$fileGroup" "$file" && chmod $mode "$file"; then
+		print -ru2 "Created mailing list file: $file"
+	    else
+		print -ru2 "Could not chown/chmod new mailing list file: $file"
+		exit 1
+	    fi
+	fi
+    else
+	print -ru2 -- \
+"No such file: $file.
+To automatically create files that do not already exist, use the -c option."
+	exit 1
+    fi
+fi
+
+entry="
+$listname:		$listname-outbound@list-processor
+$listname-request:	$listOwner
+$listname-outbound:	< $file"
+
+if $majordomo; then
+    entry="$entry
+owner-$listname:	$listOwner
+$listname-approval:	$listOwner
+$listname-error:	owner-$listname"
+fi
+
+padEntry="$(print -r -- "$entry" | awk -vmax="$listname-outbound: " '
+# TabPad: pad S to TabLen tabwidths with tabs
+# TabInsPad: Replace the leftmost string of tabs in S with a string of tabs
+# such that the part of the string to the left of the tabs has been padded to
+# TabLen tabwidths.  If the string has no tabs, the entire string is taken to
+# be the part to the left of the tabs.  If the part of the string to the left
+# of the tabs is already long enough, a single tab is still added.
+function TabInsPad(S,TabLen,  left,right,tablen) {
+    pos = index(S,"\t")
+    if (!pos)
+	left = S
+    else {
+	left = substr(S,1,pos-1)
+	right = substr(S,pos+1)
+    }
+    sub("\t+","",right)		# get rid of prev. tabs
+    tabs = TabLen - int(length(left)/8)
+    if (tabs == 0)
+	tabs = 1
+    for (; tabs; tabs--)
+	left = left "\t"
+    return left right
+}
+BEGIN {
+    n = int((length(max)+7)/8)
+}
+{
+    print TabInsPad($0,n)
+}')"
+
+if $Tell; then
+    print -r "Would append the following to alias file: $aliasFile
+    $padEntry"
+    exit 0
+else
+    print -r "Appending the following to alias file: $aliasFile
+    $padEntry"
+fi
+
+print -r "$padEntry" >> $aliasFile &&
+cd /usr/mmdf/table &&
+su mmdf -c dbmbuild &&
+{
+    print ""
+    # file is no good until it has at least one address in it
+    [ -s "$file" ] && /usr/mmdf/bin/checkaddr -w "$listname-outbound"
+}

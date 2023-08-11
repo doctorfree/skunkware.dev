@@ -1,0 +1,33 @@
+# @(#) dirs.ksh 1.0 1991
+# 1991 john h. dubois iii (john@armory.com)
+# Lists directory history maintained by 'ucd'.
+# Usage:
+# dirs [num]
+# num is the number of history entries to list.  If num is not given, the
+# number of entries listed is based on the number that will fit on the screen.
+# If this cannot be determined, 23 history entries are listed.
+# The format of the output is
+# histslot: directory-name
+# where histslot is the history index (the number that would be given to ucd
+# to cd to that slot; always preceded by a '-') of the named directory.
+function dirs {
+    typeset -i i=1 ind=_dind num=23
+    typeset -L4 printind
+    typeset dir
+
+    if [ "$1" -gt 0 ]; then
+	num=$1
+    elif [ -z "$LINES" ]; then
+	num=$LINES-2
+    fi
+    while [ i -le num ]; do
+	printind=-$i:
+	dir=${_olddirs[ind]}
+	if [ -z "$dir" ]; then break; fi
+	print -- "$printind $dir"
+	let ind-=1
+	if [ ind -lt 0 ]; then ind=_numdirs-1; fi
+	let i+=1
+    done
+}
+

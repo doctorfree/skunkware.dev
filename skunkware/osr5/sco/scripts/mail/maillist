@@ -1,0 +1,676 @@
+#!/bin/ksh
+# @(#) maillist.ksh 1.4 97/02/19
+# 92/09/27 john h. dubois iii (john@armory.com)
+# 92/10/13 Added dellist capability.
+# 92/10/15 Check for whether user is already on list.
+# 92/10/17 Allow multiple users on cmd line.
+# 92/11/09 Added help.
+# 93/07/13 Do not create list- if no changes are made.
+# 93/07/17 Store lists with multiple addresses per line.  Added -c option.
+# 94/01/10 Make default for LISTS be home dir, not current dir.
+# 94/04/05 Added A and R options.
+# 94/04/23 Use .maillist file.
+# 94/07/28 Let quoted patterns be used for mailing list names.
+# 94/08/15 Give better error messages if list does not exist or isn't readable.
+# 95/04/13 Make -[dD] ("delete") be the same as -[rR] ("remove")
+# 95/10/16 Added fi options.  Don't require mailing list name if the user has
+#          only one mailing list.  Let % by a synonym for *.  Improved help.
+# 96/01/26 Report full path to alias file on error.
+#          Make list file be relative to current dir if it contains a /
+# 96/01/29 Let options be grouped together.  Added [qs] options.
+# 96/02/16 Made modifiers work again; made c option work again.
+# 97/02/19 Ignore case in addresses.
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+rcfile=.maillist
+
+# Usage: ReadList <array> <listname>
+# The comma/whitespace separated words in file <listname> are read, sorted,
+# and put into array <array>
+function ReadList {
+    typeset IFS="$IFS," arr=$1 list=$2
+
+    if [ ! -f "$list" ]; then
+	print -u2 "$lngname: $list: No such mailing list in $PWD."
+	return 1
+    fi
+    if [ ! -r "$list" ]; then
+	print -u2 "$lngname: Cannot read list datafile '$PWD/$list'."
+	return 1
+    fi
+    set -s -A $arr -- $(<$list)
+}
+
+# Usage: IsOnList user-name
+# Returns success if user-name is in any element of global MList[]
+function IsOnList {
+    typeset -i nelem=${#MList[*]} i=0
+    typeset -l user=$1 listelem
+
+    while [ i -lt nelem ]; do
+	listelem=${MList[i]}
+	[ "$user" = "$listelem" ] && return 0
+	let i+=1
+    done
+    return 1
+}
+
+# Print words passed as args with max line length
+# Usage: PrintMaxLines <maxlinelength> <sep> <end> word ...
+# <sep> is used to separate words on a line.
+# <end> is put at the end of each line except the last.
+function PrintMaxLines {
+    typeset maxline=$1 sep=$2 end=$3 outline= word
+    typeset -i printedline=0 extra=${#sep}+${#end}
+
+    shift 3
+    for word; do
+	if [[ $(( ${#outline}+${#word}+$extra )) -gt $maxline ]]; then
+	    isfalse printedline && printedline=1 || print -r "$end"
+	    print -nr "$outline"
+	    outline=$word
+	else
+	    [ -z "$outline" ] && outline=$word || outline="$outline$sep$word"
+	fi
+    done
+    # print final line if it hasn't been printed yet
+    istrue printedline && print -r "$end"
+    print -r "$outline"
+}
+
+# Usage: WriteList <listname>
+# Writes mailing list in MList[] to file <listname>
+function WriteList {
+    cp "$list" "$list-"
+    PrintMaxLines 79 ", " "," "${MList[@]}" > $list ||
+    print -u2 "$lngname: List write failed."
+}
+
+# Usage: iInd <arrayname> <varname> <value> <nsearch> <firstelem>
+# Sets <varname> to the index of the first element of <arrayname>
+# that has value <value>.  Case is ignored.
+# If the value is not found, <varname> is not set and 1 is returned;
+# if it is, 0 is returned.
+# If <nsearch> is given, the first <nsearch> elements of the array are
+# searched, with only nonempty elements counted.
+# If not, the first n nonempty elements are searched (up to 1024),
+# where n is the number of elements in the array.
+# If a fourth argument is given, it is the index to start with; the search
+# continues for <nsearch> elements.
+function iInd {
+    typeset -i NElem ElemNum=${5:-0} NumNonNull=0
+    typeset Arr=$1 var=$2
+    typeset -l ElemVal Val=$3
+
+    [ $# -ge 4 ] && NElem=$4 || eval NElem=\${#$Arr[*]}
+    while [ ElemNum -le 1023 -a NumNonNull -lt NElem ]; do
+	eval ElemVal=\"\${$Arr[ElemNum]}\" 
+	if [ "$Val" = "$ElemVal" ]; then
+	    eval $var=\$ElemNum
+	    return 0
+	fi
+	[ -n "$ElemVal" ] && let NumNonNull+=1
+	let ElemNum+=1
+    done
+    return -1
+}
+
+# Usage: ChangeHosts listname old-host new-host
+# If old-host exists in listname, remove it and add new-addr to listname.
+# will need to copy much of DoUsers into this...
+#function ChangeList {
+#    typeset list=$1 old new
+#
+#    while [ $# -gt 1 ]; do
+#	old=$2 new=$3
+#	if DoUsers 0 "$list" "$old"; then
+#	    DoUsers 1 "$list" "$new"
+#	else
+#	    $Quiet || print -u2 "$lngname: $new not added to list $list."
+#	fi
+#	shift 2
+#    done
+#}
+
+# Usage: ChangeList listname old-addr new-addr [old-addr new-addr ...]
+# If old-addr exists in listname, remove it and add new-addr to listname.
+function ChangeList {
+    typeset list=$1 old new
+
+    while [ $# -gt 1 ]; do
+	old=$2 new=$3
+	if DoUsers 0 "$list" "$old"; then
+	    DoUsers 1 "$list" "$new"
+	else
+	    $Quiet || print -u2 "$lngname: $new not added to list $list."
+	fi
+	shift 2
+    done
+}
+
+# Usage: DoUsers 0|1 <listname> user ...
+# Use 0 to remove a user, 1 to add a user
+# Returns 0 on complete success, 1 if a user was already on a list to be
+# added to or not on a list to be remove from or if any other error occurs.
+function DoUsers {
+    typeset -i add=$1
+    typeset list=$2
+    typeset OnList OffList User
+    typeset -i OnInd=0 OffInd=0 UInd err=0
+
+    shift 2
+
+    ReadList MList $list || return 1
+    for User; do
+	if IsOnList "$User"; then
+	    OnList[OnInd]=$User
+	    let OnInd+=1
+	else
+	    OffList[OffInd]=$User
+	    let OffInd+=1
+	fi
+    done
+    if istrue add; then
+	if [ OnInd -gt 0 ]; then
+	    echo "Warning: already on list \"$list\": ${OnList[*]}."
+	    err=1
+	fi
+	if [ OffInd -gt 0 ]; then
+	    set -s -A MList -- "${MList[@]}" "${OffList[@]}"
+	    WriteList $list
+	    echo "Added to list $list: ${OffList[*]}"
+	fi
+    else
+	if [ OffInd -gt 0 ]; then
+	    $Quiet || echo "Warning: not on list \"$list\": ${OffList[*]}."
+	    err=1
+	fi
+	if [ OnInd -gt 0 ]; then
+	    for User in "${OnList[@]}"; do
+		if iInd MList UInd "$User"; then
+		    unset MList[UInd]
+		else
+		    print -u2 "$lngname: Failed to find index of $User."
+		    err=1
+		fi
+	    done
+	    WriteList $list
+	    echo "Removed from list $list: ${OnList[*]}"
+	fi
+    fi
+    return $err
+}
+
+# Usage: fix <listname>
+function fix {
+    ReadList MList "$1" || return 1
+    WriteList "$1"
+    chmod a+r "$1"
+}
+
+# Usage: findPat <user-pattern> <listname>
+function findPat {
+    typeset list=$1 found=false
+    typeset -l userPat=$2 user
+
+    ReadList MList "$list" || return 1
+    for user in "${MList[@]}"; do
+	if eval [[ '"$user"' = "*$userPat*" ]]; then
+	    $found || { print -n "$list:"; found=true; }
+	    print -n " $user"
+	fi
+    done
+    $found && print ""
+    return 0
+}
+
+# Usage: initialize <listname>
+function initialize {
+    if [ ! -f "$1" ]; then
+	touch -- "$1" ||  {
+	    print -u2 "Could not create list file '$1'".
+	    exit 1
+	}
+	chmod 744 "$1"
+	print -u2 "Created list file '$1'."
+    else
+	print -u2 "Checking list file '$1'."
+	fix "$1"
+    fi
+}
+
+function printLists {
+    [ numLists -gt 1 ] && print "$list:"
+    print -- "$(<$list)"
+}
+
+function doArgs {
+    typeset opt Users ListArr OFS add list Args OnlyOne Lists act modifier
+    typeset lNames line
+    typeset -i i j MinArgs
+
+    while getopts hfipqaArRcdDslun opt; do
+	case $opt in
+	h)
+	    echo \
+"$lngname: Manipulate mailing lists.
+     $lngname prints and modifies \"included\" mailing lists.  An included
+mailing list is one which exists as a file containing a list of recipients
+which is read each time mail for the list is received.  The other type of
+mailing list is an internal list; these mailing lists are specified in the
+MMDF alias files and become part of the MMDF database when dbmbuild(ADM) is
+run.  Included mailing lists are typically used to allow automated mailing list
+management tools (like majordomo) to manipulate mailing lists, to allow mailing
+lists to be easily updated (since dbmbuild does not have to be run after each
+modification), and to allow users (who are not allowed to run dbmbuild) to
+maintain their own mailing lists.  This utility is intended to facilitate the
+use of included mailing lists for the latter two purposes.
+     Note that both internal and included mailing lists are only needed (and
+should only be used) when it is desirable for multiple users to be able to mail
+to a list address.  If a list is to be created for use by only one user, a
+mailing list read by the user's mail sending utility should be used instead.
+     See the tables(F) man page for a description of how to configure the MMDF
+system to use an included mailing list.  This must be done by the system
+administrator, after the list file has been created.  If the list is configured
+into MMDF first, any mail sent to it before the file exists or before the file
+is made accessible to the deliver daemon will result in an error, with mail
+sent to the system administrator.  You should also ensure that all directories
+in the path up to the list file are publicly executable.  That can be done with
+the -i or -f option.  $lngname only modifies the contents mailing list files
+(adding and removing recipients); it does not do any MMDF configuration.
+     For simplicity, $lngname maintains mailing lists in a file with the same
+name as that of the list.  The file must already exist, unless -i is being
+used.  Since it will be read by the deliver daemon, it must be readable and
+accessible by \"other\".  You can initially create the file either by using the
+-i option, or with the commands:
+touch <listname>
+chmod a+r <listname>
+where <listname> is the name of the mailing list file.
+     If the filename contains a '/' character, it is searched for relative to
+the current directory.  If it does not, the file is searched for in the
+directory given by the environment variable \"MAILLISTS\".  MAILLISTS can also
+be set by creating a file named $rcfile in your home directory and
+putting in it a line of the form:
+MAILLISTS=maillist-dir
+where maillist-dir is the mailing list directory.  If MAILLISTS is not set
+either in the environment or in $rcfile, it defaults to your home directory.
+The MAILLISTS environment variable takes precedence over the value set in
+$rcfile.
+     Mailing list files should contain addresses separated by commas and
+optional whitespace.  The initial list of recipients can be put in the file
+manually, and it can later be edited manually, so long as this rule is
+observed.  $lngname does not require that names be separated by commas, but the
+deliver daemon does.  If the mailing list is initially created with names
+separated by whitespace only, $lngname -k should be run on the file before it
+is used, to put it in the format that the deliver daemon expects.  Alternately,
+all operations on the file can be done through $lngname.
+     When $lngname is run, a copy of the list being operated on as it currently
+exists is saved in listname- (a file with the same name as the list but with a
+'-' attached).  Mailing list names that end in '-' are ignored, so * can be
+used in a directory that contains only mailing lists to specify all of them. 
+It should not be used if the directory contains any non-dotfiles that are not
+mailing list files.  Also, shell patterns (like *) can be used from any
+directory if quoted to protect them from initial expansion by the shell; they
+will be expanded in the mailing list directory.  The character '%' can be used
+as a synonym for *, with the advantage that it does not have to be quoted.
+$Usage
+     To make this program easier to use in cases where a user is to be added or
+removed from a number of mailing lists, or where a number of users are to be
+added/removed from a mailing list, the add and remove functions can each be
+given in one of two ways.  The argument is a list of users or mailing lists
+separated by commas; further arguments are a list of users or mailing lists
+(whichever was not given as the first argument) separated by whitespace.  If
+a pattern (like *) that will be expanded into a list of mailing list files is
+used, the first form should be used, since the pattern will expand to a list 
+of mailing list files separated by whitespace.  If a command line substitution
+that will put user names on the command line is used, the second form should be
+used for the same reason.  If all parameters will be explicitly given on the
+command line, either form may be used.
+Exactly one of the following options must be given.  If arguments are given
+after an option, a space must separate the option from the arguments.
+Options:
+-h: Print this help information.
+-f listname [listname ...]: Fix the mailing list files: read the files and
+    rewrite them in the format the deliver daemon expects, and set their
+    permissions.
+-i listname [listname ...]: Initialize mailing list files.  Like -f, except
+    that any files that do not exist are created (as empty files).  If MAILLIST
+    is set, the files are created in the directory it specifies; if not, the
+    files are created in the user's home directory.  If the directory does not
+    exist, it will be created.
+-p [listname ...]  Print the specified mailing lists.  If not listnames are
+    given, all lists are printed.  If more than one mailing list is printed,
+    its name is printed first.
+-q: When removing a user from lists, do not complain about lists the user was
+    not on.  When changing a user address, do not warn about lists the user
+    was not added to.
+-[ar] user[,user...] listname [listname ...]
+-[AR] listname[,listname...] user [user ...]
+    Add/remove the specified users to/from the mailing list(s).  -d and -D are
+    identical to -r and -R.  If the letter 'u' or 'l' follows any of these
+    options (e.g. -au or -al), then the list of users or mailing list names
+    respectively is read from the standard input and should not be given on the
+    command line.  Multiple user or mailing list names may be given on input
+    lines.
+-s user-pattern [listname ...]: Print list names that user-pattern
+    occurs in, followed by the users who matched the pattern.  user-pattern is
+    an unanchored shell pattern.  If no listnames are given, % is used.
+-n old-hostname new-hostname [listname ...]
+    Change every matching hostname found in the recipient names on the given
+    mailing lists to new-hostname.  old-hostname must match the entire hostname
+    part of an address.  The only forms of address understood are user@hostname
+    and hostname!user.  (The hostname will actually also match certain parts of
+    a UUCP or source route, since this option looks for a match on a hostname
+    after the last @ in an address and before the first !, but this should not
+    be relied upon).  If no listnames are given, all lists are acted on.
+    Note: -n is not yet implemented.
+-c current-address new-address [listname ...]
+    Change the email address of the specified user on the mailing list(s).
+    Only one user can be changed per invokation.  The current subscription
+    address should be given first, then the new subscription address.  If
+    current-address does not exist in a list, new-address is not added to it.
+    For example, to change the subscription address of user@foo to user@bar
+    on mylist, use: $lngname -c user@foo user@bar mylist
+    If -cu is given instead of -c, pairs of addresses separated by whitespace
+    are read from the standard input.  For each line read, the first address
+    given on the line is taken to be a current address and the second address
+    is taken to be a new address and they are used to do a replacement as
+    described above.  In this case, all arguments are taken to be listnames.
+    If no listnames are given, all lists are acted on.
+For the f, p, a, r, and c options only, if the user has exactly one mailing
+list, and MAILLISTS is set, and the mailing list file is the only file in the
+MAILLISTS directory, then the listname does not have to be given on the command
+line."
+	    exit 0
+	    ;;
+	q)
+	    Quiet=true
+	    ;;
+	[ardARDcnpsif])
+	    if [ -n "$act" ]; then
+		print -u2 "$lngname: Multiple actions specified ($act"\
+" and $opt).  Use -h for help.  Aborting."
+		exit 1
+	    fi
+	    act=$opt
+	    ;;
+	[ul])
+	    if [ -n "$Mod" ]; then
+		print -u2 "$lngname: Multiple modifiers specified ($Mod"\
+" and $opt).  Use -h for help.  Aborting."
+		exit 1
+	    fi
+	    Mod=$opt
+	    ;;
+	:) 
+	    print -r -u2 -- \
+	    "$name: Option '$OPTARG' requires a value.  Use -h for help."
+	    exit 1
+	    ;;
+	?) 
+	    print -u2 "$lngname: $OPTARG: bad option.  Use -h for help."
+	    exit 1
+	    ;;
+	esac
+    done
+
+    # remove args that were options
+    let OPTIND=OPTIND-1
+    shift $OPTIND
+
+    case "$act" in
+    [ardARD])	# Adding or removing users
+	ReadUsers=false
+	ReadLists=false
+	ReadInput=false
+	case "$Mod" in
+	u)
+	    ReadUsers=true
+	    ReadInput=true
+	    ArgsReq=list
+	    ArgsRead=user
+	    MinArgs=1
+	    ;;
+	l)
+	    ReadLists=true
+	    ReadInput=true
+	    ArgsReq=user
+	    ArgsRead=list
+	    MinArgs=1
+	    ;;
+	"")
+	    [[ $act = [ARD] ]] &&
+	    ArgsReq="list and user" || ArgsReq="user and list"
+	    MinArgs=2
+	    ;;
+	esac
+	if [ $# -lt MinArgs ]; then
+	    print -u2 \
+    "$lngname: must give $ArgsReq names(s) with -$act.  Use -h for help."
+	    exit 1
+	fi
+	OFS=$IFS
+	IFS=,
+	if $ReadInput; then
+	    [ -t 0 -a -t 1 ] && print "Enter $ArgsRead names; end with ^D"
+	    set -A ReadArgs $(<&0)
+	    if [ "${#ReadArgs[*]}" -eq 0 ]; then
+		print -u2 \
+	"$lngname: must give at least one $ArgsRead name.  Use -h for help."
+		exit 1
+	    fi
+	fi
+	if [[ $act = [ard] ]]; then # arg1 is users, others are lists
+	    $ReadUsers || {
+		Users=$1
+		shift
+	    }
+	    if $ReadLists && [ $# -gt 1 ]; then
+		print -u2 "Too many arguments given with -$act$Mod"
+		exit 1
+	    fi
+	    set -A ListArr "$@"
+	    if $ReadUsers; then
+		set -A Args -- "${ReadArgs[@]}"
+	    else
+		set -A Args $Users
+	    fi
+	else			# arg1 is lists, others are users
+	    $ReadLists || {
+		if [ $# -eq 0 ]; then
+		    print -u2 \
+	    "$lngname: must give list names(s) with -$act.  Use -h for help."
+		    exit 1
+		fi
+		ListList=$1
+		shift
+	    }
+	    if $ReadUsers && [ $# -gt 1 ]; then
+		print -u2 "Too many arguments given with -$act$Mod"
+		exit 1
+	    fi
+	    set -A Args "$@"
+	    if $ReadLists; then
+		set -A ListArr -- "${ReadArgs[@]}"
+	    else
+		set -A ListArr $ListList
+	    fi
+	fi
+	IFS=$OFS
+	# Set arg to DoUser to be 0 if removing, 1 if adding
+	[[ $act = [rRdD] ]]
+	ListCmd="DoUsers $?"
+	set -- "${ListArr[@]}"
+	;;
+    n)
+	ListCmd=ChangeHosts
+	if [ $# -lt 2 ]; then
+	    print -u2 \
+    "$lngname: must give old & new host names with -$act.  Use -h for help."
+	    exit 1
+	fi
+	Args[1]=$1
+	Args[2]=$2
+	shift 2
+	[ $# -eq 0 ] && set -- %
+	;;
+    c)
+	ListCmd=ChangeList
+	case "$Mod" in
+	u)
+	    # Save args, since any set -A overwrites them
+	    set -A lNames -- "$@"
+	    [ -t 0 -a -t 1 ] &&
+	    print "Enter pairs of user names; end with ^D"
+	    while read line; do
+		set -- $line
+		case $# in
+		0)
+		    ;;
+		2)
+		    set -A Args "${Args[@]}" "$1" "$2"
+		    ;;
+		*)
+		    print -u2 \
+	    "$lngname: Need exactly two names on each line.  Ignored: $line"
+		    ;;
+		esac
+	    done
+	    set -- "${lNames[@]}"
+	    ;;
+	"")
+	    if [ $# -lt 2 ]; then
+		print -u2 \
+"$lngname: must give -u or old & new user names with -$act.  Use -h for help."
+		exit 1
+	    fi
+	    Args[1]=$1
+	    Args[2]=$2
+	    shift 2
+	    ;;
+	*)
+	    print -u2 \
+    "$lngname: Invalid modifier '$Mod' given with -$act.  Use -h for help."
+	    exit 1
+	    ;;
+	esac
+	[ $# -eq 0 ] && set -- %
+	;;
+    s)
+	if [ $# -lt 1 ]; then
+	    print -u2 \
+	    "$lngname: must give user pattern -$act.  Use -h for help."
+	    exit 1
+	fi
+	Args[1]=$1
+	shift
+	ListCmd=findPat
+	[ $# -eq 0 ] && set -- %
+	;;
+    p)
+	ListCmd=printLists
+	[ $# -eq 0 ] && set -- %
+	;;
+    i)
+	ListCmd=initialize
+	;;
+    f)
+	ListCmd=fix
+	;;
+    esac
+    # List dir might not exist if doing initialize.
+    # But if the dir does exist, should cd to it even if doing initialize
+    # before expanding list names.
+    if [ ! -d "$MAILLISTS" ]; then
+	if [ $ListCmd = initialize ]; then
+	    print "Making list directory '$MAILLISTS'."
+	    mkdir -e -p -m 711 "$MAILLISTS" || {
+	    print -u2 "Could not create mailing list directory '$MAILLISTS'"
+	    exit 1
+	    }
+	else
+	    print -u2 \
+    "Mailing list directory '$MAILLISTS' does not exist or is not a directory."
+	    exit 1
+	fi
+    fi
+    OPWD=${PWD%/}
+    cd -- "$MAILLISTS" || {
+	print -u2 "Could not cd to mailing list directory '$MAILLISTS'."
+	exit 1
+    }
+    # At this point, positional arguments are list names.
+
+    if [[ $# -eq 0 && "$opt" = [fpadrc] && $NoML = false ]]; then
+	set -- *
+	OnlyOne=true
+    else
+	OnlyOne=false
+	set -A Lists -- "$@"
+	typeset -i j=0 i=${#Lists[*]}
+	while [ j -lt i ]; do
+	    case "${Lists[j]}" in
+	    %) Lists[j]='*';;
+	    */*) Lists[j]="$OPWD/${Lists[j]#./}";;
+	    esac
+	    let j+=1
+	done
+
+	# Expand filename patterns
+	eval set -- "${Lists[@]}"
+    fi
+
+    unset Lists[*]
+    i=0
+    for list; do
+	if [[ "$list" != *- ]]; then
+	    Lists[i]=$list
+	    let i+=1
+	fi
+    done
+    if [ i -eq 0 ]; then
+	print -u2 "$lngname: No lists."
+	exit 1
+    elif $OnlyOne; then
+	if [ i -eq 1 ]; then
+	    print "Acting on mailing list ${Lists[*]}"
+	else
+	    print -u2 "$lngname: No list names given on command line,
+and too many list files in MAILLISTS directory."
+	    exit 1
+	fi
+    fi
+    typeset -i numLists=${#Lists[@]}	# for use by printLists
+    for list in "${Lists[@]}"; do
+	$ListCmd "$list" "${Args[@]}" || {
+	    [[ "$list" != /* ]] && list="$PWD/$list"
+	    print -u2 "Failure occured in processing $list"
+	}
+    done
+}
+
+### Start of main program
+ 
+NoML=false
+Quiet=false
+
+if [ -z "$MAILLISTS" ]; then
+    rc=$HOME/$rcfile
+    [ -r $rc -a -f $rc ] && . $rc
+    if [ -z "$MAILLISTS" ]; then
+	MAILLISTS=$HOME
+	NoML=true
+    fi
+fi
+
+lngname=${0##*/}
+
+Usage="Usage: $lngname [-aAcfhilpqrsRu] arg[,arg...] arg ..."
+
+if [[ $# -eq 0 || "$1" != -?* ]]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+doArgs "$@"

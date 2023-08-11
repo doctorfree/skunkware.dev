@@ -1,0 +1,747 @@
+                                      SPY
+                                  Version 1.1
+
+    CONTENTS
+1.  Overview
+2.  Installation
+3.  Use
+4.  Administration
+5.  Programming with SPY
+6.  SPY and NFS
+7.  Removal
+8.  FAQ
+
+*****************************************************************************
+1.  Overview: What is SPY?
+--------------------------
+SPY is a suite of programs that allows you to passively and silently observe 
+what users are typing on the system.  You can observe each keystroke, the entire
+screen as they see it being drawn, or even inject keys into their program as 
+if they typed it.  A special mode allows you to observe the complete 
+contents of any multiscreen on the system, with or without 6845 attribute
+bytes, allowing color, underline, or blink information on the other tty
+to be shown as well.
+
+SPY is completely passive to the user and program and runs under any tty 
+device (console, serial, pseudo, etc.).
+SPY cannot monitor a console that is in graphics mode.
+
+SPY is implemented as an SVR3 filesystem for Open Server Release 5.0,
+dynamically creating all necessary directories and files.  This allows 
+standard UNIX tools like cat, dd, hd, etc. to use all of SPY's features
+and allows you to write your own custom tools.  Most of SPY's features can 
+even be used across NFS, allowing for remote monitoring and controlling 
+of programs and users from another machine.  
+
+What is SPY good for?
+---------------------
+Some possible purposes:
+
+- learning how programs read from a tty device.
+- learning how programs write to the screen
+- helping out new users navigate around the system
+- replicated site management
+- technical support/helpdesk situations
+- cut/paste operations
+- automated testing(similar to Expect)
+- keeping a log of tty activity
+- MANY security-related functions
+- ensuring that your application is working properly (even across NFS)
+- writing your own applications to use SPY.
+- When the power goes out and your computer is on a maxxed-out UPS and
+  the video monitor can't be on the UPS (grrrr) and you have a network 
+  connection to another computer (with a monitor!) on a different UPS.  
+  You then use SPY across NFS to remotely save your work and shut down 
+  your computer.  telnet/rlogin allow you to shutdown your machine but
+  not terminate your application, and kill(C) may not terminate the
+  application correctly.  SPY (using telnet/rlogin or across NFS) can do both.
+
+What is part of the SPY distribution?
+-------------------------------------
+Enclosed in this distribution are the necessary device driver files
+as well as four sample programs complete with source code that show how 
+to use SPY.  The documentation below describing these programs is only 
+meant to show some of the features of SPY; more powerful programs are 
+definitely possible and can be built using those shipped and described below
+as a starting point.
+
+How secure is SPY?
+------------------
+By default, root is the only user who can monitor and inject keystrokes.
+However, numerous mount-time options exist to change the authorised
+user, group, and permissions for both files and directories in the SPY
+filesystem.  As with normal filesystem semantics, only permitted users
+are allowed to access the files.  Remote NFS access is granted by configuring
+the /etc/exports appropriately (see exports(NFS)).  Controlling
+authorization at mount time means that there are no setuid programs to use.
+
+
+*****************************************************************************
+2.  Installation
+----------------
+The SPY distribution includes a shell script called "installit".  This
+will install the necessary programs, drivers, and configuration files 
+into your system.  You will need to install SPY as root.
+The installation process will use a mount point of /spy for running SPY and
+a block device of /dev/recover and installs four binaries in /bin: 
+spycons, spysend, spycontrol, and spyon.  /dev/recover is a very small 
+reserved area of disk allocated at installation time for saving the output 
+of fsck when autobooting.  Any messages output by fsck when autobooting 
+are then mailed to root, and then the area is available for use.
+SPY does not actually write anything to /dev/recover but needs a block
+device for installation purposes.  See divvy(ADM) and bcheckrc(ADM).
+
+# installit
+Installing the SPY package
+Installing new header files
+Installing new command files
+Installing SPY driver files
+SPY installed.  You still need to relink a new kernel and reboot.               
+#                                                                               
+
+After this message, relink your kernel, answering 'y' to everything.
+
+# /etc/conf/cf.d/link_unix
+
+The installation process adds a line to /etc/default/filesys so that
+the SPY filesystem will automatically be mounted when the system goes
+to multiuser mode.
+
+Shutdown and reboot your machine.   The installation is complete.
+When rebooting you'll notice a %spy message before single user mode
+and two lines similar to:
+
+fsstat:  SPY filesystem unmounted and ok
+fsstat:  mounted /spy
+
+when going to multiuser mode.  This indicates that the SPY filsystem
+is ready for use.
+
+*****************************************************************************
+3.  Use
+--------
+The SPY filesystem is mounted when you go to multiuser mode.  By 
+default, only root is able to access the necessary SPY files.
+Changing this behaviour is covered in section IV, Administration.
+
+There are 4 client programs in this distribution that demonstrate SPY:
+spyon, spysend, spycontrol, and spycons.  These are described below.
+
+------------------------------------------------------------------------
+The spyon program is used to passively monitor a terminal:
+
+Usage: spyon [options] name:number
+  or : spyon [options] ttyname
+where options are any of the following:
+-r             show raw queue contents and quit
+-c             show canonical queue contents and quit
+-o             show output queue contents and quit
+-a             show all 3 queue contents and quit
+-l             list available spynames for using 'name:number' format 
+-m mountpoint  use this mountpoint instead of /spy
+-z             use with -r, -c, or -o: don't quit
+
+NOTE: if the mountpoint is mounted via NFS from another machine running SPY and
+you use 'ttyname' option, you will be monitoring ttys on *their* machine even
+though you gave a device that is local to your machine.  Also, the other
+machine may have more devices configured than this machine.  For this reason
+the first format 'name:number' is is recommended for spying across NFS.
+Examples:
+	spyon console:0    is the same as    spyon /dev/tty01
+	spyon sio:0        is the same as    spyon /dev/tty1a
+	spyon sio:8        is the same as    spyon /dev/tty2a
+	spyon spt:37       is the same as    spyon /dev/ttyp37
+
+#
+                                                                                
+The raw queue is where characters that you type are sent first, and this
+is the most common place to find characters as they are being typed.
+The canonical queue is a short term stop where characters are also held.
+You won't see much here though.
+
+To watch characters continually being typed on the serial line, type
+
+# spyon -r -z /dev/tty1a
+
+Press the delete key to terminate the spyon program
+To look at the characters in the output queue and quit, type
+
+# spyon -o /dev/tty1a
+
+You won't find characters in the output queue for the console devices.
+You must use spyon without -r, -c, or -o for that purpose.
+
+To continually watch someone as they type, just type:
+
+# spyon /dev/tty1a          <-- serial line
+# spyon /dev/tty01          <-- console device
+# spyon /dev/ttyp10         <-- pseudo tty
+
+NOTE:  Escape characters are not translated.  This means that if you are
+running the spyon program from an ANSI terminal but the user that you're
+spying on has a non-ANSI terminal and that person is running a screen-oriented
+program there's a good chance your screen won't match theirs since your
+screen doesn't understand their escape sequences.
+
+The output from spyon is sent to stdout.
+
+Advanced Use
+------------
+As root, change to the spy directory:
+
+# cd /spy
+# ls -l
+total 0                                                                         
+dr-x------   2 root     root         168 Jul 25 16:10 console
+dr-x------   2 root     root         216 Jul 25 16:10 ldterm
+dr-x------   2 root     root         180 Jul 25 16:10 screenmem
+dr-x------   2 root     root         312 Jul 25 16:10 sio
+dr-x------   2 root     root         792 Jul 25 16:10 spm
+dr-x------   2 root     root         792 Jul 25 16:10 spt
+#
+                                                                                
+NOTE:  You may see different directories here depending on how many
+device drivers you have linked in to your kernel.  As you add or
+delete these drivers, the contents of this directory will change.
+Running spyon -l shows a table of these drivers and how to interpret
+them in /spy:
+
+Possible spy names(some may not be available on your machine):
+busmouse            Bus Mouse driver
+kbmouse             Keyboard Mouse driver
+ldterm              STREAMS line discipline module
+pa                  Parallel driver
+sio                 Serial driver
+spm                 Pseudo mouse driver
+spt                 Pseudo tty driver
+sxt                 Shell layers driver
+xt                  Blit Packet Protocol driver
+console             Console driver
+
+The screenmem directory contains read-only files which contain images
+of the system console multiscreen memory.  Graphics mode is not supported.
+You can observe the contents of a multiscreen with the supplied spycons 
+program or with vi(C).
+
+The other directories each contain a directory full of numbers from 0
+to X, where X is the total number of devices configured on that machine.
+To determine what number to use, do a long listing of the file you want
+to observe its minor number:
+
+crw-------   1 bin      terminal   5,  8 Jul 25 15:18 /dev/tty2a
+
+Some entries may not have a corresponding device entry.  For
+example, ldterm, the STREAMS line discipline module, is not a character
+device, so it *can't* have an entry in the /dev directory.  For these
+you need to guess or use crash to determine the proper directory to use.
+
+In the case of /dev/tty2a, a Serial device we would want to cd into 
+"/spy/sio/8"  because its corresponding minor number is 8.
+
+Both of these options show the same data:
+
+# spyon /dev/tty2a
+# spyon sio 8
+
+inside the "8" directory we find a few more files:
+
+# ls -l /spy/sio/8
+total 0
+-rw-------   1 root     root           0 Jul 25 16:37 canonical
+-rw-------   1 root     root           0 Jul 25 16:37 output
+-rw-------   1 root     root           0 Jul 25 16:37 raw
+crw-------   1 root     root     111,  0 Jul 25 16:37 screen
+#
+                                                                                
+The canonical, output, and raw files contain the current contents of
+their respective buffer.  The screen file is used to watch the user's
+screen being drawn.  As people type, the contents of these files grows
+and shrinks rapidly.  You can use standard UNIX tools like cat, hd, od, dd,
+etc. to look at the contents of these files.  
+
+In fact, you can write to one of these files to simulate keyboard input 
+on another terminal: the raw file.   This is discussed in the next section.
+
+------------------------------------------------------------------------
+The spysend program is used to send characters to another terminal as if
+they typed it:
+
+Usage: spysend [options] filename name:number
+  or : spysend [options] filename ttyname
+where options are any of the following:
+-l             list available names for using 'name:number' format 
+-m mountpoint  use this mountpoint instead of /spy
+Use '-' as filename to read from stdin
+If stdin is a tty, *every* character you type is sent
+NOTE: if the mountpoint is mounted via NFS from another machine running SPY and
+you use 'ttyname' option, you will be monitoring ttys on *their* machine even
+though you gave a device that is local to your machine.  Also, the other
+machine may have more devices configured than this machine.  For this reason
+the first format 'spyname unit_number' is is recommended for spying across NFS.
+Examples:
+	spysend /etc/motd console:0  - sends file to /dev/tty01
+	spysend - sio:8              - read from stdin, write to /dev/tty2a
+	spysend /etc/termcap /dev/ttyp12 - send to /dev/ttyp12
+
+
+The spysend program sends the specified file to the terminal as if they
+typed it.  This is a powerful feature which can do unexpected things:
+What if the user was typing a document and you mistakenly sent /etc/termcap
+into their document?  If they are just sitting at a shell prompt and
+you send the string "rm -rf *" followed by a carriage return to their
+terminal, the shell thinks they typed that and will proceed to delete all
+of their files!  Sending characters as if they typed it can be dangerous unless
+you know what you send won't disrupt anything!
+
+As with the spyon program, you can perform the same task with normal UNIX
+tools:
+
+# echo date > /spy/sio/8/raw
+# echo date | spysend - /dev/tty03
+# spysend /etc/motd /dev/ttyp12
+
+These demonstrate what is called "batch mode" use of the spysend program.
+The complete file is sent to the tty in large chunks as quickly as possible.
+No keyboard input is allowed.  If your application is sensitive to newlines
+('\n') then you must order the file you will be sending appropriately.
+
+What the user sees from the above command depends on what they're doing:
+If they're inside an editor, the word "date" is added to the text.
+If they're at a shell prompt, the date command is executed.
+For the last example, the contents of /etc/motd are sent to their tty.
+If the user is in the middle of typing something important and you blast
+this to their terminal as if they typed it the user will have to
+delete contents of the file and retype their original text.  If the 
+use is at all shell prompt and the file you send contains newlines
+the shell will interpret each "line" as if you typed it, possibly
+leading to strange results!
+
+When standard input is a tty, spysend enters "interactive" mode, sending
+*every* character you type to the tty, one at a time.  This is useful
+if the tty you wish to control is in raw mode or the application is
+sensitive to newlines and you don't want to create a file containing
+newlines at the appropriate place.  Press the INTERRUPT or QUIT key
+to terminate spysend(see stty(C) -a).
+
+You can use spysend for cut and paste operations so that you won't
+have to type the output from a command.
+
+Advanced Usage
+--------------
+
+The spysend program simply writes to the "raw" file(/spy/*/*/raw)
+You can do the same thing:
+
+# echo date > /spy/console/1/raw
+# banner hi > /spy/spt/20/raw
+
+
+------------------------------------------------------------------------
+The spycons program is used to monitor multiscreen memory.  This is useful
+then you need to look at the complete contents of a screen or for
+cut and paste operations.  The spyon program will record characters
+sent to the tty AFTER you start it, but what if the text is already 
+visible on a multiscreen?  The spycons program takes care of this problem.
+Here is the usage screen:
+
+Usage: spycons [options] screen_number
+where screen_number is a number from 0 to 11
+and option can be any of the following:
+-m mountpoint  use this mountpoint instead of /spy
+-d <delay>     Display in a loop delaying <delay> milliseconds
+-f             if mounted using attributes, don't show them
+Examples:
+  spycons -d 1000 -f 0   - monitor multiscreen Alt-F1
+  spycons 2              - dump Alt-F3 to current console multiscreen
+  spycons -f 2           - dump Alt-F3 to stdout
+
+You can also use the word 'active' for screen_number to watch the
+active multiscreen.  This is highly useful for monitoring a machine
+across NFS, although you can do the same thing by telneting in and
+using spycons with the -f option.
+
+When used with the -d option, spycons will continually update the screen, so
+you can observe each multiscren
+
+spycons requires your TERM environment variable be set correctly so that it
+can move the cursor to home position with the -d option.  It does not
+convert any colors from one environment to the next.
+spycons assumes that auto linewrap is turned off when running on terminals.
+
+
+------------------------------------------------------------------------
+The spycontrol program is the most powerful demonstration program in SPY.
+It allows you to both observe and control another person's activity, turning
+your keyboard and screen into a mirror of theirs.  All keystrokes you type
+(including the SUSPEND, QUIT, and INTERRUPT keys) are sent to the tty
+you're controlling.  Because of this, spycontrol uses the special keys used
+by rlogin(TC) to terminate the program, as explained below:
+
+Usage: spycontrol [options] name:number
+  or : spycontrol [options] ttyname
+where options are any of the following:
+	-l             list available names for using 'name:number' format 
+	-m mountpoint  use this mountpoint instead of /spy
+	-e             leave ECHO turned on
+	-n             no spinning wheel to tell you're controlling someone
+spycontrol shows you characters sent to their screen and *every* character you
+type is sent to their screen too (unless stdin isn't a tty device)
+NOTE: This program will not control a tty across NFS; telnet into the machine
+first.  If you give a console tty spycontrol will attempt to show the contents
+of that console screen before the controlling starts.  Examples:
+	spycontrol console:0      - control /dev/tty01
+	spycontrol sio:8          - control /dev/tty2a
+	spycontrol /dev/ttyp12    - control /dev/ttyp12
+The INTERRUPT, SUSPEND, and QUIT keys are disabled locally while running
+spycontrol; use the following key sequences instead:
+<cr> ~ .    = terminate spycontrol
+<cr> ~ ^Z   = temporarily leave spycontrol(requires a job controlling shell)
+<cr> ~ ~    = send a '~' (only necessary after <cr>)
+
+If the tty device you want to monitor is a console tty (/dev/tty01-/dev/tty12),
+the current contents of that screen are shown on your screen prior to starting
+the control session.  Your cursor even moves to the correct location, so that
+you start off with an exact replica of their screen.  Attribute bytes are not
+copied(although readily added).  If spycontrol doesn't have read access
+on the tty device it prints a warning message and continues.  Running
+spycontrol as root solves this problem.
+
+If you're not controlling a console tty, spycontrol can't obtain a screen
+snapshot so you won't know what the screen looks like when the controlling
+starts.  You'll need to either wait for the screen to be redrawn by the user 
+or type the necessary key sequence yourself to make their screen redraw, 
+synchronizing their screen and yours.
+
+Since it's easy to forget that you're monitoring someone, spycontrol adds a
+"spinning wheel" in the upper right corner of your screen, or if you're 
+running spycontrol on a terminal, in the status line, if present.
+This can be disabled with the -n option.  The wheel spins once per
+second when you don't type anything at your keyboard and is not visible
+on the other person's display.
+
+No escape sequence translation takes place.  This means that if the device 
+you're using has a different TERM environment variable than the tty you
+wish to control, you will see strange things happen when they use a screen
+oriented program.
+
+Since spycontrol uses the screen character special file, it cannot access
+the SPY filesystem across NFS, and must run locally on the machine containing
+the SPY filesystem.  Just telnet into the machine first.  While it will work,
+rlogin is not recommended as spycontrol uses the same tilde commands as rlogin.
+
+If you're using spycontrol and you use ~  (tilde-control-Z) with a job
+control shell and if more than spyc_max bytes are written to the screen
+while spycontrol is stopped (see /etc/conf/pack.d/spy/space.c), then the
+process producing this output will block.  This will confuse the person
+that you're spying on since they will no longer be able to type anything!
+Bringing spycontrol to the foreground will allow the user to continue
+typing.
+
+*****************************************************************************
+4.   Administration
+-------------------
+mount-time options.
+
+SPY is mounted when the system goes multiuser mode by /etc/rc2.d/I01MOUNTFSYS
+running /etc/mountall(ADM) which runs /usr/bin/mnt(C) which calls the SPY
+mount program in /etc/fscmd.d/SPY.  SPY has numerous options which change
+its behaviour; they are controlled by the spy line in /etc/default/filesys
+file.  See filesys(F), specifically the "mntopts" section.
+
+Spy understands the following mount-time options:
+
+dirmode=mode  - sets permissions on SPY directories to mode.  Default is 0500 if
+                defgid not specified, 0550 if defgid is specified.
+filemode=mode - sets permissions on SPY files to mode.  Default is 0600 if
+                defuid not specified, 0660 if defuid is specified.
+defuid=uid    - sets owner id of all SPY files and directories to uid.  Default
+                is 0.  You can use a name or number for this field.
+defgid=gid    - the default group id of all SPY files and directories.  Default
+                is 0.  You can use a name or number for this field.
+ro            - read-only.  Default is read-write.  Setting this prohibits
+                writing to the "raw" file in a directory.
+showattr=X    - X must be to 1 or 0.
+                if X is 1:
+                 - shows the 6845 attribute byte (color, underline, or blink)
+                   of a character in the screenmem directory. 
+                 - allows the spycons program to see color information on screen
+                 - screenmem file contains complete screen ; no '\n' at col. 80
+                 - can't directly vi the screenmem file
+
+                if X is 0 (default):
+                 - no 6845 attribute byte 
+                 - spycons program won't see color information on screen
+                 - '\n' inserted in screenmem file every 80 characters.
+                 - you can vi the screenmem file directly.
+
+Notes:
+- Options are separated with a comma (',').
+- if you start NFS before SPY, update /etc/exports as needed and run exportfs -a
+- If you export /spy from OpenServer 5 to UnixWare 2.1, the size of the 
+  raw/canonical/output files will be out of date on due to its "acregmax" 
+  NFS mount option.  The contents of the file are always correct though.
+  Other operating systems may cache the data as well.
+- When unmounting a SPY filesystem with umount, ignore the 
+  "not in mount table" message.
+
+Examples for /etc/default/filesys:
+
+To set the default directory mode to 555 and default user to nathan:
+
+bdev=/dev/recover mountdir=/spy fstyp=SPY fsck=no fsckflags= rcfsck=no \
+mountflags= rcmount=yes mount=no mntopts=dirmode=555,defuid=nathan
+
+To set read only, default gid of 20, showing attributes:
+
+bdev=/dev/recover mountdir=/spy fstyp=SPY fsck=no fsckflags= rcfsck=no \
+mountflags= rcmount=yes mount=no mntopts=ro,defgid=20,showattr=1
+
+You can also issue a mount(ADM) command by hand:
+
+# mount -f SPY -odefuid=john,defgid=mail,filemode=666 /dev/recover /spy
+
+Remember to run exportfs -a if you change the options while using NFS so 
+that NFS will use the updated information.
+
+------------------------------------
+backing up and restoring SPY
+
+SPY presents some unusual problems for backups and restoring data:
+In general, you should NOT back up any files or directories in the
+SPY mountpoint which defaults to /spy.  This will prevent many problems
+later on.  In addition, backing up /spy isn't necessary:  The SPY
+filesystem is always "clean" and mountable and fsck isn't ever needed for SPY.
+Like /tmp, SPY data continually changes, so the data you back up isn't 
+necessarily relevant at restore time.
+
+As with NFS, the find -local option can be used to prevent find from
+traversing through the SPY filesystem for cpio(C).  SPY also keeps the
+access and modification times current to try and prevent any process
+from backing up the data.
+
+If you do back up SPY data, restoring it has problems depending on whether
+SPY is mounted at the time of the restore:
+If SPY is not mounted, the restore will waste disk space as it recreates
+a SPY hierarchy at the mount point.  You can't use this restored data
+as it's old, out of date, and attempts to use the restored character special
+file "screenmem" will fail.  Later on when you mount SPY this
+data will be hidden under the mount point, wasting disk space.
+
+If SPY is mounted and you attempt a restore, the results are DANGEROUS:  
+Any raw files that had data in them when backed up will be restored by 
+the backup program, possibly writing to the existing raw file, which 
+will write "random" data to a possibly-in-use tty, which is 
+certainly NOT expecting this!
+
+You won't be able to create files and directories under /spy so don't
+worry about losing information.
+********************************************************************************
+5.  Programming with SPY
+
+The SPY package includes the source code for the spyon, spycons, spycontrol,
+and spysend programs.  All are written in C and heavily commented.  However, 
+you don't need to write a dedicated C program to use SPY -- most UNIX 
+commands readily work with the files in /spy.  
+
+Your program will generally open up a file in /spy and begin reading or
+writing to the files in the directory.  The only file that can be written
+to is the "raw" file.  Writing to "canonical" or "output" will not do
+anything.  The screenmem file is read-only.
+
+If using a remotely-mounted filesystem (i.e. /spy is exported) across NFS 
+you will not be able to open the "screen" file.  Instead, use the files in 
+the screenmem directory or open up the corresponding raw file instead.
+
+The most important thing is that if you're reading the screen file, you
+need to give a large buffer to the read system call, as you only get one
+chance to read the data.  If you don't, you will miss out on extra 
+characters sent to the screen.  You should also try and read(S) from the 
+from the screen file as often as possible.  There is an fcntl available
+to determine the proper buffer size to use so you won't lose anything.  
+In any case, check out the spyc_max discussion in /etc/conf/pack.d/spy/space.c
+
+Certain fcntl(S) operations exist to assist in determining SPY parameters.  They
+are documented in <sys/fs/spy.h> and in the source code distributed with SPY:
+F_SPYSHOWATTRIBUTES, F_SPYCBUFSIZE, and F_SHOWINGATTRIBUTES.
+
+If you open the screenmem file, you may or may not see attributes or newlines.
+To determine if attributes are present use the F_SHOWINGATTRIBUTES fcntl 
+on the open file descriptor or calculate it based on the file size.
+
+If not showing attributes, the screenmem file containes a newline every 80
+characters.  You can mmap/lseek to a certain area that you care about
+in the screenmem file or read a small amount to watch a smaller portion
+of the screen.
+
+If showing attributes, the screenmem file contains a complete screen image
+without any newlines.  The file contains the character followed by its
+attribute byte.
+
+If you have the screen character special file open and there are more than 
+spyc_max bytes of outstanding data that hasn't yet been read by your 
+application then the SPY driver will put the writer to sleep until you 
+are able to read the data from the screen file.  This will confuse any 
+human since they won't be able to type anything and their screen will 
+appear to "freeze".  This can be eliminated by reading from the screen
+file often.
+
+40 column and EGA 43 line modes are supported, and the size of the screenmem
+file will change accordingly.
+
+select(S) and rdchk(S) are supported.  
+most ioctls on screen file operate on the underlying device that the
+screen file refers to.  ioctls on /spy/console/0/screen are the same
+as /dev/tty01, except for select and rdchk.
+This means commands like stty -a < /spy/console/0/screen work too.
+select and rdchk on the screen file simply check to see if there are 
+any characters that could be read in the screen file and not
+if there are characters in the underlying device's raw/canonical queue.
+
+********************************************************************************
+6.  SPY and NFS
+
+runtime
+
+The screen functionality does not work across NFS.  If you try one of two
+things will happen, depending on if SPY is installed locally:
+
+a) If you don't have SPY installed locally, and the major number of the
+   screen file is not in use by any other drivers, then any open will fail 
+   with ENXIO "No such device or address".  This is due to your local 
+   machine trying to use the major/minor number of the screen file, and the
+   driver isn't present.  If that major number is in use by another driver
+   then you'll invoke that driver's open routine on your machine, with
+   undefined behaviour.  This is a generic problem when accessing block
+   or character devices via NFS from another machine and not specific to SPY.
+
+b) If you do have SPY installed locally but are trying to spy using a 
+   screen file across NFS, the open will fail with EXDEV (cross-device link). 
+   This is due to the SPY driver thinking you're trying to forge a screen
+   file with mknod.  This doesn't work.
+
+The raw/canonical/output files and the files in the screenmem directory 
+are accessable across NFS.
+
+If the screen functionality is important then simply telnet or rlogin into
+the machine first.  Then use spyon as usual.
+
+NOTE:  Since root maps to uid -2 across NFS, you will need to change either
+       the default uid with SPY's defuid mount option or use -anon in
+       /etc/exports.  -anon is not recommended.  See exports(NF) and mount(ADM).
+********************************************************************************
+7.  Removal
+
+To remove SPY, run the supplied "removeit" shell script as root and 
+relink your kernel by running /etc/conf/cf.d/link_unix.
+
+********************************************************************************
+8.  FAQ
+
+Q  How does SPY work?
+A  Spy is both a filesystem and character driver in one.  It patches the line
+   discipline switch table and traps characters, sending them to
+   the appropriate device as well as any SPY consumers
+   The contents of the raw, canonical, and output files represent the current
+   contents of the respective clist at that instant.  See <sys/tty.h>
+   Directories and files are generated dynamically as needed.
+
+Q  Can I mount SPY somewhere besides /spy?
+A  Yes.  The spysend, spycons, spycontrol and spyon binaries, as well as the 
+   installation and removal scripts all assume /spy as does 
+   /etc/default/filesys but you can change this to suit your needs.  
+   spysend, spycons, spycontrol, and spyon have a -m option for this reason.
+
+Q  Can I have multiple SPY filesystems on the same machine?
+A  Yes, although this won't serve any real purpose -- each SPY filesystem
+   will display the same data in its subdirectories!
+
+Q  Can I have multiple SPY readers or writers at the same time?
+A  Yes.
+
+Q  Can I have multiple SPY *controllers* at the same time (multiple
+   people running spycontrol at the same time reading from the screen file)
+A  Yes, and each controller can control the same tty device.  However,
+   other controllers don't know if the input they see is due to a user
+   typing or from the other controller(s) injecting keystrokes.  
+   It all works as you would expect - transparently.  
+   You can even control another controller!
+
+Q  Why doesn't the screen functionality work across NFS?
+A  see spyon.c source comments
+
+Q  When will the screen functionality work across NFS?
+A  "In a future release".
+
+Q  Why did you write this?
+A  As you might imagine, there were some security problems.  Reading from
+   /dev/kmem worked but wasn't elegant and I needed a better solution.
+   One thing led to another and SPY was born.
+
+Q  What future enhancements are being worked on?
+A  I'll be improving the network support.  I added some mount options
+   in anticipation of this (use mount -v to get an idea) but wasn't
+   able to do much with this yet.
+
+Q  Doesn't SPY represent a security risk?
+A  SPY is simply a tool for system administrators.  As with any tool,
+   improper use can lead to damage.  You must be root to install
+   SPY, and its defaults only allow root to access SPY information.
+   Even without SPY installed a knowledgeable user has always been able
+   to access users keystrokes with crash(ADM) or by reading from /dev/kmem;
+   SPY just makes it much easier to access it.
+
+   Be careful when using the dirmode, filemode, defuid, and defgid mount
+   options.  Misconfiguring SPY with these options can allow unauthorized 
+   users to monitor or control another user's(even root) session, 
+   compromising system security.  Ensure the ownership and permissions of the
+   files and directories in /spy are what you wanted them to be after using
+   these options!
+
+Q  Is it moral/ethical/legal/etc. to monitor or control user's screens or their
+   keystrokes without their knowledge?
+A  This falls under your site's security policy.  The tools shipped with
+   SPY do not inform the user that they are being monitored.  However, this
+   functionality can easily be added by writing the bell character
+   (ASCII 7 - see ascii(M)) to the "raw" file of the terminal you are 
+   monitoring.   Remember that the tty that you are monitoring with any
+   of the tools in this package will be visible to a user running the ps(C)
+   command.
+
+Q  What kernel tunables exist for SPY?
+A  The only real tunable is spyc_max in /etc/conf/pack.d/spy/space.c.
+   This variable controls the size of the buffer used to store data for
+   programs reading from the "screen" character special file.  Increasing
+   spyc_max allows applications to write more to the screen and allows
+   for a longer delay before the reader process must run, as more data
+   could be written to the screen before the reader process actually runs.
+   When the reader finally runs, it must read the entire contents of the
+   buffer in one read, as buffer contents are deleted after each read.
+
+Q  What about 3rd party drivers for smart multiport boards?  
+A  They will work as long as they use a structure called tty declared in
+   <sys/tty.h> and that structure is not part of any other structure.
+   Adding support consists of editing /etc/conf/pack.d/spy/space.c 
+   appropriately.
+
+Q  Is there a version of SPY for <insert your favourite OS here>?
+A  Not at this time.
+
+Q  How come I can't open up the screen file twice in my C program?
+A  This is a feature of SPY's design.  Each process can only have 1
+   open fd pointing to the screen file.
+
+Q  How can I increase the maximum number of controllers or the maximum
+   number of people reading from the screen character special file?
+A  increase SPYC_NUMNSPY in /etc/conf/pack.d/spy/space.c.
+
+Q  Why can't I access SPY files via NFS on SCO releases prior to Open Server 5?
+A  This is a generic problem when mounting filesystems that use 32 bit inodes 
+   as all past SCO releases only understand 16 bit inodes.  Most inodes
+   in SPY are greater than 65535, so previous releases (ODT3.0) have trouble
+   accessing its contents.  This one of the reasons why the binaries in SPY
+   are only distributed in ELF form -- there's no point in running them on
+   earlier releases, since they won't work properly across NFS.
+
+Nathan
+01 August 1996
+---the end---

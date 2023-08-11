@@ -1,0 +1,436 @@
+#!/bin/ksh
+# @(#) dofiles.ksh 1.3 95/06/19
+# 94/11/22 john h. dubois iii (john@armory.com)
+# 94/12/04 Use nmv -i instead of mv if nmv is available.  Added x option.
+# 95/01/02 Allow letters to be given in addtion to option numbers;
+#          let parameters be given after options on the same line.
+# 95/04/11 Offer mail as an option if file is mailer text.
+# 95/04/29 Added [no] options; changed old n option to c.
+# 95/06/19 Added FBH! menu options.
+
+# Usage: uSelect prefix prompt-string word ...
+# uSelect presents the words in a select list.
+# If prefix is non-null, it is printed before the select list.
+# If prompt-string is null, a default prompt is used.
+# Each word must have at least one capital letter in it.
+# A word may be selected by number or by entering the first capital letter
+# in it (in upper or lower case).  The letter (always capitalized) is returned
+# in the global var uSelect_ret.  If more than one word is entered, the extra
+# words are returned in the global var uSelect_params.
+# If a word contains '|', the part before the '|' is used in the select list.
+# If no extra parameters are entered, then the part after the | is used as a
+# secondary prompt, and the words entered in response are assigned to
+# uSelect_params.  The selection fails if no words are entered.
+# The entire selection selection string is returned in the global variable
+# uSelect_selected.
+# The return status is the number of the word selected (starting with 1),
+# or 0 if EOF or 'q' is entered.
+typeset -uL1 uSelect_ret
+function uSelect {
+    typeset PS3 Cmd word letters= Prefix=$1 Options FullOpts
+    typeset -uL1 l
+    typeset -u U
+    typeset -i CmdNum=1
+
+    # Quit/help is not added as a regular menu item so that one more regular item
+    # will fit on the screen.  Instead, list it in prompt.
+    [ -n "$2" ] && PS3=$2 || 
+PS3="Select by # or letter.  Return for options, Q to quit: "
+    shift 2
+    set -A FullOpts -- "" "$@"
+    for word; do
+	Options[CmdNum]=${word%#*}
+	l=${word##*([!A-Z])}
+	letters=$letters$l
+	let CmdNum+=1
+    done
+    print -u2 "\n$Prefix"
+    select Cmd in "${Options[@]}"; do
+	set -- $REPLY
+	U=$1
+	case "$U" in
+	Q)  # Quit
+	    return 0
+	    ;;
+	!*) # Command to pass to shell
+	    ${REPLY#!}
+	    print -u2 "\n$Prefix"
+	    continue
+	    ;;
+	esac
+	# Do the elif test in two [[]] so that the one eval'ed is only done if
+	# $REPLY is an upper-case letter
+	if [ -n "$Cmd" ]; then
+	    CmdNum=$1
+#	    # If Quit option was selected by number...
+#	    [ CmdNum -gt ${#Options[*]} ] && return 0
+	    uSelect_ret=${Cmd##*([!A-Z])}
+	elif [[ "$1" = [a-zA-Z] ]] && eval [[ "$letters" = "*$U*" ]]; then
+	    uSelect_ret=$U
+	    letters=${letters%%$U*}
+	    CmdNum=${#letters}+1
+	else
+	    print -u2 "Invalid selection."
+	    print -u2 "\n$Prefix"
+	    continue
+	fi
+	shift
+	uSelect_params="$*"
+	word=${FullOpts[CmdNum]}
+	if [[ -z "$uSelect_params" && "$word" = *#* ]]; then
+	    print -n -u2 "${word##*#} "
+	    read
+	    if [ -z "$REPLY" ]; then
+		print -u2 "Must give a non-null response."
+		print -u2 "\n$Prefix"
+		continue
+	    fi
+	    uSelect_params=$REPLY
+	fi
+	uSelect_selected=${Options[CmdNum]}
+	return $CmdNum
+    done
+    return 0
+}
+
+# Usage: DoFile filename
+function DoFile {
+    typeset file=$1 Cmd dest conglomFile ExtraOptions f matches ftype info
+    typeset Command
+    typeset -i i=0
+
+    if [ -n "$newer" -a ! "$file" -nt "$newer" ]; then
+	print -u2 -- "$file is not newer than $newer; skipping."
+	return 0
+    fi
+    if [ -n "$older" -a ! "$file" -ot "$older" ]; then
+	print -u2 -- "$file is not older than $older; skipping."
+	return 0
+    fi
+    if [ ! -a "$file" ]; then
+	print -u2 -- "$file: No such file.  Skipping."
+	return 1
+    fi
+    if [ ! -f "$file" ]; then
+	print -u2 -- "$file: Not a regular file.  Skipping."
+	return 1
+    fi
+    if [ ${#rmFiles[*]} -gt 0 ]; then
+	ExtraOptions[i]="delete files currently marKed"
+	let i+=1
+	ExtraOptions[i]="select files to Unmark"
+	let i+=1
+    fi
+    if $FileDone; then
+	ExtraOptions[i]="view file Status"
+	let i+=1
+    fi
+    if $conglomFound; then
+	ExtraOptions[i]="Conglomerate onto a specified file#Conglomerate onto:"
+	let i+=1
+    fi
+    if $conglom; then
+	conglom -l "$file" | read f matches
+	for f in $matches; do
+	    ExtraOptions[i]="conglomerate Onto $f"
+	    let i+=1
+	done
+    fi
+
+    set -- $(file $file)
+    shift
+    ftype="$*"
+    if [[ "$ftype" = *mail* ]]; then
+	ExtraOptions[i]="read file into mAiler"
+	let i+=1
+    fi
+
+    info=$(l -- "$file")
+
+    while :; do
+
+	uSelect \
+"Current file: $file
+File type: $ftype
+$info" \
+"" \
+"View" \
+"Edit" \
+"Move#Move to:" \
+"Forward file via email#Mail to:" \
+"uuencode Binary file & email it#Mail to:" \
+"Run a command on the file#Command:" \
+"mark for Deletion" \
+"Go on to next file" \
+"print Help" \
+"${ExtraOptions[@]}" && Finish
+# Possible ExtraOptions: Delete marked, select to Unmark, view Status,
+# Conglomerate, conglomerate Onto, read file into mAiler.  Q used by Quit.
+# A B C D E F G H K M O Q R S U V
+
+	$debug && set -x
+	case "$uSelect_ret" in
+	A)  # Run file into mailer
+	    mail -f "$file"
+	    ;;
+	B)  # uuencode Binary file & email it
+	    uuencode "$file" "$file" |
+	    mail -s "File transfer ($file), uuencoded" $uSelect_params
+	    ;;
+	C)  # Conglomerate
+	    dest=$uSelect_params
+	    if [ -n "$dest" ] && conglom -- "$file" "$dest"; then
+		FilesConglomerated="$FilesConglomerated $file"
+		break
+	    fi
+	    ;;
+	F)  # Forward file via email
+	    mail -s "File transfer ($file)" $uSelect_params <"$file"
+	    ;;
+	K)  # Delete marked files
+	    FilesRemoved="$FilesRemoved ${rmFiles[*]}"
+	    print "Removing: ${rmFiles[*]}"
+	    rm -- "${rmFiles[@]}"
+	    unset rmFiles[*]
+	    break
+	    ;;
+	E)  # Edit
+	    "$VISUAL" "$file";;
+	G)  # Go on to next file
+	    FilesUntouched="$FilesUntouched $file"
+	    break
+	    ;;
+	H)  # print Help
+	    print -- \
+"Options (in the following, the parameter referred to can be given after the
+command; if it is not, it will be queried for):
+A invokes the standard mailer on the file.
+B and F send the file by mail to the destination given by the parameter.
+  If B is used, the file is uuencoded first.  The subject is set to 'File
+  transfer (filename)' for F and 'File transfer (filename), uuencoded' for B.
+C and O conglomerate the file (append it to another file and then remove it).
+  C takes the target file as the parameter; O offers a specific list of files.
+D marks the file for deletion.  It will be deleted when the K command is given,
+  or if the option to remove all marked files is used when $name is quit.
+E runs the editor on the file.  The editor is given by the environment variable
+  VISUAL; or if not set, the variable EDITOR; or if not set, the \"vi\" editor.
+G skips the file (no action is taken on it).
+K immediately deletes any files that have been marked for deletion.
+M moves the file to the new name given by the parameter.
+R passes the file as an argument to the command given by the parameter.
+S shows file status; it reports which file have been moved, removed, marked for
+  removal, conglomerated onto others, and left alone.
+U allows files that have been marked for removal to be unmarked.
+V views the file using a pager.  The pager is given by the environment variable
+  PAGER; or if it is not set, the standard pager \"more\".
+!command  runs command with any arguments and then returns to the menu."
+	    print -n "Press return to continue..."
+	    read
+	    ;;
+	D)  # Mark for deletion
+	    rmFiles[${#rmFiles[*]}]=$file
+	    break
+	    ;;
+	M)  # Move
+	    dest=$uSelect_params
+	    if [ -n "$dest" ] && $mv -- "$file" "$dest"; then
+		FilesMoved="$FilesMoved $file"
+		break
+	    fi
+	    ;;
+	O)  # Conglomerate onto
+	    set -- $uSelect_selected
+	    if conglom -- "$file" "$3"; then
+		FilesConglomerated="$FilesConglomerated $file"
+		break
+	    fi
+	    ;;
+	R)  # Run a command on file
+	    $uSelect_params "$file"
+	    ;;
+	S)  # View file status
+	    print \
+"Files moved: $FilesMoved
+
+Files removed: $FilesRemoved
+
+Files marked for removal: ${rmFiles[*]}
+
+Files conglomerated onto others: $FilesConglomerated
+
+Files left alone: $FilesUntouched"
+	    ;;
+	U) # Select files to unmark
+	    UnselectFiles
+	    ;;
+	V)  # View file
+	    ${PAGER:-more} "$file";;
+	esac
+	$debug && set +x
+    done
+    FileDone=true
+    return 0
+}
+
+function UnselectFiles {
+    typeset file
+    typeset -i filenum
+
+    # Must have an outer loop so file list is rebuilt when a file is unmarked
+    while :; do
+	print \
+"These files are marked for removal.
+Enter the number of one to unmark, or r to return to the previous menu."
+	select file in "${rmFiles[@]}"; do
+	    [[ "$REPLY" = [rR] ]] && return
+	    if [ -n "$file" ]; then
+		let filenum=REPLY-1
+		# Print this insteead of $file to make it obvious if something
+		# goes wrong
+		print "Unmarking: ${rmFiles[filenum]}"
+		unset rmFiles[filenum]
+		# normalize indices
+		set -A rmFiles -- "${rmFiles[@]}"
+		if [ ${#rmFiles[*]} -eq 0 ]; then
+		    print "All files unmarked."
+		    return
+		fi
+		break
+	    fi
+	done
+    done
+}
+
+function Finish {
+    typeset answer
+
+    if [ ${#rmFiles[*]} -eq 0 ]; then
+	print -u2 "No files marked for removal."
+	exit 0
+    fi
+    print \
+"Files marked for removal: ${rmFiles[*]}
+Select an option by number:"
+    select answer in \
+    "Remove all marked files" \
+    "Do not remove any files" \
+    "Select files to unmark"
+    do
+	case "$answer" in
+	Remove*)
+	    print "Removing: ${rmFiles[*]}"
+	    rm -- "${rmFiles[@]}"; break;;
+	Do*)
+	    break;;
+	Select*)
+	    UnselectFiles;;
+	esac
+	[ ${#rmFiles[*]} -eq 0 ] && break
+    done
+    exit 0
+}
+
+type conglom > /dev/null && conglomFound=true || conglomFound=false
+[ -f "${CGFILES:-$HOME/.files}" ] && $conglomFound &&
+conglom=true || conglom=false
+debug=false
+FileDone=false
+
+
+[ -z "$VISUAL" ] && VISUAL=${EDITOR:-vi}
+
+name=${0##*/}
+Usage="Usage: $name [-hc] [-n<file>] [-o<file>] file ..."
+
+while getopts :hicxn:o: opt; do
+    case $opt in
+    h)
+	echo \
+"$name: deal with files.
+$name takes a list of files and for each one gives a list of options for what
+may be done with it.  If no filenames are given on the command line, they are
+read from the standard input, one per line.  The options are:
+View: the file is passed to a pager.
+Edit: the file is passed to an editor.
+Move: a new name is queried for, and the file is moved to it.
+Run a command on the file: a command line is queried for, and is run with the
+    filename appended to it.
+Mark for removal: the file is added to a list of files to be removed.
+Conglomerate onto another file: ask for another filename and append the
+    contents of this file to it; then remove the original file.
+Go on to next file: do not do anything to the file.
+Remove files currently marked: immediately removed the marked files.
+View file status: list what has been done with each file processed so far.
+Quit: ask whether marked files should be removed; if the answer is yes, 
+    remove then; then quit.
+If the 'conglom' utility finds matches for the file, conglomeration onto
+specific files is also offered.
+$Usage
+Options:
+-h: Print this help.
+-c: Do not offer a list of files that the file may be conglomerated onto
+    as an option.  This avoid running 'conglom' for each file to find matches.
+-n<file>: Process only files newer (more recently modified) than <file>.
+-o<file>: Process only files older (less recently modified) than <file>."
+	exit 0
+	;;
+    c)
+	conglom=false
+	;;
+    n)
+	newer=$OPTARG
+	if [ ! -a "$newer" ]; then
+	    print -u2 -- "$newer: no such file."
+	    exit 1
+	fi
+	;;
+    o)
+	older=$OPTARG
+	if [ ! -a "$older" ]; then
+	    print -u2 -- "$older: no such file."
+	    exit 1
+	fi
+	;;
+    x)
+	debug=true
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+# nmv is more careful above moves
+if type nmv > /dev/null; then
+    mv='nmv -i'
+    $debug && print -u2 'Using nmv -i instead of mv'
+else
+    mv=mv
+fi
+
+if [ $# -lt 1 ]; then
+    # If reading file list, use /dev/tty for user input
+    while read file; do
+	DoFile "$file" < /dev/tty
+    done
+else
+    for file; do
+	DoFile "$file"
+    done
+fi
+
+[ ${#rmFiles[*]} -ne 0 ] && Finish

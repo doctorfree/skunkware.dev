@@ -1,0 +1,289 @@
+#!/bin/ksh
+# @(#) chuser.ksh 1.2.1 97/07/30
+# 94/01/22 john h. dubois iii (john@armory.com)
+# 94/09/09 Added check for non-matchable password.
+# 94/10/11 Use % instead of - as sed separator, to guarantee that it cannot
+#          appear in a user name.
+# 94/10/13 Added -u option.  Added sanity checks.
+# 94/10/22 Do not allow _ in login names.
+# 94/11/14 Fixed regexp used for checking if login name is in use.
+#          Fixed unsetting of old uid.
+# 95/10/28 Added t option.
+# 96/01/20 Create tempfile more carefully.
+# 97/07/30 Added f option.
+
+# todo: when changing uid, check for processes, ipc objects, etc. owned by
+# the old uid and warn about them.
+
+# @(#) mktempfile 1.0 96/05/22
+# 96/01/20 jhdiii
+
+# Usage: mkfiles name ...
+# Creates the named files with some attempt at security.
+# This will be more reliable if user do not have chown authority.
+# Any file that contains no / characters is created in the user's tempdir.
+# If TMP was not set, it is set by this function (but not exported).
+# Returns 0 on success; prints a diagnostic message & returns 1 on failure.
+function mkfiles {
+    typeset file files
+    typeset -i i=0
+
+    : ${TMP:=$TMPDIR}
+    : ${TMP:=/tmp}
+    for file; do
+	[[ "$file" != */* ]] && file="$TMP/$file"
+	files[i]=$file
+	let i+=1
+    done
+    set -- "${files[@]}"
+
+    rm -f "$@" || {
+	# hopefully rm will have printed a more specific message.
+	print -u2 "Could not remove pre-existing files."
+	return 1
+    }
+    for file; do
+	# Use >> to avoid 0'ing the file in case a symlink was just made from
+	# the filename to something we don't want to truncate
+	>> "$file" || {
+	    print -u2 "Could not create temp file $file"
+	    return 1
+	}
+	# These are very suspicious
+	[ -s "$file" ] && {
+	    print -u2 "New tempfile is not empty!!!"
+	    return 1
+	}
+	[ -O "$file" ] || {
+	    print -u2 "Do not own $file!!!"
+	    return 1
+	}
+    done
+    # Could do some more stuff here, but anyone concerned with security should
+    # have chown authorization off for most users.
+    return 0
+}
+
+# Usage: mktempfile name
+# Creates a tempfile name tempdir/#name$$, and sets the global mktempfile_ret
+# to that name.  tempdir is a temp directory in $TMP, $TMPDIR, or /tmp, and $$
+# is the PID of the current process.
+# name should be 8 characters or less, so that the resulting filename will
+# not be more than 14 characters long (a limit on some machines).
+# Returns 0 on success, prints a diagnostic message & returns 1 on failure.
+function mktempfile {
+    typeset file="#$1$$"
+    mkfiles "$file"
+    mktempfile_ret="$TMP/#$1$$"
+}
+
+# Usage: Error [-f] message ...
+# If -f is given, this is considered a fatal error even if tell is true
+function Error {
+    typeset warn
+
+    if [ $# -gt 1 -a "$1" = -f ]; then
+	warn=false
+	shift
+    else
+	warn=$tell
+    fi
+    if $warn; then
+	print -u2 "$name: Warning: $* (continuing)."
+    else
+	print -u2 "$name: Fatal error: $*.  Aborting."
+	exit 1
+    fi
+}
+
+### Start of main program
+
+name=${0##*/}
+unset newuid
+tell=false
+chkname=true
+
+Usage="Usage: One of the following forms:
+  $name -h
+  $name [-ft] oldname newname
+  $name [-ft] -u<uid> oldname [newname]"
+
+while getopts :hftu: opt; do
+    case $opt in
+    h)
+	print \
+"$name: change a user's account name or uid.
+$Usage
+Either -u<uid> or [newname] or both may be given.  If -u<uid> is given, the
+user's old uid is changed to <uid>.  If newname is given, the user's login name
+is changed from oldname to newname and the user's home directory is renamed
+($name assumes that the last component of the login directory is the same as
+the user name).  In both cases, the user's protected password database
+information is updated.  $name will fail if the named user is logged in, or if
+newname or the new uid is already in use.
+Other options:
+-f: Force change even if newname is not a legal user name (for example, if
+    newname starts with a digit).  Be very careful when using this option.
+-h: Print this help.
+-t: Tell what would be done, without doing it.  This changes some fatal errors
+    to warnings."
+	exit 0
+	;;
+    f)
+	chkname=false
+	;;
+    t)
+	tell=true
+	;;
+    u)
+	newuid=$OPTARG
+	if [[ "$newuid" != +([0-9]) || 
+	"$newuid" -lt 1 || "$newuid" -gt 32767 ]]; then
+	    Error -f "Bad value given for new uid"
+	fi
+	grep "^[^:]*:[^:]*:$newuid:" /etc/passwd > /dev/null &&
+	Error "new uid '$newuid' is already in use"
+	;;
+    +?)
+	Error -f "options should not be preceded by a '+'"
+	;;
+    :)
+        Error -f "Option '$OPTARG' requires a value.  Use -h for help."
+        ;;
+    ?) 
+	Error -f "$OPTARG: bad option.  Use -h for help"
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+# Must have 1 or 2 args; if only 1 arg, must have given -u option.
+if [ $# -ne 1 -a $# -ne 2 -o $# -eq 1 -a -z "$newuid" ]; then
+    Error -f "Not enough arguments.  Use -h for help.\n"
+fi
+
+oldname=$1
+if [ $# -eq 1 ]; then
+    newname=$1	# replace it with itself
+else
+    newname=$2
+    egrep "^$newname:" /etc/passwd > /dev/null &&
+    Error "$newname is already a user"
+    # getty man page says _ should not be used in a login name,
+    # and every other non-alphanum except - is used as a metachar
+    # somewhere where a login name would be used.
+    if $chkname &&
+    [[ "$newname" != [a-z]+([-a-z0-9]) || "$newname" = ?????????* ]]; then
+	Error "$newname: invalid user name"
+    fi
+fi
+
+# Get olduid even if -u not given, since it is used as a check for whether
+# a good username was given.
+olduid=$(awk -F: "/^$oldname:/ { print \$3;}" /etc/passwd)
+
+[ -z "$olduid" ] && Error -f "$oldname is not a user"
+
+# If not changing uid, unset olduid, lest old uid be replaced with nothing
+[ -z "$newuid" ] && unset olduid
+
+# At this point:
+# oldname is the name of the user whose account is being changed.
+# newname is either the new name for the account, or is the same as oldname
+#     if the name is not being changed.
+# If the uid is being changed, olduid is the old uid and newuid is the new uid.
+# If the uid isn't being changed, they are both null.
+
+if who | egrep "^$oldname "; then
+    Error "$oldname is logged in; cannot change account record"
+fi
+
+# ap output looks like this:
+# stealth:x:1032:50:Jonathan D. Campbell:/u/stealth:/bin/ksh
+# stealth:u_name=stealth:u_id#1032:\
+#         :u_pwd=x:\
+#         :u_type=general:u_lock@:chkent:
+# ENDOFGROUPS::0:
+
+# Save user account configuration, translated to new name
+# Replace user name at start of line followed by a colon,
+# and user name after an = or / followed by colon (u_name and home dir fields)
+mktempfile chuser. || {
+    print -u2 "$name: Exiting."
+    exit 1
+}
+tmpfile=$mktempfile_ret
+
+print "Saving account profile for $newname in $tmpfile"
+# Line 1 subs passwd and tcb login name.
+# Line 2 subs tcb u_name.
+# Line 3 subs passwd directory name.
+# Line 4 subs passwd uid.
+# Line 5 subs passwd uid.
+ap -gd "$oldname" | sed "
+s/^$oldname:/$newname:/
+s/=$oldname:/=$newname:/
+s%/$oldname:%/$newname:%
+s/:$olduid:/:$newuid:/
+s/#$olduid:/#$newuid:/
+" > $tmpfile
+
+grep :u_pwd=x: $tmpfile && grep "^$newname:x:" $tmpfile &&
+print -u2 "$name: Warning: account profile contains non-matchable password."
+
+uhome=`awk -F: "\"$oldname"'" == $1 { print $6; }' /etc/passwd`
+
+if $tell; then
+    print "Would remove user $oldname."
+else
+    print "Removing user $oldname..."
+    rmuser "$oldname"
+    status=$?
+    if [ $status -ne 0 ]; then
+	# Do NOT remove tmpfile; rmuser may exit nonzero even if user is
+	# mostly removed!
+	#rm $tmpfile
+	Error -f \
+	"Removal of user $oldname failed (rmuser exited with status $status)"
+    fi
+fi
+
+if $tell; then
+    print "Would restore user $newname with account profile:"
+    cat $tmpfile
+else
+    print "Restoring user $newname with account profile:"
+    cat $tmpfile
+    ap -r -f $tmpfile
+fi
+
+if [ $# -eq 2 ]; then
+    # Replace /oldname$ with /newname
+    newhome=`print -r -- $uhome|sed "s/\\/$oldname\\$/\\/$newname/"`
+
+    if $tell; then
+	print -r "Would move home dir $uhome to $newhome"
+    else
+	print -r "Moving home dir $uhome to $newhome"
+    fi
+    if [ -d $uhome ]; then
+	$tell || mvdir $uhome $newhome
+    else
+	print -u2 \
+	"$uhome is not a directory!  If it is a symlink, move it by hand."
+    fi
+fi
+
+[ -n "$newuid" ] && print \
+"Remember to change the ownership of any files
+from $olduid to $newuid ($newname)."
+
+[ "$oldname" != "$newname" ] && print \
+"Remember to create a mail alias, if appropriate, to forward mail
+from $oldname to $newname.  Here's an alias line to cut & paste:
+$oldname	$newname"
+
+rm $tmpfile

@@ -1,0 +1,239 @@
+#!/usr/local/bin/gawk -f
+# @(#) unixtime.gawk 2.1 97/04/15
+# 92/09/12 john h. dubois iii (john@armory.com)
+# 93/01/27 added printing of systime() if no args given
+# 93/05/11 Use long date format string instead of %c in case %c doesn't work
+# 95/10/11 Allow format to be set
+# 96/12/16 Added epoch day<->date capability.
+
+# Use gawk for systime() and strftime()
+
+BEGIN {
+    Name = "unixtime"
+    Usage = "Usage: " Name " [-hi] [time|format|date ...]"
+    Format = "%a %b %d %T %Z %Y"
+    FmtUsed = 1
+    CurTime = systime()
+    if (ARGC == 1)	# If no args, print epoch time
+	print CurTime
+    else {
+	if (ARGV[1] ~ "^[-+]h$")
+	    printf \
+"%s: convert UNIX times, given as the number of seconds since the\n"\
+"epoch (1970 Jan 1 GMT), to a local time in human readable format.\n"\
+"%s\n"\
+"If no arguments are given, the current epoch time (in seconds) is printed.\n"\
+"If arguments are given, they should be time formats, epoch times, or\n"\
+"dates.\n"\
+"Time formats and epoch times:\n"\
+"If an argument has a %% character in it or consists of the '.' character,\n"\
+"it is taken to be a time format, and causes any further times that are\n"\
+"printed to be converted using the given format.  Time formats are as\n"\
+"described in the strftime(S) and date(C) man pages, except that a time\n"\
+"format consisting solely of a '.' character causes the time to be printed\n"\
+"as an epoch time.  If an argument consists entirely of digits, it is taken\n"\
+"to be an epoch time, and is printed using the most recently specified\n"\
+"format (arguments are processed from left to right).  If no format has\n"\
+"been given, the default format of \"%s\" is used.  If the time\n"\
+"format is changed without the prior format having been used (that is, if\n"\
+"multiple time formats are given in succession without epoch times between\n"\
+"them), then the current time is printed using the prior format before it\n"\
+"is changed.  The same applies if the last argument is a time format.  A\n"\
+"null (empty) argument is short for the current time.  The current time is\n"\
+"the time the program started if arguments on the command line are being\n"\
+"processed (for consistency), but is the time of printing for arguments\n"\
+"read from the standard input, so that formats or null strings may be\n"\
+"entered at intervals and get the current time.  Example:\n"\
+"%s 813444165 '%%D %%T' %%c 813444200 %%W\n"\
+"This prints the first time (81344165) using the default format, then the\n"\
+"current time as a date and time (%%D %%T) because that format is not used\n"\
+"before the format is changed again, then prints the second time (81344200)\n"\
+"in the 'local format' (%%c), then prints the current week of the year\n"\
+"(%%W).\n"\
+"Dates:\n"\
+"If an argument contains no %% characters and does contain / characters, it\n"\
+"is taken to be a date in the form year/month/day.  If a year less than 70\n"\
+"is given, it is taken to be relative to the year 2000; if a year between 70\n"\
+"and 99 is given, it is taken to be relative to the year 1900.  For each\n"\
+"date given, the epoch day (the number of days since 1970 Jan 1) is printed.\n"\
+"If an argument with the form <number>d is given, it is taken to be an\n"\
+"epoch day, and the equivalent date in the form year/month/day is printed.\n"\
+"Options:\n"\
+"-h: Print this help.\n"\
+"-i: Read times and formats from the standard input instead of using values\n"\
+"    given on the command line.  The times and formats should be given one\n"\
+"    per line.\n",
+	    Name,Usage,Format,Name
+	else if (ARGV[1] ~ "^[-+]i$") {
+	    while ((getline < "/dev/stdin") == 1)
+		if (Convert($0,-1)) {
+		    printf "Bad value: '%s'\n",$0
+		    exit 1
+		}
+	    if (!FmtUsed)
+		xstrftime(Format,-1)
+	}
+	else {
+	    for (i = 1; i < ARGC; i++)
+		if (Convert(ARGV[i],CurTime)) {
+		    printf "Invalid argument: '%s'\n%s\n",ARGV[i],Usage
+		    exit 1
+		}
+	    if (!FmtUsed)
+		xstrftime(Format,CurTime)
+	}
+    }
+}
+
+# If Time is -1, systime() is used, if not, Time is used.
+function xstrftime(Format,Time) {
+    if (Time == -1)
+	Time = systime()
+    if (Format == ".")
+	printf "%d\n",Time
+    else
+	print strftime(Format,Time)
+}
+
+# Val is a time, format, or date.
+function Convert(Val,CurTime,  ret) {
+    if (Val ~ "%." || Val == ".") {
+	if (!FmtUsed)
+	    xstrftime(Format,CurTime)
+	Format = Val
+	FmtUsed = 0
+    }
+    else if (Val == "" || Val ~ "^[0-9]+$") {
+	xstrftime(Format,Val == "" ? CurTime : Val)
+	FmtUsed = 1
+    }
+    else if (Val ~ "^[0-9]+/[0-9]+/[0-9]+$") {
+	if ((ret = date2day(Val)) == -1)
+	    return 1
+	else
+	    print ret
+    }
+    else if (Val ~ "^[0-9]+d$")
+	print day2date(substr(Val,1,length(Val)-1),1)
+    else
+	return 1
+    return 0
+}
+
+### Begin epochdays routines.
+# These functions operate on epoch days and epoch months, which have the same 0
+# time as UNIX epoch seconds.  These functions are mainly used to avoid having
+# to deal with timezone issues.
+# @(#) epochdays 1.1 95/08/26
+
+# YMD2day(year,month,day-of-month) returns the number of days that passed from 
+# 1970 Jan 1 to the given date.
+# All parameters should be given in numeric form.
+# If year < 70, it is assumed to be part of the 2000 century
+# If year in (70..99), it is assumed to be part of the 1900 century.
+# Globals: sets and uses MDays[]
+function YMD2day(Year,Month,Day,   LeapDays) {
+    Year+=0
+    Month+=0
+    if (Year < 70)
+	Year += 100
+    else if (Year >= 100)
+	Year -= 1900
+    # Year is now the number of years since 1900.
+    LeapDays = int((Year - 68) / 4)
+    if (Month <= 2 && Year % 4 == 0)
+	LeapDays -= 1
+    if (!(0 in MDays))
+	split("0 31 59 90 120 151 181 212 243 273 304 334 365",MDays," ")
+    return (Year - 70) * 365 + MDays[Month] + Day - 1 + LeapDays
+}
+
+# date2day("yy/mm/dd") returns the number of days that passed from 
+# 1970 Jan 1 to the given date.  -1 is returned on error.
+# The fields are returned in Fields: year in Fields[1], month in Fields[2],
+# and day (if given) in Fields[3].
+function date2day(Date,Fields,  Num,Year,Month) {
+    Num = split(Date,Fields,"/")
+    if (Num != 2 && Num != 3)
+	return -1
+    if (!(Year = Fields[1] + 0) || !(Month = Fields[2] + 0))
+	return -1
+    if (Num == 3)
+	Day = Fields[3]
+    return YMD2day(Year,Month,Day)
+}
+
+# diffdays(year1,month1,day-of-month1,year2,month2,day-of-month2)
+# returns the number of complete days that passed from date 1 to date 2
+function diffdays(year1,month1,day1,year2,month2,day2) {
+    return YMD2day(year2,month2,day2) - YMD2day(year1,month1,day1)
+}
+
+# Given an epoch month, return the first day of that month
+function month2day(Month) {
+    return YMD2day(int(Month/12) + 1970,Month % 12 + 1,1)
+}
+
+# Given an epoch day, returns epoch month
+function day2month(Day,  Date) {
+    day2YMD(Day,Date)
+    return (Date["y"]-1970)*12 + Date["m"]-1
+}
+
+# Given an epoch month, returns the number of days in that month.
+function monthdays(month,  year) {
+    if (!(0 in MDur))
+	split("31 28 31 30 31 30 31 31 30 31 30 31",MDur)
+    year = int(month/12)
+    month = month%12+1
+    return (!((year+2)%4) && month == 2) ? 29 : MDur[month]
+}
+
+# Given an epoch day (day since 1970 Jan 1; day 0 = 1970 Jan 1, etc.), 
+# returns the date elements in Date:
+# Date["y"] = year (4 digits), Date["m"] = month (jan = 1, etc.),
+# Date["d"] = day of month.
+# Globals: Sets/uses MDays[].
+function day2YMD(Day,Date,  QYears,Year,NonLeapYears,Month) {
+    if (!(0 in LDays)) {
+	split("0 31 59 90 120 151 181 212 243 273 304 334 365",MDays," ")
+	split("0 31 60 91 121 152 182 213 244 274 305 335 366",LDays," ")
+    }
+    Day += 365
+    # Day is now # of days since Jan 1 1969.  1968 was a leap year.
+    QYears = int(Day / (365*4+1))
+    Year = 1969 + QYears * 4
+    Day -= QYears * (365*4+1)
+    # Day now contains no complete leap years.
+    Year += NonLeapYears = int(Day/365)
+    Leap = !(Year % 4)
+    Day -= NonLeapYears * 365
+    # Day now contains the day of year.
+    # Find the month.  Divide day by 32 to get either the correct month or
+    # the month prior to it.
+    Month = int(Day++ / 32) + 1
+    if (Day > (Leap ? LDays[Month+1] : MDays[Month+1]))
+	Month++
+    Day -= Leap ? LDays[Month] : MDays[Month]
+    Date["d"] = Day
+    Date["m"] = Month
+    Date["y"] = Year
+}
+
+# Given a month number, return a date in the form yy/mm
+function month2date(MonthNum) {
+    return sprintf("%02d/%02d",(MonthNum / 12 + 70) % 100, MonthNum % 12 + 1)
+}
+
+# Given a day number, return a date in the form yy/mm/dd or yyyy/mm/dd
+# If century is true, the century is included as part of the year;
+# otherwise it is stripped.
+function day2date(day,century,  year) {
+    day2YMD(day,Date)
+    year = Date["y"]
+    if (!century)
+	year %= 100
+    return sprintf("%02d/%02d/%02d",year,Date["m"],Date["d"])
+}
+
+### End epochdays routines

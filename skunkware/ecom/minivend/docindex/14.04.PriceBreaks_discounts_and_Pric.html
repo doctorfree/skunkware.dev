@@ -1,0 +1,113 @@
+<HTML>
+<HEAD>
+<TITLE>PriceBreaks, discounts, and PriceAdjustment</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.03.CommonAdjust_Examples.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.05.Item_Attributes.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="PriceBreaks_discounts_and_Pric">PriceBreaks, discounts, and PriceAdjustment</A></H2>
+<P>
+There are several ways that MiniVend can modify the price of a product
+during normal catalog operation. Several of them require that the <EM>pricing.asc</EM>
+file be present, and that you define a pricing database. You do that by
+placing the following directive in <EM>catalog.cfg</EM>:
+
+<P>
+<PRE>  Database  pricing pricing.asc 1
+</PRE>
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> PriceAdjustment is slightly deprecated by
+CommonAdjust, but will remain in use at least through the end of Version 3
+of MiniVend.
+
+<P>
+Configurable directives and tags with regard to pricing:
+
+<UL>
+<LI>
+<P>
+Quantity price breaks are configured by means of the <EM>PriceBreaks</EM> and
+<EM>MixMatch</EM> directives. They require a field named specifically <A HREF="#item_price">price</A>
+in the pricing database. The <STRONG>price</STRONG> field contains a space-separated list of prices that correspond to the
+quantity levels defined in the
+<EM>PriceBreaks</EM> directive. If quantity is to be applied to all items in the shopping cart
+(as opposed to quantity of just that item) then the
+<EM>MixMatch</EM> directive should be set to <STRONG>Yes</STRONG>.
+
+<LI>
+<P>
+Individual line-item prices can be adjusted according to the value of their
+attributes. See <EM>PriceAdjustment</EM> and <EM>CommonAdjust</EM>. The pricing database <STRONG>must</STRONG> be defined unless you define the <EM>CommonAdjust</EM>
+behavior.
+
+<LI>
+<P>
+Product discounts for individual products, specific product codes, all
+products, or the entire order can be configured with the <A HREF="#item__discount_">[discount ...]</A>
+tag. Discounts are applied on a per-user basis -- you can gate the discount
+based on membership in a club or other arbitrary means. See
+<EM>Product Discounts</EM>.
+
+</UL>
+<P>
+For example, if you decided to adjust the price of T-shirt part number
+99-102 up 1.00 when the size is extra large and down 1.00 when the size is
+small, you would have the following directives defined in
+&lt;catalog.cfg&gt;:
+
+<P>
+<PRE>  Database          pricing pricing.asc 1
+  UseModifier       size
+  PriceAdjustment   size
+</PRE>
+<P>
+To enable automatic modifier handling, you define a size field in
+products.txt:
+
+<P>
+<PRE>  code    description   price    size
+  99-102  T-Shirt       10.00    S=Small, M=Medium, L=Large*, XL=Extra Large
+</PRE>
+<P>
+You would place the proper tag within your <CODE>[item-list]</CODE> on the shopping-basket or order page:
+
+<P>
+<PRE>    [item-accessories size]
+</PRE>
+<P>
+In the pricing.asc database source, you would need:
+
+<P>
+<PRE>  code      S       XL
+  99-102    -1.00   1.00
+</PRE>
+<P>
+As of MiniVend 3.06, if you want to assign a price based on the option,
+precede the number with an equals sign:
+
+<P>
+<PRE>  code    S       M       L       XL
+  99-102  =9.00   =10     =10     =11
+</PRE>
+<P>
+
+<FONT SIZE=-1>IMPORTANT</FONT> 
+<FONT SIZE=-1>NOTE:</FONT> Price adjustments occur 
+<FONT SIZE=-1>AFTER</FONT> quantity price breaks, so the above would negate anything set with the
+ <EM>PriceBreaks</EM> directive/option.
+
+<P>
+Numbers that begin with an equals sign (<CODE>=</CODE>) are used as absolute prices and are <EM>interpolated for MiniVend tags first</EM>, so you can use subroutines to set the price. To facilite coordination
+with the subroutine, the session variables <CODE>item_code</CODE> and <CODE>item_quantity</CODE> are set to the code and quantity of the item being evaluated. They would be
+accessed in a global subroutine with <CODE>$Vend::Session-</CODE>&gt;<CODE>{item_code}</CODE>
+and <CODE>$Vend::Session-</CODE>&gt;<CODE>{item_quantity}</CODE>.
+
+<P>
+The pricing information must always come from a database because of
+security.
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="14.00.PRODUCT_PRICING.html">Up</A>&nbsp;&nbsp;<A HREF="14.03.CommonAdjust_Examples.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="14.05.Item_Attributes.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

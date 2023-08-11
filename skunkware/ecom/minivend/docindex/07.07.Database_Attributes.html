@@ -1,0 +1,195 @@
+<HTML>
+<HEAD>
+<TITLE>Database Attributes</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="07.00.DATABASES.html">Up</A>&nbsp;&nbsp;<A HREF="07.06.Character_usage_restrictions.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="07.08.Dictionary_indexing_with_INDEX.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Database_Attributes">Database Attributes</A></H2>
+<P>
+Especially in 
+<FONT SIZE=-1>SQL</FONT> databases, there are certain things that can be set with additional database attributes. For text import, the 
+<FONT SIZE=-1>CONTINUE</FONT> extended database import attribute allows additional control over the format of imported text.
+
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> 
+<FONT SIZE=-1>CONTINUE</FONT> applies to all types except 
+<FONT SIZE=-1>CSV.</FONT> (You won't want to use 
+<FONT SIZE=-1>NOTES</FONT> unless using type 
+<FONT SIZE=-1>LINE.)</FONT>
+
+
+<DL>
+<DT><STRONG><A NAME="item_CONTINUE">CONTINUE</A></STRONG><DD>
+One of 
+<FONT SIZE=-1>UNIX,</FONT> 
+<FONT SIZE=-1>DITTO,</FONT> 
+<FONT SIZE=-1>LINE,</FONT> 
+<FONT SIZE=-1>NONE,</FONT> or 
+<FONT SIZE=-1>NOTES.</FONT> The default, 
+<FONT SIZE=-1>NONE,</FONT> is to simply split the line/record according to the delimiter, with no possible spanning of records. Setting 
+<FONT SIZE=-1>CONTINUE</FONT> to 
+<FONT SIZE=-1>UNIX</FONT> appends the next line to the current when it encounters a backslash (
+<CODE>\</CODE>) at the end of a record, just like many Unix commands and shells.
+
+<P>
+
+<FONT SIZE=-1>DITTO</FONT> is invoked when the key field is blank -- it
+adds the contents of following fields to the one above, separated by a
+newline character. This allows additional text to be added to a field
+beyond the 255 characters available with most spreadsheets and flat-file
+databases.
+
+<P>
+Example in catalog.cfg:
+
+<P>
+<PRE>  Database products products.txt  TAB
+  Database products CONTINUE      DITTO
+</PRE>
+<P>
+Products.asc file:
+
+<P>
+<PRE>  code     price     description
+  00-0011  500000    The Mona Lisa, one of the worlds great masterpieces.
+                     Now at a reduced price!
+</PRE>
+<P>
+The description for product 00-0011 will contain the contents of the
+<A HREF="#item_description">description</A> field on both lines, separated by a newline.
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> Fields are separated by tabs, formatted for
+reading convenience.
+
+<P>
+This <EM>will</EM> work for multiple fields in the same record. If the field contains any
+non-empty value, it will be appended.
+
+<P>
+
+<FONT SIZE=-1>LINE</FONT> is a special setting so that you can use a multi-line field. Normally, when using the 
+<FONT SIZE=-1>LINE</FONT> type, you may have only data on one line separated by one blank line. When using 
+<FONT SIZE=-1>CONTINUE</FONT> 
+<FONT SIZE=-1>LINE,</FONT> you may have some number of fields which are each on a line, while the last one spans multiple lines up until the first blank line.
+
+
+<P>
+Example in catalog.cfg:
+
+<P>
+<PRE>  Database products products.txt  LINE
+  Database products CONTINUE      LINE
+</PRE>
+<P>
+Products.asc file:
+
+<P>
+<PRE>    code
+    price
+    description
+  
+    00-0011
+    500000
+    The Mona Lisa, one of the worlds great masterpieces.
+    Now at a reduced price!
+  
+    00-0011a
+    1000
+    A special frame for the Mona Lisa.
+</PRE>
+<P>
+<STRONG>NOTES</STRONG> reads a Lotus Notes ``structured text'' file. The format is that there are
+any number of fields, all except one of which must have a field name
+followed by a colon and then the data. There is optional whitespace after
+the colon.
+
+<P>
+Records are separated by a settable delimiting charater which goes on a line by itself, much like a ``here document''. By default it is a form feed 
+<FONT SIZE=-1>(^L)</FONT> character.
+
+
+<P>
+The final field begins at the first blank line and continues to the end of
+the record. This final field is named <CODE>notes_field</CODE>
+unless you set it as mentioned below.
+
+<P>
+MiniVend reads the field names from the first paragraph of the file. The
+key field should be first, followed by other fields in any order. If one
+(and only one) field name has whitespace, then its name is used for the <CODE>notes_field</CODE> and any characters after a space or 
+<FONT SIZE=-1>TAB</FONT> are used as the record delimiter. If there are none, then the delimiter returns to the default form feed 
+<FONT SIZE=-1>(^L)</FONT> and the field name reverts to
+ <CODE>notes_field</CODE>. The field in question will be discarded, but a second field with
+whitespace will cause an import error.
+
+<P>
+Following records are then read by name, and only fields with data in them
+need be set. Only the <CODE>notes_field</CODE> may contain a newline. It is always the last field in the record, and
+begins at the <STRONG>first</STRONG> blank line.
+
+<P>
+The following example sets the delimiter to a tilde <CODE>(~)</CODE> and renames the <CODE>notes_field</CODE> to <A HREF="#item_description">description</A>.
+
+<P>
+Example in catalog.cfg:
+
+<P>
+<PRE>  Database products products.txt  LINE
+  Database products CONTINUE      NOTES
+</PRE>
+<P>
+Products.asc file:
+
+<P>
+<PRE>    code
+    title
+    price
+    image
+    description ~
+    size
+    color
+  
+    title: Mona Lisa
+    price: 500000
+    code: 00-0011
+    image: 00-0011.jpg
+  
+    The Mona Lisa, one of the worlds great masterpieces.
+    Now at a reduced price!
+    ~
+    title: The Art Store T-Shirt
+    code: 99-102
+    size: Medium, Large*, XL=Extra Large
+    color: Green, Blue, Red, White*, Black
+    price: 2000
+  
+    Extra large 1.00 extra.
+    ~
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_EXCEL">EXCEL</A></STRONG><DD>
+Microsoft Excel is a widely-used tool to maintain MiniVend databases, but
+has several problems with its standard TAB-delimited export, like encasing
+fields containing commas in quotes, generating extra carriage returns
+embedded in records, and not including trailing blank fields. To avoid
+problems, use a text-qualifier of <STRONG>none</STRONG>.
+
+<P>
+Set the 
+<FONT SIZE=-1>EXCEL</FONT> attribute to 1 to fix these problems on import:
+
+<P>
+<PRE>    Database products EXCEL 1
+</PRE>
+<P>
+This is normally used only with TAB-delimited files.
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="07.00.DATABASES.html">Up</A>&nbsp;&nbsp;<A HREF="07.06.Character_usage_restrictions.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="07.08.Dictionary_indexing_with_INDEX.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

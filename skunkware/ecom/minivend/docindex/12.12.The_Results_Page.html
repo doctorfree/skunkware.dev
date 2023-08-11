@@ -1,0 +1,300 @@
+<HTML>
+<HEAD>
+<TITLE>The Results Page</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="12.00.THE_SEARCH_ENGINE.html">Up</A>&nbsp;&nbsp;<A HREF="12.11.Search_Reference.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="12.13.Updating_session_variables_after.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="The_Results_Page">The Results Page</A></H2>
+<P>
+Once a search has been done, there needs to be a way of presenting the
+output. By default, the <EM>SpecialPage</EM> search is used -- it is set to <CODE>results</CODE> in the distribution demo -- but any number of search pages can be specified
+by passing the value in the search form, specified in the variable <A HREF="#item_mv_search_page">mv_search_page</A>.
+
+<P>
+On the search page, some special MiniVend tags are used to format the otherwise standard 
+<FONT SIZE=-1>HTML.</FONT> Each of the iterative tags is applied to every code returned from the search -- this is normally the product code, but could be a key to any of the arbitrary databases. The value placed by the
+ <CODE>[item-code]</CODE> tag is set to the first field returned from the search.
+
+<DL>
+<DT><STRONG><A NAME="item__search_list_">[search-list]</A></STRONG><DD>
+Starts the representation of a search list. MiniVend tags can be embedded
+in the search list, yielding a table or formatted list of items with part
+number, description, price, and hyperlinks to order or go to its catalog
+page. 
+
+<P>
+The set of tags for <CODE>[item-list]</CODE> are available, with the exception of tags like <CODE>[item-modifier]</CODE>, <CODE>[modifier-name]</CODE>, <CODE>[item-accessories]</CODE>, and others that access shopping-cart specific elements. Thse include:
+
+<P>
+<PRE>    [if-item-data table column] [/if-item-data]
+    [if-item-field column] [/if-item-field]
+    [item-code]
+    [item-data table column]
+    [item-discount]
+    [item-field column]
+    [item-price quantity* noformat*]
+</PRE>
+<P>
+In fact, any of the MiniVend database access tags can be used, allowing you
+to pull data from any of the fields in any of your predefined databases.
+Along with the MiniVend conditional tags, very complex pages can be built
+for each individual item returned in the search.
+
+</DD><P><DT><STRONG><A NAME="item__search_list_">[/search-list]</A></STRONG><DD>
+Ends the search list. 
+
+</DD><P><DT><STRONG><A NAME="item__no_match_">[no-match]</A></STRONG><DD>
+Starts the region of the search results page that should be returned if
+there is no match (and no error) for the search. If this is not on the
+page, the special page <EM>nomatch</EM> will be displayed instead.
+
+</DD><P><DT><STRONG><A NAME="item__no_match_">[/no-match]</A></STRONG><DD>
+Ends the no match region.
+
+</DD><P><DT><STRONG><A NAME="item__sort">[sort database:field:option* database:field:option*]</A></STRONG><DD>
+Sorts the search list return based on database fields. If no options are
+supplied, sorts according to the return code. See
+<EM>SORTING</EM>.
+
+</DD><P><DT><STRONG><A NAME="item__sort_options_sort_">[sort]&lt;options&gt;[/sort]</A></STRONG><DD>
+(This form of sort is deprecated, as it is difficult to use. Use the above
+method.)
+
+<P>
+Placed inside the search list. Causes sorting of the search return based on
+the passed options. The fields that are there to sort are set by <A HREF="#item_mv_return_fields">mv_return_fields</A>.
+
+<P>
+The field options passed in either numeric or field name form. If they are
+field numbers, they are numbered as sent to the search list in the order
+specified by <EM>mv_return_fields</EM>, starting from 0 and proceeding upwards. If column names, they are as found in the first record of the searched file (by default the 
+<FONT SIZE=-1>ASCII</FONT> source for the product database),
+ <EM>except for the key or first field</EM>. followed by a <EM>required</EM> colon (:) and the options, if any.
+
+<P>
+Accepts none, any, or combinations of the flags:
+
+<P>
+<PRE>  f   case-insensitive sort (folded) (mutually exclusive of n)
+  n   numeric order (mutually exclusive of f)
+  r   reverse sort
+</PRE>
+<P>
+The &lt;options&gt; are a field number and an optional flag or flags, in a
+similar fashion to the Unix sort command, and are interpolated for form
+values before being used. As an example, if you set up the following fields
+on your search form:
+
+<P>
+<PRE>  &lt;INPUT TYPE=&quot;hidden&quot; NAME=&quot;mv_return_fields&quot; VALUE=&quot;0,title,artist,price&quot;&gt;
+  &lt;INPUT TYPE=&quot;radio&quot; NAME=&quot;the_sort_field&quot; VALUE=&quot;title&quot;&gt; Sort by Title
+  &lt;INPUT TYPE=&quot;radio&quot; NAME=&quot;the_sort_field&quot; VALUE=&quot;artist&quot;&gt; Sort by Artist
+  &lt;INPUT TYPE=&quot;radio&quot; NAME=&quot;the_sort_option&quot; VALUE=&quot;&quot;&gt; Forward sort
+  &lt;INPUT TYPE=&quot;radio&quot; NAME=&quot;the_sort_option&quot; VALUE=&quot;r&quot;&gt; Reverse sort
+  
+  NOTE: The 0 refers to the database code/key used for [item-code]
+</PRE>
+<P>
+This would combine with the following search result page fragment to sort
+by either title or artist.
+
+<P>
+<PRE>    [search-list]
+      [sort]
+        [value the_sort_field]:[value the_sort_option]
+      [/sort]
+    &lt;B&gt;[item-field title]&lt;/B&gt;, by [item-field artist]&lt;BR&gt;
+    [/search-list]
+</PRE>
+<P>
+The [value...] lines will end up looking like <CODE>artist:r</CODE> or <A HREF="#item_title_">title:</A>. This could also be specified with <CODE>2r</CODE> or <CODE>1</CODE>.
+
+<P>
+
+<FONT SIZE=-1>PERFORMANCE</FONT> 
+<FONT SIZE=-1>TIP:</FONT> on heavily trafficked systems, it will pay to use only column numbers rather than named fields, as it reduces processing and may obviate an access to the searched file to find the field names.
+
+
+</DD><P><DT><STRONG><A NAME="item__item_change">[item-change marker]</A></STRONG><DD>
+Active only within <CODE>[search-list][/search-list]</CODE>.
+
+<P>
+Along with the companion <CODE>[/item-change marker]</CODE>, surrounds a region which should only be output when a field (or other
+repeating value) changes its value. This allows indented lists similar to
+database reports to be easily formatted. The repeating value must be a tag
+interpolated in the search process, such as <CODE>[item-field field]</CODE> or <CODE>[item-data database field]</CODE>.
+
+<P>
+Of course, this will only work as you expect when the search results are
+properly sorted.
+
+<P>
+The <CODE>marker</CODE> field is mandatory, and is also arbitrary, meaning that you can select any
+marker you wish as long as it matches the marker associated with <CODE>[/item-change marker]</CODE>. The value to be tested is contained within a <CODE>[condition]value[/condition]</CODE> tag pair. The <CODE>[item-change marker]</CODE> tag also processes an <CODE>[else] [/else]</CODE> pair for output when the value does not change. The tags may be nested as
+long as the markers are different.
+
+<P>
+Here is a simple example for a search list that has a field <A HREF="#item_category">category</A> and
+<CODE>subcategory</CODE> associated with each item:
+
+<P>
+<PRE> &lt;TABLE&gt;
+ &lt;TR&gt;&lt;TH&gt;Category&lt;/TH&gt;&lt;TH&gt;Subcategory&lt;/TH&gt;&lt;TH&gt;Product&lt;/TH&gt;&lt;/TR&gt;
+ [search-list]
+ &lt;TR&gt;
+    &lt;TD&gt;
+         [item-change cat]
+ 
+         [condition][item-field category][/condition]
+ 
+                 [item-field category]
+         [else]
+                 &amp;nbsp;
+         [/else]
+         [/item-change cat]
+    &lt;/TD&gt;
+    &lt;TD&gt;
+         [item-change subcat]
+ 
+         [condition][item-field subcategory][/condition]
+ 
+                 [item-field subcategory]
+         [else]
+                 &amp;nbsp;
+         [/else]
+         [/item-change subcat]
+    &lt;/TD&gt;
+    &lt;TD&gt; [item-field name] &lt;/TD&gt;
+ [/search-list]
+ &lt;/TABLE&gt;
+</PRE>
+<P>
+The above should put out a table that only shows the category and
+subcategory once, while showing the name for every product. (The <CODE>&amp;nbsp;</CODE>
+will prevent blanked table cells if you use a border.)
+
+</DD><P><DT><STRONG><A NAME="item__item_change">[/item-change marker]</A></STRONG><DD>
+Companion to <CODE>[item-change marker]</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item__matches_">[matches]</A></STRONG><DD>
+Replaced with the range of match numbers displayed by the search page.
+Looks something like ``1-50''. Make sure you insert this item between a <CODE>[more-list]</CODE> and <CODE>[/more-list]</CODE>
+element pair.
+
+</DD><P><DT><STRONG><A NAME="item__more_list">[more-list next_img* prev_img* page_img* border* border_current*]</A></STRONG><DD>
+Starts the section of the search page which is only displayed if there are
+more matches than specified in <A HREF="#item_mv_matchlimit">mv_matchlimit</A>. If there are less matches than the number in mv_matchlimit, all text/html
+between the <CODE>[more_list]</CODE> and <CODE>[/more_list]</CODE> elements is stripped.
+
+<P>
+Use in conjunction with the <CODE>[more]</CODE> element to place pointers to additional pages of matches.
+
+<P>
+If the optional arguments <CODE>next_img</CODE>, <CODE>prev_img</CODE>, and/or <CODE>page_img</CODE>
+are present, they represent image files that will be inserted instead of
+the standard 'Next', 'Previous', and page number. If <CODE>prev_img</CODE>
+is <CODE>none</CODE>, then no previous link will be output. If <CODE>page_img</CODE> is
+<CODE>none</CODE>, then no links to pages of matches will be output. These are URLs, are
+substituted for with <EM>ImageDir</EM> and friends, and will be encased in 
+<FONT SIZE=-1>IMG</FONT> tags. Lastly, <CODE>border</CODE> is the border number to put.
+
+<P>
+In addition, if <CODE>page_img</CODE> is used, it will be passed an argument of the digit that is to be
+represented. This would allow an image generator program to be used,
+generating page numbers on the fly. The <CODE>border</CODE>
+and <CODE>border_selected</CODE> values are integers indicating the border that should be put around images
+in the <CODE>page_img</CODE> selection. The &lt;border_selected&gt; is used for the current page if set.
+
+<P>
+As an example, if you use <CODE>[more-list next.gif prev.gif page_num.cgi]</CODE>, the following will be the anchors:
+
+<P>
+<PRE>  Previous   &lt;IMG SRC=&quot;prev.gif&quot;&gt;
+  Page 1     &lt;IMG SRC=&quot;/cgi-bin/page_num.cgi?1&quot;&gt;
+  Page 2     &lt;IMG SRC=&quot;/cgi-bin/page_num.cgi?2&quot;&gt;
+  Next       &lt;IMG SRC=&quot;next.gif&quot;&gt;
+</PRE>
+<P>
+If you wish to set custom text for the ``Previous'' and ``Next'' usually
+used, then you can define the next_img, prev_img, and page_img with
+<CODE>[next-anchor][/next-anchor]</CODE>, <CODE>[prev-anchor][/prev-anchor]</CODE> and
+<CODE>[page-anchor][/page-anchor]</CODE>. The string 
+<FONT SIZE=-1>$PAGE$</FONT> will be replaced with the page number in the
+latter. The same example:
+
+<P>
+<PRE>    [more-list 0 0 0]
+    [next-anchor] Forward [/next-anchor]
+    [prev-anchor] Back [/prev-anchor]
+    [page-anchor] Page $PAGE$ [/page-anchor]
+    [more]
+    [/more-list]
+</PRE>
+<P>
+will display U&lt;Forward Page 1 Page 2 Back&gt; for 2 pages.
+
+<P>
+As shown, you must pass a 0 for the arguments of each to tell MiniVend to
+look for the assignments.
+
+<P>
+If you have many pages of matches and don't wish to have all displayed at
+once, you can set <CODE>[decade-next][/decade-next]</CODE>
+and <CODE>[decade-prev][/decade-prev]</CODE>. If you set them empty, a search with 31 pages will display pages 21-30
+like
+
+<P>
+<PRE>  Previous 1 2 3 4 5 6 7 8 9 10 [more&gt;&gt;] Next
+</PRE>
+<P>
+and pages 11-20 like:
+
+<P>
+<PRE>  Previous [&lt;&lt;more] 11 12 13 14 15 16 17 18 19 20 [more&gt;&gt;] Next
+</PRE>
+<P>
+If you set them to <CODE>[decade-next](higher)[/decade-next]</CODE> and
+<CODE>[decade-prev](lower)[/decade-prev]</CODE> you will see:
+
+<P>
+<PRE>  Previous (lower) 11 12 13 14 15 16 17 18 19 20 (higher) Next
+</PRE>
+<P>
+Of course image-based anchors can be used as well.
+
+</DD><P><DT><STRONG><A NAME="item__more_list_">[/more-list]</A></STRONG><DD>
+Companion to <CODE>[more-list]</CODE>. 
+
+</DD><P><DT><STRONG><A NAME="item__more_">[more]</A></STRONG><DD>
+Inserts a series of hyperlinks that will call up the next matches in a
+series. They look like this:
+
+<P>
+<PRE>    Previous 1 2 3 4 5 6 Next
+</PRE>
+<P>
+The current page will not be a hyperlink. Every time the new link is
+pressed, the list is re-built to correspond to the current page. If there
+is no <CODE>Next</CODE> or <CODE>Previous</CODE> page, that link will not be shown.
+
+<P>
+See the <CODE>fr_resul.html</CODE> or <CODE>search.html</CODE> files for examples. Make sure you insert this item between a <CODE>[more-list]</CODE> and <CODE>[/more-list]</CODE> element pair.
+
+</DD><P><DT><STRONG><A NAME="item__process_search_">[process-search]</A></STRONG><DD>
+Calls the search with the proper 
+<FONT SIZE=-1>URL,</FONT> including MiniVend session tags. Used as the 
+<FONT SIZE=-1>ACTION</FONT> value for the search form.
+
+
+</DD><P><DT><STRONG><A NAME="item__process_target">[process-target frame]</A></STRONG><DD>
+Calls the search with the proper 
+<FONT SIZE=-1>URL,</FONT> including MiniVend session tags. Used as the 
+<FONT SIZE=-1>ACTION</FONT> value for the search form if the results are to be targeted to a different window than the one set by SearchFrame (which is ``_self'' by default).
+
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="12.00.THE_SEARCH_ENGINE.html">Up</A>&nbsp;&nbsp;<A HREF="12.11.Search_Reference.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="12.13.Updating_session_variables_after.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

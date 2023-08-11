@@ -1,0 +1,370 @@
+#!/bin/ksh
+# @(#) ppmbrowse.ksh 1.1 96/11/27
+# 94/04/02 john h. dubois iii (john@armory.com)
+# 95/02/07 Insist that output not be a tty.
+# 96/01/19 Make default tmpdir be home dir for safety
+# 96/11/27 Added jIG options.  Let input files be gif or jpeg.
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+name=${0##*/}
+Usage=\
+"Usage: $longname [-hmxgGjpP] [-c<columns>] [-b<background-color>] [-s<size>]
+    [-B<border-width>] [-H<horizontal-separation>] [-V<vertical-separation>]
+    [-t<text-color>] [-q<quantized-colors>] [-[iI]<image-map-format-string>]
+    [-S<separation>] [-f<image-map-file>] image [image ...] > browser-file"
+
+Background=blue
+Text=white
+noExt=false
+progress=false
+typeset -i Vertical=2 Horizontal=5 Colors=0 Columns=6 Size=100 Debug=0
+typeset -i Border=5 Preserve=0 MakeMap=0
+
+typeset -i InfX InfY
+function pnminfo {
+    typeset j1 j2 j3 j4
+    [ $# -gt 0 ] && pnmfile "$1" | read j1 type j2 InfX j3 InfY j4 ||
+     pnmfile | read j1 type j2 InfX j3 InfY
+}
+
+# Usage: GetUnCom filename.ext
+# Sets global getUnCom_ret to the name of an uncompressor appropriate for the
+# given file, based on its extension.  If no appropriate uncompressor is known,
+# getUnCom_ret is set to a null string.
+function getUnCom {
+    case "${1##*.}" in
+    [jJ][pP]?([eE])[gG])
+	getUnCom_ret=djpeg
+	;;
+    [gG][iI][fF])
+	getUnCom_ret=giftopnm
+	;;
+    [pP][bBgGpPnN][mM])
+	getUnCom_ret=cat
+	;;
+    *)
+	getUnCom_ret=
+	;;
+    esac
+}
+
+# Usage: topnm filename [command [args]]
+# A converter to pnm format is chosen based on the filename extension.
+# If a command is given, the output of the converter is piped into it;
+# otherwise it is sent to the standard output.
+# As an optimization, if the file is already in pnm format and a command is
+# given, it is passed as the final argument to command.  Therefore, a command
+# should only be given if it is appropriate to pass it a pnm file after all
+# of its fixed arguments.
+# The global DEF_EXT provides a default for files with unknown extensions.
+function topnm {
+    typeset uncom= ext filename=$1
+    shift
+
+    getUnCom "$filename"
+    [ -z "$getUnCom_ret" -a -n "$DEF_EXT" ] && getUnCom "$DEF_EXT"
+    if [ -z "$getUnCom_ret" ]; then
+	print -u2 -- \
+	"$longname: Do not know what to do with a '.${filename##*.}' file."
+	return 1
+    fi
+    if [ $# -gt 0 ]; then
+	[ "$getUnCom_ret" = cat ] && "$@" "$filename" ||
+	"$getUnCom_ret" < "$filename" | "$@"
+    else
+	"$getUnCom_ret" < "$filename"
+    fi
+    return $?
+}
+
+# Usage: MakeRow file ....
+# Uses globals: HSepFile (horizontal separator), Debug, Row, Tmp, Horizontal,
+# MapStr
+# Adds new row file to RowFiles[].
+# Runs PrintMap if making image map.
+function MakeRow {
+    typeset Files file RowTmp
+
+    # If any horizontal separtion, add it in
+    if istrue Horizontal; then
+	Files=$1
+	shift
+	for file; do
+	    Files="$Files $HSepFile $file"
+	done
+    else
+	Files=$*
+    fi
+    let Row+=1
+    RowTmp=$Tmp.r.$Row.$$
+    RowFiles[Row]=$RowTmp
+    istrue Debug && print -u2 "Row: $Row.  RowFile: $RowTmp.  Files: $Files."
+    pnmcat -lr $Files > $RowTmp
+    istrue MakeMap && PrintMap $Row
+}
+
+# Usage: PrintMap row
+# Write image map file to fd 3
+# Globals: 
+# FileNames[]	Base names of files in this row
+# MapStr	Proto-URL
+# Vertical	Vertical separation between images
+# Horizontal	Horizonal separation between images
+# Size		Width of map area
+# ThumbYDim	Height of map area
+# Border	Width of border
+# Columns	Number of columns in widest row
+function PrintMap {
+    typeset -i Row=$1 Left=Border Right Bottom Top XShift ColNum=0 NFiles
+    typeset file MapOut
+    
+    NFiles=${#FileNames[*]}
+    if [ NFiles -lt Columns ]; then
+	let Left+="(Columns-NFiles)*(Size+Horizontal)/2"
+    fi
+    Top="(Row-1)*(Vertical+ThumbYDim)+Border"
+    Bottom=Top+ThumbYDim-1
+    for file in "${FileNames[@]}"; do
+	Right=Left+Size-1
+	Replace %s "$file" "$MapStr"
+	MapOut="rect $Replace_return $Left,$Top $Right,$Bottom"
+	istrue Debug && print -u2 "Image map string: $MapOut"
+	print "$MapOut" >&3
+	Left=Right+Horizontal+1
+    done
+    unset FileNames[*]
+}
+
+# Usage: Replace <repl> <with> <string>
+# Replaces the first instance of <repl> in <with> with <string> and assigns the
+# result to Replace_return.
+function Replace {
+    Replace_return="${3%%$1*}$2${3#*$1}"
+}
+
+# Usage: MakeBr file ....
+# Uses globals: VSepFile (vertical separator), Debug, Vertical
+function MakeBr {
+    typeset Files file
+
+    # If any Vertical separtion, add it in
+    if istrue Vertical; then
+	Files=$1
+	shift
+	for file; do
+	    Files="$Files $VSepFile $file"
+	done
+    else
+	Files=$*
+    fi
+    istrue Debug && print -u2 "Files: $Files."
+    pnmcat -tb $Files
+}
+
+set -e	# Exit if non-num parm assigned to integer var
+while getopts :hc:b:t:S:V:H:q:s:xPf:i:I:mgGpj opt; do
+    case $opt in
+    h)
+	echo \
+"$longname: make an image browser from a group of image files.
+$longname makes a single image containing thumbnail versions of each named
+image file, with a label under each, and writes it to the standard output.
+$Usage
+Options:
+-h: Print this help.
+-x: Turn on debugging.
+-P: Preserve (do not remove) tmp files.
+-c: Set the number of images in each row.  The default is $Columns.
+-b: Set the background color.  The default is $Background.
+-B: Set the border width.  The default is $Border pixels.
+-t: Set the text color.  The default is $Text.
+-V: Set the separation between rows.  The default is $Vertical pixels.
+-H: Set the separation between columns.  The default is $Horizontal pixels.
+-S: Set both the horizontal and vertical separation.
+-q: Set the number of colors the final image is quantized to.
+    The default is no quantization.
+-s: Set the size of the thumbnail images.  The default is $Size pixels.
+    If the largest dimension of the image is smaller than the given size,
+    it is not scaled.  If it is larger, the image is scaled so that its
+    largest dimension is equal to the given size.
+-i: Create a www-style image map for the browser.  The string given with -i
+    should be a URL, with a %s where the base name of the file (the filename
+    with its leading path components removed) should be substituted in.  A
+    default line with \"nosel.html\" substituted for %s will be put at the top.
+    Example: -ihttp://www.armory.com./~spcecdt/%s
+    If -F is given and -i is not, %s by itself is used.
+-I: Like -i except that the extension (if any) is removed from the filename
+    before it is substituted for %s.  This allows the browser to be constructed
+    from files with a different extension than the ones that will be made
+    available to a web server.
+    Example: -Ihttp://www.armory.com./~spcecdt/%s.jpg
+-f: Specify an output file for the image map.  If -i is given and -f is not,
+    the image map will be written to the file browser.map.
+-g: Produce output in GIF format.
+-j: Produce output in JPEG format.
+-p: Produce output in ppm format (default).
+-G: Print a progress indication to the standard error output.  As each file is
+    about to be processed, its name is printed.
+-m: Set the defaults for certain options to those appropriate for an image map.
+    Quantization is set to 240 colors, an image map is produced with defaults
+    as described for -i and -f, and the output is in GIF format.
+    Options given later on the command line can override these."
+
+	exit 0
+	;;
+
+    c)  Columns=OPTARG;;
+    b)  Background=$OPTARG;;
+    t)  Text=$OPTARG;;
+    V)  Vertical=OPTARG;;
+    H)  Horizontal=OPTARG;;
+    S)  Vertical=OPTARG Horizontal=OPTARG;;
+    q)  Colors=OPTARG;;
+    s)  Size=OPTARG;;
+    x)  Debug=1;;
+    P)  Preserve=1;;
+    i)  MapStr=$OPTARG MakeMap=1;;
+    I)  MapStr=$OPTARG MakeMap=1 noExt=true;;
+    f)  MapFile=$OPTARG MakeMap=1;;
+    g)  OutputConvert=ppmtogif;;
+    G)  progress=true;;
+    j)  OutputConvert=cjpeg;;
+    p)  unset OutputConvert;;
+    m)  Colors=240 MakeMap=1 OutputConvert=ppmtogif;;
+    +?)
+	print -u2 "$longname: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$longname: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$longname: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+set +e
+
+if [ -t 1 ]; then
+    print -u2 \
+"The standard output should be a file, not a tty,
+because the browser image is written to it.  Aborting." 
+    exit 1
+fi
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+typeset -i NumFiles=$# Rows Size XDim YDim LabelHeight ThumbXOff LabelXOff
+typeset -i LabelX LabelY ThumbYOff LabelYOff ThumbYDim Column=0 Row=0
+
+Rows="(NumFiles+Columns-1)/Columns"
+XDim="Border*2+(Columns-1)*Vertical+Columns*Size"
+YDim="Border*2+(Rows-1)*Horizontal+Rows*Size"
+
+# Quit if anything fails
+set -e
+
+# Labels come out different heights, but this is good enough
+pbmtext XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX  | pnminfo
+LabelHeight=InfY
+FontWidth=InfX/40
+typeset -L$((Size/FontWidth-2)) Label
+
+istrue Debug && print -u2 \
+"NumFiles=$NumFiles Rows=$Rows XDim=$XDim YDim=$YDim LabelHeight=$LabelHeight"
+
+: ${TMP:=$TMPDIR}
+: ${TMP:=$HOME}
+Tmp=${TMP:-/tmp}/#ppb
+ThumbBack=$Tmp.tb.$$
+ThumbTmp=$Tmp.t.$$
+LTmp=$Tmp.l.$$
+HSepFile=$Tmp.hs.$$
+VSepFile=$Tmp.vs.$$
+isfalse Preserve && 
+trap "rm -f $ThumbBack $ThumpTmp $ThumpLTmp $LTmp $Tmp.t.+([0-9]).$$ "\
+"$VSepFile $HSepFile $Tmp.r.+([0-9]).$$ $ThumbTmp; exit" EXIT 1 2 3 15
+    
+
+# Create background for image part of one element
+ThumbYDim=Size+LabelHeight
+ppmmake $Background $Size $ThumbYDim > $ThumbBack
+
+if istrue Debug; then
+    pnminfo $ThumbBack
+    print -u2 "Made $InfX x $InfY background."
+fi
+
+# Create horizontal separator if it will be needed
+istrue Horizontal && ppmmake $Background $Horizontal $ThumbYDim > $HSepFile
+
+# Create vertical separator if it will be needed
+if istrue Vertical; then
+    typeset -i TotWidth="Size*Columns+Horizontal*(Columns-1)"
+
+    istrue Debug && print -u2 "Making $TotWidth x $Vertical vertical separator"
+    ppmmake $Background $TotWidth $Vertical > $VSepFile
+fi
+
+if istrue MakeMap; then
+    [ -z "$MapStr" ] && MapStr=%s
+    [ -z "$MapFile" ] && MapFile=browser.map
+    # Make fd 3 be the map output file
+    exec 3>"$MapFile"
+    Replace %s "$file" nosel.html
+    print -r "default $Replace_return" >&3
+fi
+
+for file; do
+    $progress && print -ru2 -- "$file"
+    # Make label file
+    Label=${file%.*}
+    pbmtext $Label | pgmtoppm $Text-$Background > $LTmp
+    pnminfo $LTmp
+    LabelX=InfX
+    LabelY=InfY
+    # Make thumbnail file
+    topnm "$file" pnmscale -xysize $Size $Size > $ThumbTmp
+    pnminfo $ThumbTmp
+    ThumbXOff="(Size-InfX)/2"
+    ThumbYOff=Size-InfY
+    LabelXOff="(Size-LabelX)/2"
+    LabelYOff="ThumbYDim-LabelY"
+    istrue Debug && print -u2 \
+"Thumbnail is $InfX x $InfY.  Label is $LabelX x $LabelY.
+Pasting thumbnail in at x offset $ThumbXOff, y offset $ThumbYOff.
+Pasting label in at x offset $LabelXOff, y offset $LabelYOff."
+    let Column+=1
+    ThumbLTmp=$Tmp.t.$Column.$$
+    ThumbFiles[Column]=$ThumbLTmp
+    # For the image map
+    $noExt && FileNames[Column]=${file%.*} || FileNames[Column]=$file
+    pnmpaste -replace $ThumbTmp $ThumbXOff $ThumbYOff $ThumbBack |
+    pnmpaste -replace $LTmp $LabelXOff $LabelYOff > $ThumbLTmp
+    if [ Column -eq Columns ]; then
+	MakeRow "${ThumbFiles[@]}"
+	unset ThumbFiles[*]
+	Column=0
+    fi
+done
+istrue Column && MakeRow "${ThumbFiles[@]}"
+
+Pipeline="MakeBr ${RowFiles[*]}"
+istrue Colors && Pipeline="$Pipeline | ppmquant -fs $Colors"
+istrue Border && Pipeline="$Pipeline | pnmmargin -color $Background $Border"
+[ -n "$OutputConvert" ] && Pipeline="$Pipeline | $OutputConvert"
+
+eval $Pipeline

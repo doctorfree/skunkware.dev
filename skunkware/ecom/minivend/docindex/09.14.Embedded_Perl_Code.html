@@ -1,0 +1,176 @@
+<HTML>
+<HEAD>
+<TITLE>Embedded Perl Code</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.13.Item_Lists.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.15.ASP_like_Perl.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Embedded_Perl_Code">Embedded Perl Code</A></H2>
+<P>
+Perl code can be directly embedded in MiniVend pages. The code is specified
+as:
+
+<P>
+<PRE>    [perl]
+        $name    = $Values-&gt;{name};
+        $browser = $Session-&gt;{browser};
+        return &quot;Hi, $name! How do you like your $browser?&quot;;
+    [/perl]
+</PRE>
+<P>
+
+<FONT SIZE=-1>ASP</FONT> syntax can be used with:
+
+<P>
+<PRE>    [mvasp]
+        &lt;%
+        $name    = $Values-&gt;{name};
+        $browser = $Session-&gt;{browser};
+        %&gt;
+        Hi, &lt;%= $name %&gt;!
+        &lt;%
+            HTML &quot;How do you like your $browser?&quot;;
+        %&gt;
+    [/perl]
+</PRE>
+<P>
+The two snippets above are essentially equivalent.
+
+<P>
+The <CODE>[perl]</CODE> tag enforces <EM>Safe.pm</EM> checking, and many standard Perl operators are not available. This is a <CODE>good</CODE> thing, as you would not want users having access to all files and programs
+on the system with the MiniVend daemon's permissions! See <EM>GlobalSub</EM> and <EM>UserTag</EM>
+for ways to make external files and programs available to MiniVend.
+
+<P>
+named attributes:
+
+<P>
+<PRE>    [perl tables=&quot;tables-to-open&quot;* subs=1 global=1* no_return=1*]
+</PRE>
+<P>
+Required attributes: none
+
+<P>
+Attribute information:
+
+<DL>
+<DT><STRONG><A NAME="item_global">global</A></STRONG><DD>
+When set to <CODE>1</CODE>, and when the catalog is allowed to use global permissions via the <CODE>minivend.cfg</CODE> directive <CODE>AllowGlobal</CODE>, Safe.pm checking is turned off. In this case, the embedded Perl code can do anything that the user 
+<FONT SIZE=-1>ID</FONT> running it can! This is not recommended when the same MiniVend server runs for different companies/user ids. Be careful! Security is your responsiblity and should be your concern.
+
+
+</DD><P><DT><STRONG>subs</STRONG><DD>
+When set to <CODE>1</CODE>, any <CODE>GlobalSub</CODE> routines can be accessed by name.
+
+</DD><P><DT><STRONG><A NAME="item_tables">tables</A></STRONG><DD>
+Opens specified MiniVend database tables, preparing them for access inside
+the Perl code. 
+
+<P>
+When running under <CODE>Safe</CODE>, some database operations are restricted due to inability to create objects. For 
+<FONT SIZE=-1>SQL</FONT> there is nothing that can be done -- you must have
+ <A HREF="#item_global">global</A> access to use data from 
+<FONT SIZE=-1>SQL</FONT> tables. But for MiniVend databases, you can access
+them as long as you pre-open them by using an item first.
+
+<P>
+Example:
+
+<P>
+<PRE>    [perl tables=&quot;products pricing&quot;]
+        $key = $Values-&gt;{sku};
+        $title = $Tag-&gt;data('products', 'title', $key):
+        return &quot;You looked up the title $title&quot;;
+    [/perl]
+</PRE>
+<P>
+If the tables=products&gt; was not specified, there would be a syntax error
+trap from <CODE>Safe.pm</CODE>.
+
+</DD><P></DL>
+<P>
+Any MiniVend tag (except ones using 
+<FONT SIZE=-1>SQL)</FONT> can be accessed via the <CODE>$Tag</CODE> object. If you need to use 
+<FONT SIZE=-1>SQL</FONT> queries inside a Perl element, you will have to have
+ <CODE>AllowGlobal</CODE> permissions and set the <CODE>global=1</CODE> parameter.
+
+<P>
+Examples:
+
+<P>
+<PRE>    # If the item might contain a single quote
+    [perl]
+    $comments = $Value-&gt;{comments};
+    [/perl]
+</PRE>
+<P>
+<STRONG>IMPORTANT NOTE:</STRONG> Global subroutines are not subject to the stringent security checking of
+the <EM>Safe</EM> module, so almost anything goes there. The subroutine will be able to
+modify any variable in MiniVend, and will be able to write to read and
+write any file that the MiniVend daemon has permission to write. Though
+this gives great power, it should be used with caution. Careful! They are
+defined in the main minivend.cfg file, so should be safe from individual
+users in a multi-catalog system.
+
+<P>
+Global subroutines are defined in <EM>minivend.cfg</EM> with the
+<EM>GlobalSub</EM> directive, or in user catalogs which have been enabled via <EM>AllowGlobal</EM>. Global subroutines are much faster than the others as they are
+pre-compiled. (Faster still are <EM>UserTag</EM>
+definitions.)
+
+<P>
+Catalog subroutines are defined in <EM>catalog.cfg</EM>, with the <EM>Sub</EM> directive. They are subject to the stringent <EM>Safe.pm</EM>
+security restrictions that are controlled by <EM>SafeUntrap</EM>. 
+
+<P>
+The code can be as complex as desired, but cannot use any operators that
+modify the file system or use ``unsafe'' operations like ``system'',
+``exec'', or backticks. These constraints are enforced with the default
+permissions of the standard Perl module <EM>Safe</EM> -- operations may be untrapped on a system-wide basis with the <EM>SafeUntrap</EM> directive.
+
+<P>
+The result of the tag will be the result of the last expression evaluated,
+just as in a subroutine. If there is a syntax error or other problem with
+the code, there will be no output.
+
+<P>
+Here is a simple one which does the equivalent of the classic hello.pl
+program:
+
+<P>
+<PRE>    [perl] my $tmp = &quot;Hello, world!&quot;; $tmp; [/perl]
+</PRE>
+<P>
+Of course you wouldn't need to set the variable -- it is just there to show
+the capability.
+
+<P>
+To echo the user's browser, but within some 
+<FONT SIZE=-1>HTML</FONT> tags:
+
+<P>
+<PRE>    [perl]
+    my $html = '&lt;H5&gt;';
+    $html .= $Session-&gt;{'browser'};
+    $html .= '&lt;/H5&gt;';
+    $html;
+    [/perl]
+</PRE>
+<P>
+To show the user their name, and the current time:
+
+<P>
+<PRE>    [perl arg=values]
+</PRE>
+<P>
+<PRE>    my $string = &quot;Hi, &quot; . $Values-&gt;{'name'} &quot;. The time is now &quot;;
+    $string .= $Tag-&gt;mvtime();
+    $string;
+</PRE>
+<P>
+<PRE>    [/perl]
+</PRE>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.13.Item_Lists.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.15.ASP_like_Perl.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

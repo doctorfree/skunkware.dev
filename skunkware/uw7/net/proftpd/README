@@ -1,0 +1,58 @@
+ProFTPD is configured by default to run out of inetd. In order to run 
+ProFTPD you will need to edit /etc/inetd.conf. Replace the line:
+
+ftp  stream  tcp  nowait  root  /usr/sbin/in.ftpd  in.ftpd -a
+
+with the line:
+
+ftp  stream  tcp  nowait  root  /usr/local/sbin/proftpd  /usr/local/sbin/proftpd
+
+or, to use TCP wrappers, replace the line:
+
+ftp  stream  tcp  nowait  root  /usr/sbin/in.tcpd  in.ftpd -a
+
+with the line:
+
+ftp  stream  tcp  nowait  root  /usr/sbin/in.tcpd  /usr/local/sbin/proftpd
+
+After editing /etc/inetd.conf you will neet to restart inetd. This can be
+accomplished by determining the inetd process id using ps and then sending
+the HUP signal to that process using the kill command:
+
+   # ps -ef | grep inetd
+   # kill -1 <pid>
+
+where <pid> is the process id of inetd.
+
+Due to security considerations, you may need to use passive mode
+when establishing an FTP connection. Most FTP clients provide an easy method
+of specifying passive mode. The native ftp client on UnixWare 7 accepts a
+"-p" switch (e.g. ftp -p ...).
+
+I found that on a freshly installed UnixWare 7.1.1 system, in order to setup
+an anonymous FTP directory, it was necessary to copy the following files
+and devices into the anonymous FTP root:
+
+    dev/tcp (mknod tcp c 7 37)
+    dev/zero (mknod zero c 39 1)
+    etc/netconfig
+    etc/inet/pipeline
+    usr/lib/libc.so.1
+    usr/lib/libsocket.so.1
+    usr/lib/libsocket.so
+    usr/lib/libsocket.so.2
+    usr/lib/libnsl.so
+    usr/lib/libnsl.so.1
+    usr/lib/libresolv.so
+    usr/lib/libresolv.so.1
+    usr/lib/libresolv.so.2
+
+You may also need to add the ftp user's shell (e.g. /bin/true) to /etc/shells.
+Additional configuration information is available in the ProFTPD documentation,
+man pages, source directory and on-line at either:
+
+    file:/usr/local/man/html/proftpd 
+
+or the ProFTPD web site at:
+
+    http://www.proftpd.org

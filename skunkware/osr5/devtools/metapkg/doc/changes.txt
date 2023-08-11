@@ -1,0 +1,109 @@
+Changes in MetaPKG 2.1.0
+  o  Fixed a bug where the frontend was not invoking the autoprep functions
+     if -I was specified and no control file is in use.
+  o  Allow user to specify except() clauses in removeany() functions
+  o  Changed the usage of the except() clause for exportall() so that the
+     except() functions appear is part of a complex exportall() function.
+     This makes the usage of the except() keyword consistent across all
+     places it is used. exportall() can still be a simple function though,
+     if it has no exceptions.
+  o  Can prefix a file(), directory(), link() or symlink() function with the
+     keyword "new" or "create" to create a file that is not in the distribution
+     tree. For files, you will almost always want to use the other new function
+     called includes(), to point it to either a file in the distribution tree
+     or anywhere else. If you want to include it from a file in the current
+     package distribution tree, the file name must begin with the string "./".
+  o  When you set up package dependencies (and inter-component dependencies)
+     MetaPKG will now automatically insert all sibling dependents for you.
+     For example, if package C requires package B, and package B
+     requires package A, you only need to put package B as the dependency of
+     package C, and package A will automatically be inserted. If you want to
+     disable this, you can use the -N (or --no-auto-deps) option.
+  o  When using allfiles() or alldirs() you can specify an optional extra
+     argument "pathmatch" that will do pathname matching instead of the
+     more permissive default file name matching that applies no special
+     significance to the '/' character.
+  o  Allow up to 16 levels of nested includes.
+  o  Add the -l option to the pkgadd backend to allow the user to specify
+     the default part limit for each class part in the datastream.
+  o  Significantly improved the pkgadd backend, adding the following features:
+     o  Automatically generate a SIP when a product has multiple components.
+     o  Use pkgadd CLASSES for multiple packages in a component.
+     o  Automatic detection of largest part size required.
+     o  Automatically detects preinstall, postinstall, preremove,
+        postremove and requests scripts in the cntl/ directory and treats
+	them correctly.
+     o  Automatic generation of a SIP request script that produces a menu
+        that allows for selection / removal of components in the set. This
+	is only done if no user-provided SIP request script is present.
+  o  Inserted calls to the pre-, post- and final-component backend hooks.
+  o  CDMT backend changed to version 1.1.0.
+  o  pkgadd backend changed to version 1.1.0.
+  o  Added XML backend version 1.0.0.
+  o  When paths are added via addexport() and friends, ensure that all of the
+     path elements leading up to the export are correctly defined, even if
+     they were not found during directory scanning.
+
+Changes in MetaPKG 2.0.6
+  o  Fixed a bug where the backend module could return a BE_IGNORE for
+     a package, but the code wasn't correctly ignoring the package later.
+  o  In the CDMT backend, if the package was ignored, do not attempt to
+     chase down i-nodes, as the arrays may not exist and will cause a
+     core dump.
+
+Changes in MetaPKG 2.0.5
+  o  Fixed a bug where -i mode was being ignored when setting the default
+     ownership and permissions.
+
+Changes in MetaPKG 2.0.4
+  o  Escape $ signs in path names (for things like Java and JBOSS) in the
+     CDMT backend. The new backend version is 1.0.8.
+  o  Add option to control the mcs -d of objects and libraries.
+     If the environment variable META_MCSBUG is set, then dont run mcs -d
+     on *.a and *.o files.
+  o  Fixed a bug with the scanning of scripts if a single character from
+     the 'herestring' delimter was found.
+  o  If a directory is marked as private, still allow explicit exports
+     of files or direcotries under it via addexport().
+  o  Added new "include" command for including common code in scripts.
+     This takes a string that is the file name to include. If an absolute
+     path is not given it looks in the same place as the current script.
+     There can only be onle level of include (nested includes are not
+     permitted).
+
+Changes in MetaPKG 2.0.3
+  o  Fixed a bug where the -r option had th exact inverse effect to what it
+     should. It was forcing all files to be exported normally instead of
+     early.
+  o  Fixed a bug in the CDMT backend where anything under a directory that
+     was marked as private (or export(none)) would end up in the control
+     package instead of simply thwarting all exports.
+
+Changes in MetaPKG 2.0.2
+  o  Fixed a minor inherritance problem where directories marked as private in
+     the control file were not passing the private attribute down to files
+     and directories under it.
+
+Changes in MetaPKG 2.0.1
+  o  Added new except() function for allfiles() and alldirs() that allows you
+     to set up exceptions to the pattern. This is also valid inside a
+     normal file() or directory() function, but the only effect it has
+     there is for the exportall() keyword with directories, where it will
+     export all except for the files or directories mentioned.
+  o  Added 'recursive' as an alias for boolean TRUE to make the exportall()
+     more legible, and 'nonrecursive' or 'norecurse' as an alias for boolean
+     FALSE.
+  o  Added new target() function, which allows you to specify the name of
+     a file/directory that is expected to have several links to it. This saves
+     you from having to list every directory that points to it with a
+     symlink() directive, which makes maintaining a control script more
+     difficult. Only really meaningful to the CDMT backend.
+  o  Fixed very minor problem with generation of SYML entries for directories.
+  o  Fixed a bug with recursive exportall(), where it was exporting both the
+     directory and files within it. When in recursive mode, we really don't
+     want to export anything except for files.
+  o  Fixed a bug in the CDMT backend that was causing a core dump when
+     processing container packages. CDMT backend revision bumped to 1.0.5.
+
+Changes in MetaPKG 2.0.0
+  o  Initial release, based on the source and principles of mkcdmt 1.8.3.

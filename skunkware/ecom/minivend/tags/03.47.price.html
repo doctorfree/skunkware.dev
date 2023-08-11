@@ -1,0 +1,172 @@
+<HTML>
+<HEAD>
+<TITLE>price</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="03.00.TAGS.html">Up</A>&nbsp;&nbsp;<A HREF="03.46.perl.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="03.48.process.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="price">price</A></H2>
+<DL>
+<DT><STRONG>CALL INFORMATION</STRONG><DD>
+Parameters: <STRONG>code</STRONG>
+
+
+
+<P>
+Positional parameters in same order.
+
+<P>
+<STRONG>The attribute hash reference is passed</STRONG> to the subroutine after the parameters as the last argument.
+<STRONG>This may mean that there are parameters not shown here.</STRONG>
+
+
+
+<P>
+Must pass named parameter interpolate=1 to cause interpolation.
+
+<P>
+Invalidates cache: <STRONG>no</STRONG>
+
+
+
+<P>
+Called Routine: 
+
+<P>
+ASP/perl tag calls:
+
+<P>
+<PRE>    $Tag-&gt;price(
+        {
+         code =&gt; VALUE,
+        }
+    )
+  
+ OR
+ 
+    $Tag-&gt;price($code, $ATTRHASH);
+</PRE>
+<P>
+<PRE> 
+</PRE>
+</DD><P><DT><STRONG>DESCRIPTION</STRONG><DD>
+Arguments:
+
+<P>
+<PRE>        code       Product code/SKU
+        base       Only search in product table *base*
+        quantity   Price for a quantity
+        discount   If true(1), check discount coupons and apply
+        noformat   If true(1), don't apply currency formatting
+</PRE>
+<P>
+Expands into the price of the product identified by code as found in the
+products database. If there is more than one products file defined, they
+will be searched in order unless constrained by the optional argument <STRONG>base</STRONG>. The optional argument <STRONG>quantity</STRONG> selects an entry from the quantity price list. To receive a raw number,
+with no currency formatting, use the option <CODE>noformat=1</CODE>.
+
+<P>
+MiniVend maintains a price in its database for every product. The price
+field is the one required field in the product database -- it is necessary
+to build the price routines.
+
+<P>
+For speed, MiniVend builds the code that is used to determine a product's
+price at catalog configuration time. If you choose to change a directive
+that affects product pricing you must reconfigure the catalog.
+
+<P>
+Quantity price breaks are configured by means of the <EM>CommonAdjust</EM>
+directive. There are a number of CommonAdjust recipes which can be used;
+the standard example in the demo calls for a separate pricing table called <CODE>pricing</CODE>. Observe the following:
+
+<P>
+<PRE>   CommonAdjust  pricing:q2,q5,q10,q25, ;products:price, ==size:pricing
+</PRE>
+<P>
+This says to check quantity and find the applicable column in the pricing
+database and apply it. In this case, it would be:
+
+<P>
+<PRE>    2-4      Column *q2*
+    5-9      Column *q5*
+    10-24    Column *q10*
+    25 up    Column *q25*
+</PRE>
+<P>
+What happens if quantity is one? It ``falls back'' to the price that is in
+the table <CODE>products</CODE>, column <CODE>price</CODE>.
+
+<P>
+After that, if there is a size attribute for the product, the column in the
+pricing database corresponding to that column is checked for additions or
+subtractions (or even percentage changes).
+
+<P>
+If you use this tag in the demo:
+
+<P>
+<PRE>    [price code=99-102 quantity=10 size=XL]
+</PRE>
+<P>
+the price will be according to the <CODE>q10</CODE> column, adjusted by what is in the 
+<FONT SIZE=-1>XL</FONT> column. (The row is of course 99-102.) The
+following entry in pricing:
+
+<P>
+<PRE>  code    q2   q5   q10  q25  XL
+  99-102  10   9    8    7    .50
+</PRE>
+<P>
+Would yield 8.50 for the price. Quantity of 10 in the <CODE>q10</CODE> column, with 50 cents added for extra large 
+<FONT SIZE=-1>(XL).</FONT>
+
+<P>
+Following are several examples based on the above entry as well as this the
+entry in the <CODE>products</CODE> table:
+
+<P>
+<PRE>  code    description   price    size
+  99-102  T-Shirt       10.00    S=Small, M=Medium, L=Large*, XL=Extra Large
+</PRE>
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> The examples below assume a 
+<FONT SIZE=-1>US</FONT> locale with 2 decimal places, use of commas to separate, and a dollar sign ($) as the currency formatting.
+
+
+<P>
+<PRE>  TAG                                             DISPLAYS
+  ----------------------------------             ---------------------------
+  [price 99-102]                                  $10.00
+  [price code=&quot;99-102&quot;]                           $10.00
+  [price code=&quot;99-102&quot; quantity=1]                $10.00
+  [price code=&quot;99-102&quot; noformat=1]                10
+  [price code=&quot;99-102&quot; quantity=5]                $9.00
+  [price code=&quot;99-102&quot; quantity=5 size=XL]        $9.50
+  [price code=&quot;99-102&quot; size=XL]                   $10.50
+  [price code=&quot;99-102&quot; size=XL noformat=1]        10.5
+</PRE>
+<P>
+Product discounts for specific products, all products, or the entire order
+can be configured with the [discount ...] tag. Discounts are applied on a
+per-user basis -- you can gate the discount based on membership in a club
+or other arbitrary means.
+
+<P>
+Adding [discount 99-102] <CODE>$s</CODE> * .9[/discount] deducts 10% from
+the price at checkout, but the price tag will not show that unless you add
+the discount=1 parameter.
+
+<P>
+<PRE>    [price code=&quot;99-102&quot;]            --&gt;   $10.00
+    [price code=&quot;99-102&quot; discount=1] --&gt;   $9.00
+</PRE>
+<P>
+See <EM>Product Discounts</EM>.
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="03.00.TAGS.html">Up</A>&nbsp;&nbsp;<A HREF="03.46.perl.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="03.48.process.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

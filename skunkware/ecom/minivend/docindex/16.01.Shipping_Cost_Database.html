@@ -1,0 +1,153 @@
+<HTML>
+<HEAD>
+<TITLE>Shipping Cost Database</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="16.00.SHIPPING.html">Up</A>&nbsp;&nbsp;<A HREF="16.02.Criteria_determination.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Shipping_Cost_Database">Shipping Cost Database</A></H2>
+<P>
+The shipping cost database (located in ProductDir/shipping.asc) is a tab-separated 
+<FONT SIZE=-1>ASCII</FONT> file with six fields -- code, text description, criteria (quantity or weight, for example), minimum number, maximum number, and cost. None of the fields are case-sensitive.
+
+
+<P>
+If you want to define the shipping database in your catalog configuration file, set the Variable 
+<FONT SIZE=-1>MV_SHIPPING</FONT> to what would be its contents.
+
+
+<P>
+To set the file to be something other than shipping.asc in the products
+directory, set the <CODE>Special</CODE> directive:
+
+<P>
+<PRE>    Special  shipping.asc  /home/user/somewhere/shipping_defs
+</PRE>
+<P>
+There are two styles of setting, which can be mixed in the same file. The
+first is line-based, and expects 6 or more TAB-separated fields. They would
+look like:
+
+<P>
+default No shipping weight 0 99999999 0
+
+<P>
+upsg 
+<FONT SIZE=-1>UPS</FONT> Ground weight 0 0 e Nothing to ship! upsg 
+<FONT SIZE=-1>UPS</FONT> Ground weight 0 150 u Ground [default zip 98366] 3.00 upsg 
+<FONT SIZE=-1>UPS</FONT> Ground weight 150 999999 e 
+<FONT SIZE=-1>@@TOTAL@@</FONT> lbs too heavy for 
+<FONT SIZE=-1>UPS</FONT>
+
+
+<P>
+The second is a freeform method, with a <CODE>mode: Description text</CODE> introducing the mode line, and the special encoding called out by indented
+parameters. The below is identical to the above:
+
+<P>
+<PRE>    upsg: UPS Ground
+        criteria    weight
+        min         0
+        max         0
+        cost        e Nothing to ship!
+        
+        min         0
+        max         150
+        cost        u
+        table       2ndDayAir
+        geo         zip
+        default_geo 98366
+        adder       3
+</PRE>
+<P>
+<PRE>        min         150
+        max         999999
+        cost        e @@TOTAL@@ lbs too heavy for UPS
+</PRE>
+<P>
+The second format has several advantages. You can span multiple lines with the 
+<FONT SIZE=-1>&lt;&lt;HERE</FONT> document format, like so:
+
+
+<P>
+<PRE>    upsg: UPS Ground
+        criteria    &lt;&lt;EOF
+    [perl]
+        return 'weight' if $Values-&gt;{country} eq 'US';
+        return 'weight' if ! $Values-&gt;{country};
+        # Return blank, don't want UPS
+        return '';
+    [/perl]
+    EOF
+    
+The defineable fields are, in order for the tab-separated format:
+</PRE>
+<DL>
+<DT><STRONG><A NAME="item_MODE">MODE</A></STRONG><DD>
+The unique identifier for that shipping method. It may be repeated as many
+times as needed.
+
+</DD><P><DT><STRONG><A NAME="item_DESCRIPTION">DESCRIPTION</A></STRONG><DD>
+Text to describe the method (can be accessed on a page with the <CODE>[shipping-description]</CODE> element).
+
+</DD><P><DT><STRONG><A NAME="item_CRITERIA">CRITERIA</A></STRONG><DD>
+Whether shipping is based on weight, quantity, price, etc. Valid MiniVend
+tags can be placed in the field to do a dynamic lookup -- if a number is
+returned, that is used as the <EM>accumulated criteria</EM> -- that is, the total of weight, quantity, or price as applied to all items
+in the shopping cart.
+
+<P>
+See <CODE>Criteria Determination</CODE> below.
+
+</DD><P><DT><STRONG><A NAME="item_MINIMUM">MINIMUM</A></STRONG><DD>
+The low bound of quantity/weight/criteria this entry applies to.
+
+</DD><P><DT><STRONG><A NAME="item_MAXIMUM">MAXIMUM</A></STRONG><DD>
+The high bound of quantity/weight/criteria this entry applies to. The first
+found entry is used in case of ties.
+
+</DD><P><DT><STRONG><A NAME="item_COST">COST</A></STRONG><DD>
+The method of developing cost. It can be a number which will be used
+directly as the shipping cost, or a function, determined by a single
+character at the beginning of the field:
+
+<P>
+<PRE>   f       Formula (MML tags OK, evaluated as Perl)
+   x       Multiplied by a number
+   [uA-Z]  UPS-style lookup
+   m       MiniVend chained cost lookup (all items summed together)
+   i       MiniVend chained cost lookup (items summed individually)
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_NEXT">NEXT</A></STRONG><DD>
+The <CODE>next</CODE> field supplies an alternative shipping mode to substitute if the cost of
+the current one is zero.
+
+</DD><P><DT><STRONG><A NAME="item_ZONE">ZONE</A></STRONG><DD>
+The 
+<FONT SIZE=-1>UPS</FONT> zone that is being defined.
+
+</DD><P><DT><STRONG><A NAME="item_QUERY">QUERY</A></STRONG><DD>
+MiniVend tags which will return a 
+<FONT SIZE=-1>SQL</FONT> query to select lines matching this specification.
+The current mode is replaced with this selection. If there is a query
+parameter of ?, it will be replaced with the mode name.
+
+</DD><P><DT><STRONG><A NAME="item_QUAL">QUAL</A></STRONG><DD>
+The geographic qualification (if any) for this mode.
+
+</DD><P><DT><STRONG><A NAME="item_PERL">PERL</A></STRONG><DD>
+Perl code that is read and determines the <STRONG>criterion</STRONG>, not the cost. Use the <CODE>cost</CODE> option with ``f '' as the prelim to supply Perl code to determine cost.
+
+</DD><P><DT><STRONG><A NAME="item_TOTAL">TOTAL</A></STRONG><DD>
+Set to the accumulated criterion before passing to Perl.
+
+</DD><P><DT><STRONG><A NAME="item_OPT">OPT</A></STRONG><DD>
+Used to maintain 
+<FONT SIZE=-1>UPS</FONT> and freeform options. Normally these are set by
+separate lines in the shipping definition.
+
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="16.00.SHIPPING.html">Up</A>&nbsp;&nbsp;<A HREF="16.02.Criteria_determination.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

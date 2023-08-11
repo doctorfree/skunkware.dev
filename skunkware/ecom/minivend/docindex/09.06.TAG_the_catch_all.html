@@ -1,0 +1,158 @@
+<HTML>
+<HEAD>
+<TITLE>TAG -- the catch all</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.05.IF.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.07.COMMENT.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="TAG_the_catch_all">TAG -- the catch all</A></H2>
+<P>
+Many MiniVend functions can be controlled or specified with <CODE>[tag ...][/tag]</CODE>
+pairs.
+
+<P>
+Named syntax:
+
+<P>
+<PRE>    [tag op=operation arg=&quot;arg1 arg2 ...&quot;]other[/tag]
+</PRE>
+<DL>
+<DT><STRONG><A NAME="item__tag">[tag arg* arg*]text[/tag]</A></STRONG><DD>
+Performs any of a number of operations, based on the presence of <CODE>arg</CODE>. The arguments that may be given are:
+
+</DD><P><DT><STRONG><A NAME="item_each">each database</A></STRONG><DD>
+Returns a loop-list with every key in <A HREF="#item_database">database</A> evaluated as the <CODE>[loop-code]</CODE>. This will return the key and field <A HREF="#item_name">name</A>
+for every record in the <A HREF="#item_products">products</A> database:
+
+<P>
+<PRE>    [tag each products][loop-code]  [loop-field name]&lt;BR&gt;[/tag]
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_export">export database file* type*</A></STRONG><DD>
+Exports a complete MiniVend database to its text source file (or any
+specified file). The integer <CODE>n</CODE>, if specified, will select export in one of the enumerated MiniVend export
+formats. The following tag will export the products database to
+products.txt (or whatever you have defined its source file as), in the
+format specified by the
+<EM>Database</EM> directive:
+
+<P>
+<PRE>    [tag export products][/tag]
+</PRE>
+<P>
+Same thing, except to the file products/new_products.txt:
+
+<P>
+<PRE>    [tag export products products/newproducts.txt][/tag]
+</PRE>
+<P>
+Same thing, except the export is done with a 
+<FONT SIZE=-1>PIPE</FONT> delimiter:
+
+<P>
+<PRE>    [tag export products products/newproducts.txt 5][/tag]
+</PRE>
+<P>
+The file is relative to the catalog directory, and only may be an absolute
+path name if <EM>NoAbsolute</EM> is set to <CODE>No</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item_flag">flag arg</A></STRONG><DD>
+Sets a MiniVend condition.
+
+<P>
+The following enables writes on the <A HREF="#item_products">products</A> and <CODE>sizes</CODE> databases held in MiniVend internal 
+<FONT SIZE=-1>DBM</FONT> format:
+
+<P>
+<PRE>    [tag flag write]products sizes[/tag]
+</PRE>
+<P>
+
+<FONT SIZE=-1>SQL</FONT> databases are always writable if allowed by the 
+<FONT SIZE=-1>SQL</FONT> database itself -- in-memory databases will never be written.
+
+
+<P>
+The <CODE>[tag flag build][/tag]</CODE> combination forces static build of a page, even if dynamic elements are
+contained. Similarly, the <CODE>[tag flag cache][/tag]</CODE>
+forces search or page caching (not usually wise).
+
+</DD><P><DT><STRONG><A NAME="item_log">log dir/file</A></STRONG><DD>
+Logs a message to a file, fully interpolated for MiniVend tags. The
+following tag will send every item code and description in the user's
+shopping cart to the file logs/transactions.txt:
+
+<P>
+<PRE>    [tag log logs/transactions.txt]
+    [item_list][item-code]  [item-description]
+    [/item_list][/tag]
+</PRE>
+<P>
+The file is relative to the catalog directory, and only may be an absolute
+path name if <EM>NoAbsolute</EM> is set to <CODE>No</CODE>.
+
+</DD><P><DT><STRONG><A NAME="item_mime">mime description_string</A></STRONG><DD>
+Returns a MIME-encapsulated message with the boundary as employed in the
+other mime tags, and the <CODE>description_string</CODE> used as the Content-Description. For example
+
+<P>
+<PRE>   [tag mime My Plain Text]Your message here.[/tag]
+</PRE>
+<P>
+will return
+
+<P>
+<PRE>  Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+  Content-ID: [sequential, lead as in mime boundary]
+  Content-Description: My Plain Text
+  
+  Your message here.
+</PRE>
+<P>
+<CODE>When used in concert with [tag mime boundary]&lt;CODE&gt;&lt;/CODE&gt;, [tag mime header]</CODE>, and
+<CODE>[tag mime id]</CODE>, allows 
+<FONT SIZE=-1>MIME</FONT> attachments to be included -- typically with
+PGP-encrypted credit card numbers. See the demo page ord/report.html for an
+example.
+
+</DD><P><DT><STRONG>mime boundary</STRONG><DD>
+Returns a 
+<FONT SIZE=-1>MIME</FONT> message boundary with unique string keyed on session 
+<FONT SIZE=-1>ID,</FONT> page count, and time.
+
+
+</DD><P><DT><STRONG>mime header</STRONG><DD>
+Returns a 
+<FONT SIZE=-1>MIME</FONT> message header with the proper boundary for that session 
+<FONT SIZE=-1>ID,</FONT> page count, and time.
+
+
+</DD><P><DT><STRONG>mime id</STRONG><DD>
+Returns a 
+<FONT SIZE=-1>MIME</FONT> message id with the proper boundary for that session 
+<FONT SIZE=-1>ID,</FONT> page count, and time.
+
+
+</DD><P><DT><STRONG><A NAME="item_time">time</A></STRONG><DD>
+Formats the current time according to 
+<FONT SIZE=-1>POSIX</FONT> strftime arguments. The following is the string
+for Wednesday, September 1, 1999. 
+
+<P>
+<PRE>    [tag op=time]%A, %B %d, %Y[/tag]
+</PRE>
+<P>
+Options =item touch 
+
+<P>
+Touches a database to allow use of the <CODE>tag_data()</CODE> routine in
+user-defined subroutines. If this is not done, the routine will error out
+if the database has not previously been accessed on the page.
+
+<P>
+<PRE>    [tag touch products][/tag]
+</PRE>
+</DD><P></DL>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="09.00.MINIVEND_TAG_REFERENCE.html">Up</A>&nbsp;&nbsp;<A HREF="09.05.IF.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="09.07.COMMENT.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

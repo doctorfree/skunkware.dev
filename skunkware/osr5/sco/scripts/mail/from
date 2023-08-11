@@ -1,0 +1,115 @@
+#!/bin/ksh
+# @(#) from.ksh 1.1 96/08/09
+# from: check for mail; print From: and Subject: lines from message headers.
+# 90/12/13 john h. dubois iii (john@armory.com)
+# 91/06/09 added check for existance of mailbox
+# 91/06/11 fixed check for existance of mailbox, added check for mail
+# 91/09/27 added facility for specifying target users or files
+# 91/09/28 changed search from egrep expression to sed script for header 
+#         recognition; added separation between headers
+# 91/11/27 use $MAIL if set
+# 92/02/16 added help option
+# 96/08/09 Converted to ksh script; added c option.
+
+name=${0##*/}
+Usage="Usage: $name [-hc] [username ...]"
+countOnly=false
+
+while getopts hc opt; do
+    case $opt in
+    h)
+	print -r -- \
+"$name: tell who mail is from.
+For each user named and whose mailbox is readable, $name searches the user's
+mailbox and lists the author and subject of each message in the mailbox.
+A mailbox can only be searched if the invoking user has read permission for it.
+If no username is given, the invoking user's mailbox is checked.
+$Usage
+Options:
+-c: Print a message count only.
+-h: Print this help."
+	exit 0
+	;;
+    c)
+	countOnly=true
+	;;
+    ?)
+	print -r -u2 "Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+multi=0
+case $# in
+0)    set ${MAIL:-$HOME/.mailbox};;
+1)    ;;
+*)    multi=1;;
+esac
+
+while [ $# -gt 0 ]; do
+    case $1 in
+    [a-z0-9]*) home=`awk -F: 'user == $1 { print $6;}' user=$1 /etc/passwd`;
+	mailbox=$home/.mailbox
+        if [ -z "$home" ]; then
+            echo "No user $1."
+        elif [ ! -x $home -o -f $mailbox -a ! -r $mailbox ]; then
+	    echo "Can't access $1's mailbox."
+	else
+            targ="$targ $mailbox"
+	fi;;
+    *)    targ="$targ $1";;
+    esac
+    shift
+done
+
+for i in $targ; do
+    if [ -f $i ]; then
+	if [ -s $i ]; then
+	    [ $multi -eq 1 ] && echo "$nl$i":
+	    if $countOnly; then
+		awk '
+/^/ { newmsg = 1; }
+/^From: / { if (newmsg) { count++; newmsg = 0; } }
+END { printf "%d message(s) in %s\n",count,FILENAME; }' $i
+	    else
+		sed '
+/^/b inhdr
+d
+:inhdr
+/^From /b phdr
+/^Subject: /b phdr
+b done
+: phdr
+x
+/-----/p
+s/-----//
+x
+p
+: done
+N
+s/.*\n//
+/^$/{
+s/.*/-----/
+h
+d
+}
+b inhdr
+' $i
+	    fi
+	else
+	    echo "${nl}No mail in $i."
+	fi
+    else
+	if [ $multi -eq 1 ]; then
+	    echo "$nl$i: no file."
+	else
+	    echo "No mailbox."
+	fi
+    fi
+    nl="\n"
+done

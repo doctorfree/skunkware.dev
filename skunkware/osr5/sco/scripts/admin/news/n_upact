@@ -1,0 +1,178 @@
+#!/bin/ksh
+# @(#) n_upact.sh
+# 92/08/18 john dubois   Replaced main loop for performance
+# 92/08/25 Only make sure oldart is at least 5 digits, like old code did
+# 94/02/06 Sped up, added code to notice problems, don't replace active file if
+#          the new one doesn't have the same number of lines as the old one.
+# 94/07/13 chown/chgrp new file to news, in case not run as news.
+#          Skip groups already seen.
+
+# n_upact: Update 3rd field (minimum art. #) of a 4-field active file.
+
+# =()<. ${NEWSCONFIG-@<NEWSCONFIG>@}>()=
+. ${NEWSCONFIG-/usr/lib/news/config}
+
+PATH=$NEWSCTL/bin:$NEWSBIN/expire:$NEWSBIN:$NEWSPATH ; export PATH
+umask $NEWSUMASK
+
+cd $NEWSCTL || { echo "$0: can't cd to $NEWSCTL" >&2; exit 1; }
+
+# check active file format
+set ""`sed 1q active`
+case $# in
+4)	;;
+*)	echo "$0: active file has other than 4 fields" >&2
+	exit 1 ;;
+esac
+
+rm -f active.tmp
+if test -f active.tmp
+then
+	echo "$0: active.tmp exists and can't be removed; aborting" >&2
+	exit 1
+fi
+
+# lock news system
+lock="$NEWSCTL/LOCK"
+ltemp="$NEWSCTL/L.$$"
+echo $$ >$ltemp
+trap "rm -f $ltemp ; exit 0" 0 1 2 15
+while true
+do
+    if newslock $ltemp $lock
+    then
+	trap "rm -f $ltemp $lock ; exit 0" 0 1 2 15
+	break
+    fi
+    sleep 30
+done
+
+
+# This only works in ksh
+OIFS=$IFS
+IFS="
+$OIFS"
+# Generate list of newsgroup directories, followed by entire active line
+awk '
+{
+    dir = $1
+    gsub(/\./,"/",dir)
+    print dir " " $0
+}
+' $NEWSCTL/active |
+while read dir actline; do 
+    # For every group, mark its beginning with the active line 
+    # and then echo every article name
+    SpoolDir=$NEWSARTS/$dir
+    echo ":active $actline"
+    if [ -d $SpoolDir ]; then
+	if cd $SpoolDir; then
+	    set -- *
+	    echo "$*"
+	else
+	    print -u2 "Warning: could not cd to spool dir '$SpoolDir'."
+	fi
+    fi
+done | awk '
+/^:active/ {
+    ActLine++
+    if (Group != "" && NoWriteLine == 0)
+	WriteLine()
+    NoWriteLine = 0
+    Group = $2
+    if ($2 in SeenGroups) {
+    printf "ERROR: already saw group \"%s\" on line %d of old active file;\n"\
+	"skipping this one (on line %d)!\n",
+	Group,SeenGroups[$2],ActLine | "cat 1>&2"
+	NoWriteLine = 1
+	DupCt++
+    }
+    SeenGroups[$2] = ActLine
+    OrigMaxArt = MaxArt = $3
+    OrigMinArt = $4
+    MinArt = OrigMaxArt + 1
+    FField = $5
+    next
+}
+
+/^[0-9]+$/ {
+    if ($0 + 0 < MinArt + 0)
+	MinArt = $0
+    if ($0 + 0 > MaxArt + 0)
+	MaxArt = $0
+    next
+}
+
+# No files = *, other files are probably directories
+$0 == "*" || $0 ~ /^[-a-zA-Z.0-9]+$/ {
+    next
+}
+
+{
+    printf "upact: strange file in spool dir for group %s: %s\n",
+    Group,$0 | "cat 1>&2"
+}
+
+function WriteLine() {
+    if (MinArt < OrigMinArt) {
+	printf "upact: NOTICE: group %s: earliest article found (%d)\n"\
+	"is lower than original min article (%d).\n",
+	Group,MinArt,OrigMinArt | "cat 1>&2"
+    }
+    if (MaxArt > OrigMaxArt) {
+	printf "upact: NOTICE: group %s: latest article found (%d)\n"\
+	"is higher than original max article (%d).  Fixed.\n",
+	Group,MaxArt,OrigMaxArt | "cat 1>&2"
+	OrigMaxArt = MaxArt
+    }
+    printf "%s %010d %05d %s\n",Group,OrigMaxArt,MinArt,FField
+}
+
+END {
+    WriteLine()
+    if (DupCt > 0)
+	printf "upact: %d duplicate groups found\n",DupCt | "cat 1>&2"
+}
+' > $NEWSCTL/active.tmp
+
+IFS=$OIFS
+
+cd $NEWSCTL
+
+#while read group max min fourth
+#do
+#	dir=`echo $group | tr . / `	# map ng name to directory name
+#	min=
+#	if test -d $NEWSARTS/$dir
+#	then
+#		min=`ls $NEWSARTS/$dir | egrep '^[0-9]+$' | sort -nr | tail -1`
+#	fi
+#	case "$min" in		# no files, so use max+1
+#	"")	min=`awk "END{ print $max + 1 }" /dev/null`	;;
+#	esac
+#	case "$min" in
+#	[0-9]|[0-9][0-9]|[0-9][0-9][0-9]|[0-9][0-9][0-9][0-9])	# short
+#		min=`expr 00000$min : '.*\(.....\)$'` ;;
+#	esac
+#
+#	echo $group $max $min $fourth
+#done <active >active.tmp
+
+# replace active, carefully
+set -- `wc -l active`
+NOldGroups=$1
+set -- `wc -l active.tmp`
+if [ $1 -ne $NOldGroups ]; then
+    echo \
+"upact: Error generating new active file:
+active has $NOldGroups groups; new active has $1 groups
+(may be due to duplicate groups).  Aborting." 1>&2
+    exit 1
+fi
+rm -f active.old
+ln active active.old
+chown news active.tmp
+chgrp news active.tmp
+mv active.tmp active
+
+exit 0

@@ -1,0 +1,30 @@
+#!/bin/sh
+# @(#) zedit.sh 1.0 94/01/14
+# 94/01/14 john h. dubois iii (john@armory.com)
+
+VISUAL=${VISUAL:-$EDITOR}
+VISUAL=${VISUAL:-vi}
+# If a filename ending in .Z is given, strip off the .Z with expr.
+# This way, a compressed filename can be given with or without the .Z
+case "$1" in
+*.Z)
+    file=`expr "$1" : '\(.*\)\.Z$'`
+    ;;
+*)
+    file=$1
+    ;;
+esac
+# If the filename ended in .Z, OR the given filename does not exist and the
+# given filename with .Z appended does, it's probably compressed.
+# So, try uncompressing it.  If the uncompress succeeds (compress exits 0,
+# and after running uncompress the file without .Z exists),
+# edit the uncompressed file & then recompress it.
+# If any of the conditions fails, just edit the file.
+if [ "$1" != "$file" -o ! -f "$1" -a -f "$1.Z" ] && uncompress "$file.Z" &&
+[ -f "$file" ]
+then
+    $VISUAL "$file"
+    compress "$file"
+else
+    $VISUAL "$1"
+fi

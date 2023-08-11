@@ -1,0 +1,102 @@
+#!/bin/ksh
+# @(#) chkdaemon.ksh 1.0 97/07/18
+# 96/05/19 john h. dubois iii
+# 97/07/18 Improved help.
+
+# This utility shouldn't be neccessary, but some daemons have no option to
+# not fork & run in the background, so they can't be run from inittab w/respawn
+
+name=${0##*/}
+Usage="Usage: $name [-hvV] [-m<PID>] <daemon-name> <PID-file> ..."
+Verbose=false
+ExtraVerbose=false
+defMinPID=8
+typeset -i minPID=$defMinPID
+typeset -i pid
+
+while getopts hm:vV opt; do
+    case $opt in
+    h)
+	echo \
+"$name: restart daemons which have died.
+<daemon-name> is the name of a process that should be running.
+<PID-file> is the name of a file that contains the process ID of the daemon
+as an ASCII number.  The file should contain nothing but the PID and optional
+whitespace.  A PID-file must be given for each daemon-name, so there must
+always be an even number of non-option arguments.
+For each pair of arguments, if the PID read from the file is no longer running,
+the associated daemon-name is run.  No check is done for whether the process
+name for the PID is the same as daemon-name; daemon-name is used only as the
+command to run to restart the process.  daemon-name should generally include a
+full path.  If options are given, the command name and options should be quoted
+so that they are passed to $name as a single argument.
+Example:
+$name -v /etc/named /etc/named.pid
+$Usage
+Options:
+-h: Print this help.
+-m<PID>: Set the minimum PID that will be believed to <PID>.  The default is
+    $defMinPID.  If the PID read from the PID-file is less than this, a
+    complaint will be printed and no other action will be taken.
+-v: Print a report to the standard output any time a daemon is restarted.
+    If $name is run from cron, cron will mail the report to the cron job
+    owner.
+-V: Print a report to the standard output telling whether or not each
+    daemon was restarted."
+	exit 0
+	;;
+    m)
+	minPID=$OPTARG || exit 1
+	;;
+    v)
+	Verbose=true
+	;;
+    V)
+	ExtraVerbose=true
+	Verbose=true
+	;;
+    ?)
+	print -u2 "Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 2 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit 1
+fi
+if [ $(( $# % 2 )) -ne 0 ]; then
+    print -u2 \
+    "$name: must give an even number of parameters.  Use -h for help."
+    exit 1
+fi
+
+while [ $# -gt 0 ]; do
+    daemon=$1
+    pidFile=$2
+
+    if [ ! -f "$pidFile" ]; then
+	$daemon &
+	$Verbose && print \
+	"$name: Restarted daemon (PID file $pidFile did not exist): $daemon"
+    elif pid=$(<$pidFile); then
+	if [ "$pid" -lt $minPID ]; then
+	    print -u2 \
+	    "$name: Bad PID for daemon $daemon read from PID file $pidFile"
+	elif ! kill -0 "$pid" 2>/dev/null; then
+	    "$daemon" &
+	    $Verbose && print \
+	    "$name: Restarted daemon (dead PID read from PID file): $daemon"
+	else
+	    $ExtraVerbose &&
+	    print \
+	    "$name: Did not restart daemon $daemon; still running (PID=$pid)"
+	fi
+    fi
+    shift 2
+done

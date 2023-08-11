@@ -1,0 +1,1589 @@
+#!/usr/local/bin/gawk -f
+# @(#) add.gawk 3.2 97/02/28
+# 1988,89  john h. dubois iii (john@armory.com)
+# 90/04/23 last DOS version
+# 92/05/01 changed to be a #!awk script
+# 93/06/07 Exit if bad field number.  Leave default FS alone.
+# 95/01/29 Allow negative offsets.  Understand tie fields.  Added all options.
+# 95/02/03 Do some error checking; added a option; allow - field offsets.
+# 95/06/18 Added M option.
+# 95/06/18 Let comment string be given in selected field too.
+# 95/08/26 Added n option
+# 96/02/21 Print out entire line on error.
+# 96/07/05 Added R option.
+# 96/11/24 Added q%HpPi options.
+# 96/12/05 Added x option.  Made F option work.
+# 96/12/13 Added Cs options.
+# 96/12/30 Added dID option.
+# 97/01/26 Let aM be given with -q.  Changed R to S; made S & l not imply r
+#          if q is given.  Added run length counting.
+# 97/02/11 Changed M to e.  Added NMkE options.  Use %.18g for output.
+# 97/02/26 Print # of different values in q report header.
+# 97/02/28 Added o option.
+
+BEGIN {
+    Name = "add"
+    Usage = "Usage: " Name \
+" [-adDeEhHiIkMnNqrRsStT%] [-[pP]<pattern>] [-c<comment-string>]\n"\
+" [-o<format>] [-l<lines>] [-F<field-sep>] [-C<min-count>] field-num [file ...]"
+    ARGC = Opts(Name,Usage,"aF:c:eEnNl>tqThrSMk&#%Hp;P;iIx>C>sdDRo:",
+    0,"","",0,"",0,"","t,T,R,NMk;q,hnrtTRNMk;M,k;T,E,o")
+    maxDig = 18
+    numFormat = "%." maxDig "g"
+    if ("h" in Options) {
+	printf \
+"%s: add a column of numbers.\n"\
+"%s\n"\
+"%s adds up the numbers found in the specified field number of the\n"\
+"input, and prints the result.  If no input files are given, the standard\n"\
+"input is read.  If a field number is prefixed by '-', the field number is\n"\
+"taken to be an offset from the last field on the line.  So, a field number\n"\
+"of '-0' refers to the last field, -1 refers to the second to last, etc.\n"\
+"Options:\n"\
+"-a: Print an average of the values found or, if -q is given, of the counts.\n"\
+"-h: Print this help.\n"\
+"-S: Print only as many lines as will fit on the screen: the last lines\n"\
+"    processed along with the total, or if -q is given, first lines of the\n"\
+"    report.  Lines are truncated to the screen width.  If -q is not given,\n"\
+"    this turns on the r option.\n"\
+"-l<lines>: Like -S, but prints the last or first <lines> lines of output\n"\
+"    without truncating to the screen width.\n"\
+"-c<comment-string>: Set the comment prefix to be <comment-string>.  Any\n"\
+"    input lines that have this string either at the start of the line or\n"\
+"    at the start of the selected field will be ignored.  The default is\n"\
+"    '#'.  To have no string be the comment string, use '-c \"\"'\n"\
+"-F<field-sep>: Set the field separator to the pattern <field-sep>.  The\n"\
+"    default is one or more spaces or tabs, with an initial string of\n"\
+"    spaces and tabs not counted as a separator.\n"\
+"-M: If a value has a metric suffix attached, it is used to scale the\n"\
+"    number.  E.g. 2.35K becomes 2350.  The suffix may be separated from\n"\
+"    from the value by whitespace.  If units are also attached (e.g. 2KB),\n"\
+"    the -N option should also be given so that the units are discarded.\n"\
+"    However, a unit name that begins with a character that is also a\n"\
+"    metric suffix will cause an incorrect value to be produced if any\n"\
+"    fields that have no metric suffix are read.\n"\
+"    The metric suffixes are: y z f a p n u m c d (none) D H K M G T P E Z Y\n"\
+"    Due to common usage, k is recognized as a synonym for K.\n"\
+"-k: Like -M, but the \"computer\" (power-of-two) values for the metric\n"\
+"    suffixes are used; e.g. K = 1024.  The c, d, D, and H suffixes are not\n"\
+"    recognized.\n"\
+"-N: Strip non-numeric characters from the selected field before using it.\n"\
+"    The first string in the field that looks like a numeric value is used.\n"\
+"    Numeric values are strings of digits with optional decimal point and\n"\
+"    leading minus sign.  If -M or -k is also given, the appropriate\n"\
+"    suffixes are also included as part of the possible values.\n"\
+"-R: The values counted are run lengths: the number of successive lines on\n"\
+"    which the selected field is identical.\n"\
+"-q: Instead of adding the values that appear in each field, keep a count\n"\
+"    of the number of times each unique field value appears, and print a\n"\
+"    frequency breakdown after all lines have been read.  Use -F \"\" to\n"\
+"    treat the entire line as field 1.\n"\
+"-e: Print extremes of values (minimum and maximum) that occur in the sum\n"\
+"    during processing.  Unless the values include negative numbers, this\n"\
+"    will be 0 and the sum of all values.  If -q is given, the minimum and\n"\
+"    maximum counts are printed.  If -R is given, the minimum and maximum\n"\
+"    run lengths are printed.\n"\
+"-E: Print output in \"engineering notation\".  In this notation, there are\n"\
+"    always between one and three digits before the decimal point.  A metric\n"\
+"    suffix is attached to retain the original value.  The -k option\n"\
+"    affects this option by changing the values of the suffixes, as\n"\
+"    described for -k.\n"\
+"-o<format>: Print numbers in <format>, which should be a printf-style\n"\
+"    format string.  The default is \"%s\".\n"\
+"The following options can not be given with -q:\n"\
+"-n: Do not print 'Total: ' in front of the total.\n"\
+"-[tT]: Add up the field as a time.  Fields should have the form hh:mm:ss\n"\
+"    or mm:ss or hh:mm.  If any fields of the form hh:mm:ss are found, the\n"\
+"    total is printed in the form [<days>d]hh:mm:ss and any fields of the\n"\
+"    form nn:nn are interpreted as hours:minutes.  Otherwise, the total is\n"\
+"    printed in the form nn:nn.  To force the first form of total, and\n"\
+"    cause nn:nn fields to be interpreted as hours:minutes, use -T instead\n"\
+"    of -t.\n"\
+"-r: Print a running total before each line.\n"\
+"The following options apply only if -q is given:\n"\
+"-C<min-count>: Print only values that occur at least <min-count> times.\n"\
+"-i: Ignore case.  Word counts will be printed in lower case.\n"\
+"-I: Like -i, except that counts are printed with whatever capitalization\n"\
+"    the first instance of each word has.\n"\
+"-d: Dictionary order.  Everything except letters, digits, and blanks\n"\
+"    (spaces and tabs) are removed before comparision.  Leading and\n"\
+"    trailing blanks are removed, and sequences of blanks are squeezed to a\n"\
+"    single space character.  The dictionary (\"squeezed\") version of each\n"\
+"    word is used in the output.\n"\
+"-D: Like -d, except that counts are printed using the unsqueezed version\n"\
+"    of the first instance of each word.\n"\
+"-s: Conglomerate plural and singular field values.  If a field exists\n"\
+"    both with and without a trailing s, those with the trailing s are \n"\
+"    included in the count without the trailing s.\n"\
+"-%: Include a percentage of total field in the output.\n"\
+"-H: Do not include a header.\n"\
+"-p<pattern>: Count only fields that match <pattern>.\n"\
+"-P<pattern>: Count only fields that do not match <pattern>.\n",
+    Name,Usage,Name,numFormat
+	Err = "0"
+	exit 0
+    }
+    if ("x" in Options)
+	Debug = Options["x"]
+    if ("o" in Options)
+	numFormat = Options["o"]
+    if ("C" in Options)
+	minCount = Options["C"]
+    if ("&" in Options)
+	fieldnum = -Options["&"]
+    else {
+	if (ARGC < 2) {
+	    print Name ": Not enough arguments.  Use -h for help." \
+	    > "/dev/stderr"
+	    Err = 1
+	    exit 1
+	}
+	fieldnum = ARGV[1]
+	RFieldnum = fieldnum
+	if (fieldnum !~ /^[0-9]+$/ || fieldnum < 1) {
+	    print Name ": bad field number." > "/dev/stderr"
+	    Err = 1
+	    exit 1
+	}
+	if (ARGC > 2)
+	    ARGV[1] = "/dev/null"
+	else
+	    ARGV[1] = "/dev/stdin"
+    }
+    if (Debug)
+	printf "Counting field number: %d\n",fieldnum
+    # This is the same as awk's -F option.  If this option is given first,
+    # awk will take care of it; if it comes after a non-awk option, it will
+    # appear in Options.
+    if ("F" in Options)
+	FS = Options["F"]
+    # gawk does not do what we want in this case (awk does); make FS be RS
+    # so line will never be split.
+    if (FS == "")
+	FS = RS
+    Freq = "q" in Options
+    if ("p" in Options)
+	pattern = Options["p"]
+    if ("P" in Options)
+	notPattern = Options["P"]
+    origCase = "I" in Options
+    IGNORECASE = "i" in Options || origCase
+    origDict = "D" in Options
+    Dictionary = "d" in Options || origDict
+    saveValue = origCase || origDict
+    Running = ("r" in Options) || !Freq && ("l" in Options || "S" in Options)
+    DoHours = "T" in Options
+    MinMax = "e" in Options
+    Pow2 = "k" in Options
+    Eng = "E" in Options
+    if (Metric = ("M" in Options || Pow2)) {
+	split("K M G T P E Z Y",elem," ")
+	n = 1
+	for (i = 1; i in elem; i++)
+	    metricChars[elem[i]] = n *= (Pow2 ? 1024 : 1000)
+	split("m u n p a f z y",elem," ")
+	n = 1
+	for (i = 1; i in elem; i++)
+	    metricChars[elem[i]] = n /= (Pow2 ? 1024 : 1000)
+	metricChars["k"] = metricChars["K"]
+	if (!Pow2) {
+	    metricChars["c"] = 0.01
+	    metricChars["d"] = 0.1
+	    metricChars["D"] = 10
+	    metricChars["H"] = 100
+	}
+    }
+    Average = "a" in Options
+    pl_sing = "s" in Options
+    RunLen = "R" in Options
+    if (StripNum = "N" in Options) {
+	numPat = "-?([0-9]+\\.?[0-9]*|\\.[0-9]+)"
+	if (Pow2)
+	    numPat = numPat "[yzfapnumkKMGTPEZY]?"
+	else if (Metric)
+	    numPat = numPat "[yzfapnumcdDHkKMGTPEZY]?"
+	if (Debug)
+	    printf "Number pattern: %s\n",numPat > "/dev/stderr"
+    }
+    DoTime = DoHours || "t" in Options
+    if ("c" in Options) {
+	if (Options["c"] != "")
+	    Comment = "^" Options["c"]
+    }
+    else
+	Comment = "^#"
+    if ("S" in Options)
+	HeadTailInit()
+    else if ("l" in Options)
+	HeadTailInit(Options["l"],-1,0)
+    else
+	HeadTailInit(-1,-1)
+}
+
+Comment != "" && $1 ~ Comment {
+    if (Running && !(Freq || RunLen))
+	TailPrint(sprintf("%s\t%s",FormatTotal(),$0))
+    if (runLen)
+	doRunLen("",1,NR) 
+    next
+}
+
+{
+    if (fieldnum < 1) {
+	if (NF < (1-fieldnum)) {
+	    printf "Not enough fields on line %d of file %s\n",FNR,
+	    FILENAME > "/dev/stderr"
+	    if (runLen)
+		doRunLen("",1,NR) 
+	    next
+	}
+	RFieldnum = NF + fieldnum
+    }
+    else {
+	if (NF < fieldnum) {
+	    printf "Not enough fields on line %d of file %s\n",FNR,
+	    FILENAME > "/dev/stderr"
+	    if (runLen)
+		doRunLen("",1,NR) 
+	    next
+	}
+    }
+    Val = $RFieldnum
+    if (Val ~ Comment) {
+	if (Running && !(Freq || RunLen))
+	    TailPrint(sprintf("%s\t%s",FormatTotal(),$0))
+	if (runLen)
+	    doRunLen(Val,0,NR) 
+	next
+    }
+    if (Val ~ /^[ \t]*$/) {
+	printf "Empty field %d on line %d of file %s\n",fieldnum,FNR,
+	FILENAME > "/dev/stderr"
+	next
+    }
+    if (Debug > 1) {
+	if (Debug > 2)
+	    printf "Field value: <%s>  Line: %s\n",Val,$0 > "/dev/stderr"
+	else
+	    printf "Field value: <%s>\n",Val,$0 > "/dev/stderr"
+    }
+    if (Freq)
+	doFreq(Val)
+    else if (RunLen)
+	doRunLen(Val,0,NR)
+    else
+	doSum(Val)
+}
+
+# Globals modified: fCount[], savedValues[]
+function doFreq(Val,  sVal) {
+    if (origDict)
+	sVal = origCase ? Val : tolower(Val)
+    if (Dictionary)
+	Val = Dictionize(Val)
+    if (saveValue && !origDict)	# if origCase only
+	sVal = Val
+    if (pattern != "" && Val !~ pattern ||
+    notPattern != "" && Val ~ notPattern)
+	next
+    if (IGNORECASE)
+	Val = tolower(Val)
+    if (Debug && (IGNORECASE || Dictionary))
+	printf "Modified value: <%s>\n",Val > "/dev/stderr"
+    fCount[Val]++
+    if (saveValue && !(Val in SavedValues))
+	savedValues[Val] = sVal
+}
+
+# Call with endRun true to end a run w/o starting another.
+# Call with endRun and cleanup true after processing all lines, to end final
+# run.
+function doRunLen(Val,endRun,line) {
+    if (runCount) {
+	if (lastValue == Val && !endRun)	# Continuing a run
+	    runCount++
+	else {		# At the end of a run
+	    sum += runCount
+	    NumValues++
+	    if (Running)
+		TailPrint(sprintf("%d %s",runCount,lastValue))
+	    if (MinMax) {
+		if (MinSum == "" || runCount < MinSum) {
+		    MinSum = runCount
+		    MinLine = lastValue
+		    MinNR = line-1
+		}
+		if (runCount > MaxSum) {
+		    MaxSum = runCount
+		    MaxLine = lastValue
+		    MaxNR = line-1
+		}
+	    }
+	    if (endRun)
+		runCount = 0
+	    else {
+		lastValue = Val
+		runCount = 1
+	    }
+	}
+    }
+    else {	# start a new run; no previous run
+	lastValue = Val
+	runCount = 1
+    }
+}
+
+function doSum(Val,  numPart) {
+    if (DoTime) {
+	if (Val ~ /[^-0-9:.]/) {
+	    printf "Bad time field on line %d of file %s: %s\n",FNR,FILENAME,
+	    Val > "/dev/stderr"
+	    next
+	}
+	NField = split(Val,Fields,":")
+	# Time fields are numbered from right to left starting with 1
+	for (i = 1; i <= NField; i++)
+	    TimeSums[NField - i + 1] += Fields[i]
+	if (NField == 3)
+	    DoHours = 1
+    }
+    else {
+	if (StripNum) {
+	    if (match(Val,numPat))
+		Val = substr(Val,RSTART,RLENGTH)
+	    else
+		Val = ""
+	    if (Debug > 1)
+		printf "Start of number: %d  Length: %d\n",
+		RSTART,RLENGTH > "/dev/stderr"
+	}
+	numPart = ""
+	if (match(Val,/^-?([0-9]+\.?[0-9]*|\.[0-9]+)/)) {
+	    numPart = substr(Val,1,RLENGTH)
+	    Val = substr(Val,RLENGTH+1)
+	}
+	if (Metric && Val in metricChars) {
+	    numPart *= metricChars[Val]
+	    Val = substr(Val,2)
+	}
+	if (Val != "") {
+	    printf "Bad value field on line %d of file %s: %s\n==> %s\n",
+	    FNR,FILENAME,Val,$0 > "/dev/stderr"
+	    next
+	}
+	sum += numPart
+    }
+    NumValues++
+    if (Running) {
+	# Some utilities print e.g. 79 columns, space padded, which will wrap
+	# when prefixed with running total.
+	sub("[ \t]+$","")
+	TailPrint(sprintf("%s\t%s",FormatTotal(),$0))
+    }
+    if (MinMax) {
+	NumSum = NumTotal()
+	if (NumSum < MinSum) {
+	    MinSum = NumSum
+	    MinLine = $0
+	    MinNR = NR
+	}
+	if (NumSum > MaxSum) {
+	    MaxSum = NumSum
+	    MaxLine = $0
+	    MaxNR = NR
+	}
+    }
+}
+
+END {
+    doRunLen("",1,NR+1) 	# pretend we're at last line + 1
+    if (Err != "")
+	exit Err
+    if (Freq) {
+	HeadPrint(eInfo)
+	doFreqRep(fCount)
+    }
+    else {
+	TailPrint(sprintf("%s%s","n" in Options ? "" : "Total: ",FormatTotal()))
+	if (MinMax) {
+	    TailPrint("Minimum " (RunLen ? "run" : "sum") " of " \
+	    FormatVal(MinSum) " reached " \
+	    (MinNR ? (sprintf("on line %d:\n%s",MinNR,MinLine)) : \
+	    "before processing"))
+	    TailPrint("Maximum " (RunLen ? "run" : "sum") " of " \
+	    FormatVal(MaxSum) " reached " \
+	    (MaxNR ? (sprintf("on line %d:\n%s",MaxNR,MaxLine)) : \
+	    "before processing"))
+	}
+	if (Average)
+	    TailPrint(sprintf(\
+	    "Average over %d values: %s",NumValues,FormatTotal(NumValues)))
+	TailFlush()
+    }
+    exit 0
+}
+
+function doFreqRep(count,  
+tot,countWidth,Pct,Header,pattern,notPattern,format,nLine,j,word) {
+    if (pl_sing)
+	for (i in count)
+	    if (i ~ /s$/ && (j = substr(i,1,length(i)-1)) in count) {
+		count[j "[s]"] = count[i] + count[j]
+		delete count[i]
+		delete count[j]
+	    }
+    nLine = qsortArbIndByValue(count,k)
+    for (i in count)
+	tot += count[i]
+    countWidth = length(sprintf("%d",count[k[nLine]]))
+    if (Header = !("H" in Options))
+	countWidth = max(countWidth,1)
+    if (Pct = "%" in Options)
+	format = "%" countWidth "s %6s %s"
+    else
+	format = "%" countWidth "s %s"
+    if (MinMax)
+	HeadPrint(sprintf("Minimum count: %d   Maximum count: %d\n",
+	count[k[1]],count[k[nLine]]))
+    if (Average)
+	HeadPrint(sprintf("Average: %.2f",tot/nLine))
+    if (Header)
+	HeadPrint(\
+	sprintf(format "    (TOTAL: " tot "; " nLine " different values)",
+	"#",Pct ? "%" : "Word","Word"))
+    for (i = nLine; i >= 1; i--) {
+	ind = k[i]
+	word = saveValue ? savedValues[ind] : ind
+	if (minCount && count[ind] < minCount)
+	    return
+	if (Pct) {
+	    if (!HeadPrint(sprintf(format,count[ind],
+	    sprintf("%.2f",count[ind]/tot*100),word)))
+		return
+	}
+	else
+	    if (!HeadPrint(sprintf(format,count[ind],word)))
+		return
+    }
+}
+
+function NumTotal() {
+    if (DoTime)
+	return TimeSums[1] + TimeSums[2]*60 + TimeSums[3]*3600
+    else
+	return sum
+}
+
+function FormatVal(Tot) {
+    if (DoTime) {
+	if (DoHours)
+	    return sec2dhms2(Tot)
+	else
+	    return sprintf("%d:%02d",Tot / 60,Tot % 60)
+    }
+    else if (Eng)
+	return i2emet(Tot,maxDig,Pow2,0)
+    else
+	return sprintf(numFormat,Tot)
+}
+
+function FormatTotal(Div,  Tot) {
+    Tot = NumTotal()
+    if (Div)
+	Tot = Tot / Div
+    return FormatVal(Tot)
+}
+
+# Converts Seconds to the form [[[<days>d]hh:]mm:]ss
+function sec2dhms2(Seconds,  Days,Hours,Minutes,Time) {
+    Days = int(Seconds / 86400)
+    Seconds %= 86400
+    Hours = int(Seconds / 3600)
+    Seconds %= 3600
+    Minutes = int(Seconds / 60)
+    Seconds %= 60
+    if (Days)
+	Time = Days "d "
+    if (Time || Hours)
+	Time = Time sprintf("%02d",Hours) ":"
+    if (Time || Minutes)
+	Time = Time sprintf("%02d",Minutes) ":"
+    Time = Time sprintf("%02d",Seconds)
+    return Time
+}
+
+function Dictionize(s) {
+    gsub(/[^a-zA-Z0-9 \t]|^[ \t]+|[ \t]+$/,"",s)
+    gsub(/[ \t][ \t]+/," ",s)
+    return s
+}
+
+# Expand tabs in Line
+function TabEx(Line,  Segs,i,Num,S) {
+    Num = split(Line,Segs,"\t")
+    Line = ""
+    for (i = 1; i < Num; i++) {
+	S = Segs[i]
+	Line = Line S substr("        ",length(S) % 8 + 1)
+    }
+    return Line Segs[Num]
+}
+
+### Begin qsort routines
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k[] are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its elements.
+# The return value is the number of elements in the arrays (n).
+function qsortArbIndByValue(Arr,k,  ArrInd,ElNum) {
+    ElNum = 0
+    for (ArrInd in Arr)
+	k[++ElNum] = ArrInd
+    qsortSegment(Arr,k,1,ElNum)
+    return ElNum
+}
+
+# Sort a segment of an array.
+# Arr[] contains data with arbitrary indices.
+# k[] has indices 1..nelem, with the indices of arr[] as values.
+# This function sorts the elements of arr that are pointed to by
+# k[start..end], swapping the values of elements of k[] so that
+# when this function returns arr[k[start..end]] will be in order.
+function qsortSegment(Arr,k,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((end - start) == 1) {
+	if (Arr[tmps = k[start]] > Arr[tmpe = k[end]]) {
+	    k[start] = tmpe
+	    k[end] = tmps
+	}
+	return
+    }
+    # Make sure comparisons act on these as numbers
+    left = start+0
+    right = end+0
+    sepval = Arr[k[int((left + right) / 2)]]
+    # Make every element <= sepval be to the left of every element > sepval
+    while (left < right) {
+	while (Arr[k[left]] < sepval)
+	    left++
+	while (Arr[k[right]] > sepval)
+	    right--
+	if (left < right) {
+	    tmp = k[left]
+	    k[left++] = k[right]
+	    k[right--] = tmp
+	}
+    }
+    if (left == right)
+	if (Arr[k[left]] < sepval)
+	    left++
+	else
+	    right--
+    if (start < right)
+	qsortSegment(Arr,k,start,right)
+    if (left < end)
+	qsortSegment(Arr,k,left,end)
+}
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its indices.
+# The return value is the number of elements in the arrays (n).
+# If the indexes are numeric, Numeric should be true, so that they can be
+# compared as such rather than as strings.  Numeric indexes do not have to be
+# contiguous.
+function qsortByArbIndex(Arr,k,Numeric,  ArrInd,ElNum) {
+    ElNum = 0
+    if (Numeric)
+	# Indexes do not preserve numeric type, so must be forced
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd+0
+    else
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd
+    qsortNumIndByValue(k,1,ElNum)
+    return ElNum
+}
+
+# Arr is an array of elements with contiguous numeric indexes to be sorted
+# by value.
+# start and end are the starting and ending indexes of the range to be sorted.
+function qsortNumIndByValue(Arr,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((start - end) == 1) {
+	if ((tmps = Arr[start]) > (tmpe = Arr[end])) {
+	    Arr[start] = tmpe
+	    Arr[end] = tmps
+	}
+	return
+    }
+    left = start+0
+    right = end+0
+    sepval = Arr[int((left + right) / 2)]
+    while (left < right) {
+	while (Arr[left] < sepval)
+	    left++
+	while (Arr[right] > sepval)
+	    right--
+	if (left <= right) {
+	    tmp = Arr[left]
+	    Arr[left++] = Arr[right]
+	    Arr[right--] = tmp
+	}
+    }
+    if (start < right)
+	qsortNumIndByValue(Arr,start,right)
+    if (left < end)
+	qsortNumIndByValue(Arr,left,end)
+}
+
+### End qsort routines
+### Begin min,max,In routines
+
+function min(a,b) {
+    if (a < b)
+	return a
+    else
+	return b
+}
+
+function max(a,b) {
+    if (a > b)
+	return a
+    else
+	return b
+}
+
+function In(Val,Min,Max) {
+    return (Min <= Val && Val <= Max)
+}
+
+# Return (in Ind) the indices of the elements with the smallest value in A.
+# The smallest value is returned as the function value.
+# If there are no elements in A, null is returned.
+function arrMin(A,Ind,  i,min) {
+    for (i in A)
+	if (min == "" || A[i] < min) {
+	    DeleteAll(Ind)
+	    min = A[i]
+	    Ind[i]
+	}
+	else if (A[i] == min)
+	    Ind[i]
+    return min
+}
+
+### End min,max,In routines
+### Start of ProcArgs library
+# @(#) ProcArgs 1.11 96/12/08
+# 92/02/29 john h. dubois iii (john@armory.com)
+# 93/07/18 Added "#" arg type
+# 93/09/26 Do not count -h against MinArgs
+# 94/01/01 Stop scanning at first non-option arg.  Added ">" option type.
+#          Removed meaning of "+" or "-" by itself.
+# 94/03/08 Added & option and *()< option types.
+# 94/04/02 Added NoRCopt to Opts()
+# 94/06/11 Mark numeric variables as such.
+# 94/07/08 Opts(): Do not require any args if h option is given.
+# 95/01/22 Record options given more than once.  Record option num in argv.
+# 95/06/08 Added ExclusiveOptions().
+# 96/01/20 Let rcfiles be a colon-separated list of filenames.
+#          Expand $VARNAME at the start of its filenames.
+#          Let varname=0 and -option- turn off an option.
+# 96/05/05 Changed meaning of 7th arg to Opts; now can specify exactly how many
+#          of the vars should be searched for in the environment.
+#          Check for duplicate rcfiles.
+# 96/05/13 Return more specific error values.  Note: ProcArgs() and InitOpts()
+#          now return various negatives values on error, not just -1, and
+#          Opts() may set Err to various positive values, not just 1.
+#          Added AllowUnrecOpt.
+# 96/05/23 Check type given for & option
+# 96/06/15 Re-port to awk
+# 96/10/01 Moved file-reading code into ReadConfFile(), so that it can be
+#          used by other functions.
+# 96/10/15 Added OptChars
+# 96/11/01 Added exOpts arg to Opts()
+# 96/11/16 Added ; type
+# 96/12/08 Added Opt2Set() & Opt2Sets()
+# 96/12/27 Added CmdLineOpt()
+
+# optlist is a string which contains all of the possible command line options.
+# A character followed by certain characters indicates that the option takes
+# an argument, with type as follows:
+# :	String argument
+# ;	Non-empty string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# The only difference the type of argument makes is in the runtime argument
+# error checking that is done.
+
+# The & option is a special case used to get numeric options without the
+# user having to give an option character.  It is shorthand for [-+.0-9].
+# If & is included in optlist and an option string that begins with one of
+# these characters is seen, the value given to "&" will include the first
+# char of the option.  & must be followed by a type character other than ":"
+# or ";".
+# Note that if e.g. &> is given, an option of -.5 will produce an error.
+
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-"
+# or "+" is taken to be a non-option string; like other non-option strings,
+# it stops the scanning of argv and is left in argv[].
+# An argument of "--" or "++" also stops the scanning of argv[] but is removed.
+# If an option takes an argument, the argument may either immediately
+# follow it or be given separately.
+# "-" and "+" options are treated the same.  "+" is allowed because most awks
+# take any -options to be arguments to themselves.  gawk 2.15 was enhanced to
+# stop scanning when it encounters an unrecognized option, though until 2.15.5
+# this feature had a flaw that caused problems in some cases.  See the OptChars
+# parameter to explicitly set the option-specifier characters.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in Options and its value is set to the
+# number of times it occurs in argv[].
+
+# If an option that does take an argument is given, an index with its name is
+# created in Options and its value is set to the value of the argument given
+# for it, and Options[option-name,"count"] is (initially) set to the 1.
+# If an option that takes an argument is given more than once,
+# Options[option-name,"count"] is incremented, and the value is assigned to
+# the index (option-name,instance) where instance is 2 for the second occurance
+# of the option, etc.
+# In other words, the first time an option with a value is encountered, the
+# value is assigned to an index consisting only of its name; for any further
+# occurances of the option, the value index has an extra (count) dimension.
+
+# The sequence number for each option found in argv[] is stored in
+# Options[option-name,"num",instance], where instance is 1 for the first
+# occurance of the option, etc.  The sequence number starts at 1 and is
+# incremented for each option, both those that have a value and those that
+# do not.  Options set from a config file have a value of 0 assigned to this.
+
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps left in the indices of argv[].
+# If compress is nonzero, argv[] is packed by moving its elements so that
+# they have contiguous integer indices starting with 0.
+# Option processing will stop with the first unrecognized option, just as
+# though -- was given except that unlike -- the unrecognized option will not be
+# removed from ARGV[].  Normally, an error value is returned in this case.
+# If AllowUnrecOpt is true, it is not an error for an unrecognized option to
+# be found, so the number of remaining arguments is returned instead.
+# If OptChars is not a null string, it is the set of characters that indicate
+# that an argument is an option string if the string begins with one of the
+# characters.  A string consisting solely of two of the same option-indicator
+# characters stops the scanning of argv[].  The default is "-+".
+# argv[0] is not examined.
+# The number of arguments left in argc is returned.
+# If an error occurs, the global string OptErr is set to an error message
+# and a negative value is returned.
+# Current error values:
+# -1: option that required an argument did not get it.
+# -2: argument of incorrect type supplied for an option.
+# -3: unrecognized (invalid) option.
+function ProcArgs(argc,argv,OptList,Options,compress,AllowUnrecOpt,OptChars,
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos,NumOpt,Value,HadValue,specGiven,
+NeedNextOpt,GotValue,OptionNum,Escape,dest,src,count,c,OptTerm,OptCharSet)
+{
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in OptList of the option being processed.
+# NumOpt is true if a numeric option may be given.
+    ArgsLeft = argc
+    NumOpt = index(OptList,"&")
+    OptionNum = 0
+    if (OptChars == "")
+	OptChars = "-+"
+    while (OptChars != "") {
+	c = substr(OptChars,1,1)
+	OptChars = substr(OptChars,2)
+	OptCharSet[c]
+	OptTerm[c c]
+    }
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	Arg = argv[ArgNum]
+	if (length(Arg) < 2 || !((specGiven = substr(Arg,1,1)) in OptCharSet))
+	    break	# Not an option; quit
+	if (Arg in OptTerm) {
+	    delete argv[ArgNum]
+	    ArgsLeft--
+	    break
+	}
+	ArgLen = length(Arg)
+	for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+	    Option = substr(Arg,ArgInd,1)
+	    if (NumOpt && Option ~ /[-+.0-9]/) {
+		# If this option is a numeric option, make its flag be & and
+		# its option string flag position be the position of & in
+		# the option string.
+		Option = "&"
+		Pos = NumOpt
+		# Prefix Arg with a char so that ArgInd will point to the
+		# first char of the numeric option.
+		Arg = "&" Arg
+		ArgLen++
+	    }
+	    # Find position of flag in option string, to get its type (if any).
+	    # Disallow & as literal flag.
+	    else if (!(Pos = index(OptList,Option)) || Option == "&") {
+		if (AllowUnrecOpt) {
+		    Escape = 1
+		    break
+		}
+		else {
+		    OptErr = "Invalid option: " specGiven Option
+		    return -3
+		}
+	    }
+
+	    # Find what the value of the option will be if it takes one.
+	    # NeedNextOpt is true if the option specifier is the last char of
+	    # this arg, which means that if the option requires a value it is
+	    # the next arg.
+	    if (NeedNextOpt = (ArgInd >= ArgLen)) { # Value is the next arg
+		if (GotValue = ArgNum + 1 < argc)
+		    Value = argv[ArgNum+1]
+	    }
+	    else {	# Value is included with option
+		Value = substr(Arg,ArgInd + 1)
+		GotValue = 1
+	    }
+
+	    if (HadValue = AssignVal(Option,Value,Options,
+	    substr(OptList,Pos + 1,1),GotValue,"",++OptionNum,!NeedNextOpt,
+	    specGiven)) {
+		if (HadValue < 0)	# error occured
+		    return HadValue
+		if (HadValue == 2)
+		    ArgInd++	# Account for the single-char value we used.
+		else {
+		    if (NeedNextOpt) {	# option took next arg as value
+			delete argv[++ArgNum]
+			ArgsLeft--
+		    }
+		    break	# This option has been used up
+		}
+	    }
+	}
+	if (Escape)
+	    break
+	# Do not delete arg until after processing of it, so that if it is not
+	# recognized it can be left in ARGV[].
+	delete argv[ArgNum]
+	ArgsLeft--
+    }
+    if (compress != 0) {
+	dest = 1
+	src = argc - ArgsLeft + 1
+	for (count = ArgsLeft - 1; count; count--) {
+	    ARGV[dest] = ARGV[src]
+	    dest++
+	    src++
+	}
+    }
+    return ArgsLeft
+}
+
+# Assignment to values in Options[] occurs only in this function.
+# Option: Option specifier character.
+# Value: Value to be assigned to option, if it takes a value.
+# Options[]: Options array to return values in.
+# ArgType: Argument type specifier character.
+# GotValue: Whether any value is available to be assigned to this option.
+# Name: Name of option being processed.
+# OptionNum: Number of this option (starting with 1) if set in argv[],
+#     or 0 if it was given in a config file or in the environment.
+# SingleOpt: true if the value (if any) that is available for this option was
+#     given as part of the same command line arg as the option.  Used only for
+#     options from the command line.
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Global variables: OptErr
+# Return value: negative value on error, 0 if option did not require an
+# argument, 1 if it did & used the whole arg, 2 if it required just one char of
+# the arg.
+# Current error values:
+# -1: Option that required an argument did not get it.
+# -2: Value of incorrect type supplied for option.
+# -3: Bad type given for option &
+function AssignVal(Option,Value,Options,ArgType,GotValue,Name,OptionNum,
+SingleOpt,specGiven,  UsedValue,Err,NumTypes) {
+    # If option takes a value...    [
+    NumTypes = "*()#<>]"
+    if (Option == "&" && ArgType !~ "[" NumTypes) {	# ]
+	OptErr = "Bad type given for & option"
+	return -3
+    }
+
+    if (UsedValue = (ArgType ~ "[:;" NumTypes)) {	# ]
+	if (!GotValue) {
+	    if (Name != "")
+		OptErr = "Variable requires a value -- " Name
+	    else
+		OptErr = "option requires an argument -- " Option
+	    return -1
+	}
+	if ((Err = CheckType(ArgType,Value,Option,Name,specGiven)) != "") {
+	    OptErr = Err
+	    return -2
+	}
+	# Mark this as a numeric variable; will be propogated to Options[] val.
+	if (ArgType != ":" && ArgType != ";")
+	    Value += 0
+	if ((Instance = ++Options[Option,"count"]) > 1)
+	    Options[Option,Instance] = Value
+	else
+	    Options[Option] = Value
+    }
+    # If this is an environ or rcfile assignment & it was given a value...
+    else if (!OptionNum && Value != "") {
+	UsedValue = 1
+	# If the value is "0" or "-" and this is the first instance of it,
+	# do not set Options[Option]; this allows an assignment in an rcfile to
+	# turn off an option (for the simple "Option in Options" test) in such
+	# a way that it cannot be turned on in a later file.
+	if (!(Option in Options) && (Value == "0" || Value == "-"))
+	    Instance = 1
+	else
+	    Instance = ++Options[Option]
+	# Save the value even though this is a flag
+	Options[Option,Instance] = Value
+    }
+    # If this is a command line flag and has a - following it in the same arg,
+    # it is being turned off.
+    else if (OptionNum && SingleOpt && substr(Value,1,1) == "-") {
+	UsedValue = 2
+	if (Option in Options)
+	    Instance = ++Options[Option]
+	else
+	    Instance = 1
+	Options[Option,Instance]
+    }
+    # If this is a flag assignment without a value, increment the count for the
+    # flag unless it was turned off.  The indicator for a flag being turned off
+    # is that the flag index has not been set in Options[] but it has an
+    # instance count.
+    else if (Option in Options || !((Option,1) in Options))
+	# Increment number of times this flag seen; will inc null value to 1
+	Instance = ++Options[Option]
+    Options[Option,"num",Instance] = OptionNum
+    return UsedValue
+}
+
+# Option is the option letter
+# Value is the value being assigned
+# Name is the var name of the option, if any
+# ArgType is one of:
+# :	String argument
+# ;	Non-null string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Returns null on success, err string on error
+function CheckType(ArgType,Value,Option,Name,specGiven,  Err,ErrStr) {
+    if (ArgType == ":")
+	return ""
+    if (ArgType == ";") {
+	if (Value == "")
+	    Err = "must be a non-empty string"
+    }
+    # A number begins with optional + or -, and is followed by a string of
+    # digits or a decimal with digits before it, after it, or both
+    else if (Value !~ /^[-+]?([0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)$/)
+	Err = "must be a number"
+    else if (ArgType ~ "[#<>]" && Value ~ /\./)
+	Err = "may not include a fraction"
+    else if (ArgType ~ "[()<>]" && Value < 0)
+	Err = "may not be negative"
+    # (
+    else if (ArgType ~ "[)>]" && Value == 0)
+	Err = "must be a positive number"
+    if (Err != "") {
+	ErrStr = "Bad value \"" Value "\".  Value assigned to "
+	if (Name != "")
+	    return ErrStr "variable " substr(Name,1,1) " " Err
+	else {
+	    if (Option == "&")
+		Option = Value
+	    return ErrStr "option " specGiven substr(Option,1,1) " " Err
+	}
+    }
+    else
+	return ""
+}
+
+# Note: only the above functions are needed by ProcArgs.
+# The rest of these functions call ProcArgs() and also do other
+# option-processing stuff.
+
+# Opts: Process command line arguments.
+# Opts processes command line arguments using ProcArgs()
+# and checks for errors.  If an error occurs, a message is printed
+# and the program is exited.
+#
+# Input variables:
+# Name is the name of the program, for error messages.
+# Usage is a usage message, for error messages.
+# OptList the option description string, as used by ProcArgs().
+# MinArgs is the minimum number of non-option arguments that this
+# program should have, non including ARGV[0] and +h.
+# If the program does not require any non-option arguments,
+# MinArgs should be omitted or given as 0.
+# rcFiles, if given, is a colon-seprated list of filenames to read for
+# variable initialization.  If a filename begins with ~/, the ~ is replaced
+# by the value of the environment variable HOME.  If a filename begins with
+# $, the part from the character after the $ up until (but not including)
+# the first character not in [a-zA-Z0-9_] will be searched for in the
+# environment; if found its value will be substituted, if not the filename will
+# be discarded.
+# rcfiles are read in the order given.
+# Values given in them will not override values given on the command line,
+# and values given in later files will not override those set in earlier
+# files, because AssignVal() will store each with a different instance index.
+# The first instance of each variable, either on the command line or in an
+# rcfile, will be stored with no instance index, and this is the value
+# normally used by programs that call this function.
+# VarNames is a comma-separated list of variable names to map to options,
+# in the same order as the options are given in OptList.
+# If EnvSearch is given and nonzero, the first EnvSearch variables will also be
+# searched for in the environment.  If set to -1, all values will be searched
+# for in the environment.  Values given in the environment will override
+# those given in the rcfiles but not those given on the command line.
+# NoRCopt, if given, is an additional letter option that if given on the
+# command line prevents the rcfiles from being read.
+# See ProcArgs() for a description of AllowUnRecOpt and optChars, and
+# ExclusiveOptions() for a description of exOpts.
+# Special options:
+# If x is made an option and is given, some debugging info is output.
+# h is assumed to be the help option.
+
+# Global variables:
+# The command line arguments are taken from ARGV[].
+# The arguments that are option specifiers and values are removed from
+# ARGV[], leaving only ARGV[0] and the non-option arguments.
+# The number of elements in ARGV[] should be in ARGC.
+# After processing, ARGC is set to the number of elements left in ARGV[].
+# The option values are put in Options[].
+# On error, Err is set to a positive integer value so it can be checked for in
+# an END block.
+# Return value: The number of elements left in ARGV is returned.
+# Must keep OptErr global since it may be set by InitOpts().
+function Opts(Name,Usage,OptList,MinArgs,rcFiles,VarNames,EnvSearch,NoRCopt,
+AllowUnrecOpt,optChars,exOpts,  ArgsLeft,e) {
+    if (MinArgs == "")
+	MinArgs = 0
+    ArgsLeft = ProcArgs(ARGC,ARGV,OptList NoRCopt,Options,1,AllowUnrecOpt,
+    optChars)
+    if (ArgsLeft < (MinArgs+1) && !("h" in Options)) {
+	if (ArgsLeft >= 0) {
+	    OptErr = "Not enough arguments"
+	    Err = 4
+	}
+	else
+	    Err = -ArgsLeft
+	printf "%s: %s.\nUse -h for help.\n%s\n",
+	Name,OptErr,Usage > "/dev/stderr"
+	exit 1
+    }
+    if (rcFiles != "" && (NoRCopt == "" || !(NoRCopt in Options)) &&
+    (e = InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch)) < 0)
+    {
+	print Name ": " OptErr ".\nUse -h for help." > "/dev/stderr"
+	Err = -e
+	exit 1
+    }
+    if ((exOpts != "") && ((OptErr = ExclusiveOptions(exOpts,Options)) != ""))
+    {
+	printf "%s: Error: %s\n",Name,OptErr > "/dev/stderr"
+	Err = 1
+	exit 1
+    }
+    return ArgsLeft
+}
+
+# ReadConfFile(): Read a file containing var/value assignments, in the form
+# <variable-name><assignment-char><value>.
+# Whitespace (spaces and tabs) around a variable (leading whitespace on the
+# line and whitespace between the variable name and the assignment character) 
+# is stripped.  Lines that do not contain an assignment operator or which
+# contain a null variable name are ignored, other than possibly being noted in
+# the return value.  If more than one assignment is made to a variable, the
+# first assignment is used.
+# Input variables:
+# File is the file to read.
+# Comment is the line-comment character.  If it is found as the first non-
+#     whitespace character on a line, the line is ignored.
+# Assign is the assignment string.  The first instance of Assign on a line
+#     separates the variable name from its value.
+# If StripWhite is true, whitespace around the value (whitespace between the
+#     assignment char and trailing whitespace on the line) is stripped.
+# VarPat is a pattern that variable names must match.  
+#     Example: "^[a-zA-Z][a-zA-Z0-9]+$"
+# If FlagsOK is true, variables are allowed to be "set" by being put alone on
+#     a line; no assignment operator is needed.  These variables are set in
+#     the output array with a null value.  Lines containing nothing but
+#     whitespace are still ignored.
+# Output variables:
+# Values[] contains the assignments, with the indexes being the variable names
+#     and the values being the assigned values.
+# Lines[] contains the line number that each variable occured on.  A flag set
+#     is record by giving it an index in Lines[] but not in Values[].
+# Return value:
+# If any errors occur, a string consisting of descriptions of the errors
+# separated by newlines is returned.  In no case will the string start with a
+# numeric value.  If no errors occur,  the number of lines read is returned.
+function ReadConfigFile(Values,Lines,File,Comment,Assign,StripWhite,VarPat,
+FlagsOK,
+Line,Status,Errs,AssignLen,LineNum,Var,Val) {
+    if (Comment != "")
+	Comment = "^" Comment
+    AssignLen = length(Assign)
+    if (VarPat == "")
+	VarPat = "."	# null varname not allowed
+    while ((Status = (getline Line < File)) == 1) {
+	LineNum++
+	sub("^[ \t]+","",Line)
+	if (Line == "")		# blank line
+	    continue
+	if (Comment != "" && Line ~ Comment)
+	    continue
+	if (Pos = index(Line,Assign)) {
+	    Var = substr(Line,1,Pos-1)
+	    Val = substr(Line,Pos+AssignLen)
+	    if (StripWhite) {
+		sub("^[ \t]+","",Val)
+		sub("[ \t]+$","",Val)
+	    }
+	}
+	else {
+	    Var = Line	# If no value, var is entire line
+	    Val = ""
+	}
+	if (!FlagsOK && Val == "") {
+	    Errs = Errs \
+	    sprintf("\nBad assignment on line %d of file %s: %s",
+	    LineNum,File,Line)
+	    continue
+	}
+	sub("[ \t]+$","",Var)
+	if (Var !~ VarPat) {
+	    Errs = Errs sprintf("\nBad variable name on line %d of file %s: %s",
+	    LineNum,File,Var)
+	    continue
+	}
+	if (!(Var in Lines)) {
+	    Lines[Var] = LineNum
+	    if (Pos)
+		Values[Var] = Val
+	}
+    }
+    if (Status)
+	Errs = Errs "\nCould not read file " File
+    close(File)
+    return Errs == "" ? LineNum : substr(Errs,2)	# Skip first newline
+}
+
+# Variables:
+# Data is stored in Options[].
+# rcFiles, OptList, VarNames, and EnvSearch are as as described for Opts().
+# Global vars:
+# Sets OptErr.  Uses ENVIRON[].
+# If anything is read from any of the rcfiles, sets READ_RCFILE to 1.
+function InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch,
+Line,Var,Pos,Vars,Map,CharOpt,NumVars,TypesInd,Types,Type,Ret,i,rcFile,
+fNames,numrcFiles,filesRead,Err,Values,retStr) {
+    split("",filesRead,"")	# make awk know this is an array
+    NumVars = split(VarNames,Vars,",")
+    TypesInd = Ret = 0
+    if (EnvSearch == -1)
+	EnvSearch = NumVars
+    for (i = 1; i <= NumVars; i++) {
+	Var = Vars[i]
+	CharOpt = substr(OptList,++TypesInd,1)
+	if (CharOpt ~ "^[:;*()#<>&]$")
+	    CharOpt = substr(OptList,++TypesInd,1)
+	Map[Var] = CharOpt
+	Types[Var] = Type = substr(OptList,TypesInd+1,1)
+	# Do not overwrite entries from environment
+	if (i <= EnvSearch && Var in ENVIRON &&
+	(Err = AssignVal(CharOpt,ENVIRON[Var],Options,Type,1,Var,0)) < 0)
+	    return Err
+    }
+
+    numrcFiles = split(rcFiles,fNames,":")
+    for (i = 1; i <= numrcFiles; i++) {
+	rcFile = fNames[i]
+	if (rcFile ~ "^~/")
+	    rcFile = ENVIRON["HOME"] substr(rcFile,2)
+	else if (rcFile ~ /^\$/) {
+	    rcFile = substr(rcFile,2)
+	    match(rcFile,"^[a-zA-Z0-9_]*")
+	    envvar = substr(rcFile,1,RLENGTH)
+	    if (envvar in ENVIRON)
+		rcFile = ENVIRON[envvar] substr(rcFile,RLENGTH+1)
+	    else
+		continue
+	}
+	if (rcFile in filesRead)
+	    continue
+	# rcfiles are liable to be given more than once, e.g. UHOME and HOME
+	# may be the same
+	filesRead[rcFile]
+	if ("x" in Options)
+	    printf "Reading configuration file %s\n",rcFile > "/dev/stderr"
+	retStr = ReadConfigFile(Values,Lines,rcFile,"#","=",0,"",1)
+	if (retStr > 0)
+	    READ_RCFILE = 1
+	else if (ret != "") {
+	    OptErr = retStr
+	    Ret = -1
+	}
+	for (Var in Lines)
+	    if (Var in Map) {
+		if ((Err = AssignVal(Map[Var],
+		Var in Values ? Values[Var] : "",Options,Types[Var],
+		Var in Values,Var,0)) < 0)
+		    return Err
+	    }
+	    else {
+		OptErr = sprintf(\
+		"Unknown var \"%s\" assigned to on line %d\nof file %s",Var,
+		Lines[Var],rcFile)
+		Ret = -1
+	    }
+    }
+
+    if ("x" in Options)
+	for (Var in Map)
+	    if (Map[Var] in Options)
+		printf "(%s) %s=%s\n",Map[Var],Var,Options[Map[Var]] > \
+		"/dev/stderr"
+	    else
+		printf "(%s) %s not set\n",Map[Var],Var > "/dev/stderr"
+    return Ret
+}
+
+# OptSets is a semicolon-separated list of sets of option sets.
+# Within a list of option sets, the option sets are separated by commas.  For
+# each set of sets, if any option in one of the sets is in Options[] AND any
+# option in one of the other sets is in Options[], an error string is returned.
+# If no conflicts are found, nothing is returned.
+# Example: if OptSets = "ab,def,g;i,j", an error will be returned due to
+# the exclusions presented by the first set of sets (ab,def,g) if:
+# (a or b is in Options[]) AND (d, e, or f is in Options[]) OR
+# (a or b is in Options[]) AND (g is in Options) OR
+# (d, e, or f is in Options[]) AND (g is in Options)
+# An error will be returned due to the exclusions presented by the second set
+# of sets (i,j) if: (i is in Options[]) AND (j is in Options[]).
+# todo: make options given on command line unset options given in config file
+# todo: that they conflict with.
+function ExclusiveOptions(OptSets,Options,
+Sets,SetSet,NumSets,Pos1,Pos2,Len,s1,s2,c1,c2,ErrStr,L1,L2,SetSets,NumSetSets,
+SetNum,OSetNum) {
+    NumSetSets = split(OptSets,SetSets,";")
+    # For each set of sets...
+    for (SetSet = 1; SetSet <= NumSetSets; SetSet++) {
+	# NumSets is the number of sets in this set of sets.
+	NumSets = split(SetSets[SetSet],Sets,",")
+	# For each set in a set of sets except the last...
+	for (SetNum = 1; SetNum < NumSets; SetNum++) {
+	    s1 = Sets[SetNum]
+	    L1 = length(s1)
+	    for (Pos1 = 1; Pos1 <= L1; Pos1++)
+		# If any of the options in this set was given, check whether
+		# any of the options in the other sets was given.  Only check
+		# later sets since earlier sets will have already been checked
+		# against this set.
+		if ((c1 = substr(s1,Pos1,1)) in Options)
+		    for (OSetNum = SetNum+1; OSetNum <= NumSets; OSetNum++) {
+			s2 = Sets[OSetNum]
+			L2 = length(s2)
+			for (Pos2 = 1; Pos2 <= L2; Pos2++)
+			    if ((c2 = substr(s2,Pos2,1)) in Options)
+				ErrStr = ErrStr "\n"\
+				sprintf("Cannot give both %s and %s options.",
+				c1,c2)
+		    }
+	}
+    }
+    if (ErrStr != "")
+	return substr(ErrStr,2)
+    return ""
+}
+
+# The value of each instance of option Opt that occurs in Options[] is made an
+# index of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Set(Options,Opt,Set,  count) {
+    if (!(Opt in Options))
+	return 0
+    Set[Options[Opt]]
+    count = Options[Opt,"count"]
+    for (; count > 1; count--)
+	Set[Options[Opt,count]]
+    return count
+}
+
+# The value of each instance of option Opt that occurs in Options[] that
+# begins with "!" is made an index of nSet[] (with the ! stripped from it).
+# Other values are made indexes of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Sets(Options,Opt,Set,nSet,  count,aSet,ret) {
+    ret = Opt2Set(Options,Opt,aSet)
+    for (value in aSet)
+	if (substr(value,1,1) == "!")
+	    nSet[substr(value,2)]
+	else
+	    Set[value]
+    return ret
+}
+
+# Returns true if option Opt was given on the command line.
+function CmdLineOpt(Options,Opt,  i) {
+    for (i = 1; (Opt,"num",i) in Options; i++)
+	if (Options[Opt,"num",i] != 0)
+	    return 1
+    return 0
+}
+### End of ProcArgs library
+### Begin head-tail routines
+
+# @(#) HeadTail.awk 97/01/25
+# 95/04/28 Added tail routines.
+# 96/05/09 Added all args to HeadTailInit()
+# 97/01/25 Make HeadPrint understand embedded newlines too.
+
+# Turn on screen-bounded printing.
+# Current implementation sets global vars LINES, COLUMNS, LINEGAP, and COLGAP.
+# Sets the number of screen lines and rows to Lines and Rows.
+# If -1 is passed for either, turns off bounding in that dimension.
+# If either is not set or 0 is passed for it, its value is taken from the
+# environment, or if not set there, from terminfo, or if not set there, from
+# the defaults (24 and 80).
+# By default, the other functions in this library leave a "grace space" of
+# 1 column and 1 line.  If LineGap or ColGap is passed and is a non-negative
+# value, the line gap is set to it.
+function HeadTailInit(Lines,Cols,LineGap,ColGap,  Cmd) {
+    # tput will use values in environment, but we want to avoid running
+    # it if possible.
+    if (Cols > 0)
+	COLUMNS = Cols
+    else if (!Cols)
+	if ("COLUMNS" in ENVIRON)
+	    COLUMNS = ENVIRON["COLUMNS"]
+	else {
+	    Cmd = "exec tput cols"
+	    Cmd | getline COLUMNS
+	    close(Cmd)
+	    if (COLUMNS == "")
+		COLUMNS = 80
+	}
+    if (Lines > 0)
+	LINES = Lines
+    else if (!Lines)
+	if ("LINES" in ENVIRON)
+	    LINES = ENVIRON["LINES"]
+	else {
+	    Cmd = "exec tput lines"
+	    Cmd | getline LINES
+	    close(Cmd)
+	    if (LINES == "")
+		LINES = 24
+	}
+    LINEGAP = (LineGap != "" && LineGap >= 0) ? LineGap : 1
+    COLGAP = (ColGap != "" && ColGap >= 0) ? ColGap : 1
+}
+
+# Do screen-bound printing.
+# If LINES  is >0, the last LINES-LINEGAP lines are kept in a circular buffer.
+# When TailFlush() is called, they are printed.
+# If LINES = 0, all lines are printed immediately.
+# If COLUMNS is >0, truncates Line to COLUMNS-COLGAP characters before printing
+# it.
+# Global vars: uses LINES & COLUMNS; sets/uses TailPtr;
+# saves lines in TailLines[] from 1..LINES-LINEGAP
+# Embedded newlines split the line into multiple lines; trailing newlines are
+# stripped.  Tabs are expanded to spaces.
+function TailPrint(Line) {
+    if (!LINES)
+	print Line
+    else {
+	if (++TailPtr > (LINES-LINEGAP))
+	    TailPtr = 1
+	TailLines[TailPtr] = Line
+    }
+}
+
+function TailFlush(  NumPrinted,Lines,Line,i,Buffer,PrintLines) {
+    if (!LINES)
+	return
+    NumPrinted = 0
+    PrintLines = LINES-LINEGAP
+    # Since lines may contain multiple lines, we must create a buffer to be
+    # printed by reading line buffer backwards.
+    # Stop when we have copied enough lines, or if we wrap around to the end
+    # and find that the entire line buffer was not used.
+    while (NumPrinted < PrintLines && TailPtr in TailLines) {
+	# Split line into individual lines, then process them last to first
+	Num = split(TailLines[TailPtr],Lines,"\n")
+	for (i = Num; i >= 1; i--) {
+	    Line = Lines[i]
+	    if (i == Num && Line == "")	# discard trailing newline
+		continue
+	    # Put this line at the front of the print buffer
+	    if (COLUMNS)
+		Buffer = substr(TabEx(Line),1,COLUMNS - COLGAP) "\n" Buffer
+	    else
+		Buffer = Line "\n" Buffer
+	    if (++NumPrinted == PrintLines)
+		break
+	}
+	if (!--TailPtr)	# Wrap pointer if neccessary
+	    TailPtr = PrintLines
+    }
+    printf "%s",Buffer
+}
+
+# Do screen-bound printing.
+# If LINES >0, returns 0 when LINES-LINEGAP lines have been printed by
+# HeadPrint().  Otherwise returns 1.
+# If COLUMNS is >0, truncates Line to COLUMNS-COLGAP characters before printing
+# it.
+# Global vars: uses LINES, COLUMNS, LINEGAP, COLGAP; sets/uses LinesPrinted.
+# Embedded newlines split the line into multiple lines; trailing newlines are
+# stripped.  Tabs are expanded to spaces.
+function HeadPrint(Line,  Num,i,Lines) {
+    # Check first, in case some calls of this function to not check return
+    # value, and in case LINES is 1.
+    if (LINES && LinesPrinted >= (LINES-LINEGAP))
+	return 0
+    Num = split(Line,Lines,"\n")
+    if (Lines[Num] == "")	# discard trailing newline
+	Num--
+    for (i = 1; i <= Num; i++) {
+	Line = Lines[i]
+	if (COLUMNS)
+	    print substr(Line,1,COLUMNS - COLGAP)
+	else
+	    print Line
+	if (LINES && ++LinesPrinted >= (LINES-LINEGAP))
+	    return 0
+    }
+    return 1
+}
+
+function ColPrint(Line) {
+    if (COLUMNS)
+	print substr(Line,1,COLUMNS - COLGAP)
+    else
+	print Line
+    return 1
+}
+
+### End head-tail routines
+
+# @(#) i2met.awk 1.0 96/02/13
+# jhdiii 96/01/14
+# Convert positive integer value Value to a string at most MaxLen characters
+# long.  This is done by converting the integer to a string of the form n*m,
+# where m is a metric suffix from: K M G
+# If Pow2 is true, then each factor of 1K is taken to be 1024; if it is false,
+# it is taken to be 1000.
+# MaxLen must be between 4 and 9.
+# Value may be any integer from 0..maxint
+# If Units is given, it is the units that Value is passed in, where
+# Units=1 means Value is in K; Units=2 means Value is in M, etc.
+function i2met(Value,MaxLen,Pow2,Units,  Len,Div) {
+    if (Value == 0)
+	return "0"
+    if (!(1 in Suf))
+	split("K,M,G,T,P,E,Z,Y",Suf,",")
+    # In both awk & gawk, integer values that can be represented as
+    # machine integers will be printed as integers.
+    # If value can be printed without modification, return it as it,
+    # but with a multiplier suffix if reqd.
+    if ((Len = length(Value Suf[Units])) <= MaxLen)
+	return Value Suf[Units]
+    MaxLen -= 1		# Leave space for suffix
+    Div = Pow2 ? 1024 : 1000
+    for (Units += 1; Units in Suf; Units++)
+	if (length(int(Value /= Div)) <= MaxLen)
+	    break
+    Value = substr(sprintf("%." MaxLen "f",Value),1,MaxLen)
+    if (substr(Value,MaxLen,1) == ".")
+	Value = substr(Value,1,MaxLen-1)
+    return Value Suf[Units]
+}
+
+# @(#) i2emet.awk 1.0 96/02/13
+# jhdiii 96/01/27
+# Convert numeric value Value to one with the decimal point set according to
+# engineering convention.  In this convention, there is always between 1 and
+# 3 digits before the decimal point.  A metric suffix is attached to retain
+# the original value.
+# If Pow2 is true, then each factor of 1K is taken to be 1024; if it is false,
+# it is taken to be 1000.
+# If Pow2 is true, MaxLen must be >= 5; if Pow2 is false, MaxLen must be >= 4.
+# If Units is given, it is the units that Value is passed in, where
+# Units=0 means Value is in base units; Units=-1 means Value is in milliunits,
+# Units=1 means Value is in kilounits, etc.
+# If NoZeroes is true, trailing zeroes in the fractional part are removed.
+function i2emet(Value,MaxLen,Pow2,Units,NoZeroes,  Len,Factor,i,suf2) {
+    if (Value == 0)
+	return "0"
+    if (!(1 in _Suf)) {
+	_MaxUnit = split("K,M,G,T,P,E,Z,Y",_Suf,",")
+	split("m,u,n,p,f,a,z,y",suf2,",")
+	for (i = 1; i in suf2; i++)
+	    _Suf[-i] = suf2[i]
+    }
+    # Make sure awk treats all of these as numbers
+    Factor = (Pow2 ? 1024 : 1000)+0
+    Units += 0
+    Value += 0
+    if (Value < 1)
+	for (; Value < 1 && Units > -_MaxUnit; Value *= Factor)
+	    Units--
+    else
+	for (; Value >= Factor && Units < _MaxUnit; Value /= Factor)
+	    Units++
+    if (Units)
+	MaxLen -= 1		# Leave space for suffix
+    # Round reasonably carefully
+    fDig = MaxLen-length(int(Value))-1
+    if (fDig > 0)
+	Value = sprintf("%." fDig "f",Value)+0	# Turn it back into a number!
+    else
+	Value = int(Value+0.5)
+    # Rounding may have caused rollover of leading digit, making the result
+    # exceed the allowed range (e.g. 999.6 -> 1000)
+    if (Value >= Factor) {
+	Value /= Factor
+	Units++
+    }
+    if (substr(Value,MaxLen,1) == ".")
+	Value = substr(Value,1,MaxLen-1)	# Get rid of trailing "."
+    else
+	Value = substr(Value,1,MaxLen)
+    if (NoZeroes && Value ~ /\..*0$/)
+	sub(/\.?0+$/,"",Value)
+    return Value _Suf[Units]
+}

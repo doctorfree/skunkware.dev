@@ -1,0 +1,113 @@
+<div class="moz-text-flowed" style="font-family: -moz-fixed">
+Build CXTERM (5.2.3) on OpenServer 6
+
+===========================================================================
+
+CXTERM Project on Sourceforge 
+http://sourceforge.net/projects/cxterm
+
+Download URL :
+http://prdownloads.sourceforge.net/cxterm/cxterm-5.2.3.tgz?download
+
+$PATH:
+/usr/local/bin:/usr/X/bin:/sbin:/usr/sbin:/usr/bin:/etc:/usr/ccs/bin:
+/usr/X11R6/bin:.
+
+
+What I have done :
+ 
+0) gunzip -c cxterm-5.2.3.tar.gz | tar -xvf -
+
+1) cd cxterm-5.2.3 , and do a "./configure --prefix=/usr/local"
+
+2) edit cxterm/Makefile
+
+Original :
+CFLAGS = -g
+LIBS =  -L/usr/X11R6.1/lib -lXaw -lXt -lXmu  -lSM -lICE -lncurses -lXext 
+-lX11 -lXpm -lm
+
+New :
+CFLAGS = -g -D_EFTSAFE
+LIBS =  -L/usr/X11R6.1/lib -lXaw -lXt -lXmu  -lSM -lICE -lcurses -lXext 
+-lX11 -lm -lsocket
+
+3) edit cxterm/main.c, and add these two lines :
+
+#define SYSV
+#define SVR4
+
+3) edit utils/Makefile, and change "gcc" to "cc" (total 4 lines), and
+change the LIBS variable :
+
+Original:
+LIBS =  -L/usr/X11R6.1/lib -lXaw -lXt -lXmu  -lSM -lICE -lncurses -lXext 
+-lX11 -lXpm -lm
+
+New :
+LIBS =  -L/usr/X11R6.1/lib -lXaw -lXt -lXmu  -lSM -lICE -lcurses -lXext 
+-lX11 -lm
+
+4) edit utils/hzimctrl.c, and add this line :
+
+#define SYSV
+
+5) under cxterm-5.2.3/ directory, do a "make"
+
+6) make install
+
+7) I don't know why, but the install-sh script can't copy all
+*.cit files (this is the input methods for each languages) to
+/usr/local/share/cxterm/dict/* , therefour, I do it by myself :
+
+cd dict
+cp big5/*.cit /usr/local/share/cxterm/dict/big5
+cp gb/*.cit /usr/local/share/cxterm/dict/gb
+cp jis/*.cit /usr/local/share/cxterm/dict/jis
+cp ks/*.cit /usr/local/share/cxterm/dict/ks
+
+6) install the fonts which are provided with CXTERM packages.
+
+cd cxterm-5.2.3
+make install-fonts    
+(again, this can't work for all fonts. I do it again by myself.)
+cd fonts
+cp *.pcf.gz /usr/local/share/cxterm/fonts
+cp fonts.alias /usr/local/share/cxterm/fonts
+cp fonts.dir /usr/local/share/cxterm/fonts
+
+7) edit /usr/local/share/cxterm/cxtermrc , and
+add these lines for BIG5 locale.
+Actually, from cxtermrc files, it's supposed all cxterm*
+should work, but without any reason, it just doesn't work.
+So, for better ANSI-color support, I add these lines :
+
+cxtermb5*fcolor0:     #000000
+cxtermb5*fcolor1:     #8b0000
+cxtermb5*fcolor2:     #006400
+cxtermb5*fcolor3:     #cdcd00
+cxtermb5*fcolor4:     #00008b
+cxtermb5*fcolor5:     #cd00cd
+cxtermb5*fcolor6:     #008b8b
+cxtermb5*fcolor7:     #d3d3d3
+cxtermb5*fcolorh0:    #a9a9a9
+cxtermb5*fcolorh1:    #ff0000
+cxtermb5*fcolorh2:    #00ff00
+cxtermb5*fcolorh3:    #ffff00
+cxtermb5*fcolorh4:    #0000ff
+cxtermb5*fcolorh5:    #ff00ff
+cxtermb5*fcolorh6:    #00ffff
+cxtermb5*fcolorh7:    #ffffff
+
+===============================================================
+
+How to start CXTERM ?
+
+I am using BIG5 locale here, and the CXTERM with big5 support can
+be launched by :
+
+# cxterm -b5
+
+
+
+</div>

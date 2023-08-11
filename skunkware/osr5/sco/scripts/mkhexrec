@@ -1,0 +1,84 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# @(#) mkhexrec.gawk 1.0 94/03/09
+# 92/02/13 john h. dubois iii (john@armory.com)
+# 92/10/01 Use gawk to get %X (awk only has %x); added +h option
+# 93/06/19 Replace %X w/%x and use toupper() to avoid need for gawk
+# 94/03/09 Use gawk so - options can be given
+
+BEGIN {
+    if (ARGV[1] ~ "^[-+]h$") {
+	# Multipe lines per line because gawk has a limit on the number of
+	# continuations to a line
+	print \
+"mkhexrec: make a hex record\nInput format:\naddr xxxx\n" \
+"xx xx xx xx xx xx xx xx\nxx xx xx xx xx xx xx xx\nxx xx xx xx xx xx xx xx\n" \
+"addr xxxx\nxx xx xx xx xx xx xx xx\nxx xx xx xx xx xx xx xx\n\n" \
+"addr is the load address for the bytes that follow.\n\n" \
+"Output format (format of a hex file):\n"
+
+	print \
+":nnaaaa00xxxxxxxxxxxxxxxxxxxxxxxxxxcc\nnn: number of bytes to be loaded.\n" \
+"aaaa: address to load at.\n00: MCS80 record type.\n"\
+"xxxxxxxx: data to be loaded\n" \
+"cc: checksum byte to make sum % 256 of all bytes on line equal to 0.\n" \
+"Example:\nLoad 8 bytes starting at address 0010\n:0800108899aabbccddeeff"
+	Err = "0"
+	exit 0
+    }
+    addr = start = 0
+}
+
+function hex2dec(hexval,  ret,len,i) {
+    hexval = tolower(hexval)
+    len = length(hexval)
+    for (i = 1; i <= len; i++)
+	ret = ret * 16 + index("0123456789abcdef",substr(hexval,i,1)) - 1
+    return ret
+}
+
+function putmem(start,end,  len) {
+    for (; start <= end; start += 32)
+	putline(start,min(end,start + 31))
+}
+
+function putline(start,end,  checksum,line) {
+    checksum = end - start + 1
+    line = sprintf(":%02x%04x00",checksum,start)
+    checksum += start % 256 + int(start / 256)
+    for (; start <= end; start++) {
+	line = line sprintf("%s",mem[start])
+	checksum += hex2dec(mem[start])
+    }
+    print toupper(line sprintf("%02x\n",256 - checksum % 256))
+}
+
+function min(a,b) {
+    if (a < b)
+	return a
+    else
+	return b
+}
+
+/^(#|$)/ {
+    putmem(start,addr - 1)
+    start = addr
+    next
+}
+
+$1 == "addr" {
+    putmem(start,addr - 1)
+    start = addr = hex2dec($2)
+    next
+}
+
+{
+    for (i = 1; i <= NF; i++)
+	mem[addr++] = $i
+}
+
+END {
+    if (Err != "")
+	exit Err
+    putmem(start,addr - 1)
+}

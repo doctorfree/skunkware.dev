@@ -1,0 +1,92 @@
+<HTML>
+<HEAD>
+<TITLE>The browse page (from the demo) is SLOW+!</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="08.00.Performance_issues.html">Up</A>&nbsp;&nbsp;<A HREF="08.02.MiniVend_slows_down_over_time.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="08.04.I_am_using_SQL_and_MiniVend_is_.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="The_browse_page_from_the_demo_">The browse page (from the demo) is SLOW+!</A></H2>
+<P>
+(This old page is not used any more starting at 3.12.)
+
+<P>
+That is because it is only useful for small product lines. It pulls out all
+keys from the entire database and iterates over them, which is not
+reasonable for more then 50 products or so (depending on your server
+speed).
+
+<P>
+
+<FONT SIZE=-1>A</FONT> better approach is to use a search and browse by
+category, an example of which is given in the demo.
+
+<P>
+You could also try something like:
+
+<P>
+<PRE>    [perl]
+            $start = $Session-&gt;{arg} || 1;
+            $chunk = 1;
+            if($start =~ /(\d+):(\d*)/) {
+                    $start = $1;
+                    $chunk = $2 || 1;
+            }
+            $prev = $start - $chunk;
+            if($prev &lt; 1) {
+                    $prev = 0;
+            }
+            $Scratch-&gt;{'start'} = $start;
+            $Scratch-&gt;{'chunk'} = $chunk;
+            $Scratch-&gt;{'next'} = $start + $chunk;
+            $Scratch-&gt;{'prev'} = $prev;
+            $Scratch-&gt;{'not_shown'} = 1;        return '';
+    [/perl]
+  
+    [search-region arg=&quot;
+                        ra=yes
+                        fm=[scratch first]
+                        ml=[scratch chunk]
+                        sp=browse
+                        tf=category
+                        to=f         &quot;]
+    [search-list]
+    
+    [item-change 1]
+    [condition][item-field category][/condition]
+    &lt;TABLE WIDTH=&quot;80%&quot;&gt;&lt;TR BGCOLOR=&quot;#cccccc&quot; TEXT=&quot;WHITE&quot;&gt;&lt;TD ALIGN=CENTER&gt;
+        &lt;BR&gt;&lt;H1&gt;[item-field category]&lt;/H1&gt;
+    &lt;/TD&gt;&lt;/TR&gt;&lt;/TABLE&gt;
+    [/item-change 1]
+    &lt;P&gt;
+    [if-item-field image]
+    &lt;IMG SRC=&quot;[item-field image]&quot;&gt;
+    &lt;P&gt;
+    [/if-item-field]
+  
+    &lt;H2&gt;[item-description]&lt;/H2&gt;
+    &lt;P&gt;
+    [L]Catalog[/L] [L]Number[/L]: [item-code]
+    &lt;P&gt;
+    [L]Price[/L]: [item-price]
+    &lt;P&gt;
+    [page [item-code]]&lt;IMG BORDER=0
+            SRC=&quot;details.gif&quot; ALT=&quot;[L]More Info[/L]&quot;&gt;[/page]
+    [order [item-code]]&lt;IMG BORDER=0
+        SRC=&quot;ordernow.gif&quot; ALT=&quot;[L]ORDER NOW[/L]&quot;&gt;[/order]
+    [/search-list]
+    [/search-region]
+</PRE>
+<P>
+<PRE>    [if scratch prev]
+    [page href=browse1 arg=&quot;[scratch prev]:[scratch chunk]&quot;]
+        &lt;B&gt;[L]Previous[/L]&lt;/B&gt;
+        &lt;/A&gt;&amp;nbsp;&amp;nbsp;
+    [/if]
+    [if type=explicit compare=&quot;[calc]
+                [value mv_search_match_count] &gt; [scratch next]
+                [/calc]&quot;]
+    [page href=browse1 arg=&quot;[scratch next]:[scratch chunk]&quot;]&lt;B&gt;[L]Next[/L]&lt;/B&gt;&lt;/A&gt;
+    [/if]
+</PRE>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="08.00.Performance_issues.html">Up</A>&nbsp;&nbsp;<A HREF="08.02.MiniVend_slows_down_over_time.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="08.04.I_am_using_SQL_and_MiniVend_is_.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

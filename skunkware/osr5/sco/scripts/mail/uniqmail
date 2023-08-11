@@ -1,0 +1,78 @@
+#!/usr/local/bin/gawk -f
+#!/usr/bin/awk -f
+# @(#) uniqmail.gawk 1.0 94/03/09
+# 91/03/25 john h. dubois iii (john@armory.com)
+# 92/02/17 added help
+# 92/03/12 replaced incorrect continues with nexts
+# 92/05/02 converted to #!awk script
+# 94/03/09 Use gawk so - options can be given
+
+BEGIN {
+    if (ARGV[1] ~ "^[-+]h$") {
+	print \
+"uniqmail: delete messages with identical message-ids from mailx files.\n" \
+"Usage: uniqmail [-h] [mailx-file ...]\n" \
+"uniqmail reads messages from the specified files (or the standard input if\n" \
+"not filenames are given), and writes them to the standard output.\n" \
+"The Message-Id: line in the header of each message is checked against\n" \
+"those of all messages previously written.  If the Message-Id: is the same,\n" \
+"the message is discarded."
+	exit(0)
+    }
+    sep = "\01\01\01\01"
+    InHeader = 1
+    msgid = ""
+    Skip = 0
+    Header = ""
+}
+
+($0 == sep) && InHeader {
+    next
+}
+
+true {
+    printf("InHeader: %s\nLine: %s\nHeader: %s\n",InHeader,$0,Header)
+}
+
+# Found end of header
+InHeader && ((NF == 0) || $0 == sep) {
+    InHeader = 0
+    if (Header == "") {
+	print "Skipping message with no header." | "cat 1>&2"
+	Skip = 1
+	next
+    }
+    if ((msgid != "") && (msgid in msgids)) {
+	print "Skipping duplicate message with id " msgid | "cat 1>&2"
+	Skip = 1
+	next
+    }
+    msgids[msgid]
+    printf("%s\n",sep)
+    printf "%s\n",Header
+    Header = ""
+    Skip = 0
+    next
+}
+
+$0 == sep {
+    print sep
+    InHeader = 1
+    msgid = ""
+    Header = ""
+    next
+}
+
+# get Message-Id
+(InHeader == 1) && ($1 ~ "^Message-[iI][dD]:$") {
+    msgid = $2
+}
+
+(InHeader == 1) {
+    Header = Header $0 "\n"
+    next
+}
+
+!Skip {
+    print $0
+}

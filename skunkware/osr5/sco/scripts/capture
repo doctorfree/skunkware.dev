@@ -1,0 +1,131 @@
+#!/bin/ksh
+# @(#) capture.ksh 1.3 95/03/01
+# syntax: capture [ outfile ]
+# capture: captures current XENIX/UNIX console screen in a file
+# 91/01/18 john h. dubois iii (john@armory.com)
+# 92/03/17 Added '-' as special filename, and -t option.
+# 92/09/27 Use awk instead of head, print, etc.; delete trailing spaces;
+#          made filename be the default option;
+#          trap INT & QUIT to reset echo mode
+# 94/03/05 Make sure output file can be written before sending media copy seq.
+# 95/02/01 Added [naw] options.
+# 95/03/01 Fixed so '-' works as filename again.
+
+unset ENV tty
+
+name=${0##*/}
+Usage="Usage: $name [-ahn] [-t<tty>] [-w<width>] [filename]"
+typeset -i DelWhite=1 Width=0
+WrapOff=false
+
+while getopts :ahnt:w: opt; do
+    case $opt in
+    h)
+	echo \
+"$name: capture a XENIX/UNIX console screen into a file.
+$Usage
+filename is the name of the file to capture the screen into.  If no filename is
+given, the screen will be captured into a file called \"screen\" in the current
+directory.  A filename of \"-\" will cause output to go to the standard output.
+A filename of \"-\" should only be used if the output of $name is redirected or
+if a tty other than the current tty is given with -t.
+Options:
+-h: Print this help.
+-n: Normally, $name removes trailing whitespace from the lines read from the
+    screen, because the lines are as wide as the screen and so would cause the
+    console to do a line wrap after every line, making it appear to be double-
+    spaced.  If -n is given, trailing whitespace is not removed.  This can be
+    used in cases where it is important that the lines in the file have a
+    uniform width.
+-w<width>: Truncate the output to <width> columns.  This can be used to e.g.
+    remove the rightmost column of a display that includes a border, so that it
+    can be displayed on the console without wrapping.  To do that, give a width
+    one less than the screen width, for example, -w79.
+-a: Add ANSI escape sequence to the output to turn off autowrap before the
+    captured display and turn it back on after the captured display.  This
+    allows full-width screen captures to be displayed without wrapping.  It
+    will work on the console under SCO 3.2v4 and on terminals that implement
+    the full set of ANSI X3.64-1979 screen attribute control sequences.
+-t<tty>: Specify the tty name of the screen to capture.  The default is to
+    capture the current screen.  If a screen other than the current screen is
+    to be captured, it must have no other processes reading from it, or $name
+    will compete for input with the other processes.  This generally means that
+    it should be disabled."
+	exit 0
+	;;
+    t)  [[ "$OPTARG" = */* ]] && tty=$OPTARG || tty=/dev/$OPTARG
+	;;
+    a)
+	WrapOff=true;;
+    w)
+	Width=$OPTARG || exit 1;;
+    n)
+	DelWhite=0;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -u2 "$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+case $# in
+0) outfile=screen;;
+1) outfile=$1;;
+*) print -u2 \
+"$name: Too many arguments.
+$Usage
+Usage -h for help."
+   exit 1;;
+esac
+
+set -e
+
+trap "stty echo; exit" INT QUIT
+
+# fd 0: tty being captured, for doing stty and reading media copy output.
+# fd 1: output file.
+# fd 2: tty being captured, for writing escape sequences.
+
+[ -n "$tty" ] && exec < $tty 2> $tty
+
+# Make sure we can write the output file before echoing media copy sequence
+if [ "$outfile" != - ]; then
+    exec > $outfile
+fi
+
+stty -echo
+
+$WrapOff && print -u2 -n "\033[?7l"	# turn off autowrap
+print -u2 -n "\033[2i"			# echo 'media copy' sequence
+
+# Save output and then write it in case capture output goes to the screen
+# being read for some silly reason
+awk -v DelWhite=$DelWhite -v Width=$Width '
+{
+    if (DelWhite)
+	sub(" +$","")
+    if (Width > 0)
+	Lines[++i] = substr($0,1,Width)
+    else
+	Lines[++i] = $0
+}
+NR == 25 {
+    for (i = 1; i <= 25; i++)
+	print Lines[i]
+    exit
+}
+'
+$WrapOff && print -u2 -n "\033[?7h"	# turn on autowrap
+stty echo

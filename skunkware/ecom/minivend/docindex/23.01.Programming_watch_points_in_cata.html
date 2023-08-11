@@ -1,0 +1,124 @@
+<HTML>
+<HEAD>
+<TITLE>Programming watch points in catalog.cfg</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="23.00.CATALOG_CFG.html">Up</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Programming_watch_points_in_cata">Programming watch points in catalog.cfg</A></H2>
+<P>
+You can set up almost any configuration variable to be tied to a subroutine
+if you have the Tie::Watch module installed. It uses a notation like the
+&lt;&lt;
+<FONT SIZE=-1>HERE</FONT> document, but &lt;<CODE>&amp;HERE</CODE> is the notation. See <CODE>MiniVend Programming</CODE>
+for details.
+
+<P>
+Here is a simple case:
+
+<P>
+<PRE>    MailOrderTo orders@minivend.com
+ 
+    MailOrderTo &lt;&amp;EOF
+    sub {
+        my($self, $default) = @_;
+        if($Values-&gt;{special_handling}) {
+            return 'vip@minivend.com';
+        }
+        else {
+            return $default;
+        }
+    }
+    EOF
+</PRE>
+<P>
+When the order is mailed out, if the user has a variable called
+<CODE>special_handling</CODE> set in their session (from UserDB, perhaps) then the order will be sent to
+<A HREF="mailto:'vip@minivend.com'.">'vip@minivend.com'.</A> (Note the
+single quotes to prevent problems with the @ sign.) Otherwise, they will
+get sent to the previously defined value of <CODE>orders@minivend.com</CODE>.
+
+<P>
+If the configuration value being watched is a 
+<FONT SIZE=-1>SCALAR,</FONT> the subroutine gets the following call:
+
+<P>
+<PRE>    &amp;{$subref}(SELF, PREVIOUS_VALUE)
+</PRE>
+<P>
+The subroutine should simply return the proper value.
+
+<P>
+
+<FONT SIZE=-1>SELF</FONT> is a reference to the Tie::Watch object (read its documentation for what all it can do) and 
+<FONT SIZE=-1>PREVIOUS_VALUE</FONT> is the
+ <EM>previously</EM> set value for the directive. (If you set it after you set up the watch, it
+will simply have the effect of destroying the watch and having
+unpredictable effects. In the future, you may be able to set up a ``Store''
+routine that can subsequently set values).
+
+<P>
+If the configuration value being watched is an 
+<FONT SIZE=-1>ARRAY,</FONT> the subroutine gets the following call:
+
+<P>
+<PRE>    &amp;{$subref}(SELF, INDEX, PREVIOUS_VALUE)
+</PRE>
+<P>
+
+<FONT SIZE=-1>INDEX</FONT> is the index of the array element being
+accessed. Setting up watch points on array values is not recommended --
+most MiniVend subroutines call arrays in their list context, and no access
+method is provided for that.
+
+<P>
+If the configuration value being watched is a 
+<FONT SIZE=-1>HASH,</FONT> the subroutine gets the following call:
+
+<P>
+<PRE>    &amp;{$subref}(SELF, KEY, PREVIOUS_VALUE)
+</PRE>
+<P>
+
+<FONT SIZE=-1>KEY</FONT> is the index into the hash. An example of 
+<FONT SIZE=-1>HASH</FONT> type MiniVend configuration values
+ 
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> The following is not recommended for performance
+reasons -- the Variable is a commonly used thing and should not bear the
+extra overhead -- but it illustrates the power quite nicely:
+
+<P>
+<PRE>    Variable TESTIT Unwatch worked.
+  
+    Variable &lt;&amp;EOV
+    sub {
+        my ($self, $key, $orig) = @_;
+        if($key eq 'TESTIT') {
+            # only the first time
+            if($Scratch-&gt;{$key}++) {
+                $self-&gt;Unwatch();
+                return $orig-&gt;{TESTIT};
+            }
+            else {
+                return &quot;Tie::Watch works! -- name=$Values-&gt;{name}&quot;;
+            }
+        }
+        else {
+            return $orig-&gt;{$key};
+        }
+    }
+    EOV
+</PRE>
+<P>
+The first time 
+<FONT SIZE=-1>__TESTIT__</FONT> is called for a particular user, it will return the string ``Tie::Watch works! -- name='' along with their name set in the session (if that exists). Any other variables will receive the value that they were set to previously. Once the 
+<FONT SIZE=-1>TESTIT</FONT> key has been accessed for that user, the watch is dropped upon the next access.
+
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="23.00.CATALOG_CFG.html">Up</A>&nbsp;&nbsp;</H3></BODY></HTML>

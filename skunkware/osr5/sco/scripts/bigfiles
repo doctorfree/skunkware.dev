@@ -1,0 +1,184 @@
+#!/bin/ksh
+# @(#) bigfiles.ksh 1.1 97/05/21
+# 93/04/13 john h. dubois iii (john@armory.com)
+# 93/06/15 Added -d and -v options, fixed sorting so it works with -n,
+#          changed xargs command to avoid running l -d w/o args
+# 93/08/02 Added -b, -s, and -i options.
+# 94/06/26 Added jpg and mpg to compressed extentions
+# 96/01/05 5.0 port: different block size for find
+# 97/03/31 Do not list executable files by default.  Added X option.
+# 97/04/05 Use gfind if available to make ext comparisons case insensitive
+# 97/05/21 Added x option.  Increased defK to 10.
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+
+Name=${0##*/}
+comp_exts="Z,z,gz,hz,bz,arc,zip,zoo,gif,jpg,mpg,avi,arj,tz,tgz,thz,tbz,"
+bin_exts="exe,lib,com,ovl,obj,bin,sys,o,a,wav"
+typeset -i days=0 defK=10 verbose=0
+Usage=\
+"Usage: $Name [-abhnsv] [-i<file>] [-k<size>] [-eE<exts>] [-d<days>] [dir ..]"
+cut_cmd="cut -c 34-"
+sort_cmd="sort +4 -5 -n -r"
+grep_cmd=cat
+xmode="! -perm -100"
+Debug=false
+
+while getopts :ahnvsbk:e:E:d:i:x opt; do
+    case $opt in
+    a)
+	comp_exts=
+	;;
+    h) echo \
+"$Name: find large uncompressed files and list them sorted by size.
+$Usage
+The named directories and all subdirectories of them are searched for files
+larger than ${defK}K.  Any such ordinary non-executable files that do not have
+an extension indicating that they are compressed are listed.  The compression
+extensions are:" {$comp_exts} "
+If the 'gfind' utility is available, extensions will be matched regardless of
+their case.  If no directory names are given, the current directory is used.
+Options:
+-h: Print this help.
+-n: Print filenames only.  By default the size, date, and name are printed.
+-e<ext[,ext...]>: Do not list files with any of the given extensions.
+   The given list replaces the internal list.  Extensions should be
+   separated by commas and should not be preceded by a '.'  Example: -ez,Z,gz
+-E<ext[,ext...]>: Like -e, except that the given extensions are added to
+   the internal list instead of replacing it.
+-b: Add the following binary file extensions to the default list of ignored
+   extensions:" {$bin_exts} "
+-i<file>: Ignore the files whose names are given in <file>, one per line.
+   The filenames must be given with the same path as $Name would print.
+-a: List all big files regardless of extension.
+-X: Check all regular files.  Normally files executable by the invoking user
+    are skipped.
+-d<days>: List only files that have not been accessed in at least <days> days.
+   This changes the default for <size> to 0; that is, all files at least <days>
+   old will be listed, regardless of size.  The size can still be set with -k.
+-k<size>: List only files larger than <size> kilobytes.
+-s: Sort by filename instead of size.
+-v: Print the command issued to find files."
+       exit 0;;
+    X)
+	xmode=;;
+    x)
+	Debug=true;;
+    n)
+	cut_cmd="awk '{ print \$9; }'"
+	;;
+    k) 
+	typeset -i K=$OPTARG || exit 1
+	;;
+    d) 
+	days=$OPTARG || exit 1
+	defK=0
+	;;
+    v)
+	verbose=1
+	;;
+    e) 
+	comp_exts=$OPTARG
+	;;
+    E) 
+	comp_exts="$comp_exts,$OPTARG"
+	;;
+    b)
+	comp_exts="$comp_exts,$bin_exts"
+	;;
+    s)
+	sort_cmd="sort +8"
+	;;
+    i)
+	grep_cmd="fgrep -xvf $OPTARG"
+	;;
+    +?) 
+	echo "$Name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -u2 "$Name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	echo "$Name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# Like the ! that later ksh have
+function not { "$@"; return $((!$?)); }
+
+# Sets _OSRelease to the entire OS release (e.g. 3.2v5.0.0}
+# Sets _OSVersion to the version part (e.g. 5.0.0)
+# Returns the major part of the version (e.g. 5)
+# If an OSVersion value is given as an arg, returns 0 if the system OS version
+# is lexicographically less than it; 1 if they are equal; 2 if the system OS
+# version is greater.
+function OSVersion {
+    typeset arg=$1
+    if [ -z "$_OSRelease" ]; then
+	# Name of release field is different in different langs
+	set -- $(LANG=english_us.ascii uname -X)
+	while [ "$1" != Release -a $# -ge 3 ]; do
+	    shift 3
+	done
+	[ $# -lt 3 ] && return 1
+	_OSRelease=$3
+	_OSVersion=${3##*v}
+    fi
+    [ -z "$arg" ] && return ${_OSVersion%%.*}
+    [[ "$_OSVersion" > "$arg" ]] && return 2
+    [[ "$_OSVersion" < "$arg" ]] && return 0
+    return 1
+}
+
+# Increase the liklihood that we can find gfind
+[[ "$0" = */* ]] && PATH=$PATH:${0%/*} || PATH=$PATH:.
+
+if type gfind > /dev/null; then
+    find=gfind
+    nam=iname
+    $Debug && print -ru2 -- "Found gfind"
+else
+    find=find
+    nam=name
+fi
+
+[ -z "$K" ] && typeset -i K=$defK
+# In 5.0.0 the units for find changed to 1/2 K blocks
+if not OSVersion 5.0.0 || [ $find = gfind ]; then
+    K=$((K*2))
+fi
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+[ $# -eq 0 ] && set -- .
+
+set +o noglob
+
+ExtPred=
+if [ -n "$comp_exts" ]; then
+    ExtPred='( '`eval echo "-$nam \*."{$comp_exts}" -o"`' -name "" )'
+fi
+
+set -o noglob
+
+# Use val & +val instead of +(val-1) so that they will work if val is 0,
+# w/o having to remove expression for special case 0.
+istrue verbose && set -x
+
+for dir
+do
+    $find "$dir" -size +$K -type f $xmode \
+    \( -atime $days -o -atime +$days \)\
+    \( -mtime $days -o -mtime +$days \) ! $ExtPred -print |
+    $grep_cmd | 
+    ( xargs sh -c '[ $# -gt 0 ] && l -d "$@"' ) |
+    $sort_cmd |
+    eval $cut_cmd
+done

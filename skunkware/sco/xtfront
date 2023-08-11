@@ -1,0 +1,37 @@
+#!/bin/sh
+#
+# xtfront - front-ends the execution of an xterm to provide a remote
+#           terminal interface to any number of machines. To use, simply
+#           create a symlink to xtfront by the name of the machine you'd
+#           like to rlogin/ssh into (e.g. foobar -> xtfront). Then, execute
+#           the appropriate symlink (i.e. run foobar to rlogin to foobar).
+#
+# written by Ron Record (rr@sco.com)
+#
+
+# This is a list of machines for which you'd like to rlogin as root
+ROOTMACH="franklin"
+
+# This is a list of machines for which you'd like to use ssh and the username
+SSHMACH="stage"
+SSHNAME=rjr
+
+myname=`basename $0`
+PROG=rlogin
+USER=
+
+for MACH in $ROOTMACH
+do
+    [ "$myname" = "$MACH" ] && USER="-l root"
+    RUN="$PROG $myname $USER"
+done
+
+for MACH in $SSHMACH
+do
+    [ "$myname" = "$MACH" ] && {
+        PROG=ssh
+        RUN="$PROG -l $SSHNAME $myname"
+    }
+done
+
+xterm -tn ansi -fn 12x24 -g 80x25+50+50 -cr yellow -fg cyan -bg 'midnight blue' -n $myname -T $myname -sb -e $RUN &

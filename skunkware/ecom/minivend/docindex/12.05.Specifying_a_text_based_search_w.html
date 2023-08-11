@@ -1,0 +1,76 @@
+<HTML>
+<HEAD>
+<TITLE>Specifying a text-based search with SQL-like syntax</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="12.00.THE_SEARCH_ENGINE.html">Up</A>&nbsp;&nbsp;<A HREF="12.04.Coordinated_and_joined_searching.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="12.06.Range_Searching.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Specifying_a_text_based_search_w">Specifying a text-based search with SQL-like syntax</A></H2>
+<P>
+If you have installed Jochen Wiedmann's <CODE>SQL::Statement</CODE> module, you can specify an 
+<FONT SIZE=-1>SQL</FONT> syntax for the text-based search. (This is <STRONG>not</STRONG> the same as the the 
+<FONT SIZE=-1>SQL</FONT> search, treated below separately. It would work on an 
+<FONT SIZE=-1>SQL</FONT> table but only on the 
+<FONT SIZE=-1>ASCII</FONT> text source file, not on the actual database.)
+
+
+<P>
+This syntax allows this rather nice form setup:
+
+<P>
+<PRE>    Artist: &lt;INPUT NAME=&quot;artist&quot;&gt;
+    Title:  &lt;INPUT NAME=&quot;title&quot;&gt;
+    &lt;INPUT TYPE=hidden NAME=&quot;mv_sql_query&quot;
+            VALUE=&quot;
+                SELECT code FROM products
+                WHERE artist LIKE artist
+                AND    title LIKE title&quot;&gt;                             
+</PRE>
+<P>
+If the right hand side of an expression looks like a column, i.e. is not
+quoted, then the appropriate form variable is substituted. (If used in a
+one-click, the corresponding <EM>scratch</EM> variable is used instead.) The assumption is reversed for the left-hand
+side -- if it is a quoted string then the column name is read from the
+passed values -- otherwise the column name is literal.                     
+
+<P>
+<PRE>    Search for: &lt;INPUT NAME=&quot;searchstring&quot;&gt;&lt;BR&gt;                
+    Search in   &lt;INPUT TYPE=&quot;radio&quot; NAME=&quot;column&quot; VALUE=&quot;title&quot;&gt; title
+        &lt;INPUT TYPE=&quot;radio&quot; NAME=&quot;column&quot; VALUE=&quot;artist&quot;&gt; artist
+        &lt;INPUT TYPE=hidden NAME=&quot;mv_sql_query&quot;                            
+          VALUE=&quot;SELECT code FROM products WHERE 'column' LIKE searchstring&quot;&gt;
+</PRE>
+<P>
+Once again, this does not do a search on an 
+<FONT SIZE=-1>SQL</FONT> database, but formats a corresponding text-based search. Parentheses will have no effect, and an 
+<FONT SIZE=-1>OR</FONT> condition will cause all conditions to be 
+<FONT SIZE=-1>OR.</FONT> The searches above would be similar to:
+
+
+<P>
+<PRE>    [page search=&quot;
+                co=yes
+                sf=artist
+                op=rm
+                se=[value artist]
+                sf=title
+                op=rm
+                se=[value title]
+            &quot;  ]
+        Search for [value artist], [value title]
+    [/page]
+   
+    [page search=&quot;
+                co=yes
+                sf=[value column]
+                op=rm
+                se=[value searchstring]
+            &quot;  ] 
+    Search for [value searchstring]
+           in  [value column]
+    [/page]
+</PRE>
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="12.00.THE_SEARCH_ENGINE.html">Up</A>&nbsp;&nbsp;<A HREF="12.04.Coordinated_and_joined_searching.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="12.06.Range_Searching.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

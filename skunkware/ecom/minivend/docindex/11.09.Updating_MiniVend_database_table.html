@@ -1,0 +1,130 @@
+<HTML>
+<HEAD>
+<TITLE>Updating MiniVend database tables with a form</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="11.00.FORMS_AND_MINIVEND.html">Up</A>&nbsp;&nbsp;<A HREF="11.08.Extended_Value_Access_and_File_U.html">&lt;&lt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Updating_MiniVend_database_table">Updating MiniVend database tables with a form</A></H2>
+<P>
+Any MiniVend database can be updated with a form using the following
+method. The MiniVend companion application <CODE>MiniMate</CODE> uses this facility extensively.
+
+<P>
+
+<FONT SIZE=-1>NOTE:</FONT> All operations are performed on the <STRONG>database</STRONG>, not the 
+<FONT SIZE=-1>ASCII</FONT> source file. You will have to perform a <CODE>[tag export table_name][/tag]</CODE> operation if you want the 
+<FONT SIZE=-1>ASCII</FONT> source file to reflect the results of the
+update.
+
+<P>
+You of course may insert or update records in any <EM>SQL</EM> database with the
+<CODE>[sql set]</CODE> tag, but you may also do form-based updates or inserts.
+
+<P>
+In an update form, special MiniVend variables are used to select the
+database parameters:
+
+<DL>
+<DT><STRONG><A NAME="item_mv_data_enable">mv_data_enable (scratch)</A></STRONG><DD>
+
+<FONT SIZE=-1>IMPORTANT:</FONT> This must be set to a non-zero, non-blank
+value in the scratch space to allow data set functions. Usually it is put
+in an mv_click that precedes the data set function, i.e.:
+
+<P>
+<PRE>    [set update_database]
+    [if type=data term=&quot;userdb::trusted::[data session username]&quot;]
+        [set mv_data_enable]1[/set]
+    [else]
+        [set mv_data_enable]0[/set]
+    [/else]
+    [/if]
+    [/set]
+    &lt;INPUT TYPE=hidden NAME=mv_click VALUE=update_database&gt;
+</PRE>
+</DD><P><DT><STRONG><A NAME="item_mv_data_table">mv_data_table</A></STRONG><DD>
+The table to update.
+
+</DD><P><DT><STRONG><A NAME="item_mv_data_key">mv_data_key</A></STRONG><DD>
+The field that is the primary key in the table. Must match the existing
+database definition.
+
+</DD><P><DT><STRONG><A NAME="item_mv_data_function">mv_data_function</A></STRONG><DD>
+
+<FONT SIZE=-1>UPDATE,</FONT> 
+<FONT SIZE=-1>INSERT</FONT> or 
+<FONT SIZE=-1>DELETE.</FONT> The variable
+ <A HREF="#item_mv_data_verify">mv_data_verify</A> must be set true on the form for a 
+<FONT SIZE=-1>DELETE</FONT> to occur.
+
+</DD><P><DT><STRONG><A NAME="item_mv_data_verify">mv_data_verify</A></STRONG><DD>
+Confirms a 
+<FONT SIZE=-1>DELETE.</FONT>
+
+</DD><P><DT><STRONG><A NAME="item_mv_data_fields">mv_data_fields</A></STRONG><DD>
+Fields from the form which should be inserted or updated. Must be existing
+columns in the table in question.
+
+</DD><P><DT><STRONG><A NAME="item_mv_update_empty">mv_update_empty</A></STRONG><DD>
+Normally an variable that is blank will not replace the field. If you set <A HREF="#item_mv_update_empty">mv_update_empty</A> to true, a blank value will erase the field in the database.
+
+</DD><P><DT><STRONG><A NAME="item_mv_data_filter_">mv_data_filter_(field)</A></STRONG><DD>
+Instantiates a filter for <CODE>(field)</CODE>, using any of the defined MiniVend filters. For example, if <CODE>mv_data_filter_foo</CODE> is set to <CODE>digits</CODE>, only digits will be passed into the database field during the set operation. 
+<FONT SIZE=-1>A</FONT> common value might be ``entities'', which protects your 
+<FONT SIZE=-1>HTML</FONT> by translating
+ <CODE>&lt;</CODE> into <CODE>&amp;lt;</CODE>, <CODE>&quot;</CODE> into <CODE>&amp;quot;</CODE>, etc.
+
+</DD><P></DL>
+<P>
+The MiniVend action <STRONG>set</STRONG> causes the update. Here is an pair of example forms. One is used to set the
+key to access the record (careful with the name, this one goes into the
+user session values). The second actually performs the update. It uses the <CODE>[loop]</CODE> tag with only one value to place default/existing values in the form based
+on the input from the first form:
+
+<P>
+<PRE>    &lt;FORM METHOD=POST ACTION=&quot;[process-target]&quot;&gt;
+    &lt;INPUT TYPE=HIDDEN name=&quot;mv_doit&quot; value=&quot;return&quot;&gt;
+    &lt;INPUT TYPE=HIDDEN name=&quot;mv_nextpage&quot; value=&quot;update_proj&quot;&gt;
+    Sales Order Number &lt;INPUT TYPE=TEXT SIZE=8
+                            NAME=&quot;update_code&quot;
+                            VALUE=&quot;[value update_code]&quot;&gt;
+    &lt;INPUT TYPE=SUBMIT name=&quot;mv_submit&quot;  Value=&quot;Select&quot;&gt;
+    &lt;/FORM&gt;
+</PRE>
+<P>
+<PRE>    [new]
+    &lt;FORM METHOD=POST ACTION=&quot;[process-target]&quot;&gt;
+    &lt;INPUT TYPE=HIDDEN NAME=&quot;mv_data_table&quot;    VALUE=&quot;ship_status&quot;&gt;
+    &lt;INPUT TYPE=HIDDEN NAME=&quot;mv_data_key&quot;      VALUE=&quot;code&quot;&gt;
+    &lt;INPUT TYPE=HIDDEN NAME=&quot;mv_data_function&quot; VALUE=&quot;update&quot;&gt;
+    &lt;INPUT TYPE=HIDDEN NAME=&quot;mv_nextpage&quot;      VALUE=&quot;updated&quot;&gt;
+    &lt;INPUT TYPE=HIDDEN NAME=&quot;mv_data_fields&quot;
+                VALUE=&quot;code,custid,comments,status&quot;&gt;
+    &lt;PRE&gt;
+</PRE>
+<P>
+<PRE>    [loop arg=&quot;[value update_code]&quot;]
+    Sales Order &lt;INPUT TYPE=TEXT NAME=&quot;code    SIZE=10 VALUE=&quot;[loop-code]&quot;&gt;
+   Customer No. &lt;INPUT TYPE=TEXT NAME=&quot;custid&quot; SIZE=30
+                    VALUE=&quot;[loop-field custid]&quot;&gt;
+       Comments &lt;INPUT TYPE=TEXT NAME=&quot;comments&quot; 
+                    SIZE=30 VALUE=&quot;[loop-field comments]&quot;&gt;
+         Status &lt;INPUT TYPE=TEXT NAME=&quot;status&quot;
+                    SIZE=10 VALUE=&quot;[loop-field status]&quot;&gt;
+    [/loop]
+    &lt;/PRE&gt;
+</PRE>
+<P>
+<PRE>        &lt;INPUT TYPE=hidden NAME=&quot;mv_todo&quot; VALUE=&quot;set&quot;&gt;
+        &lt;INPUT TYPE=submit VALUE=&quot;Update table&quot;&gt;
+    &lt;/FORM&gt;
+</PRE>
+<P>
+The variables in the form do <STRONG>not</STRONG> update the user's session values, so they can correspond to database field
+names without fear of corrupting the user session.
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="11.00.FORMS_AND_MINIVEND.html">Up</A>&nbsp;&nbsp;<A HREF="11.08.Extended_Value_Access_and_File_U.html">&lt;&lt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

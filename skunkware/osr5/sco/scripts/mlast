@@ -1,0 +1,1712 @@
+#!/usr/local/bin/gawk -f
+# @(#) mlast.gawk 1.5 97/07/11
+# 93/03/14 john h. dubois iii (john@armory.com)
+# 93/12/03 Process last -w /etc/utmp first so that last does not have to
+#          search through huge wtmp for users who have been logged in a
+#          long time.  Sort output to print most recent first.
+#          Added command line options.
+# 93/12/19 Use gawk for strftime() and /dev/stderr
+#          Removed uninteresting fields from last output & added age field
+# 93/12/31 Added x option
+# 94/01/22 Fixed sorting
+# 94/03/13 Exit 0 from command for gawk.  Close all files.
+# 94/04/25 Added l and o options, header
+# 94/05/10 Added Old field
+# 94/06/06 Added L option
+# 95/05/21 Allow option defaults to be given in .mlast
+# 96/01/08 Make all debugging outpout go to /dev/stderr.
+#          Changed meaning of t option.  Added -number option.
+#          Fixed endless loop if read from last fails.
+# 96/01/12 Subtract a minute from 'old'.
+# 96/01/13 Added i option.
+# 96/01/21 Also read $UHOME/.mlast and /etc/default/mlast
+# 96/07/17 Added es options.
+# 96/12/28 Added r option.
+# 97/02/26 Let TTY names be given on command line w/o option letter.
+# 97/07/11 1.5 Added gds options.
+
+BEGIN {
+    Name = "mlast"
+    Usage = "Usage: " Name " [-dehknorstTx] [-<number>] [-i<login,...>]\n"\
+    "            [-L<tty,...>] [-g<max-time-gap>] [tty ...]"
+    rcFile = ".mlast"
+    reportInterval = 100
+    ARGC = Opts(Name,Usage,"g>sdnl:L:oti:r&>eThxk",0,
+    "~/" rcFile ":$UHOME/" rcFile ":/etc/default/mlast","MAXTIMEGAP,SORTED,"\
+    "SHOWDAY,NOSORT,TTYS,IGNORETTYS,NOHEADER,TTYSORT,IGNORENAMES,RUNNING",0,"k")
+    if ("h" in Options) {
+	printf \
+"%s: show last logins on enabled modem lines.\n"\
+"For each enabled modem line, a line is printed listing, for that TTY: the\n"\
+"last user to log in, the date of the last login, the duration of the last\n"\
+"login, comments (e.g. whether a user is currently logged in on it), the\n"\
+"amount of time that has passed since the last login (Age), and the amount\n"\
+"of time that has passed since the end of the last login, if there is\n"\
+"currently noone logged in on it (Old).  Lines are sorted by Age, with the\n"\
+"oldest lines printed first.  If any TTY names are given on the command\n"\
+"line, they are reported on instead of the set of enabled TTYs.  TTY names\n"\
+"may be given with or without a leading \"/dev/\", with or without a\n"\
+"leading \"tty\", and as either the modem- or non-modem-control name.\n"\
+"Options:\n"\
+"Some of the following options can also be set by assigning values to\n"\
+"variables in a configuration file.  Three configuration files are read,\n"\
+"in order: a file named %s in the invoking user's home directory; a file\n"\
+"named %s in the directory specified by the environment variable UHOME\n"\
+"(if it is set); and the file /etc/default/mlast.  Variables are assigned\n"\
+"to with the syntax:  varname=value  or in the case of flags, by simply\n"\
+"putting the indicated variable name in the file without a value.\n"\
+"A variable assigned to in one of these files will override values assigned\n"\
+"to the same variable in one of the files read after it.  To turn off an\n"\
+"option and prevent it from being set in a file read later, assign it a\n"\
+"value of 0.  e.g. if TTYSORT is set in /etc/default/mlast, TTYSORT=0 in\n"\
+"a %s file will override it.  Flag options can be turned off on the\n"\
+"command line by following them immediately with '-', e.g. -n- to turn off\n"\
+"the n option in such a way that it cannot be turned on in a config file.\n"\
+"-e: List enabled modem TTYs, then exit.\n"\
+"-T: Print the names of the TTYs that would be searched for, then exit.\n"\
+"-h: Print this help.\n"\
+"-k: Do not read the configuration files.\n"\
+"-<number>: Process only the last <number> login records in the wtmp file.\n"\
+"-n: Show logins as they are found, with no sorting.  This lets output be\n"\
+"    seen without waiting a long time for %s to find the wtmp entry\n"\
+"    for a modem line that has not been logged into for a long time.\n"\
+"    In the configuration file, put NOSORT.\n"\
+"-r: Like -n, but at intervals also reports what lines are still being\n"\
+"    searched for to the standard error output.  The report is printed when\n"\
+"    %d records have been read since the last line was reported on.\n"\
+"-s: Print sorted login records after they have all been found.  This is the\n"\
+"    default, so this option is only used with -n or -r, which causes the\n"\
+"    login records to be printed as they are found, then then printed again\n"\
+"    in sorted order after they have all been found.  (SORTED)\n"\
+"-d: Each time a new day is encountered in the last-login records, print it\n"\
+"    to show how far back login searching has reached.  (SHOWDAY)\n"\
+"-t: Sort by TTY name.   In the configuration file, put TTYSORT.\n"\
+"-l<TTY,..>: Search for last logins on the TTYs given in the comma- or\n"\
+"    space-separated list.  This is another way of specifying which TTYs\n"\
+"    to report on; the alternative is to simply give them as separate\n"\
+"    arguments on the command line, without an option letter.  In the\n"\
+"    configuration file, assign a value to TTYS, e.g. TTYS=1a,2a\n"\
+"-L<TTY,..>: Do not report on the named TTYs even if they are enabled.\n"\
+"    In the configuration file, assign a value to IGNORETTYS, e.g.\n"\
+"    IGNORETTYS=tty1f,tty1g\n"\
+"-i<login,...>: When searching for the last login on a TTY, ignore the\n"\
+"    login names given in the comma-separate list.  Variable: IGNORENAMES.\n"\
+"-o: Do not print header.  In the configuration file, put NOHEADER.\n"\
+"-g<max-time-gap>: Do rudimentary verification of wtmp records by skipping\n"\
+"    records that have timestamps more than <max-time-gap> days different\n"\
+"    than the last (non-skipped) record processed from the same file. \n"\
+"    (MAXTIMEGAP)\n"\
+"-x: Print debugging info.\n",
+	Name,rcFile,rcFile,rcFile,Name,reportInterval
+	exit 0
+    }
+    Year = strftime("%Y")
+    MkMonth2Num()
+    Running = "r" in Options
+    Unsorted = "n" in Options || Running
+    Sorted = !Unsorted || "s" in Options
+    ttySort = "t" in Options
+    Debug = "x" in Options
+    ShowDay = "d" in Options
+    doHeader = !("o" in Options)
+    if ("g" in Options)
+	maxTimeGap = Options["g"] * 86400
+    if ("e" in Options) {
+	NumGettys = FindMGettys(GettyLines)
+	qsortByArbIndex(GettyLines,k)
+	for (i = 1; i <= NumGettys; i++)
+	    print k[i]
+	exit 0
+    }
+    if ("&" in Options)
+	NumLines = " -n " Options["&"]
+    CurTime = systime()
+    if (Debug)
+	printf "Current time: %d\n",CurTime > "/dev/stderr"
+    if ("i" in Options)
+	MakeSet(IgnoreLogins,Options["i"],"[, ]+")
+    if (ARGC > 1) {
+	for (i = 1; i < ARGC; i++)
+	    if (!(ARGV[i] in GettyLines)) {
+		GettyLines[ARGV[i]]
+		NumGettys++
+	    }
+	makeTTYmap(GettyLines,ttyMap)
+    }
+    else if ("l" in Options) {
+	NumGettys = MakeSet(GettyLines,Options["l"],"[, ]+")
+	makeTTYmap(GettyLines,ttyMap)
+    }
+    else {
+	NumGettys = FindMGettys(GettyLines)
+	if ("L" in Options) {
+	    MakeSet(NonGettyLines,Options["L"],"[, ]+")
+	    for (tty in NonGettyLines)
+		if (tty in GettyLines) {
+		    delete GettyLines[tty]
+		    NumGettys--
+		}
+	}
+	for (tty in GettyLines)
+	    ttyMap[tty] = tty
+    }
+    if ("T" in Options) {
+	NumGettys = qsortByArbIndex(GettyLines,k)
+	for (i = 1; i <= NumGettys; i++)
+	    print k[i]
+	exit 0
+    }
+    if (Debug) {
+	printf "Searching for:" > "/dev/stderr"
+	for (Line in GettyLines)
+	    printf " %s",Line > "/dev/stderr"
+	print "" > "/dev/stderr"
+    }
+    Format = "%-9s %-8s %16s %-21s %11s %9s"
+    if (doHeader) {
+	Header = sprintf(Format,"User","TTY","Login date","Dur","Age","Old")
+	# If sorting, hold off on printing header so it doesn't come before
+	# debugging and such that we might be printing
+	if (Unsorted)
+	    print Header
+    }
+    split("/usr/bin/last -w /etc/utmp:/usr/bin/last" NumLines,Cmds,":")
+    for (i = 1; i in Cmds; i++)
+	if (!(NumGettys = \
+	ProcLast(Cmds[i],GettyLines,NumGettys,Last,Ages,Format,IgnoreLogins,
+	ShowDay,(i > 1) ? maxTimeGap : 0)))
+	    break
+    if (Sorted) {
+	if (ttySort) {
+	    if (Debug) {
+		printf "Sorting tty names:" > "/dev/stderr"
+		for (i in Ages)
+		    printf " %s",i > "/dev/stderr"
+		print "" > "/dev/stderr"
+	    }
+	    qsortByArbIndex(Ages,k)
+	}
+	else {
+	    if (Debug) {
+		printf "Sorting ages:" > "/dev/stderr"
+		for (i in Ages)
+		    printf " %s",Ages[i] > "/dev/stderr"
+		print "" > "/dev/stderr"
+	    }
+	    qsortArbIndByValue(Ages,k)
+	}
+	if (Debug)
+	    print "Done sorting." > "/dev/stderr"
+	print Header
+	for (i = 1; i in k; i++)
+	    print Last[k[i]] 
+    }
+}
+
+function makeTTYmap(GettyLines,ttyMap,  names) {
+    for (tty in GettyLines) {
+	ttyMap[tty] = tty
+	bothTTYnames(tty,names)
+	ttyMap[names["upper"]] = tty
+	ttyMap[names["lower"]] = tty
+    }
+}
+
+# Last produces output like this:
+#User     Line  Device       PID    Login time       Elapsed Time Comments
+#rstevew  3C    tty3C        26585  Sun Mar 14 04:05      00:21   logged in
+#   1      2      3            4     5   6   7   8          9       10 ...
+# Globals: Count, LastDay, PrintedDay
+
+function ProcLast(Cmd,GettyLines,NumGettys,Last,Ages,Format,IgnoreLogins,
+ShowDay,maxTimeGap,
+Device,Month,DayOfMonth,TimeElem,Fields,Line,Age,LoginTime,Old,User,
+TimeSinceLogin,Day,lastRec) {
+    # Exit 0 for gawk
+    # Timezone is wiped out so last will print in GMT, to avoid having to
+    # figure daylight savings when comparing last time to current time.
+    Cmd = "TZ= " Cmd "; exit 0"
+    if (Debug)
+	print "Command is: " Cmd > "/dev/stderr"
+    while ((Cmd | getline) == 1) {
+	if (Running && ++reportCount == reportInterval)
+	    lineReport(NumGettys,GettyLines)
+	if (Debug && ++Count == 100) {
+	    Total += Count
+	    Count = 0
+	    if (PrintedDay) {
+		PrintedDay = 0
+		print "" > "/dev/stderr"
+	    }
+	    printf "%d records read (now at %s %s %s %s).\n",
+	    Total,$5,$6,$7,$8 > "/dev/stderr"
+	}
+	if ($1 == "User")
+	    continue
+	if (ShowDay) {
+	    Day = $6 "-" $7
+	    if (Day != LastDay) {
+		if (!PrintedDay) {
+		    printf "Now at" > "/dev/stderr"
+		    PrintedDay = 1
+		}
+		printf " %s",Day > "/dev/stderr"
+		LastDay = Day
+	    }
+	}
+	User = $1
+	Device = $3
+	if (!(Device in ttyMap) || User in IgnoreLogins) {
+	    if (maxTimeGap)
+		lastRec = $0
+	    continue
+	}
+
+	Month = $6
+	DayOfMonth = $7
+	Ages[Device] = LoginTime = lastTime2unixtime(Year,Month,DayOfMonth,$8)
+
+	if (maxTimeGap) {
+	    if (lastRec != "" && !checkGap(maxTimeGap,lastRec,LoginTime,Year)) {
+		lastRec = $0
+		continue
+	    }
+	    lastRec = $0
+	}
+
+	TimeSinceLogin = CurTime - LoginTime
+
+	# Split login duration into hours & minutes
+	split($9,TimeElem,":")
+	# Calculate time since end of last login
+	# Due to the way last calculates login duration, old may end up a
+	# minute longer than it actually is, so subtract 60 seconds.
+	Old = TimeSinceLogin - (TimeElem[1]*3600 + TimeElem[2]*60) - 60
+
+	# Get Comments field by discarding User, Line, Device, PID, and date
+	match($0,"^[^ ]+ +[^ ]+ +[^ ]+ +[^ ]+ +[^ ]+ +[^ ]+ +[^ ]+ +[^ ]+ +")
+	Fields = substr($0,RLENGTH + 1)
+
+	Age = sec2dhm(TimeSinceLogin)
+	if (Old+0 > 60)
+	    Old = sec2dhm(Old)
+	else
+	    Old = ""
+	# Because last login time is given for GMT, must recreate it
+	# with timezone taken into consideration
+	#                     user tty    login date
+	Line = sprintf(Format,User,Device,strftime("%a %b %d %H:%M",LoginTime),
+	Fields,Age,Old)
+	if (Debug) {
+	    if (PrintedDay) {
+		PrintedDay = 0
+		print "" > "/dev/stderr"
+	    }
+	    printf "Found record for %s in output of \"%s\":\n%s\n",
+	    Device,Cmd,$0 > "/dev/stderr"
+	    printf "Date: %d (%s), age: %d (%s)\n",LoginTime,
+	    strftime("%c",LoginTime),TimeSinceLogin,Age > "/dev/stderr"
+	}
+
+	if (Unsorted) {
+	    if (PrintedDay) {
+		PrintedDay = 0
+		print "" > "/dev/stderr"
+	    }
+	    print Line
+	}
+	Last[Device] = Line
+	delete GettyLines[ttyMap[Device]]
+	delete ttyMap[Device]
+	reportCount = 0
+	if (!--NumGettys)
+	    break
+	if (Debug)
+	    lineReport(NumGettys,GettyLines)
+    }
+    if (PrintedDay) {
+	PrintedDay = 0
+	print "" > "/dev/stderr"
+    }
+    close(Cmd)
+    return NumGettys
+}
+
+function checkGap(maxTimeGap,lastRec,LoginTime,Year,  Elem,lastTime) {
+    split(lastRec,Elem," +")
+    lastTime = lastTime2unixtime(Year,Elem[6],Elem[7],Elem[8])
+#    print abs(LoginTime-lastTime)
+    if ((abs(LoginTime - lastTime) > maxTimeGap))
+    {
+	if (PrintedDay) {
+	    PrintedDay = 0
+	    print "" > "/dev/stderr"
+	}
+	printf "Skipping record for %s - time gap too large (%d days)\n",
+	strftime("%B %d %Y",LoginTime),abs(LoginTime - lastTime)/86400 \
+	> "/dev/stderr"
+	return 0
+    }
+    return 1
+}
+
+function lastTime2unixtime(Year,Month,Day,Time,  TimeElem) {
+    split(Time,TimeElem,":")
+    return unixtime(Year,Month2Num[Month],Day,TimeElem[1],TimeElem[2],0)
+}
+
+function lineReport(NumGettys,GettyLines,  Device) {
+    if (PrintedDay) {
+	PrintedDay = 0
+	print "" > "/dev/stderr"
+    }
+    printf "Still searching for %d line(s):",NumGettys > "/dev/stderr"
+    for (Device in GettyLines)
+	printf " %s",Device > "/dev/stderr"
+    print "" > "/dev/stderr"
+}
+
+# Getty lines:
+#01:2345:respawn:/etc/getty tty01 sc_m
+#3A:23:respawn:/usr/lib/uucp/uugetty -t60 tty3A 3
+
+function FindGettys(GettyLines,  Line,F,Elem,NumGettys,Cmd,File) {
+    File = "/etc/inittab"
+    while ((getline Line < File) == 1) {
+	if (Line ~ "^#")
+	    continue
+	split(Line,F,":")
+	if (F[3] == "respawn" && F[4] ~ "^[^ \t]*getty ") {
+	    split(F[4],Cmd,"[ \t]+")
+	    for (Elem = 2; Elem in Cmd; Elem++)
+		if (Cmd[Elem] ~ "(^|/)tty") {
+		    GettyLines[Cmd[Elem]]
+		    NumGettys++
+		    break
+		}
+	}
+    }
+    close(File)
+    return NumGettys
+}
+
+function FindMGettys(GettyLines,  Elem,NumGettys) {
+    NumGettys = FindGettys(GettyLines)
+    for (Elem in GettyLines)
+	if (Elem !~ "[A-Z]") {
+	    delete GettyLines[Elem]
+	    NumGettys--
+	}
+    return NumGettys
+}
+
+# MakeSet: make a set from a list.
+# An index with the name of each element of the list
+# is created in the given array.
+# Input variables: 
+# Elements is a string containing the list of elements.
+# Sep is the character that separates the elements of the list.
+# Output variables:
+# Set is the array.
+# Return value: the number of elements added to the set.
+function MakeSet(Set,Elements,Sep,  i,Num,Names) {
+    Num = split(Elements,Names,Sep)
+    for (i = 1; i <= Num; i++)
+	Set[Names[i]]
+    return Num
+}
+
+### Begin qsort routines
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k[] are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its elements.
+# The return value is the number of elements in the arrays (n).
+function qsortArbIndByValue(Arr,k,  ArrInd,ElNum) {
+    ElNum = 0
+    for (ArrInd in Arr)
+	k[++ElNum] = ArrInd
+    qsortSegment(Arr,k,1,ElNum)
+    return ElNum
+}
+
+# Sort a segment of an array.
+# Arr[] contains data with arbitrary indices.
+# k[] has indices 1..nelem, with the indices of arr[] as values.
+# This function sorts the elements of arr that are pointed to by
+# k[start..end], swapping the values of elements of k[] so that
+# when this function returns arr[k[start..end]] will be in order.
+function qsortSegment(Arr,k,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((end - start) == 1) {
+	if (Arr[tmps = k[start]] > Arr[tmpe = k[end]]) {
+	    k[start] = tmpe
+	    k[end] = tmps
+	}
+	return
+    }
+    # Make sure comparisons act on these as numbers
+    left = start+0
+    right = end+0
+    sepval = Arr[k[int((left + right) / 2)]]
+    # Make every element <= sepval be to the left of every element > sepval
+    while (left < right) {
+	while (Arr[k[left]] < sepval)
+	    left++
+	while (Arr[k[right]] > sepval)
+	    right--
+	if (left < right) {
+	    tmp = k[left]
+	    k[left++] = k[right]
+	    k[right--] = tmp
+	}
+    }
+    if (left == right)
+	if (Arr[k[left]] < sepval)
+	    left++
+	else
+	    right--
+    if (start < right)
+	qsortSegment(Arr,k,start,right)
+    if (left < end)
+	qsortSegment(Arr,k,left,end)
+}
+
+# Arr[] is an array of values with arbitrary indices.
+# k[] is returned with numeric indices 1..n.
+# The values in k are the indices of Arr[],
+# ordered so that if Arr[] is stepped through
+# in the order Arr[k[1]] .. Arr[k[n]], it will be stepped
+# through in order of the values of its indices.
+# The return value is the number of elements in the arrays (n).
+# If the indexes are numeric, Numeric should be true, so that they can be
+# compared as such rather than as strings.  Numeric indexes do not have to be
+# contiguous.
+function qsortByArbIndex(Arr,k,Numeric,  ArrInd,ElNum) {
+    ElNum = 0
+    if (Numeric)
+	# Indexes do not preserve numeric type, so must be forced
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd+0
+    else
+	for (ArrInd in Arr)
+	    k[++ElNum] = ArrInd
+    qsortNumIndByValue(k,1,ElNum)
+    return ElNum
+}
+
+# Arr is an array of elements with contiguous numeric indexes to be sorted
+# by value.
+# start and end are the starting and ending indexes of the range to be sorted.
+function qsortNumIndByValue(Arr,start,end,  left,right,sepval,tmp,tmpe,tmps) {
+    # handle two-element case explicitly for a tiny speedup
+    if ((start - end) == 1) {
+	if ((tmps = Arr[start]) > (tmpe = Arr[end])) {
+	    Arr[start] = tmpe
+	    Arr[end] = tmps
+	}
+	return
+    }
+    left = start+0
+    right = end+0
+    sepval = Arr[int((left + right) / 2)]
+    while (left < right) {
+	while (Arr[left] < sepval)
+	    left++
+	while (Arr[right] > sepval)
+	    right--
+	if (left <= right) {
+	    tmp = Arr[left]
+	    Arr[left++] = Arr[right]
+	    Arr[right--] = tmp
+	}
+    }
+    if (start < right)
+	qsortNumIndByValue(Arr,start,right)
+    if (left < end)
+	qsortNumIndByValue(Arr,left,end)
+}
+
+### End qsort routines
+
+### Start of ProcArgs library
+# @(#) ProcArgs 1.11 96/12/08
+# 92/02/29 john h. dubois iii (john@armory.com)
+# 93/07/18 Added "#" arg type
+# 93/09/26 Do not count -h against MinArgs
+# 94/01/01 Stop scanning at first non-option arg.  Added ">" option type.
+#          Removed meaning of "+" or "-" by itself.
+# 94/03/08 Added & option and *()< option types.
+# 94/04/02 Added NoRCopt to Opts()
+# 94/06/11 Mark numeric variables as such.
+# 94/07/08 Opts(): Do not require any args if h option is given.
+# 95/01/22 Record options given more than once.  Record option num in argv.
+# 95/06/08 Added ExclusiveOptions().
+# 96/01/20 Let rcfiles be a colon-separated list of filenames.
+#          Expand $VARNAME at the start of its filenames.
+#          Let varname=0 and -option- turn off an option.
+# 96/05/05 Changed meaning of 7th arg to Opts; now can specify exactly how many
+#          of the vars should be searched for in the environment.
+#          Check for duplicate rcfiles.
+# 96/05/13 Return more specific error values.  Note: ProcArgs() and InitOpts()
+#          now return various negatives values on error, not just -1, and
+#          Opts() may set Err to various positive values, not just 1.
+#          Added AllowUnrecOpt.
+# 96/05/23 Check type given for & option
+# 96/06/15 Re-port to awk
+# 96/10/01 Moved file-reading code into ReadConfFile(), so that it can be
+#          used by other functions.
+# 96/10/15 Added OptChars
+# 96/11/01 Added exOpts arg to Opts()
+# 96/11/16 Added ; type
+# 96/12/08 Added Opt2Set() & Opt2Sets()
+# 96/12/27 Added CmdLineOpt()
+
+# optlist is a string which contains all of the possible command line options.
+# A character followed by certain characters indicates that the option takes
+# an argument, with type as follows:
+# :	String argument
+# ;	Non-empty string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# The only difference the type of argument makes is in the runtime argument
+# error checking that is done.
+
+# The & option is a special case used to get numeric options without the
+# user having to give an option character.  It is shorthand for [-+.0-9].
+# If & is included in optlist and an option string that begins with one of
+# these characters is seen, the value given to "&" will include the first
+# char of the option.  & must be followed by a type character other than ":"
+# or ";".
+# Note that if e.g. &> is given, an option of -.5 will produce an error.
+
+# Strings in argv[] which begin with "-" or "+" are taken to be
+# strings of options, except that a string which consists solely of "-"
+# or "+" is taken to be a non-option string; like other non-option strings,
+# it stops the scanning of argv and is left in argv[].
+# An argument of "--" or "++" also stops the scanning of argv[] but is removed.
+# If an option takes an argument, the argument may either immediately
+# follow it or be given separately.
+# "-" and "+" options are treated the same.  "+" is allowed because most awks
+# take any -options to be arguments to themselves.  gawk 2.15 was enhanced to
+# stop scanning when it encounters an unrecognized option, though until 2.15.5
+# this feature had a flaw that caused problems in some cases.  See the OptChars
+# parameter to explicitly set the option-specifier characters.
+
+# If an option that does not take an argument is given,
+# an index with its name is created in Options and its value is set to the
+# number of times it occurs in argv[].
+
+# If an option that does take an argument is given, an index with its name is
+# created in Options and its value is set to the value of the argument given
+# for it, and Options[option-name,"count"] is (initially) set to the 1.
+# If an option that takes an argument is given more than once,
+# Options[option-name,"count"] is incremented, and the value is assigned to
+# the index (option-name,instance) where instance is 2 for the second occurance
+# of the option, etc.
+# In other words, the first time an option with a value is encountered, the
+# value is assigned to an index consisting only of its name; for any further
+# occurances of the option, the value index has an extra (count) dimension.
+
+# The sequence number for each option found in argv[] is stored in
+# Options[option-name,"num",instance], where instance is 1 for the first
+# occurance of the option, etc.  The sequence number starts at 1 and is
+# incremented for each option, both those that have a value and those that
+# do not.  Options set from a config file have a value of 0 assigned to this.
+
+# Options and their arguments are deleted from argv.
+# Note that this means that there may be gaps left in the indices of argv[].
+# If compress is nonzero, argv[] is packed by moving its elements so that
+# they have contiguous integer indices starting with 0.
+# Option processing will stop with the first unrecognized option, just as
+# though -- was given except that unlike -- the unrecognized option will not be
+# removed from ARGV[].  Normally, an error value is returned in this case.
+# If AllowUnrecOpt is true, it is not an error for an unrecognized option to
+# be found, so the number of remaining arguments is returned instead.
+# If OptChars is not a null string, it is the set of characters that indicate
+# that an argument is an option string if the string begins with one of the
+# characters.  A string consisting solely of two of the same option-indicator
+# characters stops the scanning of argv[].  The default is "-+".
+# argv[0] is not examined.
+# The number of arguments left in argc is returned.
+# If an error occurs, the global string OptErr is set to an error message
+# and a negative value is returned.
+# Current error values:
+# -1: option that required an argument did not get it.
+# -2: argument of incorrect type supplied for an option.
+# -3: unrecognized (invalid) option.
+function ProcArgs(argc,argv,OptList,Options,compress,AllowUnrecOpt,OptChars,
+ArgNum,ArgsLeft,Arg,ArgLen,ArgInd,Option,Pos,NumOpt,Value,HadValue,specGiven,
+NeedNextOpt,GotValue,OptionNum,Escape,dest,src,count,c,OptTerm,OptCharSet)
+{
+# ArgNum is the index of the argument being processed.
+# ArgsLeft is the number of arguments left in argv.
+# Arg is the argument being processed.
+# ArgLen is the length of the argument being processed.
+# ArgInd is the position of the character in Arg being processed.
+# Option is the character in Arg being processed.
+# Pos is the position in OptList of the option being processed.
+# NumOpt is true if a numeric option may be given.
+    ArgsLeft = argc
+    NumOpt = index(OptList,"&")
+    OptionNum = 0
+    if (OptChars == "")
+	OptChars = "-+"
+    while (OptChars != "") {
+	c = substr(OptChars,1,1)
+	OptChars = substr(OptChars,2)
+	OptCharSet[c]
+	OptTerm[c c]
+    }
+    for (ArgNum = 1; ArgNum < argc; ArgNum++) {
+	Arg = argv[ArgNum]
+	if (length(Arg) < 2 || !((specGiven = substr(Arg,1,1)) in OptCharSet))
+	    break	# Not an option; quit
+	if (Arg in OptTerm) {
+	    delete argv[ArgNum]
+	    ArgsLeft--
+	    break
+	}
+	ArgLen = length(Arg)
+	for (ArgInd = 2; ArgInd <= ArgLen; ArgInd++) {
+	    Option = substr(Arg,ArgInd,1)
+	    if (NumOpt && Option ~ /[-+.0-9]/) {
+		# If this option is a numeric option, make its flag be & and
+		# its option string flag position be the position of & in
+		# the option string.
+		Option = "&"
+		Pos = NumOpt
+		# Prefix Arg with a char so that ArgInd will point to the
+		# first char of the numeric option.
+		Arg = "&" Arg
+		ArgLen++
+	    }
+	    # Find position of flag in option string, to get its type (if any).
+	    # Disallow & as literal flag.
+	    else if (!(Pos = index(OptList,Option)) || Option == "&") {
+		if (AllowUnrecOpt) {
+		    Escape = 1
+		    break
+		}
+		else {
+		    OptErr = "Invalid option: " specGiven Option
+		    return -3
+		}
+	    }
+
+	    # Find what the value of the option will be if it takes one.
+	    # NeedNextOpt is true if the option specifier is the last char of
+	    # this arg, which means that if the option requires a value it is
+	    # the next arg.
+	    if (NeedNextOpt = (ArgInd >= ArgLen)) { # Value is the next arg
+		if (GotValue = ArgNum + 1 < argc)
+		    Value = argv[ArgNum+1]
+	    }
+	    else {	# Value is included with option
+		Value = substr(Arg,ArgInd + 1)
+		GotValue = 1
+	    }
+
+	    if (HadValue = AssignVal(Option,Value,Options,
+	    substr(OptList,Pos + 1,1),GotValue,"",++OptionNum,!NeedNextOpt,
+	    specGiven)) {
+		if (HadValue < 0)	# error occured
+		    return HadValue
+		if (HadValue == 2)
+		    ArgInd++	# Account for the single-char value we used.
+		else {
+		    if (NeedNextOpt) {	# option took next arg as value
+			delete argv[++ArgNum]
+			ArgsLeft--
+		    }
+		    break	# This option has been used up
+		}
+	    }
+	}
+	if (Escape)
+	    break
+	# Do not delete arg until after processing of it, so that if it is not
+	# recognized it can be left in ARGV[].
+	delete argv[ArgNum]
+	ArgsLeft--
+    }
+    if (compress != 0) {
+	dest = 1
+	src = argc - ArgsLeft + 1
+	for (count = ArgsLeft - 1; count; count--) {
+	    ARGV[dest] = ARGV[src]
+	    dest++
+	    src++
+	}
+    }
+    return ArgsLeft
+}
+
+# Assignment to values in Options[] occurs only in this function.
+# Option: Option specifier character.
+# Value: Value to be assigned to option, if it takes a value.
+# Options[]: Options array to return values in.
+# ArgType: Argument type specifier character.
+# GotValue: Whether any value is available to be assigned to this option.
+# Name: Name of option being processed.
+# OptionNum: Number of this option (starting with 1) if set in argv[],
+#     or 0 if it was given in a config file or in the environment.
+# SingleOpt: true if the value (if any) that is available for this option was
+#     given as part of the same command line arg as the option.  Used only for
+#     options from the command line.
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Global variables: OptErr
+# Return value: negative value on error, 0 if option did not require an
+# argument, 1 if it did & used the whole arg, 2 if it required just one char of
+# the arg.
+# Current error values:
+# -1: Option that required an argument did not get it.
+# -2: Value of incorrect type supplied for option.
+# -3: Bad type given for option &
+function AssignVal(Option,Value,Options,ArgType,GotValue,Name,OptionNum,
+SingleOpt,specGiven,  UsedValue,Err,NumTypes) {
+    # If option takes a value...    [
+    NumTypes = "*()#<>]"
+    if (Option == "&" && ArgType !~ "[" NumTypes) {	# ]
+	OptErr = "Bad type given for & option"
+	return -3
+    }
+
+    if (UsedValue = (ArgType ~ "[:;" NumTypes)) {	# ]
+	if (!GotValue) {
+	    if (Name != "")
+		OptErr = "Variable requires a value -- " Name
+	    else
+		OptErr = "option requires an argument -- " Option
+	    return -1
+	}
+	if ((Err = CheckType(ArgType,Value,Option,Name,specGiven)) != "") {
+	    OptErr = Err
+	    return -2
+	}
+	# Mark this as a numeric variable; will be propogated to Options[] val.
+	if (ArgType != ":" && ArgType != ";")
+	    Value += 0
+	if ((Instance = ++Options[Option,"count"]) > 1)
+	    Options[Option,Instance] = Value
+	else
+	    Options[Option] = Value
+    }
+    # If this is an environ or rcfile assignment & it was given a value...
+    else if (!OptionNum && Value != "") {
+	UsedValue = 1
+	# If the value is "0" or "-" and this is the first instance of it,
+	# do not set Options[Option]; this allows an assignment in an rcfile to
+	# turn off an option (for the simple "Option in Options" test) in such
+	# a way that it cannot be turned on in a later file.
+	if (!(Option in Options) && (Value == "0" || Value == "-"))
+	    Instance = 1
+	else
+	    Instance = ++Options[Option]
+	# Save the value even though this is a flag
+	Options[Option,Instance] = Value
+    }
+    # If this is a command line flag and has a - following it in the same arg,
+    # it is being turned off.
+    else if (OptionNum && SingleOpt && substr(Value,1,1) == "-") {
+	UsedValue = 2
+	if (Option in Options)
+	    Instance = ++Options[Option]
+	else
+	    Instance = 1
+	Options[Option,Instance]
+    }
+    # If this is a flag assignment without a value, increment the count for the
+    # flag unless it was turned off.  The indicator for a flag being turned off
+    # is that the flag index has not been set in Options[] but it has an
+    # instance count.
+    else if (Option in Options || !((Option,1) in Options))
+	# Increment number of times this flag seen; will inc null value to 1
+	Instance = ++Options[Option]
+    Options[Option,"num",Instance] = OptionNum
+    return UsedValue
+}
+
+# Option is the option letter
+# Value is the value being assigned
+# Name is the var name of the option, if any
+# ArgType is one of:
+# :	String argument
+# ;	Non-null string argument
+# *	Floating point argument
+# (	Non-negative floating point argument
+# )	Positive floating point argument
+# #	Integer argument
+# <	Non-negative integer argument
+# >	Positive integer argument
+# specGiven is the option specifier character use, if any (e.g. - or +),
+# for use in error messages.
+# Returns null on success, err string on error
+function CheckType(ArgType,Value,Option,Name,specGiven,  Err,ErrStr) {
+    if (ArgType == ":")
+	return ""
+    if (ArgType == ";") {
+	if (Value == "")
+	    Err = "must be a non-empty string"
+    }
+    # A number begins with optional + or -, and is followed by a string of
+    # digits or a decimal with digits before it, after it, or both
+    else if (Value !~ /^[-+]?([0-9]+|[0-9]*\.[0-9]+|[0-9]+\.)$/)
+	Err = "must be a number"
+    else if (ArgType ~ "[#<>]" && Value ~ /\./)
+	Err = "may not include a fraction"
+    else if (ArgType ~ "[()<>]" && Value < 0)
+	Err = "may not be negative"
+    # (
+    else if (ArgType ~ "[)>]" && Value == 0)
+	Err = "must be a positive number"
+    if (Err != "") {
+	ErrStr = "Bad value \"" Value "\".  Value assigned to "
+	if (Name != "")
+	    return ErrStr "variable " substr(Name,1,1) " " Err
+	else {
+	    if (Option == "&")
+		Option = Value
+	    return ErrStr "option " specGiven substr(Option,1,1) " " Err
+	}
+    }
+    else
+	return ""
+}
+
+# Note: only the above functions are needed by ProcArgs.
+# The rest of these functions call ProcArgs() and also do other
+# option-processing stuff.
+
+# Opts: Process command line arguments.
+# Opts processes command line arguments using ProcArgs()
+# and checks for errors.  If an error occurs, a message is printed
+# and the program is exited.
+#
+# Input variables:
+# Name is the name of the program, for error messages.
+# Usage is a usage message, for error messages.
+# OptList the option description string, as used by ProcArgs().
+# MinArgs is the minimum number of non-option arguments that this
+# program should have, non including ARGV[0] and +h.
+# If the program does not require any non-option arguments,
+# MinArgs should be omitted or given as 0.
+# rcFiles, if given, is a colon-seprated list of filenames to read for
+# variable initialization.  If a filename begins with ~/, the ~ is replaced
+# by the value of the environment variable HOME.  If a filename begins with
+# $, the part from the character after the $ up until (but not including)
+# the first character not in [a-zA-Z0-9_] will be searched for in the
+# environment; if found its value will be substituted, if not the filename will
+# be discarded.
+# rcfiles are read in the order given.
+# Values given in them will not override values given on the command line,
+# and values given in later files will not override those set in earlier
+# files, because AssignVal() will store each with a different instance index.
+# The first instance of each variable, either on the command line or in an
+# rcfile, will be stored with no instance index, and this is the value
+# normally used by programs that call this function.
+# VarNames is a comma-separated list of variable names to map to options,
+# in the same order as the options are given in OptList.
+# If EnvSearch is given and nonzero, the first EnvSearch variables will also be
+# searched for in the environment.  If set to -1, all values will be searched
+# for in the environment.  Values given in the environment will override
+# those given in the rcfiles but not those given on the command line.
+# NoRCopt, if given, is an additional letter option that if given on the
+# command line prevents the rcfiles from being read.
+# See ProcArgs() for a description of AllowUnRecOpt and optChars, and
+# ExclusiveOptions() for a description of exOpts.
+# Special options:
+# If x is made an option and is given, some debugging info is output.
+# h is assumed to be the help option.
+
+# Global variables:
+# The command line arguments are taken from ARGV[].
+# The arguments that are option specifiers and values are removed from
+# ARGV[], leaving only ARGV[0] and the non-option arguments.
+# The number of elements in ARGV[] should be in ARGC.
+# After processing, ARGC is set to the number of elements left in ARGV[].
+# The option values are put in Options[].
+# On error, Err is set to a positive integer value so it can be checked for in
+# an END block.
+# Return value: The number of elements left in ARGV is returned.
+# Must keep OptErr global since it may be set by InitOpts().
+function Opts(Name,Usage,OptList,MinArgs,rcFiles,VarNames,EnvSearch,NoRCopt,
+AllowUnrecOpt,optChars,exOpts,  ArgsLeft,e) {
+    if (MinArgs == "")
+	MinArgs = 0
+    ArgsLeft = ProcArgs(ARGC,ARGV,OptList NoRCopt,Options,1,AllowUnrecOpt,
+    optChars)
+    if (ArgsLeft < (MinArgs+1) && !("h" in Options)) {
+	if (ArgsLeft >= 0) {
+	    OptErr = "Not enough arguments"
+	    Err = 4
+	}
+	else
+	    Err = -ArgsLeft
+	printf "%s: %s.\nUse -h for help.\n%s\n",
+	Name,OptErr,Usage > "/dev/stderr"
+	exit 1
+    }
+    if (rcFiles != "" && (NoRCopt == "" || !(NoRCopt in Options)) &&
+    (e = InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch)) < 0)
+    {
+	print Name ": " OptErr ".\nUse -h for help." > "/dev/stderr"
+	Err = -e
+	exit 1
+    }
+    if ((exOpts != "") && ((OptErr = ExclusiveOptions(exOpts,Options)) != ""))
+    {
+	printf "%s: Error: %s\n",Name,OptErr > "/dev/stderr"
+	Err = 1
+	exit 1
+    }
+    return ArgsLeft
+}
+
+# ReadConfFile(): Read a file containing var/value assignments, in the form
+# <variable-name><assignment-char><value>.
+# Whitespace (spaces and tabs) around a variable (leading whitespace on the
+# line and whitespace between the variable name and the assignment character) 
+# is stripped.  Lines that do not contain an assignment operator or which
+# contain a null variable name are ignored, other than possibly being noted in
+# the return value.  If more than one assignment is made to a variable, the
+# first assignment is used.
+# Input variables:
+# File is the file to read.
+# Comment is the line-comment character.  If it is found as the first non-
+#     whitespace character on a line, the line is ignored.
+# Assign is the assignment string.  The first instance of Assign on a line
+#     separates the variable name from its value.
+# If StripWhite is true, whitespace around the value (whitespace between the
+#     assignment char and trailing whitespace on the line) is stripped.
+# VarPat is a pattern that variable names must match.  
+#     Example: "^[a-zA-Z][a-zA-Z0-9]+$"
+# If FlagsOK is true, variables are allowed to be "set" by being put alone on
+#     a line; no assignment operator is needed.  These variables are set in
+#     the output array with a null value.  Lines containing nothing but
+#     whitespace are still ignored.
+# Output variables:
+# Values[] contains the assignments, with the indexes being the variable names
+#     and the values being the assigned values.
+# Lines[] contains the line number that each variable occured on.  A flag set
+#     is record by giving it an index in Lines[] but not in Values[].
+# Return value:
+# If any errors occur, a string consisting of descriptions of the errors
+# separated by newlines is returned.  In no case will the string start with a
+# numeric value.  If no errors occur,  the number of lines read is returned.
+function ReadConfigFile(Values,Lines,File,Comment,Assign,StripWhite,VarPat,
+FlagsOK,
+Line,Status,Errs,AssignLen,LineNum,Var,Val) {
+    if (Comment != "")
+	Comment = "^" Comment
+    AssignLen = length(Assign)
+    if (VarPat == "")
+	VarPat = "."	# null varname not allowed
+    while ((Status = (getline Line < File)) == 1) {
+	LineNum++
+	sub("^[ \t]+","",Line)
+	if (Line == "")		# blank line
+	    continue
+	if (Comment != "" && Line ~ Comment)
+	    continue
+	if (Pos = index(Line,Assign)) {
+	    Var = substr(Line,1,Pos-1)
+	    Val = substr(Line,Pos+AssignLen)
+	    if (StripWhite) {
+		sub("^[ \t]+","",Val)
+		sub("[ \t]+$","",Val)
+	    }
+	}
+	else {
+	    Var = Line	# If no value, var is entire line
+	    Val = ""
+	}
+	if (!FlagsOK && Val == "") {
+	    Errs = Errs \
+	    sprintf("\nBad assignment on line %d of file %s: %s",
+	    LineNum,File,Line)
+	    continue
+	}
+	sub("[ \t]+$","",Var)
+	if (Var !~ VarPat) {
+	    Errs = Errs sprintf("\nBad variable name on line %d of file %s: %s",
+	    LineNum,File,Var)
+	    continue
+	}
+	if (!(Var in Lines)) {
+	    Lines[Var] = LineNum
+	    if (Pos)
+		Values[Var] = Val
+	}
+    }
+    if (Status)
+	Errs = Errs "\nCould not read file " File
+    close(File)
+    return Errs == "" ? LineNum : substr(Errs,2)	# Skip first newline
+}
+
+# Variables:
+# Data is stored in Options[].
+# rcFiles, OptList, VarNames, and EnvSearch are as as described for Opts().
+# Global vars:
+# Sets OptErr.  Uses ENVIRON[].
+# If anything is read from any of the rcfiles, sets READ_RCFILE to 1.
+function InitOpts(rcFiles,Options,OptList,VarNames,EnvSearch,
+Line,Var,Pos,Vars,Map,CharOpt,NumVars,TypesInd,Types,Type,Ret,i,rcFile,
+fNames,numrcFiles,filesRead,Err,Values,retStr) {
+    split("",filesRead,"")	# make awk know this is an array
+    NumVars = split(VarNames,Vars,",")
+    TypesInd = Ret = 0
+    if (EnvSearch == -1)
+	EnvSearch = NumVars
+    for (i = 1; i <= NumVars; i++) {
+	Var = Vars[i]
+	CharOpt = substr(OptList,++TypesInd,1)
+	if (CharOpt ~ "^[:;*()#<>&]$")
+	    CharOpt = substr(OptList,++TypesInd,1)
+	Map[Var] = CharOpt
+	Types[Var] = Type = substr(OptList,TypesInd+1,1)
+	# Do not overwrite entries from environment
+	if (i <= EnvSearch && Var in ENVIRON &&
+	(Err = AssignVal(CharOpt,ENVIRON[Var],Options,Type,1,Var,0)) < 0)
+	    return Err
+    }
+
+    numrcFiles = split(rcFiles,fNames,":")
+    for (i = 1; i <= numrcFiles; i++) {
+	rcFile = fNames[i]
+	if (rcFile ~ "^~/")
+	    rcFile = ENVIRON["HOME"] substr(rcFile,2)
+	else if (rcFile ~ /^\$/) {
+	    rcFile = substr(rcFile,2)
+	    match(rcFile,"^[a-zA-Z0-9_]*")
+	    envvar = substr(rcFile,1,RLENGTH)
+	    if (envvar in ENVIRON)
+		rcFile = ENVIRON[envvar] substr(rcFile,RLENGTH+1)
+	    else
+		continue
+	}
+	if (rcFile in filesRead)
+	    continue
+	# rcfiles are liable to be given more than once, e.g. UHOME and HOME
+	# may be the same
+	filesRead[rcFile]
+	if ("x" in Options)
+	    printf "Reading configuration file %s\n",rcFile > "/dev/stderr"
+	retStr = ReadConfigFile(Values,Lines,rcFile,"#","=",0,"",1)
+	if (retStr > 0)
+	    READ_RCFILE = 1
+	else if (ret != "") {
+	    OptErr = retStr
+	    Ret = -1
+	}
+	for (Var in Lines)
+	    if (Var in Map) {
+		if ((Err = AssignVal(Map[Var],
+		Var in Values ? Values[Var] : "",Options,Types[Var],
+		Var in Values,Var,0)) < 0)
+		    return Err
+	    }
+	    else {
+		OptErr = sprintf(\
+		"Unknown var \"%s\" assigned to on line %d\nof file %s",Var,
+		Lines[Var],rcFile)
+		Ret = -1
+	    }
+    }
+
+    if ("x" in Options)
+	for (Var in Map)
+	    if (Map[Var] in Options)
+		printf "(%s) %s=%s\n",Map[Var],Var,Options[Map[Var]] > \
+		"/dev/stderr"
+	    else
+		printf "(%s) %s not set\n",Map[Var],Var > "/dev/stderr"
+    return Ret
+}
+
+# OptSets is a semicolon-separated list of sets of option sets.
+# Within a list of option sets, the option sets are separated by commas.  For
+# each set of sets, if any option in one of the sets is in Options[] AND any
+# option in one of the other sets is in Options[], an error string is returned.
+# If no conflicts are found, nothing is returned.
+# Example: if OptSets = "ab,def,g;i,j", an error will be returned due to
+# the exclusions presented by the first set of sets (ab,def,g) if:
+# (a or b is in Options[]) AND (d, e, or f is in Options[]) OR
+# (a or b is in Options[]) AND (g is in Options) OR
+# (d, e, or f is in Options[]) AND (g is in Options)
+# An error will be returned due to the exclusions presented by the second set
+# of sets (i,j) if: (i is in Options[]) AND (j is in Options[]).
+# todo: make options given on command line unset options given in config file
+# todo: that they conflict with.
+function ExclusiveOptions(OptSets,Options,
+Sets,SetSet,NumSets,Pos1,Pos2,Len,s1,s2,c1,c2,ErrStr,L1,L2,SetSets,NumSetSets,
+SetNum,OSetNum) {
+    NumSetSets = split(OptSets,SetSets,";")
+    # For each set of sets...
+    for (SetSet = 1; SetSet <= NumSetSets; SetSet++) {
+	# NumSets is the number of sets in this set of sets.
+	NumSets = split(SetSets[SetSet],Sets,",")
+	# For each set in a set of sets except the last...
+	for (SetNum = 1; SetNum < NumSets; SetNum++) {
+	    s1 = Sets[SetNum]
+	    L1 = length(s1)
+	    for (Pos1 = 1; Pos1 <= L1; Pos1++)
+		# If any of the options in this set was given, check whether
+		# any of the options in the other sets was given.  Only check
+		# later sets since earlier sets will have already been checked
+		# against this set.
+		if ((c1 = substr(s1,Pos1,1)) in Options)
+		    for (OSetNum = SetNum+1; OSetNum <= NumSets; OSetNum++) {
+			s2 = Sets[OSetNum]
+			L2 = length(s2)
+			for (Pos2 = 1; Pos2 <= L2; Pos2++)
+			    if ((c2 = substr(s2,Pos2,1)) in Options)
+				ErrStr = ErrStr "\n"\
+				sprintf("Cannot give both %s and %s options.",
+				c1,c2)
+		    }
+	}
+    }
+    if (ErrStr != "")
+	return substr(ErrStr,2)
+    return ""
+}
+
+# The value of each instance of option Opt that occurs in Options[] is made an
+# index of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Set(Options,Opt,Set,  count) {
+    if (!(Opt in Options))
+	return 0
+    Set[Options[Opt]]
+    count = Options[Opt,"count"]
+    for (; count > 1; count--)
+	Set[Options[Opt,count]]
+    return count
+}
+
+# The value of each instance of option Opt that occurs in Options[] that
+# begins with "!" is made an index of nSet[] (with the ! stripped from it).
+# Other values are made indexes of Set[].
+# The return value is the number of instances of Opt in Options.
+function Opt2Sets(Options,Opt,Set,nSet,  count,aSet,ret) {
+    ret = Opt2Set(Options,Opt,aSet)
+    for (value in aSet)
+	if (substr(value,1,1) == "!")
+	    nSet[substr(value,2)]
+	else
+	    Set[value]
+    return ret
+}
+
+# Returns true if option Opt was given on the command line.
+function CmdLineOpt(Options,Opt,  i) {
+    for (i = 1; (Opt,"num",i) in Options; i++)
+	if (Options[Opt,"num",i] != 0)
+	    return 1
+    return 0
+}
+### End of ProcArgs library
+### Begin timedate routines.
+# These functions operate on absolute dates & times.
+
+# convert month/day or year/month/day date to yymmdd date
+# uses global "year" var if year not given
+function makedate(InDate,Elements,d,date) {
+    Elements = split(InDate,d,"/")
+    date = d[1] * 100 + d[2]
+    if (Elements == 2)
+	date += year
+    else if (Elements == 3)
+	date = date * 100 + d[3]
+    else
+	return -1
+    return date
+}
+
+# convert yymmdd date to yy/mm/dd date
+function unmakedate(Date) {
+    return substr(Date,1,2) "/" substr(Date,3,2) "/" substr(Date,5,2)
+}
+
+function MkMonth2Num(  Month) {
+    split("Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",Months,",")
+    for (Month in Months)
+	Month2Num[Months[Month]] = sprintf("%02d",Month)
+}
+
+# Takes a date and stores its components in the following elements of Date[]:
+# year	yy
+# month	mm
+# day	dd
+# hour	hh
+# min	mm
+# The following are set in Date[] if given:
+# tz	TTT|offset
+# lyear	yyyy
+# weekday Www
+# sec	ss
+
+# On success, the date in touch/date/etc. format (MMddhhmmyy) is returned.
+# On failure, a negative value is returned.
+
+# InDate form:
+# [Weekday[,] (Month [d]d)|([d]d Month) TZ|time|year TZ|time|year [TZ|time|year]
+# where Www is a weekday name that starts with a recognized 3-char prefix,
+# Month is a month name that starts with a recognized 3-char prefix,
+# [d]d is a day of the month,
+# TZ is a timezone name (three upper case alpha chars) or offset from GMT
+# as [-+]NNNN, time is of the form [h]h:mm[:ss],
+# and year is of the form [cc]nn where cc is >= 19.
+# Common patterns for a particular date:
+# [Tue[,]]	Jun	12	11:02:46	[BST|-0800]	[19]90
+# [Tue[,]]	12	Jun	[19]90		11:02:46	[BST|-0800]
+function ParseDate(InDate,Date,  El,MonthName,TimeEl,i,Months,Ind,Num) {
+    if (!("Jan" in Month2Num)) {
+	MkMonth2Num()
+	split("month,day,hour,min,year",TouchParts,",")
+    }
+    # Clear Date[]
+    split("",Date," ")
+    Num = split(InDate,El," +")
+    if (!(4 <= Num && Num <= 6))
+	return -1
+    Ind = 1
+    if (El[Ind] ~ "^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*,?") {
+	Date["weekday"] = substr(El[Ind],1,3)
+	Ind++
+    }
+    if ((El[Ind] + 0) > 0) {
+	Date["day"] = sprintf("%02d",El[Ind++])
+	MonthName = substr(El[Ind++],1,3)
+    }
+    else {
+	MonthName = substr(El[Ind++],1,3)
+	Date["day"] = sprintf("%02d",El[Ind++])
+    }
+    if ((Date["day"] + 0 > 31) || (Date["day"] + 0 < 1))
+	return -5
+    if (!(MonthName in Month2Num))
+	return -3
+    Date["month"] = Month2Num[MonthName]
+    for (; Ind <= Num; Ind++) {
+	if ((El[Ind] ~ "^[0-2]?[0-9]:[0-5][0-9](:[0-5][0-9])?$") && \
+	!("hour" in Date)) {
+	    split(El[Ind],TimeEl,":")
+	    Date["hour"] = sprintf("%02d",TimeEl[1])
+	    Date["min"] =  TimeEl[2]
+	    if (3 in TimeEl)
+		Date["sec"] =  TimeEl[3]
+	}
+	else if ((El[Ind] ~ "^[1-9][0-9][0-9][0-9]$") && !("year" in Date)) {
+	    Date["year"] = substr(El[Ind],3)
+	    Date["lyear"] = El[Ind]
+	}
+	else if ((El[Ind] ~ "^[0-9][0-9]$") && !("year" in Date))
+	    Date["year"] = El[Ind]
+	else if ((El[Ind] ~ "^([A-Z][A-Z][A-Z])|([-+][0-2][0-9][0-5][0-9])$") \
+	&& !("tz" in Date))
+	    Date["tz"] = El[Ind]
+	else
+	    return -2
+    }
+    for (i in TouchParts)
+	if (!(TouchParts[i] in Date))
+	    return -i - 5
+    touchdate = Date["month"] Date["day"] Date["hour"] Date["min"] Date["year"]
+    return touchdate
+}
+
+# Convert a file timestamp as printed by 'l' to an epoch time.
+# noTZ should be 1 if the date output was produced with a 0 TZ; in this case
+# no attempt is made to undo the TZ adjustment.
+function lDate2unixtime(Mon,Day,Year,noTZ,  Month) {
+    if (!(1 in Month2Num)) {
+	MkMonth2Num()
+	CurYear = strftime("%y")
+	CurMonth = strftime("%m")
+    }
+    Month = Month2Num[Mon]
+    # Deal with varying dates printed by l
+    # Use year if given
+    # Subtract 1 from year if month given is from last year
+    if (Year ~ ":")	# If year is actually time...
+	Year = (CurYear - (Month > CurMonth)) % 100
+    return date2unixtime(Year,Month,Day,noTZ)
+}
+
+# Returns the number of seconds that passed from 1970 Jan 1 00:00:00
+# to the given date.
+# Timezone should be given as a numeric offset from GMT in seconds.
+# Use 0 for Timezone if the date being converted was not generated with a
+# timezone adjustment.
+function unixtime(Year,Month,Day,Hour,Minute,Second,Timezone) {
+    return ((YMD2day(Year,Month,Day) * 24 + Hour) * 60 + Minute) * 60 + \
+    Second + Timezone
+}
+
+# date2unixtime returns the number of seconds that passed from 
+# 1970 Jan 1 00:00:00 GMT to the given date, which is assumed to be in the
+# local timezone.  Note that if the given date occured in daylight savings
+# time and the current time (which is used to calculate TZOffset) is not,
+# or vice versa, this will be off by the DST shift.
+# If noTZ is set, the date is taken to be in GMT and TZ modifications are not
+# done.
+# Globals: Sets/uses TZOffset and MDays[].
+function date2unixtime(Year,Month,Day,noTZ,   LeapDays) {
+    if (!noTZ && TZOffset == "")
+	MakeTZOffset()
+    if (Year > 100)
+	Year -= 1900
+    LeapDays = int((Year - 68) / 4)
+    if (Month <= 2 && Year % 4 == 0)
+	LeapDays -= 1
+    if (!MDays[2])
+	split("0 31 59 90 120 151 181 212 243 273 304 334 365",MDays," ")
+    return ((Year - 70) * 365 + MDays[Month + 0] + Day - 1 + LeapDays) \
+    * 24 * 3600 - (noTZ ? 0 : TZOffset)
+}
+
+# Sets global TZOffset to the number of seconds that need to be substracted
+# from the local date (without time of day) to give an epoch time.
+# TZOffset can also be added to systime() before doing %86400 to get the
+# current day number in the local timezone.
+# Note that TZOffset is only correct if the given date is in the same DST
+# phase as the current date.
+# 95/03/26 Calculate TZOffset more accurately.
+function MakeTZOffset(  t) {
+    t = systime()
+    TZOffset = strftime("%H",t)*3600+strftime("%M",t)*60+strftime("%S",t) - \
+    t%86400
+    if (strftime("%j",0) != "001")	# If TZ offset > 0
+	TZOffset -= 24*3600
+}
+
+# Convert a numeric timezone to a number of seconds.
+# Example: converts -0830 to -30600
+function TZ2sec(NTimezone) {
+    if (NTimezone < 0) {
+	NTimezone = substr(NTimezone,2)
+	Mult = -1
+    }
+    else
+	Mult = 1
+    return (substr(NTimezone,1,2)*3600+substr(NTimezone,3,2)*60)*Mult
+}
+
+# Only works for current time... does *not* take a systime argument!
+function my_strftime(Format,  Time) {
+    "date \"+" Format "\"" | getline Time
+    return Time
+}
+
+### End timedate routines
+### Begin epochdays routines.
+# These functions operate on epoch days and epoch months, which have the same 0
+# time as UNIX epoch seconds.  These functions are mainly used to avoid having
+# to deal with timezone issues.
+# @(#) epochdays 1.1 95/08/26
+
+# YMD2day(year,month,day-of-month) returns the number of days that passed from 
+# 1970 Jan 1 to the given date.
+# All parameters should be given in numeric form.
+# If year < 70, it is assumed to be part of the 2000 century
+# If year in (70..99), it is assumed to be part of the 1900 century.
+# Globals: sets and uses MDays[]
+function YMD2day(Year,Month,Day,   LeapDays) {
+    Year+=0
+    Month+=0
+    if (Year < 70)
+	Year += 100
+    else if (Year >= 100)
+	Year -= 1900
+    # Year is now the number of years since 1900.
+    LeapDays = int((Year - 68) / 4)
+    if (Month <= 2 && Year % 4 == 0)
+	LeapDays -= 1
+    if (!(0 in MDays))
+	split("0 31 59 90 120 151 181 212 243 273 304 334 365",MDays," ")
+    return (Year - 70) * 365 + MDays[Month] + Day - 1 + LeapDays
+}
+
+# date2day("yy/mm/dd") returns the number of days that passed from 
+# 1970 Jan 1 to the given date.  -1 is returned on error.
+# The fields are returned in Fields: year in Fields[1], month in Fields[2],
+# and day (if given) in Fields[3].
+function date2day(Date,Fields,  Num,Year,Month) {
+    Num = split(Date,Fields,"/")
+    if (Num != 2 && Num != 3)
+	return -1
+    if (!(Year = Fields[1] + 0) || !(Month = Fields[2] + 0))
+	return -1
+    if (Num == 3)
+	Day = Fields[3]
+    return YMD2day(Year,Month,Day)
+}
+
+# diffdays(year1,month1,day-of-month1,year2,month2,day-of-month2)
+# returns the number of complete days that passed from date 1 to date 2
+function diffdays(year1,month1,day1,year2,month2,day2) {
+    return YMD2day(year2,month2,day2) - YMD2day(year1,month1,day1)
+}
+
+# Given an epoch month, return the first day of that month
+function month2day(Month) {
+    return YMD2day(int(Month/12) + 1970,Month % 12 + 1,1)
+}
+
+# Given an epoch day, returns epoch month
+function day2month(Day,  Date) {
+    day2YMD(Day,Date)
+    return (Date["y"]-1970)*12 + Date["m"]-1
+}
+
+# Given an epoch month, returns the number of days in that month.
+function monthdays(month,  year) {
+    if (!(0 in MDur))
+	split("31 28 31 30 31 30 31 31 30 31 30 31",MDur)
+    year = int(month/12)
+    month = month%12+1
+    return (!((year+2)%4) && month == 2) ? 29 : MDur[month]
+}
+
+# Given an epoch day (day since 1970 Jan 1; day 0 = 1970 Jan 1, etc.), 
+# returns the date elements in Date:
+# Date["y"] = year (4 digits), Date["m"] = month (jan = 1, etc.),
+# Date["d"] = day of month.
+# Globals: Sets/uses MDays[].
+function day2YMD(Day,Date,  QYears,Year,NonLeapYears,Month) {
+    if (!(0 in LDays)) {
+	split("0 31 59 90 120 151 181 212 243 273 304 334 365",MDays," ")
+	split("0 31 60 91 121 152 182 213 244 274 305 335 366",LDays," ")
+    }
+    Day += 365
+    # Day is now # of days since Jan 1 1969.  1968 was a leap year.
+    QYears = int(Day / (365*4+1))
+    Year = 1969 + QYears * 4
+    Day -= QYears * (365*4+1)
+    # Day now contains no complete leap years.
+    Year += NonLeapYears = int(Day/365)
+    Leap = !(Year % 4)
+    Day -= NonLeapYears * 365
+    # Day now contains the day of year.
+    # Find the month.  Divide day by 32 to get either the correct month or
+    # the month prior to it.
+    Month = int(Day++ / 32) + 1
+    if (Day > (Leap ? LDays[Month+1] : MDays[Month+1]))
+	Month++
+    Day -= Leap ? LDays[Month] : MDays[Month]
+    Date["d"] = Day
+    Date["m"] = Month
+    Date["y"] = Year
+}
+
+# Given a month number, return a date in the form yy/mm
+function month2date(MonthNum) {
+    return sprintf("%02d/%02d",(MonthNum / 12 + 70) % 100, MonthNum % 12 + 1)
+}
+
+# Given a day number, return a date in the form yy/mm/dd or yyyy/mm/dd
+# If century is true, the century is included as part of the year;
+# otherwise it is stripped.
+function day2date(day,century,  year) {
+    day2YMD(day,Date)
+    year = Date["y"]
+    if (!century)
+	year %= 100
+    return sprintf("%02d/%02d/%02d",year,Date["m"],Date["d"])
+}
+
+### End epochdays routines
+### Begin timeperiod routines.
+# These functions operate on periods of time.
+
+# Converts Seconds to the form [[[[<days>d]<hours>h]<min>m]<sec>s]
+function sec2dhms(Seconds,  Days,Hours,Minutes,Time) {
+    Days = int(Seconds / 86400)
+    Seconds %= 86400
+    Hours = int(Seconds / 3600)
+    Seconds %= 3600
+    Minutes = int(Seconds / 60)
+    Seconds %= 60
+    if (Days)
+	Time = Days "d"
+    if (Time || Hours)
+	Time = Time Hours "h"
+    if (Time || Minutes)
+	Time = Time Minutes "m"
+    if (!Time || Seconds)
+	Time = Time Seconds "s"
+    return Time
+}
+
+# Converts Seconds to the form [[[<days>d]hh:]mm:]ss
+function sec2dhms2(Seconds,  Days,Hours,Minutes,Time) {
+    Days = int(Seconds / 86400)
+    Seconds %= 86400
+    Hours = int(Seconds / 3600)
+    Seconds %= 3600
+    Minutes = int(Seconds / 60)
+    Seconds %= 60
+    if (Days)
+	Time = Days "d "
+    if (Time || Hours)
+	Time = Time sprintf("%02d",Hours) ":"
+    if (Time || Minutes)
+	Time = Time sprintf("%02d",Minutes) ":"
+    Time = Time sprintf("%02d",Seconds)
+    return Time
+}
+
+# Converts Seconds to the form [[<days>d]hh:]mm|m
+function sec2dhm(Seconds,  Days,Hours,Minutes,Time) {
+    Days = int(Seconds / 86400)
+    Seconds %= 86400
+    Hours = int(Seconds / 3600)
+    Seconds %= 3600
+    Minutes = int(Seconds / 60)
+    if (Days)
+	Time = Days "d "
+    if (Time || Hours)
+	Time = Time sprintf("%02d",Hours) ":"
+    if (Time)
+	Time = Time sprintf("%02d",Minutes)
+    else
+	Time = Minutes
+    return Time
+}
+
+# Converts Seconds to the form hours:mm:ss
+function sec2hms(Seconds,  Hours,Minutes) {
+    Hours = int(Seconds / 3600)
+    Seconds %= 3600
+    Minutes = int(Seconds / 60)
+    Seconds %= 60
+    return sprintf("%d:%02d:%02d",Hours,Minutes,Seconds)
+}
+
+### End timeperiod routines
+### start canonTTY library
+function nodevTTY(tty) {
+    sub("^/dev/","",tty)
+    return tty
+}
+
+function canonTTY(tty) {
+    if (tty ~ "^/dev/")
+	sub("^/dev/","",tty)
+    else if (tty !~ /^tty/)
+	tty = "tty" tty
+    return tty
+}
+
+function shortTTY(tty) {
+    # Strip leading "tty" only if name did not begin with /dev
+    if (!sub("^/dev/","",tty))
+	sub("^tty","",tty)
+    return tty
+}
+
+# names["lower"] and names["upper"] are made the canonical non-modem-control
+# and modem-control versions of the TTY name respectively.
+# These are the name as passed but with the first alpha char after "tty"
+# (if any) converted to lowercase and uppercase respectively.
+# If the TTY name is an absolute path and is not of the form /dev/tty*, the
+# case conversion is not done.
+# Any leading /dev/ is stripped.  If the name does not contain any directory
+# component and does not begin with "tty", it is prefixed with "tty".
+function bothTTYnames(tty,names,  sTTY,letter) {
+    sTTY = shortTTY(tty)
+    if (tty ~ "^/" && tty !~ "^/dev/tty") {
+	names["lower"] = names["upper"] = sTTY
+	return 1
+    }
+    match(sTTY,"[a-zA-Z][^a-zA-Z]*$")
+    letter = substr(sTTY,RSTART,1)
+    tty = (tty ~ "/") ? "" : "tty"
+    names["upper"] = tty PasteStr(sTTY,RSTART,toupper(letter))
+    names["lower"] = tty PasteStr(sTTY,RSTART,tolower(letter))
+    return 0
+}
+### end canonTTY library
+### Begin Strings routines
+
+# Delete the string starting at Start and having length Num from the middle
+# of string S, and return the remaining part.
+function DelStr(S,Start,Num) {
+    return substr(S,1,Start - 1) substr(S,Start+Num)
+}
+
+# Insert NewStr into S at position Pos (between the Pos-1'th and the Pos'th
+# characters).  S is padded with spaces if neccessary.
+function InsertStr(S,Pos,NewStr,  e) {
+    e = length(S)+1	# The position after the end of S
+    if (e >= Pos)
+	return substr(S,1,Pos-1) NewStr substr(S,Pos)
+    for (; e < Pos; e++)
+	S = S " "
+    return S NewStr
+}
+
+# Search for char C in string S starting at position Pos, in the direction
+# specified by Dir (1 = forward, -1 = backward).
+# Return position char found at for success, 0 if not found before start or end
+# of string.
+function FindC(S,Pos,C,Dir,  FoundC) {
+    while (Pos > 0 && (FoundC = substr(S,Pos,1)) != C && FoundC != "")
+	Pos += Dir
+    if (FoundC == C)
+	return Pos
+    else
+	return 0
+}
+
+# Split string S into array Arr, one character per index, starting with 1.
+# The number of characters in the string is returned.
+function SplitS(S,Arr,  len,i) {
+    len = length(S)
+    for (i = 1; i <= len; i++)
+	Arr[i] = substr(S,i,1)
+    return len
+}
+
+# Paste NewStr onto S at position Pos, overwriting what was there
+# S is padded with spaces if neccessary.
+function PasteStr(S,Pos,NewStr,  e) {
+    e = length(S)+1	# The position after the end of S
+    if (e >= Pos)
+	return substr(S,1,Pos-1) NewStr substr(S,Pos+length(NewStr))
+    for (; e < Pos; e++)
+	S = S " "
+    return S NewStr
+}
+
+### End Strings routines
+### Begin sign routines
+
+function sign(value) {
+    if (value > 0)
+	return 1
+    else if (value < 0)
+	return -1
+    else
+	return 0
+}
+
+function abs(value) {
+    if (value >= 0)
+	return value
+    else
+	return -value
+}
+
+### End sign routines

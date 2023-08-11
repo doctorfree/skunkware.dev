@@ -1,0 +1,226 @@
+#!/bin/ksh
+# @(#) phost.ksh 1.3 96/06/13
+# 96/05/17 john h. dubois iii (john@armory.com)
+# 96/06/02 Allow mangling of list return address.
+# 96/06/13 Do not require malias and /bin/env to exist.
+# 97/06/09 Added u option.
+
+# phost: convert user@host to user.host to implement per-hostname user aliases.
+# This program is intended to be executed for the phost channel by the
+# sendprog channel program.
+#
+# Portability notes:
+# The sendprog channel program must be available for this to work.
+#    sendprog is not shipped with SCO systems.  An archive containing
+#    sendprog for SCO 3.2v5 is available at
+#    ftp://ftp.armory.com/pub/scobins/progchan.tar.Z, and for SCO 3.2v4 at
+#    ftp://ftp.armory.com/pub/scobins/3.2v4/progchan.tar.Z  The 'sendprog'
+#    file in those archives should be put in the directory /usr/mmdf/chans
+# This is a ksh program.  It should also work as a pd-ksh, bash, or zsh
+#    program, but might require tweaking.
+#
+# Instructions for use:
+# 1. Put this program in /usr/mmdf/bin/phost and make it readable and
+#    executable.
+# 2. Create a queue directory for phost.  cd to /usr/spool/mmdf/lock/home and
+#    do:
+#    mkdir q.phost; chown mmdf q.phost; chgrp mmdf q.phost; chmod 777 q.phost
+#    Note: the queue directories will probably be somewhere other than
+#    /usr/spool/mmdf/lock/home on non-SCO systems.
+# 3. Add an mmdftailor entry like this:
+# MCHN    phost, show="pseudo-host channel", ap=822, pgm=sendprog, mod=imm,
+#	tbl=phost.chn,
+#    confstr="/usr/mmdf/bin/phost [opts] $(from) $(to.user) $(to.host) $(local)"
+#    where [opts] is any options you want to give to the phost program
+#    (currently, only the -u option is defined).
+#
+# 4. Put any hostnames for which this mapping should be done into the phost.chn
+# file.  No value needs to be associated with hostname in the table (just the
+# name alone on a line will do).  If the hostnames were previously in any other
+# channel table (e.g. local.chn if mail for a host was formerly accepted by
+# the local host without mapping), take them out of those tables.
+#
+# 4.1. Before the channel table lookup is done, a hostname must be found in
+# a domain table.  Therefore, if the hostnames you put in phost.chn are not
+# yet in any domain table, put them in an appropriate domain table, for
+# example, root.dom.  The right hand side of each entry in the domain table
+# should exactly match the entry in phost.chn.  A typical entry would go in
+# root.dom and simply map each name to itself.  If the MMDF system was
+# previously configured to accept mail locally for the pseudo-hosts, they
+# are already in a domain table, so this step is unneccessary.  Also, if the
+# hostnames have appropriate DNS records and MMDF is configured to do DNS
+# domain table lookups, that will suffice for the domain table lookup.
+# 
+# Once the table database is rebuilt, mail sent to a user at a host listed
+# in the phost.chn table will be re-submitted into the mail system with its
+# recipient address changed from user@host to user.host.  NOTE that due to the
+# way the sendprog channel works, this will be done separately for each
+# recipient address delivered via the phost channel, so a single submitted
+# message is liable to result in multiple messages being re-submitted to the
+# mail system.
+#
+# 5. An alias for any username that should be mailable at the alternate host
+# should be created.  An alias must be created for every user; the default
+# for recipient addresses that no alias exists for is to bounce the message,
+# not to deliver it to the recipient username at the local hostname (this
+# could be changed by modifying the script).
+# Example:
+# phost.chn contents:
+# alt.domain
+# alias table contents:
+# user1.alt.domain	foo
+# user2.alt.domain	bar@that.host
+# This will cause mail to user1@alt.domain to be sent to local user foo,
+# and mail to user2@alt.domain to be sent to bar@that.host.
+#
+# ALTERNATE steps 3 and 4, to allow for customized processing on a per-domain
+# basis:
+# 3. Add an mmdftailor entry like this:
+# MCHN    phost, show="pseudo-host channel", ap=822, pgm=sendprog, mod=imm,
+#	tbl=phost.chn
+# 4. Put any hostnames for which this mapping should be done into the phost.chn
+# file.  The righthand side of the table for each hostname should be:
+# /usr/mmdf/bin/phost [options] $(from) $(to.user) $(to.host) $(local)
+# Example: 
+#
+# alt.domain1 /usr/mmdf/bin/phost -u someone@somewhere $(from) $(to.user) $(to.host) $(local)
+# alt.domain2 /usr/mmdf/bin/phost $(from) $(to.user) $(to.host) $(local)
+#
+# If the hostnames were previously in any other channel table (e.g. local.chn
+# if mail for a host was formerly accepted by the local host without mapping),
+# take them out of those tables.
+#
+# Options:
+# phost has one option.  By default, mail sent to an unknown address is
+# bounced back to the return address.  If you give "-u<address>", all mail to
+# users who have no alias in the domain will be sent to <address>.  This option
+# depends on the existance of the "malias" program, which is expected to be
+# found in /usr/mmdf/bin/malias.  If it exists but is somewhere else, the
+# program should be tweaked accordingly.
+
+# NOTE: there is a problem using this channel to create a mailing list name
+# within a domain if the mailing list is handled by the list channel.  The
+# list channel will always make the return address be listname-request, without
+# the alternate domain attached to it.
+# Short of modifying the list channel, about the best that can be done in this
+# situation is to simply implement the listname-request alias in the local
+# domain rather than the alternate domain.  If this would collide with another
+# list name, the outbound name passed to the list processor (e.g.
+# foo-outbound@list-processor) can be changed.  If the list-request alias 
+# should also exist in the alternate domain, as an administrative alias to be
+# mailed to, it should be separately aliased.
+# Example alias file entries to use this method:
+# foo.nonesuch.org:            foo-outbound@list-processor
+# foo-request:                 spcecdt
+# foo-request.nonesuch.org:    spcecdt
+# foo-outbound:                recipient1 recipient2 recipient3
+
+# The alternative to all of this is to have this program itself handle
+# conversion of the list outbound address to a different name and set the
+# return address itself.  This program therefore recognizes a name ending
+# in '-mangle' and translates it in the same way as it does other messages,
+# but also sets the return address by replacing -mangle with
+# -request@alternate-host.
+# Example alias file entries to use this method:
+# foo.nonesuch.org:             foo-mangle@nonesuch.org
+# foo-request.nonesuch.org:     spcecdt
+# foo-mangle.nonesuch.org:      recipient1 recipient2 recipient3
+
+##############################
+
+# If mail is e.g. sent from johnd@sco.com to root@nonesuch.org,
+# and the local machine name (MLNAME.MLDOMAIN) is armory.com,
+# these vars would be set as follows:
+# From: johnd@sco.com
+# ToUser: root
+# ToHost: nonesuch.org
+# Local: armory.com
+
+
+name=${0##*/}
+Usage=\
+"Usage: $name [-u<unknown-address>] from-address to-user to-host local-host"
+
+while getopts u: opt; do
+    case $opt in
+    u)
+	unknownAddr=$OPTARG
+	;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -ne 4 ]; then
+    print -r -u2 -- "$name: Wrong number of arguments (expected 4, got $#).
+$Usage"
+    exit 1
+fi
+
+From=$1
+ToUser=$2
+ToHost=$3
+Local=$4
+
+OrigDest="$ToUser@$ToHost"
+NewDest="$ToUser.$ToHost"
+admin=mmdf@$Local
+
+if [[ "$ToUser" = *-mangle ]]; then
+    Return="${ToUser%mangle}request@$ToHost"
+else
+    Return=$From
+fi
+
+
+# If env is available, use it to hide any local user environment variables
+# from execmail, just in case
+if [ -x /bin/env ]; then
+    alias env=/bin/env
+else
+    function env {
+	# If there are actually specific env. vars found to cause problems,
+	# they could be unset here.
+	shift 2
+	"$@"
+    }
+fi
+
+function bounce {
+    {
+    # Let execmail generate all of header except From: line
+    print -r -- \
+"From: $admin (MMDF Mail System)
+
+Trouble sending mail on $Local:
+
+============ Transcript follows ============
+
+Unknown user name: \"$OrigDest\"
+(\"$ToUser\" is not a user in the domain \"$ToHost\")
+
+============== Message follows =============
+"
+	/bin/cat
+    } | env - "TZ=$TZ" /usr/lib/mail/execmail -f "$admin" "$From"
+    exit 0
+}
+
+# If the the malias program is available, use it to check whether the recipient
+# address is aliased in the given domain.  If not, bounce it here, because if
+# bounced by execmail it will tell the originator that there is no such user
+# "user.host" which is liable to be confusing.
+
+malias=/usr/mmdf/bin/malias
+if [ -x $malias ]; then
+    set -- `/usr/mmdf/bin/malias "$NewDest"`
+    if [ "$1 $2" = "no aliases" ]; then
+	[ -n "$unknownAddr" ] && NewDest=$unknownAddr || bounce
+    fi
+fi
+
+env - "TZ=$TZ" /usr/lib/mail/execmail -f "$Return" "$NewDest"
+
+exit 0

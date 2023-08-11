@@ -1,0 +1,405 @@
+#!/bin/sh
+clear
+echo /src/obtuse-smtpd/install-for-mmdf
+echo "ver=1.0.3a; Thu Jan  6 07:46:19 EST 2000"
+echo Copyright Ed Hew, 1998, 1999, 2000
+echo Freely distributable if no money or consideration is required.
+echo Please report any difficulties to the author of this installation script.
+echo "Please notify Ed Hew <edhew@xenitec.on.ca> of changes or improvements."
+echo Please read and understand the copyright notices provided by the original
+echo "author of Obtuse smtpd, Bob Beck <beck@obtuse.com>, whose code and"
+echo copyright for "Obtuse smtpd" I gratefully acknowledge, as should you.
+echo ""
+
+echo "This is a rudimentary installation script for Obtuse smtpd for SCO MMDF"
+echo "designed for SCO UNIX 3.2v4.x and 3.2v5.0.[01245]x"
+echo "It should work with but has not been tested with SCO UNIX 3.2v2 and 3.2.0"
+echo "It should work with but has not been tested with SCO UnixWare 7.x.x"
+echo ""
+echo "Please examine and modify for other operating environments as necessary."
+echo "If you are *not* using MMDF, you should use one of the other installation"
+echo "methods as appropriate - note that those will not necessarily include all"
+echo "the functionality provided in this specific installation script.\n"
+echo Press \"Enter\" to continue ...
+read dummy
+
+if [ true ] ; then	# build construct to facilitate redirection stderr
+
+# You must be "root" to successfully install Obtuse smtpd for SCO MMDF
+if [ `id | sed -e 's/ .*$//;s/^.*(//;s/).*$//'` != "root" ]
+then
+    echo "You must be '"root"' to install obtuse smtpd, nice try."
+    exit 2
+else
+    echo While the obtuse smtpd code works for me and reportedly for others ...
+    echo "  **  No warranty is expressed or implied.  Use at your own risk!"
+    echo Please examine this installation script to ensure that you are
+    echo comfortable with what it does before running it as the "root" user!.
+    echo ""
+    echo Press \"Enter\" to proceed with installation
+    echo .... else press your DELETE key now!  This is your only warning!
+    read dummy
+fi
+
+# Define "SRCDIR"
+# Modify to correspond to where you extract "obtuse-smtpd.tar".
+#
+SRCDIR=/usr/local/src/obtuse-smtpd
+echo "What source directory are you installing from? [default = $SRCDIR] :  \c"
+read SRCDIR
+if [ "$SRCDIR" = "" ]
+then
+	SRCDIR="/usr/local/src/obtuse-smtpd"
+fi
+echo "Installing from $SRCDIR \n"
+
+if [ `grep "^wheel" /etc/group|wc -l` -eq 0 ]
+then
+    echo "Group \"wheel\" is not configured in /etc/group" 1>&2
+    echo "wheel:*:21001:root" >> /etc/group
+    echo "Added group \"wheel\" to your /etc/group file"
+    echo "Should you have any operating system dependencies requiring special"
+    echo "handling of /etc/group, remember to deal with them!"
+    #echo "You may proceed without it, and simply ignore the related errors,"
+    #echo "but you might want to hit your DELETE key now and create the group"
+    #echo "first.  Otherwise, press your ENTER key to continue."
+    #read dummy
+fi
+
+echo "Please enter the logname of the mail administrator:  \c"
+read MAILADMIN
+
+if [ `grep "^$MAILADMIN" /etc/passwd|wc -l` -eq 0 ]
+then
+    echo "User '$MAILADMIN' does not exist on this system"
+    echo "Please create it or specify an existing user logname for mail admin."
+    exit 3
+fi
+
+echo "Checking SCO os suitability for automated installation."
+# ... and if ok, while we're at it ...
+# Install the following line in /etc/rc2.d/S88USRDEFINE (3.2vX.X)
+# or /etc/rc2.d/P88USRDEFINE (OSR5.x.x).  The smtpfwdd daemon must be
+# running and should be started during multi-user initialization to
+# actually forward incoming mail to your MTA's "submit" or equivalent process.
+# /bin/su root -c "/usr/local/bin/smtpfwdd"
+#
+OSVER=`uname -X|grep "^Release = " | cut -d " " -f 3`
+echo "You seem to be running $OSVER"
+case "$OSVER" in
+   3.2v2 | 3.2v4.2 | 3.2v4.1 | 3.2v4.2 )
+     OSFLAG=ODT
+     cat >> /etc/rc2.d/S88USRDEFINE << EOT
+
+     # fork /usr/local/bin/smtpfwdd for obtuse smtpd
+     /bin/su root -c "/usr/local/bin/smtpfwdd"
+EOT
+
+     #echo "# fork /usr/local/bin/smtpfwdd for obtuse smtpd" \
+     #>> /etc/rc2.d/S88USRDEFINE
+     #echo "/bin/su root -c \"/usr/local/bin/smtpfwdd\">>/etc/rc2.d/S88USRDEFINE
+     ;;
+
+   3.2v5.0.0 | 3.2v5.0.1 | 3.2v5.0.2 | 3.2v5.0.4 | 3.2v5.0.5 )
+     OSFLAG=OSR
+     cat >> /etc/rc2.d/P88USRDEFINE << EOT
+
+     # fork /usr/local/bin/smtpfwdd for obtuse smtpd
+     /bin/su root -c "/usr/local/bin/smtpfwdd"
+EOT
+     ;;
+
+   * )
+     echo "Your operating system version is not SCO UNIX 3.2v4.x or 3.2v5.0.x"
+     echo "This installation script has not been tested with your release."
+     echo "You may modify this script to permit its use, but all bets are off."
+     echo "We recommended you follow the instructions for manual installation."
+     exit 15
+     ;;
+esac
+
+echo "This will not take long, please pay attention, we've already started!"
+echo ""
+	
+
+if [ ! -d "$SRCDIR" ]
+then
+	mkdir -p "$SRCDIR"
+	chmod 770 "$SRCDIR"
+	chgrp wheel "$SRCDIR"
+fi
+
+if [ ! -d /usr/local/etc ]
+then
+	mkdir -p /usr/local/etc
+	chmod 770 /usr/local/etc
+	chgrp wheel /usr/local/etc
+	chown root /usr/local/etc
+fi
+
+if [ ! -d /usr/local/bin ]
+then
+	mkdir -p /usr/local/bin
+	chmod 775 /usr/local/bin
+	chgrp wheel /usr/local/bin
+	chown root /usr/local/bin
+fi
+
+# Install the smdpd daemon binary in /usr/local/bin
+# -rwx------   1 root     other     233135 Aug 03 20:41 /usr/local/bin/smtpd
+cp $SRCDIR/smtpd /usr/local/bin/smtpd
+echo "Installed: /usr/local/bin/smtpd"
+echo ""
+
+# create the /usr/spool/smtpd directory structure, etc.
+mkdir -p /usr/spool/smtpd/etc /usr/spool/smtpd/dev
+chown mmdf /usr/spool/smtpd
+chgrp mmdf /usr/spool/smtpd
+chmod 770 /usr/spool/smtpd
+chmod 755 /usr/spool/smtpd/dev
+chmod 775 /usr/spool/smtpd/etc
+chown bin /usr/spool/smtpd/dev /usr/spool/smtpd/etc
+chgrp wheel /usr/spool/smtpd/etc
+echo "Created: /usr/spool/smtpd directory structure."
+echo ""
+
+# Populate it as follows:
+#/usr/spool/smtpd
+#-rw-rw----   1 edhew    devel         43 Sep 08 16:40 README.mmdf
+#drwxr-xr-x   2 bin      bin           48 Aug 03 20:45 dev
+#drwxrwxr-x   2 bin      auth          64 Aug 03 20:53 etc
+
+echo "Installed: Manual configuration file for reference"
+cp $SRCDIR/README.mmdf /usr/spool/smtpd/README.mmdf
+
+#case $OSFLAG in
+#   ODT )
+#mknod /usr/spool/smtpd/dev/socksys c `ls -l /dev/socksys|cut -d " " -f 15,17|sed 's/,/ /g'`
+#   ;;
+#   OSR )
+#mknod /usr/spool/smtpd/dev/socksys c `ls -l /dev/socksys|cut -d " " -f 16,18|sed 's/,/ /g'`
+#   ;;
+#   * )
+#      echo "Ooops! we seem to have a problem determining the correct"
+#      echo "major and minors for /dev/socksys !  Either install manually"
+#      echo "or patch the installation script.  If you see this stderr"
+#      echo "please notify the author, including the stdout from:"
+#      echo "		uname -X    and    l /dev/socksys"
+#      echo ""
+#      echo "Bailing out right now!"
+#   ;;
+#esac
+# seems SCO broke "cut -d" in rs505a, so we'll just do it this way ...
+( cd / ; ls dev/socksys | cpio -pudm /usr/spool/smtpd/ ) 2> /dev/null
+chmod 666 /usr/spool/smtpd/dev/socksys
+echo "Created: /usr/spool/smtpd/dev/socksys with major and minor numbers"
+#echo "appropriate to your system.  This must be strictly identical to your"
+#echo "/dev/socksys file.  Please verify!"
+#ls -l /usr/spool/smtpd/dev/socksys /dev/socksys
+#echo "Press \"Enter\" when ready"
+#read dummy
+
+# Install /usr/spool/smtpd/etc/smtpd_check_rules
+#-rw-------   1 mmdf     wheel       8152 Sep 08 16:32 smtpd_check_rules
+if [ -f /var/spool/smtpd/etc/logmaint ]
+then
+	(cd /var/spool/smtpd/etc;mv smtpd_check_rules smtpd_check_rules~)
+	echo "** detected and moved old smtpd_check_rules to smtpd_check_rules~"
+fi
+cp $SRCDIR/smtpd_check_rules.xt /usr/spool/smtpd/etc/smtpd_check_rules
+chmod 660 /usr/spool/smtpd/etc/smtpd_check_rules
+chown mmdf /usr/spool/smtpd/etc/smtpd_check_rules
+chgrp wheel /usr/spool/smtpd/etc/smtpd_check_rules
+echo "Installed: /usr/spool/smtpd/etc/smtpd_check_rules"
+echo "This is XeniTec production copy - it may NOT be suitable."
+echo "Make a note to customize this for your local needs!"
+echo ""
+
+# Install /usr/local/bin/mmdf_sendmail
+# -rwxr-xr-x   1 root     other        960 Aug 04 03:33 /usr/local/bin/mmdf_sendmail
+cp $SRCDIR/mmdf_sendmail /usr/local/bin/mmdf_sendmail
+chmod 755 /usr/local/bin/mmdf_sendmail
+echo "Installed: /usr/local/bin/mmdf_sendmail"
+echo ""
+
+# Install /usr/local/bin/smtpfwdd
+# -rwx------   1 root     other      98196 Aug 03 21:28 /usr/local/bin/smtpfwdd
+#cp $SRCDIR/usr/local/bin/smtpfwdd /usr/local/bin/smtpfwdd
+cp $SRCDIR/smtpfwdd /usr/local/bin/smtpfwdd
+chmod 700 /usr/local/bin/smtpfwdd
+echo "Installed: /usr/local/bin/smtpfwdd"
+echo ""
+
+# Install /usr/local/etc/blck to support easy local RBL additions.
+#cp $SRCDIR/usr/local/etc/blck /usr/local/etc/blck
+cp $SRCDIR/blck /usr/local/etc/blck
+chmod 750 /usr/local/etc/blck
+chgrp wheel /usr/local/etc/blck
+chown $MAILADMIN /usr/local/etc/blck
+echo "Installed: /usr/local/etc/blck for easy local RBL additions."
+echo ""
+
+# Install rep.deny and rep.permit for interactive realtime summaries
+cp $SRCDIR/rep.deny /usr/local/etc/rep.deny
+cp $SRCDIR/rep.permit /usr/local/etc/rep.permit
+chmod 750 /usr/local/etc/rep.deny /usr/local/etc/rep.permit
+chgrp wheel /usr/local/etc/rep.deny /usr/local/etc/rep.permit
+chown $MAILADMIN /usr/local/etc/rep.deny /usr/local/etc/rep.permit
+echo "Installed /usr/local/etc/rep.deny /usr/local/etc/rep.permit"
+echo "for Interactive realtime smtp connection reporting."
+echo ""
+
+# Install /usr/local/etc/smtp.rep for manual reporting
+cp $SRCDIR/smtp.rep /usr/local/etc/smtp.rep
+chmod 750 /usr/local/etc/smtp.rep
+chgrp wheel /usr/local/etc/smtp.rep
+chown $MAILADMIN /usr/local/etc/smtp.rep
+echo "Installed: /usr/local/etc/smtp.rep for generating manual smtpd summaries."
+echo "You may wish to add this to your syslog cleanup cron task shell script."
+# Query and if <y> install automated reported and syslog cleanup.
+while echo "Would you like one created now with smtp reporting installed? [y/n]: \c" >&2
+  do
+    read YN DUMMY
+    echo ""
+    case "$YN" in
+      [yY]* ) if [ -f /var/spool/smtpd/etc/logmaint ]
+		then
+			(cd /var/spool/smtpd/etc;mv logmaint logmaint~)
+			echo "** detected and moved old logmaint to logmaint~"
+		fi
+		$SRCDIR/inst-logmaint;break;;
+      [nN]* ) echo "Please remember to install your own!";break;;
+          * ) echo "\07Your only two choices are: <y> or <n> ..." ;;
+    esac
+  done
+echo ""
+
+# Ensure /etc/inetd.conf is properly modified
+mv /etc/inetd.conf /etc/inetd.conf-pre-obtuse
+echo "Old /etc/inetd.conf file preserved as /etc/inetd.conf-pre-obtuse"
+echo "Commenting out old \"smtp\" entry from /etc/inetd.conf"
+grep -v "^smtp	" /etc/inetd.conf-pre-obtuse > /etc/inetd.conf
+#echo "#`grep '^smtp' /etc/inetd.conf-pre-obtuse`" >> /etc/inetd.conf
+sed -e 's/^\(smtp[ 	].*\)$/#PRE-OBTUSE \1/' < /etc/inetd.conf-pre-obtuse > /etc/inetd.conf
+echo "Adding new obtuse smtpd line to /etc/inetd.conf"
+echo "smtp	stream	tcp	nowait	root	/usr/local/bin/smtpd smtpd" >> /etc/inetd.conf
+echo "Please verify your /etc/inetd.conf file integrity."
+echo "Press \"Enter\" when ready"
+read dummy
+
+fi 2>&1 | tee /tmp/obtuse.install.log
+
+vi /etc/inetd.conf
+
+if [ true ] ; then	# build construct to facilitate redirection stderr
+
+# SIGHUP the inetd process to ensure it is aware of the change!
+ps -e 2>/dev/null | awk "/ inetd/ { print \"kill -1 \" \$1 }" | /bin/sh
+echo "SIGHUP sent to inetd process; it now knows about your obuse smtpd."
+
+# start the /usr/local/bin/smtpfwdd daemon for immediate functionality
+/usr/local/bin/smtpfwdd
+echo "Started the \"smtpfwdd\" daemon for immediate functionality."
+
+echo ""
+echo "Read /usr/spool/smtpd/etc/smtpd_check_rules for an understanding of the"
+echo "obtuse smtpd filtering rules.  Modify that file to suit local needs"
+echo "and preferences."
+echo ""
+echo "If no errors, Obtuse smtpd for SCO MMDF seems to have installed successfully."
+echo "Please check /tmp/obtuse.install.log for any errors."
+echo "Please verify functionality.  Default smtpd logging is to /usr/adm/syslog"
+echo ""
+echo "Please read the file "README.mmdf" for additional information.\n"
+echo "It's done!  Press <DELETE> when ready."
+
+fi 2>&1 | tee -a /tmp/obtuse.install.log
+exit 0
+
+# Various notes from the manual installation doc beyond here.
+#
+# Install your local.rbl file (example: xenitec.rbl) in the directory
+# your nameserver is told to use (via named.boot), and must be properly
+# referenced in your smtpd_check_rules file, eg:
+# 
+# noto:RBL.rbl.xenitec.on.ca:ALL:ALL:550 Mail refused from host %I in local RBL.
+#        ^^^^^^^^^^^^^^^^^
+# Remember to SIGHUP your named daemon process when changes are made to
+# your local .rbl file for those changes to take effect immediately.
+# 
+# The seperately provided smtpd_check_rules file and xenitec.rbl is
+# provided with no warranty or representation based on spam experiences
+# here and may be used (and adjusted) to meet your local requirements.
+#	-----
+# This anti-spam solution has been tested and is working in SCO 3.2v4.2
+# and OpenServer Release 5.0.[45] environments and should work the same
+# with any SCO UNIX release using mmdf.
+	-----
+# Notes for other MTA's ... you should be able to patch the source
+# specific to any MTA to replace its smtpd daemon instead.  Compile
+# with gcc.
+#
+# =====
+# 
+# Mailing list:	You may subscribe to the private mailing list maintained
+# 		for obtuse smtpd announcements and help.  Make your
+# 		specific request to: <edhew@xenitec.on.ca>.
+# 
+# =====
+# Diagnostics:
+# Default logging is to /usr/adm/syslog
+# *** Important: the smtpd process will produce lots of logging to
+# *** /usr/adm/syslog !  Ensure that you have adequate space in the
+# *** filesystem it lives in.  You are well advised to install a
+# *** cron task to run the reporting scripts and roll the log daily.
+# 
+# Error:
+# Dec 13 19:11:38 localhostname smtpfwdd[PID#]: can't open semaphore file in
+# "/usr/spool/smtpd/." (Permission denied) - bye!
+# 
+# Check:
+# Possible incorrect permissions (see above)
+# Possible incorrect major and minor numbers for /usr/spool/smtpd/dev/socksys
+# 
+# 	-----
+# 
+# Error:
+# All email is delivered to the user in duplicate!
+# 
+# Cause:
+# A known bug in some mmdf implimentation causes this when using "mod=imm"
+# 
+# Workaround:
+# su - mmdf
+# # Change "mod=imm" to "mod=reg" for affected channels in /usr/mmdf/mmdftailor
+# cd /usr/mmdf/table;./dbmbuild
+# 
+# # Ensure you have sufficient mmdf deliver(ADM) daemons running for
+# # affected channels to deal with your mail volume to preclude backlogs.
+# 
+# 	-----
+# 
+# Error:
+# Mail that should be accepted is being incorrectly refused as a relay attempt.
+# 
+# Problem: (smtpd_check_rules)
+# From what we recall, very early versions of obtuse smtpd would accept:
+#   noto:ALL:ALL:*%*@*:551 [RELAY;] Sorry %H (%I), I don't allow
+#   unauthorized relaying. You can't use me to send mail from %F to %T.
+# 
+# Solution:
+# noto:ALL:ALL:*%%*@*:551 [RELAY;] Sorry %H (%I), I don't allow
+# unauthorized relaying. You can't use me to send mail from %F to %T.
+# 
+# Notice the double percent (%) in field 4.  % is a special character (for
+# %F, %T, %X, etc. to work) and therefore to specify an actual % you need
+# to use %%.
+# 
+# =====
+# 
+# 	** See "README.mmdf" for additional reports and solutions **
+# 
+# =====
+# 	Ed Hew <edhew@xenitec.on.ca>
+# 	orig doc rev:	Wed Sep 09 23:46:52 EDT 1998
+# 	last doc rev:	Mon Sep  6 23:57:13 EDT 1999

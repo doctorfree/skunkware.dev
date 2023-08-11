@@ -1,0 +1,107 @@
+#!/bin/ksh
+# @(#) nfile.ksh 1.1 95/06/06
+# 93/10/05 john h. dubois iii (john@armory.com)
+# 94/04/27 Give undocumented -a option to strings to tell it not to do
+#          lame OMF-header-reading that makes it fail for pipes
+# 94/05/22 Use ^A for sed sub. since / is quite likely to appear in paths
+# 95/01/31 Generalized from wstrings.
+# 95/06/06 Avoid exec if possible.  Added [ir] options.
+
+# If not being interpreted by ksh, exec it.
+# The advantage of doing it this way is that if the user is running ksh,
+# this script will be run without any exec (only a fork), allowing any amount
+# of command line arguments to be passed.
+#[ -z "$SECONDS" ] && exec /bin/ksh "$0" "$@"
+
+name=${0##*/}
+Usage="Usage: $name [-hir] <command> [-options] [filename ...]"
+
+ReadInput=false
+RegOnly=false
+
+while getopts :hir opt; do
+    case $opt in
+    h)
+	echo \
+    print \
+"$name: invoke a command on files and add filenames to its output.
+$Usage
+<command> is run on each named file in turn.  The output of <command> is
+processed to prefix each line with the name of the file passed to it.
+Any arguments after <command> that begin with '-' are taken to be options
+to <command> and are passed to each instance of it.
+If no filenames are given, <command> is run once without filename arguments.
+Options:
+-h: Print this help.
+-i: Read the input for a list of filenames to process, one per line.
+    If this option is given, all arguments after <command> are taken to be
+    options to be passed to each instance of <command>.
+-r: Only process regular files (skip others silently)."
+	exit 0
+	;;
+    i)
+	ReadInput=true
+	;;
+    r)
+	RegOnly=true
+	;;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+ 
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -eq 0 ]; then
+    print -u2 \
+"$name: not enough arguments.
+$Usage
+Use -h for help."
+    exit 1
+fi
+
+[ "$1" = strings ] && command="strings -a" || command=$1
+shift
+
+if $ReadInput; then
+    set -A args -- "$@"
+else
+    typeset -i narg=0
+    while [[ "$1" = -* ]]; do
+	let narg+=1
+	args[narg]=$1
+	shift
+    done
+fi
+
+function ProcFile {
+    typeset file=$1
+
+    $RegOnly && [ ! -f "$file" ] && continue
+    $command "${args[@]}" "$file" | sed "s^$file: "
+}
+
+if $ReadInput; then
+    while read file; do
+	ProcFile "$file"
+    done
+elif [ $# -gt 0 ]; then
+    for file; do
+	ProcFile "$file"
+    done
+else
+    $command "${args[@]}" | sed "s/^/stdin: /"
+fi

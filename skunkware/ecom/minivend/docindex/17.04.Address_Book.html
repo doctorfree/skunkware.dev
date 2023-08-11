@@ -1,0 +1,94 @@
+<HTML>
+<HEAD>
+<TITLE>Address Book</TITLE>
+</HEAD>
+<BODY BGCOLOR="#FFFFFF">
+<H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="17.00.USER_DATABASE.html">Up</A>&nbsp;&nbsp;<A HREF="17.03.User_Database_functions.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="17.05.Accounts_Book.html">&gt;&gt;</A>&nbsp;&nbsp;</H3>
+<HR>
+<H2><A NAME="Address_Book">Address Book</A></H2>
+<P>
+<EM>address_book</EM> is a shipping address book. The shipping address book saves information
+relevant to shipping the order. In its simplest form, this can be the only
+address book needed. By default these form values are included:
+
+<P>
+<PRE>   s_nickname
+   name
+   fname
+   lname
+   address
+   address1
+   address2
+   address3
+   city
+   state
+   zip
+   country
+   phone_day
+   mv_shipmode
+</PRE>
+<P>
+The first field is always the name of the form variable that contains the
+key for the entry.
+
+<P>
+The values are saved with the <CODE>[userdb function=set_shipping]</CODE> tag call, and are recalled with <CODE>[userdb function=get_shipping]</CODE>. 
+<FONT SIZE=-1>A</FONT> list of the keys available is kept in the form value <CODE>address_book</CODE>, suitable for iteration in an 
+<FONT SIZE=-1>HTML</FONT> select box or in a set of links.
+
+<P>
+You can get the names of a the addresses with the get_shipping_names
+function:
+
+<P>
+<PRE>    [userdb function=get_shipping_names]
+</PRE>
+<P>
+By default, they are placed in the variable <CODE>address_book</CODE>. Here is a little snippet that builds a select box:
+
+<P>
+<PRE>    &lt;FORM ACTION=&quot;[process-target]&quot; METHOD=POST&gt;
+    [userdb function=get_shipping_names]
+    [if value address_book]
+    &lt;SELECT NAME=&quot;s_nickname&quot;&gt;
+    [loop arg=&quot;[value address_book]&quot;] &lt;OPTION&gt; [loop-code] [/loop]
+    &lt;/SELECT&gt;
+    &lt;INPUT TYPE=submit NAME=mv_check VALUE=&quot;Recall Shipping&quot;&gt;
+    &lt;/FORM&gt;
+</PRE>
+<P>
+The same principle works with accounts , carts, and preferences.
+
+<P>
+To restore a cart based on the above, you can place in an <CODE>mv_check</CODE>
+routine:
+
+<P>
+<PRE>    [set Recall Shipping]
+    mv_todo=return
+    mv_nextpage=ord/basket
+    [userdb function=get_shipping nickname=&quot;[value s_nickname]&quot;]
+    [/set]
+</PRE>
+<P>
+When the mv_check variable is encountered, the contents of the scratch
+variable <CODE>Recall Shipping</CODE> are processed and the shipping address information inserted into the user
+form values. This is destructive of any current values of those user
+session variables, of course.
+
+<P>
+If you want to change the fields that are recalled or saved, you can use
+the <A HREF="#item_shipping">shipping</A> parameter:
+
+<P>
+<PRE>    [userdb function=get_shipping
+            nickname=city_and_state
+            shipping=&quot;city state&quot;]
+</PRE>
+<P>
+Only the values of the <CODE>city</CODE> and <A HREF="#item_state">state</A> variables will be replaced.
+
+<P>
+<HR>
+
+<P ALIGN=CENTER><H3><A HREF="index.html">Index</A>&nbsp;&nbsp;<A HREF="17.00.USER_DATABASE.html">Up</A>&nbsp;&nbsp;<A HREF="17.03.User_Database_functions.html">&lt;&lt;</A>&nbsp;&nbsp;<A HREF="17.05.Accounts_Book.html">&gt;&gt;</A>&nbsp;&nbsp;</H3></BODY></HTML>

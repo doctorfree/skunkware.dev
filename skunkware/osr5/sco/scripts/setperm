@@ -1,0 +1,254 @@
+#!/bin/ksh
+# setperm: set mode, ownership and group of a file.
+# @(#) setperm.ksh 1.1 95/09/14
+# 90/05/28 john h. dubois iii (john@armory.com)
+# 91/01/12 Set executability if mode included 's'
+# 91/02/25 cleaned up
+# 92/10/14 deal with t and T in mode
+# 92/12/05 made h option real, print warning if no files of correct type
+# 93/03/19 Added n to l options to avoid problems with truncated group names
+# 93/04/07 Do an extra chmod for +s
+# 93/05/20 Replaced various commands with shell builtins, improved efficiency
+# 94/03/27 Added c option
+# 95/09/14 Use ls -lL instead of l, since symlinks don't have their own perms
+#          and chmod follows symlinks.
+
+# todo: this program will fail miserably (possibly setting modes on the wrong
+#       files) if any filenames contain whitespace.  Needs to be cleaned up.
+
+set -o noglob
+
+alias istrue="test 0 -ne"
+alias isfalse="test 0 -eq"
+name=${0##*/}
+
+# Usage: getperm cfile
+# gets permissions and type of file cfile into global variables
+# type, mode, user, and group.
+getperm() {
+    typeset file=$1 perm nperm comp ptype
+    if [[ ! -a "$file" ]]; then
+	echo "Could not access dup file $file."
+	exit 1
+    fi
+    set -- `ls -lLnd "$file"`
+
+    typeset perm=$1
+
+    nperm=${perm#?}
+    # get type of file if all & type are not set
+    # (all is set if files of any type are to be acted on;
+    # type is set if type of file to act on is given explicitly)
+    if [[ -z "$all" && -z "$type" ]]; then
+	type=${perm%$nperm}
+	if [ $type = - ]; then
+	    type=f
+	fi
+    fi
+    perm=$nperm
+
+    if [ -z "$mode" ]; then		# if mode not already given...
+	for ptype in u g o; do		# get perms for user, group and other
+	    mode=$mode$ptype=		# add perm type to mode string
+	    for wperm in r w xsStT; do	# strip off each mode letter
+		nperm=${perm#?}
+		# get next component of perms
+		comp=${perm%$nperm}
+		# Make sure each mode bit has one of the expected values for it
+		[[ "$comp" != [-$wperm] ]] && print -u2 \
+	"Warning: unrecognized permission '$comp'; should be one of: -$wperm"
+		case $comp in
+		-) ;;
+		# add executability if perm was s or t
+		s) mode=${mode}x$comp;;
+		S) mode=${mode}s;;
+		t) mode=${mode}x,u+t;;
+		T) mode=$mode,u+t;;
+		*) mode=$mode$comp;;
+		esac
+		perm=$nperm
+	    done
+	    if [ $ptype != o ]; then # add a comma after u=* & g=*
+		mode=$mode,
+	    fi
+	done
+    fi
+    # get owner and group if not given explicitly
+    [ -z "$owner" ] && owner=$3
+    [ -z "$group" ] && group=$4
+}
+
+usage="$name: set file mode, ownership and group.
+syntax: $name [-GOMrLlahq] [-f dupfile] [-g group] [-o owner]
+                [ -m mode] [-t type] [dupfile] file ..."
+
+while getopts :cGOMrLlahf:g:o:m:t: opt; do
+    case $opt in
+    h) echo "$usage"
+       echo \
+"If a dupfile is given, the owner, group, and mode are copied from it, 
+and only files of its type are acted on.  This is modified by the flags 
+as described.  If no dupfile is given, all files are acted on (unless -t 
+is given), and only values given (owner, group, mode) are set.
+Options:
+-G, -O, -M: don't set {group, owner, mode}
+-r: do recursively for each file argument
+-L: list files that will be affected.
+-l: list files that would be affected, but don't change anything.
+-q: list files and action that would be taken, then ask before proceding.
+-a: do for all types of files, regardless of dupfile type.
+-h: print this help.
+-c: create target files that don't exist.
+-f dupfile: read type, mode, owner and group from file dupfile.
+-g group: set group to group.
+-o owner: set owner to to owner.
+-m mode: set mode to mode (as in chmod).
+-t type: only act on files of type type (one of [bcdpf] as in find).  
+         Only one type can be specified.
+dupfile: if none of -g, -o, -m and -f are given, the first file
+         argument given is used as the dupfile (as in -f).
+file ...: files to act on."
+	    exit;;
+    G) nosetgroup=true;;
+    O) nosetowner=true;;
+    M) nosetmode=true;;
+    c) create=true;;
+    l) listfiles=quit;;
+    L) listfiles=continue;;
+    q) listfiles=query;;
+    f) getperm "$OPTARG";;
+    g) group="$OPTARG";;
+    o) owner="$OPTARG";;
+    m) mode="$OPTARG";;
+    r) recursive=true;;
+    t) type="$OPTARG"; 
+       if [[ "$type" != [bcdpf] ]]; then
+	   echo "$name: Invalid file type '$type'.  Exiting."
+	   exit 1
+       fi;;
+    a) all=true;;
+    +?) echo "$name: options should not be preceded by a '+'."; exit 1;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) echo "$name: bad option '$OPTARG'.  Use -h for help."; exit 1;;
+    esac
+done
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    echo "$usage"
+    exit
+fi
+
+# if nothing set explicitly or via -f, first non-option arg is the name
+# of a file to duplicate perms from.
+if [[ (-z "$group" && -z "$owner") && -z "$mode" ]]; then
+    if [ $# -lt 2 ]; then
+	echo "Not enough arguments."
+	exit
+    fi
+    getperm "$1"
+    shift
+fi
+
+[ -n "$nosetowner" ] && owner=
+[ -n "$nosetgroup" ] && group=
+[ -n "$nosetmode" ] && mode=
+
+# generate files list
+if [[ -n "$recursive" ]]; then
+    if [[ -n "$type" ]]; then
+	files=$(find "$@" -type $type -print)
+    else
+	files=$(find "$@" -print)
+    fi
+else
+    if [[ -n "$type" ]]; then
+	if [ "$type" = f ]; then  # l gives '-' for an ordinary file
+	    type=-
+	fi
+	ls -lLd "$@" 2>&1 | while read line; do
+	    set -- $line
+	    if [ $# -eq 3 ]; then
+		if [ -n "$create" ]; then
+		    case $type in
+		    d) mkdir "$1" && files="$files $1"
+			;;
+		    p) mknod "$1" p && files="$files $1"
+			;;
+		    -) > "$1" && files="$files $1"
+			;;
+		    default)
+			print -u2 "Can't create file of type '$type'".
+			;;
+		    esac
+		else
+		    print -- "$line"
+		fi
+	    elif [[ "$1" = "$type"* ]]; then
+		shift $(($# - 1))
+		files="$files $1"
+	    fi
+	done
+    else
+	files=$*
+    fi
+fi
+
+set -- $files
+numfiles=$#
+
+[ -n "$owner" ] && action=" owner=$owner"
+[ -n "$group" ] && action="$action group=$group"
+[ -n "$mode" ] && action="$action mode=$mode"
+
+if [[ -n "$listfiles" ]]; then
+    for file in $files; do
+	echo $file
+    done
+    case $listfiles in
+    quit)	exit 0;;
+    query)	echo -n "Would set$action on $numfiles files.  Continue? ";
+		read answer
+		if [[ "$answer" != [yY]* ]]; then
+		    exit 0;
+		fi;;
+    continue)	;;
+    esac
+fi
+
+if [ $numfiles -eq 0 ]; then
+    print -u2 "No target files of correct type ($type)."
+    exit 1
+fi
+
+echo "Setting$action on $numfiles files."
+
+# Set mode & group first; if owner is changed it will be too late
+# for non-superuser
+[ "${#files}" -le 400 ]
+doxargs=$?
+
+if [[ -n "$mode" ]]; then
+     istrue doxargs && echo "$files" | xargs chmod $mode || chmod $mode $files
+fi
+
+if [[ -n "$group" ]]; then
+    istrue doxargs && echo "$files" | xargs chgrp $group || chgrp $group $files
+fi
+
+if [[ -n "$owner" ]]; then
+    istrue doxargs && echo "$files" | xargs chown $owner || chown $owner $files
+fi
+
+# If set[ug]id was included it was lost with chgrp/chown, so do it now,
+# if still possible
+if [[ "$mode" = *s* ]]; then
+    istrue doxargs && echo "$files" | xargs chmod $mode || chmod $mode $files
+fi

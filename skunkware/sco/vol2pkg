@@ -1,0 +1,447 @@
+#!/usr/bin/ksh
+#
+#  vol2pkg -  Script which can be used to translate an SCO OpenServer
+#             "custom" installable set of media images into an installable 
+#             package to be used as input to the pkgadd command. The package 
+#             contents will be in directory structure format.
+#
+#             This is useful for transforming SCO OpenServer products into a
+#             format installable on SCO UnixWare platforms which provide 
+#             OpenServer binary compatibility.
+#
+#             Note further that the use of vol2pkg is largely untested and is
+#             an unsupported utility. However, i have used it successfully.
+#             This utility should probably only be run by a knowledgable
+#             system administrator.
+#
+#             To use vol2pkg, first create a directory whose name is what
+#             you want your /var/spool/pkg/<package> directory to be named.
+#             Populate this new directory with VOL.* media images which are
+#             custom installable on SCO OpenServer 5. Next, as root, run the
+#             command "vol2pkg <directory-name>" where <directory-name> is
+#             the directory containing the media images. For instance :
+#
+#             # mkdir /tmp/xanim
+#             # cp /x/rr/osr5/dist/xanim/VOL* /tmp/xanim
+#             # cd /tmp
+#             # vol2pkg xanim
+#
+#             I just use /x/rr/osr5/dist/xanim as an example. Perhaps you
+#             have downloaded these media images from ftp.sco.com/skunkware/...
+#             Note that you need to be in the directory above the media images
+#             when you run the vol2pkg command.
+#             If successful, the resulting pkgadd installable directory will
+#             be in /var/spool/pkg/xanim. To install on your UnixWare system,
+#             
+#             # pkgadd -d /var/spool/pkg/xanim
+#
+# AUTHOR - Scott Popp (spopp@sco.com) who comments :
+#
+#	1) It won't work with multi-volume custom+ packages.
+#
+#	2) It won't work with regular custom packages (use the UnixWare 7
+#		custom command to install those).
+#
+#	3) It doesn't run any preinstall/postinstall scripts which may
+#		be part of the custom+ package.
+#
+#	4) It doesn't figure out package dependencies, so uninstalling
+#		something may break a vol2pkg installed package.
+#
+#	5) It overwrites any existing file in the same path, which may
+#		cause hidden problems (ie. Installing a new version of
+#		something included with UnixWare 7 may cause UnixWare 7
+#		features to break.  So, unless you're sure what you're doing,
+#		I wouldn't recommend added utilities which already exist
+#		in UnixWare 7.
+#
+#	6) It worked fine on all images on Skunkware 96.
+#
+# MODIFICATIONS - Ron Record (rr@sco.com)
+# Although i did not author this script, i have modified it for inclusion in
+# SCO Skunkware and would be happy to receive feedback, suggestions, bug 
+# reports, success stories, etc. Just e-mail rr@sco.com .
+#
+
+OSRUNCOMP="/usr/bin/compress -d"
+if [ $# -ne 1 -o ! -d "$1" ]
+then
+	echo "Usage: vol2pkg dir"
+	exit 0
+fi
+TMPDIR="/var/spool/pkg/`echo $1 | sed 's%^.*/%%g'`"
+rm -rf $TMPDIR
+mkdir -p $TMPDIR
+cd $1
+SRCDIR=`pwd`
+exec 9<&0
+ls -1 VOL* | while read VOL
+do
+	read VOLFILES
+	read VOLSUM
+	cd $SRCDIR
+	echo "Resolving $VOL in $TMPDIR ..."
+	VSUM="`sum -r $VOL | cut -d' ' -f1`"
+	FSUM="`cat $VOLSUM`"
+	if [ "$VSUM" = "$FSUM" ]
+	then
+		echo "	Checksum matched."
+	else
+		echo "	Checksum ERROR: got $VSUM, expected $FSUM"
+		echo "	Continue anyways (y/N)? \c"
+		read ans <&9
+		if [ "$ans" != "y" -a "$ans" != "Y" ]
+		then
+			echo "	USER TERMINATED!"
+			exit 0
+		fi
+	fi
+	echo "	Unarchiving $VOL into dir $TMPDIR ..."
+	cd $TMPDIR
+	cpio -icBvdum < $SRCDIR/$VOL
+	echo "	Verifying all files from $VOL unarchived ..."
+	rm -rf .missing
+	cat $SRCDIR/$VOLFILES | while read file
+	do
+		echo "		$file \c"
+		if [ -f "$file" ]
+		then
+			echo "OK"
+		else
+			echo "MISSING"
+			echo "$file" >> .missing
+		fi
+	done
+	if [ -f ".missing" ]
+	then
+		echo "	Missing the files:"
+		while read file
+		do
+			echo "		$file"
+		done < .missing
+		echo "	Continue anyways (y/N)? \c"
+		read ans <&9
+		if [ "$ans" != "y" -a "$ans" != "Y" ]
+		then
+			echo "	USER TERMINATED!"
+			exit 0
+		fi
+	fi
+	if [ "`grep SSO_1_LABEL $SRCDIR/$VOLFILES`" ]
+	then
+		LABELFILE="`grep SSO_1_LABEL $SRCDIR/$VOLFILES`"
+		cat $LABELFILE | awk -F'=' '{ \
+			if (substr($0, 1, 4) == "ARCH") { \
+				split($0, vp, ":");
+				vol=sprintf("VOL.%03d.%03d", vp[2]+0, vp[3]+0);
+			};
+			if ($2 == "DATABASES") { \
+				printf "DBVOL=%s\n", vol;
+			};
+			if ($1 == "	components") { \
+				printf "FILVOL=%s\n", vol;
+				split($2, nm, ":");
+				printf "PKGDIR=%s\n", nm[1];
+				printf "PKGNAME=%s\n", nm[2];
+				printf "PKGVER=%s\n", nm[4];
+			};
+		}' > .vars
+		. ./.vars
+		echo "	Package Dir     = $PKGDIR"
+		echo "	Package Name    = $PKGNAME"
+		echo "	Package Version = $PKGVER"
+		echo "	Package db Vol  = $DBVOL"
+		echo "	Files Vol       = $FILVOL"
+	fi
+done
+. ./.vars
+# First, check if package is installed.  It's not supposed to be.
+pkginfo $PKGNAME 1> /dev/null 2>&1
+rc=$?
+if [ $rc -ne 1 ]
+then
+	echo "Package $PKGNAME cannot be installed prior to running this script!"
+	echo "Installation terminated!"
+	exit 0
+fi
+# Now that we've read all the files in, the fun stuff begins
+cd $TMPDIR
+PKGDESC=`cat opt/P/$PKGDIR/$PKGNAME/$PKGVER/.softmgmt/product.db | grep "^	description=" | cut -c14-`
+echo "	Package Descr   = $PKGDESC"
+echo "	Package Dir     = $PKGDIR"
+echo "	Package Name    = $PKGNAME"
+echo "	Package Version = $PKGVER"
+echo "	Package db Vol  = $DBVOL"
+echo "	Files Vol       = $FILVOL"
+# First, find all .Z files, and uncompress them
+echo "Uncompressing files ..."
+find . -name "*.Z" | while read file
+do
+	name=`echo "$file" | sed 's%^.*/%%g'`
+	dir=`echo "$file" | sed 's%[^/]*$%%g'`
+	cd $TMPDIR/$dir
+	export OSRCMDS=y; $OSRUNCOMP $name; unset OSRCMDS
+	echo "	$file uncompressed"
+done
+
+# This procedure is used below.  Given args, creates an appropriate prototype
+#	line, and places it in the file $TMPDIR/.getproto
+# Args are as follows:
+#	$1 = The prototype line
+#	$2 = The current .softmgmt dir
+#	$3 = The last FILE processed, used for LINK cases
+getproto () {
+	TYP="`echo "$1" | cut -d' ' -f1`"
+	case "$TYP" in
+		DIR)
+			DEST="`echo "$1" | cut -d' ' -f6 | sed 's%^\./bin/%./usr/bin/%g' | sed 's%^\./%/opt/custom+/%g' | sed 's%^/bin/%/usr/bin/%g'`"
+			MOD="`echo "$1" | cut -d' ' -f2`"
+			OWN="`echo "$1" | cut -d' ' -f3`"
+			GRP="`echo "$1" | cut -d' ' -f4`"
+			# See if the dir already exists
+			if [ ! -d "$DEST" ]
+			then
+				# It does not, so enter data
+				echo "d none $DEST $MOD $OWN $GRP" >> $TMPDIR/.fprototype
+			else
+				# If it pre-exists, we should keep it as-is, if a link
+				ORIG="`grep "^$DEST=" /var/sadm/install/contents`"
+				if [ ! "$ORIG" ]
+				then
+					echo "d none $DEST ? ? ?" >> $TMPDIR/.fprototype
+				else
+					SRCFILE="`echo "$ORIG" | cut -d' ' -f1 | cut -d'=' -f2`"
+					TYP="`echo "$ORIG" | cut -d' ' -f2`"
+					echo "$TYP none $DEST=$SRCFILE" >> $TMPDIR/.fprototype
+				fi
+			fi
+			echo "	DIR $DEST processed"
+			;;
+		EXPORT)
+			SRC="`echo "$1" | cut -d' ' -f3 | sed 's%^\./bin/%./usr/bin/%g' | sed 's%^\./%/opt/custom+/%g' | sed 's%^/bin/%/usr/bin/%g'`"
+			DST="`echo "$1" | cut -d' ' -f4 | sed 's%^\./%/%g' | sed 's%^/bin/%/usr/bin/%g'| sed 's%^/local/%/usr/local/%g' | sed 's%^/lib/%/usr/lib/%g' | sed 's%^/man/%/usr/man/%g'`"
+			if [ "$SRC" != "$DST" ]
+			then
+				echo "s none $DST=$SRC" >> $TMPDIR/.fprototype
+				echo "	EXPORT $DST processed"
+			else
+				echo "	EXPORT $DST=$SRC skipped - SAME"
+			fi
+			;;
+		FILE)
+			DEST="`echo "$1" | cut -d' ' -f13 | sed 's%^\./bin/%./usr/bin/%g' | sed 's%^\./%/opt/custom+/%g' | sed 's%^/bin/%/usr/bin/%g'`"
+			RDEST="`echo "$1" | cut -d' ' -f13 | sed 's%^\./%%g'`"
+			SRC="$2/$RDEST"
+			MOD="`echo "$1" | cut -d' ' -f2`"
+			OWN="`echo "$1" | cut -d' ' -f3`"
+			GRP="`echo "$1" | cut -d' ' -f4`"
+			if [ -f "$SRC" ]
+			then
+				echo "f none $DEST=${SRC#$TMPDIR} $MOD $OWN $GRP" >> $TMPDIR/.fprototype
+				echo "LASTFILE=\"$DEST\"" > .lastfile
+				echo "	FILE $DEST processed"
+			else
+				echo "	Unable to find $SRC for $DEST!"
+				echo "	$DEST->$SRC not found!" >> $TMPDIR/.badfiles
+				echo "LASTFILE=\"\"" > .lastfile
+			fi
+			;;
+		LINK)
+			DST="`echo "$1" | cut -d' ' -f3 | sed 's%^\./bin/%./usr/bin/%g' | sed 's%^\./%/opt/custom+/%g' | sed 's%^/bin/%/usr/bin/%g'`"
+			if [ "$3" != "$DST" ]
+			then
+				echo "l none $DST=$3" >> $TMPDIR/.fprototype
+				echo "	LINK $DST processed"
+			else
+				echo "	SYML $DST=$3 skipped - SAME"
+			fi
+			;;
+		SYML)
+			SRC="`echo "$1" | cut -d' ' -f5 | sed 's%^\./bin/%./usr/bin/%g' | sed 's%^\./%/opt/custom+/%g' | sed 's%^/bin/%/usr/bin/%g'`"
+			DST="`echo "$1" | cut -d' ' -f3 | sed 's%^\./bin/%./usr/bin/%g' | sed 's%^\./%/opt/custom+/%g' | sed 's%^/bin/%/usr/bin/%g'`"
+			if [ "$SRC" != "$DST" ]
+			then
+				echo "s none $DST=$SRC" >> $TMPDIR/.fprototype
+				echo "	SYML $DST processed"
+			else
+				echo "	SYML $DST=$SRC skipped - SAME"
+			fi
+			;;
+		PKG)
+			echo "	PKG line `echo "$1" | cut -d' ' -f2` skipped"
+			return
+			;;
+		*)
+			echo "	Undefined file type: $1" >> $TMPDIR/.badfiles
+			echo "	Bad file type: $1"
+			;;
+	esac
+}
+
+# Go through the .fl files, creating an appropriate prototype file
+cd $TMPDIR
+> .fprototype
+rm -f .badfiles
+for DIR in $TMPDIR/opt/K/$PKGDIR/$PKGNAME/$PKGVER $TMPDIR/opt/K/$PKGDIR/$PKGNAME/$PKGVER/.softmgmt/var
+do
+	echo "Processing $DIR/.softmgmt/*.fl files ..."
+	for file in $DIR/.softmgmt/*.fl
+	do
+		echo "LASTFILE=\"\"" > .lastfile
+		cat $file | while read inplin
+		do
+			if [ ! "`echo "$inplin" | grep "/.softmgmt"`" ]
+			then
+				. ./.lastfile
+				getproto "$inplin" "$DIR" "$LASTFILE"
+			fi
+		done
+	done
+done
+# Display bad files, if there were any
+if [ -f $TMPDIR/.badfiles ]
+then
+	echo "	Error finding the files:"
+	while read file
+	do
+		echo "		$file"
+	done < $TMPDIR/.badfiles
+	echo "	Continue anyways (y/N)? \c"
+	read ans
+	if [ "$ans" != "y" -a "$ans" != "Y" ]
+	then
+		echo "	USER TERMINATED!"
+		exit 0
+	fi
+fi
+cd $TMPDIR
+cat .fprototype | sed "s% /opt/custom+/% /opt/custom+/"$PKGNAME/$PKGVER/"%g" | sed "s%=/opt/custom+/%=/opt/custom+/"$PKGNAME/$PKGVER/"%g" | sort -u -k 3,3 > .nfprototype
+# Add any required directories which were not defined, and create a list
+#	of files which would be overwritten.  Any added dirs get perms
+#	of 755 bin bin.
+echo "Sorting prototype and creating required dirs ..."
+LASTDIR="/"
+> .existdirs
+cat .nfprototype | while read inplin
+do
+	TYPE="`echo "$inplin" | cut -c1`"
+	FULFIL="`echo "$inplin" | cut -d' ' -f3 | sed 's/=.*$//g'`"
+	SRCFIL="`echo "$inplin" | cut -d' ' -f3 | sed 's/^.*=//g'`"
+	FILE="`echo "$FULFIL" | sed 's%^.*[/]%%g'`"
+	DIR="`echo "$FULFIL" | sed 's%[^/]*$%%g'`"
+echo "- $inplin" >&2
+echo "	$LASTDIR - $DIR - $FILE" >&2
+	# Check if dir is a link
+	if [ "$DIR" != "$LASTDIR/" ]
+	then
+echo "	trymatch $LASTDIR/ in $DIR" >&2
+		# Set ourself to the last matchable piece of the new dir
+		while [ "$LASTDIR" != "/" -a ! "`echo "$DIR" | grep "^$LASTDIR/"`" ]
+		do
+			tmp="`echo "$LASTDIR" | sed 's%[/][^/]*$%%g'`"
+			LASTDIR="$tmp"
+echo "	trymatch $LASTDIR/ in $DIR" >&2
+		done
+echo "	lastmatch - $LASTDIR" >&2
+		# Now, create directories, if they don't already exist
+		while [ "$LASTDIR/" != "$DIR" ]
+		do
+			if [ "$LASTDIR" != "/" ]
+			then
+				nxt="`echo "${DIR#$LASTDIR}" | cut -d'/' -f2`"
+				tmp="${LASTDIR}/${nxt}"
+			else
+				nxt="`echo "$DIR" | cut -d'/' -f2`"
+				tmp="/$nxt"
+			fi
+			LASTDIR="$tmp"
+			# Make sure dir is not already done, or a symlink not yet processed
+			x=`grep "^$LASTDIR " .existdirs`
+			y=`grep " $LASTDIR=" .nfprototype`
+			if [ ! "$x" -a ! "$y" ]
+			then
+echo "		create - $LASTDIR" >&2
+				echo "$LASTDIR d" >> .existdirs
+				if [ ! -d "$LASTDIR" ]
+				then
+					# It does not, so enter data
+					echo "d none $LASTDIR 755 bin bin"
+				else
+					# If it pre-exists, we should keep it as-is, if a link
+					ORIG="`grep "^$LASTDIR=" /var/sadm/install/contents`"
+					if [ ! "$ORIG" ]
+					then
+						echo "d none $LASTDIR ? ? ?"
+					else
+						SRCFILE="`echo "$ORIG" | cut -d' ' -f1 | cut -d'=' -f2`"
+						NTYP="`echo "$ORIG" | cut -d' ' -f2`"
+						echo "$NTYP none $LASTDIR=$SRCFILE"
+					fi
+				fi
+			fi
+		done
+	fi
+	if [ "$TYPE" = "d" ]
+	then
+		LASTDIR="$FULFIL"
+		echo "$LASTDIR d" >> .existdirs
+	fi
+	if [ "$TYPE" = "s" -o "$TYPE" = "l" ]
+	then
+		TMPFIL=$SRCFIL
+		grep " $TMPFIL[ =]" .nfprototype | read winp
+		while true
+		do
+			TMPTYP="`echo "$winp" | cut -c1`"
+			if [ "$TMPTYP" = "d" ]
+			then
+				LASTDIR="$FULFIL"
+				echo "$LASTDIR $TYPE" >> .existdirs
+				break;
+			fi
+			if [ "$TMPTYP" = "s" -o "$TMPTYP" = "l" ]
+			then
+				TMPFIL="`echo "$winp" | cut -d' ' -f3 | cut -d'=' -f2`"
+			else
+				break;
+			fi
+			grep " $TMPFIL[ =]" .nfprototype | read winp
+		done
+	fi
+	# Do not forget to add the actual line read in
+	echo "$inplin"
+done > .fprototype
+echo "\n"
+echo "Creating additional install files ..."
+# Add any additional prototype lines
+echo "# Prototype generated from custom+ pkg on `date`\n" > .hprototype
+echo "i pkginfo" >> .hprototype
+echo "i request" >> .hprototype
+echo "" >> .hprototype
+cat .hprototype .fprototype > prototype
+# Create pkginfo file
+#	Start by making sure pkg name doesn't have _ chars
+#tmp1=`echo "$PKGNAME" | tr "_" "-" | awk '{i=1; while (substr($1, i, 1) != "") {x=x substr($1, i, 1); i++; if (i == 10) break}; printf "%s", x;}'`
+#       I've replaced the above complicated and failing substitution with the
+#       following simpler code - rr@sco.com
+tmp1=`echo $PKGNAME | sed -e "s/_/-/g" | cut -c1-10`
+PKGNAME=$tmp1
+echo "PKG=$PKGNAME" > pkginfo
+echo "NAME=$PKGDESC" >> pkginfo
+echo "CATEGORY=application" >> pkginfo
+echo "ARCH=i386" >> pkginfo
+echo "VERSION=$PKGVER" >> pkginfo
+echo "CLASSES=none" >> pkginfo
+echo "PSTAMP=`date +'%Y%m%d'`_custom+converted" >> pkginfo
+echo "echo \"Backing up pre-existing files ... \"" > request
+echo "if [ ! -d /var/sadm/bkup/\$PKG ]" >> request
+echo "then" >> request
+echo "	mkdir -p /var/sadm/bkup/\$PKG" >> request
+echo "fi" >> request
+echo "exit 0" >> request
+mkdir -p $TMPDIR/pkg
+pkgmk -b / -r $TMPDIR -o -B 2876 -d $TMPDIR/pkg
+echo "\n\nIf packaging was successful, run as root, the command:"
+echo "	pkgadd -d $TMPDIR/pkg"
+
+exit 0

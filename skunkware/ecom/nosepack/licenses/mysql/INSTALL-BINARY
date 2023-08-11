@@ -1,0 +1,323 @@
+Installing a MySQL binary distribution
+======================================
+
+* Menu:
+
+* Linux-RPM::                   Linux RPM files
+* Building clients::            Building client programs
+* Binary install system issues::  System-specific issues
+
+You need the following tools to install a *MySQL* binary distribution:
+
+   * GNU `gunzip' to uncompress the distribution.
+
+   * A reasonable `tar' to unpack the distribution. GNU `tar' is known
+     to work.
+
+An alternative installation method under Linux is to use RPM (RedHat
+Package Manager) distributions. *Note Linux-RPM::.
+
+If you run into problems, *PLEASE ALWAYS USE* `mysqlbug' when posting
+questions to <mysql@lists.mysql.com>.  Even if the problem isn't a bug,
+`mysqlbug' gathers system information that will help others solve your
+problem.  By not using `mysqlbug', you lessen the likelihood of getting
+a solution to your problem!  You will find `mysqlbug' in the `bin'
+directory after you unpack the distribution.  *Note Bug reports::.
+
+The basic commands you must execute to install and use a *MySQL* binary
+distribution are:
+
+     shell> gunzip < mysql-VERSION-OS.tar.gz | tar xvf -
+     shell> ln -s mysql-VERSION-OS mysql
+     shell> cd mysql
+     shell> scripts/mysql_install_db
+     shell> bin/safe_mysqld &
+
+You can add new users using the `bin/mysql_setpermission' script if you
+install the `DBI' and `Msql-Mysql-modules' Perl modules.
+
+Here follows a more detailed description:
+
+To install a binary distribution, follow the steps below, then proceed
+to *Note Post-installation::, for post-installation setup and testing:
+
+  1. Pick the directory under which you want to unpack the
+     distribution, and move into it.  In the example below, we unpack
+     the distribution under `/usr/local' and create a directory
+     `/usr/local/mysql' into which *MySQL* is installed.  (The
+     following instructions therefore assume you have permission to
+     create files in `/usr/local'.  If that directory is protected, you
+     will need to perform the installation as `root'.)
+
+  2. Obtain a distribution file from one of the sites listed in *Note
+     Getting *MySQL*: Getting MySQL.
+
+     *MySQL* binary distributions are provided as compressed `tar'
+     archives and have names like `mysql-VERSION-OS.tar.gz', where
+     `VERSION' is a number (e.g., `3.21.15'), and `OS' indicates the
+     type of operating system for which the distribution is intended
+     (e.g., `pc-linux-gnu-i586').
+
+  3. Unpack the distribution and create the installation directory:
+
+          shell> gunzip < mysql-VERSION-OS.tar.gz | tar xvf -
+          shell> ln -s mysql-VERSION-OS mysql
+
+     The first command creates a directory named `mysql-VERSION-OS'.
+     The second command makes a symbolic link to that directory.  This
+     lets you refer more easily to the installation directory as
+     `/usr/local/mysql'.
+
+  4. Change into the installation directory:
+
+          shell> cd mysql
+
+     You will find several files and subdirectories in the `mysql'
+     directory.  The most important for installation purposes are the
+     `bin' and `scripts' subdirectories.
+
+    `bin'
+          This directory contains client programs and the server You
+          should add the full pathname of this directory to your `PATH'
+          environment variable so that your shell finds the *MySQL*
+          programs properly.
+
+    `scripts'
+          This directory contains the `mysql_install_db' script used to
+          initialize the server access permissions.
+
+  5. If you would like to use `mysqlaccess' and have the *MySQL*
+     distribution in some nonstandard place, you must change the
+     location where `mysqlaccess' expects to find the `mysql' client.
+     Edit the `bin/mysqlaccess' script at approximately line 18. Search
+     for a line that looks like this:
+
+          $MYSQL     = '/usr/local/bin/mysql';    # path to mysql executable
+
+     Change the path to reflect the location where `mysql' actually is
+     stored on your system.  If you do not do this, you will get a
+     `broken pipe' error when you run `mysqlaccess'.
+
+  6. Create the *MySQL* grant tables (necessary only if you haven't
+     installed *MySQL* before):
+          shell> scripts/mysql_install_db
+
+     Note that *MySQL* versions older than 3.22.10 started the *MySQL*
+     server when you run `mysql_install_db'.  This is no longer true!
+
+  7. If you want to install support for the Perl `DBI'/`DBD' interface,
+     see *Note Perl support::.
+
+  8. If you would like *MySQL* to start automatically when you boot your
+     machine, you can copy `support-files/mysql.server' to the location
+     where your system has its startup files. More information can be
+     found in the `support-files/mysql.server' script itself, and in
+     *Note Automatic start::.
+
+
+After everything has been unpacked and installed, you should initialize
+and test your distribution.
+
+You can start the *MySQL* server with the following command:
+
+     shell> bin/safe_mysqld &
+
+*Note Post-installation::.
+
+
+Linux RPM notes
+---------------
+
+The recommended way to install *MySQL* on Linux is by using an RPM
+file. The *MySQL* RPMs are currently being built on a RedHat 5.2 system
+but should work on other versions of Linux that support `rpm' and use
+`glibc'.
+
+If you have problems with an RPM file, for example `Sorry, the host
+'xxxx' could not be looked up', see *Note Binary notes-Linux::.
+
+The RPM files you may want to use are:
+
+   * `MySQL-VERSION.i386.rpm'
+
+     The *MySQL* server.  You will need this unless you only want to
+     connect to another *MySQL* server running on another machine.
+
+   * `MySQL-client-VERSION.i386.rpm'
+
+     The standard *MySQL* client programs. You probably always want to
+     install this package.
+
+   * `MySQL-bench-VERSION.i386.rpm'
+
+     Tests and benchmarks. Requires Perl and msql-mysql-modules RPMs.
+
+   * `MySQL-devel-VERSION.i386.rpm'
+
+     Libraries and include files needed if you want to compile other
+     *MySQL* clients, such as the Perl modules.
+
+   * `MySQL-VERSION.src.rpm'
+
+     This contains the source code for all of the above packages. It
+     can also be used to try to build RPMs for other architectures (for
+     example, Alpha or SPARC).
+
+To see all files in an RPM package:
+     shell> rpm -qpl MySQL-VERSION.i386.rpm
+
+To perform a standard minimal installation, run this command:
+
+     shell> rpm -i MySQL-VERSION.i386.rpm MySQL-client-VERSION.i386.rpm
+
+To install just the client package:
+
+     shell> rpm -i MySQL-client-VERSION.i386.rpm
+
+The RPM places data in `/var/lib/mysql'. The RPM also creates the
+appropriate entries in `/etc/rc.d/' to start the server automatically
+at boot time.  (This means that if you have performed a previous
+installation, you may want to make a copy of your previously-installed
+*MySQL* startup file if you made any changes to it, so you don't lose
+your changes.)
+
+After installing the RPM file(s), the `mysqld' demon should be running
+and you should now be able to start using MySQL.  *Note
+Post-installation::.
+
+If something goes wrong, can find more information in the binary
+installation chapter. *Note Installing binary::.
+
+
+Building client programs
+------------------------
+
+If you compile *MySQL* clients that you've written yourself or that you
+obtain from a third party, they must be linked using the
+`-lmysqlclient' option on the link command.  You may also need to
+specify a `-L' option to tell the linker where to find the library.  For
+example, if the library is installed in `/usr/local/mysql/lib', use
+`-L/usr/local/mysql/lib -lmysqlclient' on the link command.
+
+For clients that use *MySQL* header files, you may need to specify a
+`-I' option when you compile them (for example,
+`-I/usr/local/mysql/include'), so the compiler can find the header
+files.
+
+
+System-specific issues
+----------------------
+
+* Menu:
+
+* Binary notes-Linux::          Linux notes
+* Binary notes-HP-UX::          HP-UX notes
+
+The following sections indicate some of the issues that have been
+observed to occur on particular systems when installing *MySQL* from a
+binary distribution.
+
+
+Linux notes
+...........
+
+*MySQL* needs at least Linux 2.0.
+
+The binary release is linked with `-static', which means you not
+normally need not worry about which version of the system libraries you
+have. You need not install LinuxThreads, either.  A program linked with
+`-static' is slightly bigger than a dynamically-linked program but also
+slightly faster (3-5%).  One problem however is that you can't use user
+definable functions (UDFs) with a statically-linked program.  If you
+are going to write or use UDF functions (this is something only for C
+or C++ programmers) you must compile *MySQL* yourself, using dynamic
+linking.
+
+If you are using a `libc'-based system (instead of a `glibc2' system),
+you will probably get some problems with hostname resolving and
+getpwnam() with the binary release. (This is because `glibc'
+unfortunately depends on some external libraries to resolve hostnames
+and getwpent() , even when compiled with `-static'). In this case you
+probably get the following error message when you run
+`mysql_install_db':
+
+     Sorry, the host 'xxxx' could not be looked up
+
+or the following error when you try to run mysqld with the `--user'
+option:
+
+     getpwnam: No such file or directory
+
+You can solve this problem one of the following ways:
+
+   * Get a *MySQL* source distribution (an RPM or the `tar'
+     distribution) and install this instead.
+
+   * Execute `mysql_install_db --force'; This will not execute the
+     `resolveip' test in `mysql_install_db'.  The downside is that you
+     can't use host names in the grant tables; you must use IP numbers
+     instead (except for `localhost').  If you are using an old *MySQL*
+     release that doesn't support `--force' you have to remove the
+     `resolveip' test in `mysql_install' with an editor.
+
+   * Start mysqld with `su' instead of using `--user'.
+
+The Linux-Intel binary and RPM releases of *MySQL* are configured for
+the highest possible speed. We are always trying to use the fastest
+stable compiler available.
+
+*MySQL* Perl support requires Perl 5.004_03 or newer.
+
+
+HP-UX notes
+...........
+
+Some of the binary distributions of *MySQL* for HP-UX is distributed as
+an HP depot file and as a tar file.  To use the depot file you must be
+running at least HP-UX 10.x to have access to HP's software depot tools.
+
+The HP version of *MySQL* was compiled on an HP 9000/8xx server under
+HP-UX 10.20, and uses MIT-pthreads. It is known to work well under this
+configuration.  *MySQL* 3.22.26 and newer can also be built with HP's
+native thread package.
+
+Other configurations that may work:
+
+   * HP 9000/7xx running HP-UX 10.20+
+
+   * HP 9000/8xx running HP-UX 10.30
+
+The following configurations almost definitely won't work:
+
+   * HP 9000/7xx or 8xx running HP-UX 10.x where x < 2
+
+   * HP 9000/7xx or 8xx running HP-UX 9.x
+
+To install the distribution, use one of the commands below, where
+`/path/to/depot' is the full pathname of the depot file:
+
+   * To install everything, including the server, client and
+     development tools:
+
+          shell> /usr/sbin/swinstall -s /path/to/depot mysql.full
+
+   * To install only the server:
+
+          shell> /usr/sbin/swinstall -s /path/to/depot mysql.server
+
+   * To install only the client package:
+
+          shell> /usr/sbin/swinstall -s /path/to/depot mysql.client
+
+   * To install only the development tools:
+
+          shell> /usr/sbin/swinstall -s /path/to/depot mysql.developer
+
+The depot places binaries and libraries in `/opt/mysql' and data in
+`/var/opt/mysql'. The depot also creates the appropriate entries in
+`/sbin/init.d' and `/sbin/rc2.d' to start the server automatically at
+boot time. Obviously, this entails being `root' to install.
+
+To install the HP-UX tar distribution, you must have a copy of GNU
+`tar'.
+

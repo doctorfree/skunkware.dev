@@ -1,0 +1,192 @@
+#!/bin/ksh
+# @(#) tarz.ksh 2.0 96/06/06
+# 92/10/09 john h. dubois iii (john@armory.com)
+# 93/04/15 Added H option.  Fixed f option.
+# 94/04/04 Added q option.
+# 95/07/02 Pass . to tar instead of expanding *
+# 96/01/15 Allow use of various compression utilities, read rcfile,
+#          added t option, pass assorted other options to compressor.
+# 96/01/21 Use rcfile in UHOME also.
+# 96/06/06 Ignore chars in $COPTS that do not apply to the compressor in use.
+#          Added d option.
+
+name=${0##*/}
+cOpts=H0123456789
+Usage="Usage: $name [-cdfghpqvt] [-$cOpts] dirname ..."
+test=false
+Debug=false	# not currently used for anything
+compress=compress
+set -A VFlags -- -v -v
+set -A Comps -- compress gzip pack
+set -A Exts -- .Z .gz .z
+set -A oFlags -- H 0123456789	# optional flags
+typeset -i nComp=${#Comps[*]}
+rcFile=.tarzrc
+
+COPTS=
+QUIET=0
+FORCE=0
+COMP=compress
+# Source these before processing opts so assignments can be overridden.
+[ -f "$UHOME/$rcFile" -a -r "$UHOME/$rcFile" ] && . "$UHOME/$rcFile"
+[ -f "$HOME/$rcFile" -a -r "$HOME/$rcFile" ] && . "$HOME/$rcFile"
+
+while getopts :cdfhvpqgtx$cOpts opt; do
+    case $opt in
+    h) echo \
+"$name: archive a directory.
+$Usage
+The contents of each dirname are tarred and compressed into an archive in the
+current directory with the name dirname.tar.Z.  Pathnames in the archives
+are relative to dirname.  
+Some options can be set in a configuration file named \"$rcFile\", which may
+be in the invoking user's home directory or in the directory specified by the
+environment variable UHOME (if both exist, assignments in the former take
+precedence).  In this file, values are assigned to variables in shell style,
+e.g. \"varname=value\".  Options given in the configuration files are
+overridden by those given on the command line.  Variable names are given in
+parentheses following option descriptions.
+Options:
+-h: Print this help.
+-p: Use 'pack' to compress.   In the configuration file, put: COMP=pack
+-g: Use 'gzip' to compress.   In the configuration file, put: COMP=gzip
+-c: Use 'compress' to compress.   This is the default.
+-n: Check for dirname.tar and compressed dirname.tar before writing output,
+    and abort if either exists.  This is the default.
+-f: Force writing of output even if dirname.tar or compressed dirname.tar
+    exists.  In the configuration file, put: FORCE=1
+-q: Be quiet; do not verbose flag to compressor or list output file.  In the
+    configuration file, put: QUIET=1
+-t: Tell what command would be run, but do not execute it.
+-v: Be verbose; give verbose flag to compressor (if it has one), and list
+    output file after archiving is completed.  This is the default.
+To set any of the following options in the configuration file, use:
+COPTS=options.  If any of these options are given on the command line, those in
+the configuration file are ignored.  If COPTS is used in the configuration
+file, any options that do not apply to the compressor in use are ignored.
+-d: Dummy option to disable use of any value assigned to COPTS in config file.
+-H: Make 'compress' do better compression.
+-[0-9]: Set the compression level for 'gzip'."
+	exit 0
+	;;
+    f)  FORCE=1;;
+    n)  FORCE=0;;
+    c)  COMP=compress;;
+    d)  COPTS=;;
+    g)  COMP=gzip;;
+    p)  COMP=pack;;
+    q)	QUIET=1;;
+    v)	QUIET=0;;
+    t)	test=true;;
+    x)  Debug=true;;
+    [$cOpts]) cOptions="$cOptions$opt";;
+    +?)
+	print -u2 "$name: options should not be preceded by a '+'."
+	exit 1
+	;;
+    :) 
+	print -r -u2 -- \
+	"$name: Option '$OPTARG' requires a value.  Use -h for help."
+	exit 1
+	;;
+    ?) 
+	print -u2 "$name: $OPTARG: bad option.  Use -h for help."
+	exit 1
+	;;
+    esac
+done
+
+[ "$QUIET" = 0 ] && Quiet=false || Quiet=true
+[ "$FORCE" = 0 ] && Check=true || Check=false
+
+typeset -i i=0
+while [ i -lt nComp ]; do
+    [ "$COMP" = "${Comps[i]}" ] && break
+    let i+=1
+done
+if [ i -ge nComp ]; then
+    print -u2 "Unknown compression type: $COMP.  Aborting."
+    exit 1
+fi
+vflag=${VFlags[i]}
+Ext=${Exts[i]}
+$Quiet && vflag= || vflag=${VFlags[i]}
+
+# Usage: SplitStr <string>
+# Each character in <string> is put in a separate element in SplitStr_ret[],
+# starting with 0.
+# If <string> has more characters than the maximum number of elements in an
+# array (1024), 1 is returned.  Otherwise 0 is returned.
+function SplitStr {
+    typeset s=$1
+    typeset -i i=0
+    unset SplitStr_ret[*]
+    [ ${#s} -gt 1024 ] && return 1
+    while [ -n "$s" ]; do
+	ns=${s#?}
+	SplitStr_ret[i]=${s%$ns}
+	s=$ns
+	let i+=1
+    done
+    return 0
+}
+
+# Usage: commonStr s1 s2
+# Sets commonStr_ret to a string consisting of s1 with all of its characters
+# that are not in s2 removed.
+function commonStr {
+    typeset c
+
+    SplitStr "$1"
+    commonStr_ret=
+    for c in "${SplitStr_ret[@]}"; do
+	# Use case instead of [[]] to avoid need to eval pattern comparison
+	case "$c" in
+	[$2]) commonStr_ret="$commonStr_ret$c"
+	esac
+    done
+}
+
+oFlagList=${oFlags[i]}
+if [ -z "$cOptions" ]; then
+    commonStr "$COPTS" "$oFlagList"
+    cOptions=$commonStr_ret
+fi
+[ -n "$cOptions" ] && cOptions="-$cOptions"
+
+# remove args that were options
+let OPTIND=OPTIND-1
+shift $OPTIND
+
+if [ $# -lt 1 ]; then
+    print -u2 "$Usage\nUse -h for help."
+    exit
+fi
+
+OWD=$PWD
+
+for dirname; do
+    cd -- "$OWD"
+    archname="${dirname##*/}.tar"
+    if $Check; then
+	if [ -f "$archname" ]; then
+	    print -u2 -- \
+	"$archname: file exists.  Use the -f option to overwrite.  Skipping."
+	    continue
+	fi
+	if [ -f "$archname$Ext" ]; then
+	    print -u2 -- "$archname$Ext: file exists.  Skipping."
+	    continue
+	fi
+    fi
+    if cd -- "$dirname"; then :; else
+	print -u2 -- "Could not cd to '$dirname'.  Not processed."
+	continue
+    fi
+    if $test; then
+	print -- "tar cf - . | $COMP $vflag $cOptions > $OWD/$archname$Ext"
+    else
+	tar cf - . | $COMP $vflag $cOptions > "$OWD/$archname$Ext"
+	$Quiet || l -- "$OWD/$archname$Ext"
+    fi
+done
