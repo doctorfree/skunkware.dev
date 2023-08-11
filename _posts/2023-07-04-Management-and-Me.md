@@ -66,6 +66,14 @@ to my personal website then added some links to my personal website in
 Skunkware. For example, here is the full list of
 [Unabomber Haikus](https://archive.ronrecord.com/Poems/unabomber.html)
 and the [Homer Simpson Quotes](https://archive.ronrecord.com/Quotes/homer.html).
+
+Skunkware, especially the early releases, was chock full of fun, zany,
+interesting, weird, irrelevant stuff. There was a
+[Tribute to the Beat Farmers](/skunkware/95/farmhand.html), the
+[Savage Rabbit Art Gallery](/skunkware/95/savage.html), all kinds of
+[Images](/skunkware/95/images.html) (unfortunately scrubbed per the PTB),
+[Animations](/skunkware/95/anim.html), and more.
+
 Take that Blue Meanies!
 
 ## NOSEPAK
