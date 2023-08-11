@@ -132,6 +132,15 @@ Hiram Clawson and I got SCO to donate $5000 to the
 [Berkeley SETI project](https://seti.berkeley.edu/) and we got to go to
 Berkeley and meet the researchers.
 
+Eric and I got SCO to fund an ISDN line into Palookaville, a local live
+music club in Santa Cruz. Eric did the dirty business crawling under the
+building and snaking the line up to the club. SCO had partnered with
+RealNetworks and we were able to do primitive live streaming of audio
+and video using their technology. Eric and I setup in a balcony in
+Palookaville and started streaming live show over the Internet. This
+was new and seemed really cool at the time but the actual streams were
+pretty bad. Things have improved. I got to meet Todd Rundgren!
+
 There were many SCO sponsored activities including a flag football team,
 a volleyball league, field trips, camping, daquiri parties, a hot tub,
 and the annual Solstice Party. It was a ton of fun and all my direct
