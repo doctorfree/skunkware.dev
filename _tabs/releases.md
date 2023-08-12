@@ -11,6 +11,11 @@ No actual packages are downloadable here, this is just
 the website, what it looked like, info on the packages,
 and fun stuff.
 
+| **Skunkware**                                                 |                                                                |                                                                   |                                                                   |                                                      **Releases** |
+| :------------------------------------------------------------ | :------------------------------------------------------------: | :---------------------------------------------------------------: | :---------------------------------------------------------------: | ----------------------------------------------------------------: |
+| [Xenix Games Disk](https://skunkware.dev/skunkware/Games/)    | [Skunkware 2.0](https://skunkware.dev/skunkware/94/index.html) |   [Skunkware 5](https://skunkware.dev/skunkware/95/index.html)    |   [Skunkware 96](https://skunkware.dev/skunkware/96/index.html)   |        [Skunkware 97](https://skunkware.dev/skunkware/index.html) |
+| [Skunkware 98](https://skunkware.dev/skunkware/98/index.html) | [Skunkware 99](https://skunkware.dev/skunkware/99/index.html)  | [Skunkware 2000](https://skunkware.dev/skunkware/2000/index.html) | [Skunkware 7.1.1](https://skunkware.dev/skunkware/uw7/index.html) | [Skunkware 2006](https://skunkware.dev/skunkware/2006/index.html) |
+
 ## [Xenix Games Disk](https://skunkware.dev/skunkware/Games/) (SCO Xenix)
 
 Published in 1983, the Xenix Games disk was a single floppy included in all SCO Xenix distributions.
@@ -31,7 +36,7 @@ Published in 1995, Skunkware 5 was distributed with SCO OpenServer 5
 
 Published in 1996, Skunkware 96 was distributed with SCO OpenServer 5
 
-## Skunkware 97 (SCO OpenServer 5 and UnixWare 2)
+## [Skunkware 97](https://skunkware.dev/skunkware/index.html) (SCO OpenServer 5 and UnixWare 2)
 
 Published in 1997, Skunkware 97 was distributed with SCO OpenServer 5 and UnixWare 2
 
@@ -78,6 +83,6 @@ Published in 2002, Skunkware 8.0.1 was distributed with Open UNIX 8
 
 Published in 2002, SOSS 3.1.1 was distributed with OpenLinux 3.1.1
 
-## [Skunkware 2006](https://skunkware.dev/skunkware/index.html) (SCO OpenServer 6)
+## [Skunkware 2006](https://skunkware.dev/skunkware/2006/index.html) (SCO OpenServer 6)
 
 Published in 2006, Skunkware 2006 was distributed with SCO OpenServer 6
