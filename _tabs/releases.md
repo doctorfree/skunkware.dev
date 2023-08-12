@@ -6,6 +6,15 @@ icon: fas fa-arrow-circle-down
 order: 1
 ---
 
+<div align="center">
+  <img
+    align="center"
+  src="/skunkware/images/skunkware.png"
+    style="width:643;height:116"
+    alt="Skunkware"/>
+</div>
+<br />
+
 These links reference the archives of the original websites.
 No actual packages are downloadable here, this is just
 the website, what it looked like, info on the packages,
