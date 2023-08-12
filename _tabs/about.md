@@ -5,7 +5,10 @@ order: 6
 ---
 
 <div align="center">
-  <img src="/skunkware/images/skunkware_5.png" alt="Skunkware">
+  <img
+    src="/skunkware/images/skunkware_5.png"
+    style="width:474px;height:482px"
+    alt="Skunkware"/>
 </div>
 
 ## What is Skunkware
