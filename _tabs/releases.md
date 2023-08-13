@@ -13,13 +13,14 @@ order: 1
     style="width:643;height:116"
     alt="Skunkware"/>
 </div>
+<h1 align="center">Skunkware Releases</h1>
 
 These links reference the archives of the original websites.
 No actual packages are downloadable here, this is just
 the website, what it looked like, info on the packages,
 and fun stuff.
 
-| **Skunkware**                                                 |                                                                |                                                                   |                                                                   |                                                      **Releases** |
+| **Skunkware** |         |       |       | **Releases** |
 | :------------------------------------------------------------ | :------------------------------------------------------------: | :---------------------------------------------------------------: | :---------------------------------------------------------------: | ----------------------------------------------------------------: |
 | [Xenix Games Disk](https://skunkware.dev/skunkware/Games/)    | [Skunkware 2.0](https://skunkware.dev/skunkware/94/index.html) |   [Skunkware 5](https://skunkware.dev/skunkware/95/index.html)    |   [Skunkware 96](https://skunkware.dev/skunkware/96/index.html)   |        [Skunkware 97](https://skunkware.dev/skunkware/index.html) |
 | [Skunkware 98](https://skunkware.dev/skunkware/98/index.html) | [Skunkware 99](https://skunkware.dev/skunkware/99/index.html)  | [Skunkware 2000](https://skunkware.dev/skunkware/2000/index.html) | [Skunkware 7.1.1](https://skunkware.dev/skunkware/uw7/index.html) | [Skunkware 2006](https://skunkware.dev/skunkware/2006/index.html) |

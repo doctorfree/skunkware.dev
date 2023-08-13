@@ -10,9 +10,8 @@ order: 3
     src="/skunkware/images/skunkware.png"
     style="width:643;height:116"
     alt="Skunkware"/>
-<br />
-# Lists of Contributors
 </div>
+<h1 align="center">Lists of Contributors</h1>
 
 In the beginning it was just me but soon there were many contributors
 to Skunkware not only fellow workers in Santa Cruz but folks from
