@@ -13,7 +13,6 @@ order: 1
     style="width:643;height:116"
     alt="Skunkware"/>
 </div>
-<br />
 
 These links reference the archives of the original websites.
 No actual packages are downloadable here, this is just

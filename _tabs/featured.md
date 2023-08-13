@@ -7,32 +7,15 @@ order: 2
 ---
 
 <div align="center">
-  <a href="/skunkware/pics/jpg/skunkware_5.jpg">
-  <img
-    align="right"
-    src="/assets/skunkware.png"
-    style="width:128;height:128"
-    alt=""/></a>
-  <br />
   <img
     align="center"
-  src="/skunkware/images/skunkware.png"
+    src="/skunkware/images/skunkware.png"
     style="width:643;height:116"
     alt="Skunkware"/>
 </div>
 <br />
 
 # Skunkware featured topics
-
-<div align="left">
-  <a href="/skunkware/pics/jpg/skunkware_2.0.jpg">
-  <img
-    align="left"
-    src="/skunkware/pics/jpg/skunkware_2.0_small.jpg"
-    style="width:128;height:128"
-    alt=""/></a>
-</div>
-<br />
 
 ## [GNU Development System](/skunkware.dev/skunkware/gds/) and [Tools](/skunkware.dev/skunkware/devtools/)
 
