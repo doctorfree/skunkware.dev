@@ -4,6 +4,16 @@ icon: fas fa-info-circle
 order: 3
 ---
 
+<div align="center">
+  <img
+    align="center"
+    src="/skunkware/images/skunkware.png"
+    style="width:643;height:116"
+    alt="Skunkware"/>
+<br />
+# Lists of Contributors
+</div>
+
 In the beginning it was just me but soon there were many contributors
 to Skunkware not only fellow workers in Santa Cruz but folks from
 Canada and Europe and Mexico and Australia and all over were

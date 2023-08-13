@@ -12,10 +12,9 @@ order: 2
     src="/skunkware/images/skunkware.png"
     style="width:643;height:116"
     alt="Skunkware"/>
-</div>
 <br />
-
-# Skunkware featured topics
+# Featured Topics
+</div>
 
 ## [GNU Development System](/skunkware.dev/skunkware/gds/) and [Tools](/skunkware.dev/skunkware/devtools/)
 
