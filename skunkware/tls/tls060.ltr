@@ -1,0 +1,186 @@
+Subj: tls060 - C++ shared library building tools update
+
+  How to build a shared library for SCO ODT using C++ source code
+  
+    This sounds easy, and can be if you follow the workarounds described
+  here.  Without the workarounds two problems and one annoyance exist.
+  
+  1) mkshlib will not allow uninitialized data to exist within a shared lib, 
+  including data that CC generates, such as the following decl, placed
+  into each object file CC generates:
+  
+  char __cfront_version_302_xxxxxxxx; 
+  
+  2) constructor functions will not be called within the body of C++ code 
+  that makes up the shared library.
+  
+  In addition, one other minor annoyance exists, there is no shared libC_s
+  to place in the specfile (#objects noload) to resolve the definitions for 
+  usefull things like new() and delete().  Most C++ code will use new() at 
+  some point, to find out if you use this routine look for an unresolved 
+  symbol "__nw__FUi" from mkshlib().
+  
+  
+  How to make it work:
+  
+  1) use the new version of mkshlib(CP) included in this TLS, this version 
+  allows uninitialized data to become initialized (to zero).
+  call mkshlib with the "-i" argument (new).
+  
+  $ mkshlib -i -s libstr.spec -t....
+  
+  2) this is a bit more work than #1.
+  Included in this TLS is an object "shlib_main.o", that must be 
+  added to the #objects list of your shared library. In addition the 
+  routine "shlib_main();" must be called by your library at 
+  some point prior to using any of the class member functions 
+  exported by your library.  Or to put it simply, your code 
+  must call shlib_main() first, and only once.  If your library
+  has an "initial" call, just add shlib_main() to the top of 
+  that routine.  
+  NOTE: calling shlib_main() from a constructor won't work, because
+  constructors won't get called until shlib_main() is called.
+  NOTE: shlib_main.o contains a data object "__head"
+  that must be hidden within the shared lib, use the following 
+  directive within the shared lib spec file: 
+  
+  #hide linker  
+  __head
+  
+  The function shlib_main(), starts at the head of a linked list 
+  of constructors and walks the list, calling each constructor
+  thus causing all classes to be properly initialized. 
+  
+  To cause the linked list to be built, you must run the version
+  of patch(CC) that is included in this TLS against the shared library
+  target file produced by mkshlib(CP).   Place the supplied version 
+  of patch in /usr/lib/CC, saving the original as a backup.
+  
+  The command line for patch will then look like this:
+  
+  $ /usr/lib/CC/patch libmyshlib_s 
+  
+  I put this in my makefile so that it is done right after mkhslib(CP)
+  An example will be included below.
+  
+  This version of patch must also exist in /usr/lib/CC when programs
+  that link with libmyshlib_s.a are built, the original version 
+  of patch will balk at the addresses within a coff file that contains
+  shared library addresses.
+  
+  Annoyance : 
+  your library may use new(), if so add the following objects 
+  to your #objects list in the mkshlib spec file.
+  
+   _new.o _delete.o _arr_map.o _vec.o _handler.o
+  
+  These will provide the definitions for new(), delete() and a few 
+  others that I found were necessary.  
+  Where do you get these objects ??, from /usr/lib/CC/libC.a, using ar, 
+  the following command should do it:
+  
+  $ ar x /usr/lib/CC/libC.a _new.o _delete.o _arr_map.o _vec.o _handler.o
+  
+  
+  Summary: 
+  1) get this TLS, unpack
+  2) backup and replace mkshlib(CP) (/usr/bin) and patch(CC) (/usr/lib/CC)
+  3) add shlib_main.o to the #objects list, and hide "__head", in the spec file.
+  4) guarantee that your lib will call shlib_main() first and once.
+  5) extract _new.o _delete.o, etc...  from libC.a, add them to #objects list
+  
+  Examples: 
+  
+    The following examples will create a shared lib, and link a try program
+    with it. the try program will extract a string from the lib. 
+  
+    Cut out these files, type "make", then "try" :
+  
+  $ make && try
+  hi
+  Hello World
+  
+    The string "Hello World" comes from within the shared lib, and is 
+    set up via a constructor, so we know that the library constructor 
+    was called.
+  
+  hess@sco.com
+  
+  --------------------- cut here for "makefile" -----------------
+  all: libstr_s.a try
+  try.o: try.C
+  CC $(CCFALGS) -c $? 
+  try: try.o libstr_s.a 
+  CC -o $@ try.o libstr_s.a -lc_s
+  
+  libstr_s.a : String.o shlib_main.o libstr.spec
+  mkshlib -qis libstr.spec -t /tmp/libstr_s -h $@
+  /usr/lib/CC/patch  /tmp/libstr_s
+  
+  String.o: String.C String.h
+  CC $(CCFALGS) -c String.C
+  
+  ---------------------- cut here for String.C ----------------
+  #include <string.h>
+  #include "String.h"
+  extern "C" void shlib_main(); 
+  String::String( char *s) 
+  { 
+  len = strlen(s); 
+  str = new char [ len + 1 ] ; 
+  strcpy ( str, s ); 
+  }
+  
+  String hello_wld("Hello World"); 
+  
+  char *String::sayhi() {
+  shlib_main(); // make sure we call this...
+  return  hello_wld.str;
+  }
+  
+  ---------------------- cut here for String.h ----------------
+  class String {
+  public:
+  String( int );
+  String( char* );
+  char *sayhi(); 
+  char *str;
+  private:
+  int len;
+  };
+  
+  ---------------------- cut here for libstr.spec ----------------
+  #address .text 0xB3400000
+  #address .data 0xB3800000
+  #target /tmp/libstr_s
+  #branch
+      __ct__6StringFPc1
+      sayhi__6StringFv    2
+      __sti__String_C_sayhi_ 3
+  
+  #objects
+  _new.o _delete.o _arr_map.o _vec.o _handler.o
+  shlib_main.o
+  String.o
+  
+  #objects noload 
+  -lc_s
+  
+  #hide linker 
+  __head
+  
+  
+  ---------------------- cut here for try.C ----------------
+  #include <stream.h>
+  #include "String.h"
+  main()
+  {
+  String common("not this string"); 
+          char *t = common.sayhi();
+          cout << "hi\n" ;
+          cout << t;
+          cout << "\n";
+  }
+  
+
+

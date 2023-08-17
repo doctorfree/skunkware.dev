@@ -1,0 +1,165 @@
+This emulator is useful for running certain Windows
+applications under Merge on SCO.  See the article
+"Accessing CDROM files from Windows" in the Nov. 1994
+issue of "Inside SCO UNIX Systems".  Back issue and
+subscription requests may be directed to 
+
+   The Cobb Group
+   1-800-223-8720  or 502-493-3232
+   fax: 502-491-8050
+   email:  inside_sco@merlin.cob.ziff.com
+
+Dion L. Johnson
+SCO Product Manager - Development Systems  400 Encinal St. Santa Cruz, CA 95061
+dionj@sco.com   Compuserve: 71712,3301   FAX: 408-427-5417  Voice: 408-427-7565
+=============================================================
+The author's doc file:
+
+    CDEMU2: an MSCDEX emulator for networked CD-ROM drives
+                         User's Guide
+                        By J.M.A. Hall
+
+Overview
+On MS-DOS based computers, CD-ROM drives that are directly
+connected are normally made 'known' to the system using a
+program called MSCDEX, the Microsoft CD-ROM Extensions. The
+purpose of this program is firstly to make the files of the CD-
+ROM appear like an MS-DOS disk drive (which is very large, and
+read-only); and secondly to allow access to CD-ROM specific
+functions (such as the playing of audio tracks) in a hardware-
+independent manner.
+Several commercial solutions now exist for sharing CD-ROMS
+within a local-area network (LAN); most, however, are
+expensive and only cost-effective on large (and therefore
+expensive) networks. For small networks, a cheaper option is
+to use a peer-to-peer networking package such as NetWare Lite
+to share the drive letter assigned to the CD-ROM drive by
+MSCDEX across the network. The pitfall with this scheme is
+that a number of CD-ROM access packages do not simply access
+the CD-ROM as if it were an MS-DOS disk drive; instead they
+make special calls to MSCDEX, which fail since MSCDEX is not
+loaded on the machines accessing the drive across the network.
+Happily, most only make a few calls, principally to determine
+that MSCDEX is loaded and to determine which drives on the
+system are in fact CD-ROMs
+The function of CDEMU2, therefore, is to emulate MSCDEX in a
+limited fashion in order to fool CD-ROM applications into
+working across a network. It must be noted that not all CD-ROM
+applications will work in this fashion: applications that rely
+on playing of audio tracks will obviously not be usable in a
+network environment. Others, such as the Harrap Multilingual
+Dictionary, ignore the disk drive set up by MSCDEX and access
+the sectors of the CD-ROM directly; this and other
+applications that do this cannot be shared in this fashion. It
+should also be noted that using a CD-ROM application across a
+network legally requires that it be licensed for use on
+multiple machines concurrently.
+
+Installation
+The package consists of this document file and two programs,
+CDEMU2.COM and CDINFO.EXE. These may be placed in any
+convenient directory, though it is suggested that they be
+stored in a single directory on a file server which is
+accessible to all prospective clients of the networked CD-ROM
+drive and that this directory be included in the DOS PATH on
+all such machines.
+
+Usage of CDEMU2
+The command line format for CDEMU2 is as follows:
+          CDEMU2 d[:][=vtoc-file] [...] or
+          CDEMU2 /U to unload from memory
+where
+d[:]      is the MS-DOS disk drive letter which will be used
+          to access the CD-ROM drive across the network. It is
+          not necessary that this disk drive actually exist or
+          have been created at the time CDEMU2 is loaded,
+          though of course it must when the CD-ROM application
+          is started.
+vtoc-file is the name of a file created by the CDINFO utility.
+          This is used when it is necessary to emulate the
+          "Get VTOC" function in MSCDEX (see below for further
+          details).
+...       indicates that the above can be repeated as often as
+          necessary up to the length limit of an MS-DOS
+          command line (127 characters)
+
+Usage of CDINFO
+Certain CD-ROM packages, such as "Le Robert Electronique", not
+only check that MSCDEX is loaded, but read the "VTOC" or
+"Volume Table of Contents" as well (presumably in order to
+check that the CDROM is the correct one). As the VTOC is not
+accessed as an MS-DOS file, this function cannot be directly
+handled by the emulator. There is, however, a solution: the
+VTOC can be read from the CD-ROM into an MS-DOS file, and
+CDEMU2 can emulate the "Read VTOC" function  by reading this
+file instead. This is what the CDINFO utility is for.
+The command line format for CDINFO is
+          CDINFO d: vtoc-file
+where
+d:        is the drive letter assigned to the CD-ROM drive.
+          Note that you must run CDINFO on the system that the
+          physical CD-ROM drive is connected to!
+vtoc-file is the name of the file to store the VTOC
+          information in. It is suggested that this be stored
+          on the system acting as a fileserver and made
+          available to the client PCs.
+
+
+Examples
+Suppose that the CDEMU stuff (together with the VTOC emulation
+files) live in the directory C:\CDEMU2 on the machine acting
+as the CD-ROM server and  the CD-ROM product to be shared is
+"Le Robert Electronique" which appears to the server as drive
+E:. The steps to be followed are then:
+On the server:
+1.   Make C:\CDEMU2 and E:\ available to the network (this
+     assumes that the network software is already set up).
+2    Ensure that the CD-ROM is mounted in its drive. Change
+     directory to C:\CDEMU2 and issue the command
+               CDINFO E: LEROBERT.CDI
+On the client:
+1.   Access the CD emulation software and the CD-ROM drive on
+     the server using the network software. It will be assumed
+     that these will be accessed as drives G: and H: on the
+     client (i.e. G:\ on the client corresponds to C:\CDEMU2
+     on the server and H:\ on the client corresponds to E:\ on
+     the server).
+2.   Add the directory G:\ to the PATH statement on the
+     client. If the network software provides no other way to
+     do this, write a batch file that contains the line
+               PATH G:\;%PATH%
+     and execute it.
+3.   Load CDEMU2 on the client with the following command
+     line:
+               CDEMU2 H:=G:\LEROBERT.CDI
+4.   Run the "Le Robert" access program
+5.   Unload the emulator from memory, if required, using the
+     command
+               CDEMU2 /U
+
+Special notes
+1.   Most CD-ROM packages have a piece of software (usually
+called a "search engine" for database type applications) which
+needs to be installed on a hard disk This software may or may
+not be sharable via the network, depending on how it is
+written.
+2.   If the application makes a call to MSCDEX that is not
+supported by the emulator the screen will be cleared and an
+error message will be reported, together with the parameters
+to the call (i.e. the CPU register values at the time). This
+will normally be an indication that the application cannot be
+shared over a network using this emulator. The user should
+press a key, and then quit the application, since its screen
+contents will have been destroyed.
+3    It should be noted that an application must be licensed
+for multiple users on a network even if this emulator is
+capable of making it sharable.
+
+Copyright
+This software is copyright (c) 1992 J.M.A. Hall. However, it
+may be freely redistributed providing all the files comprising
+it are distributed together, and on the understanding that
+there is NO WARRANTY attached to this software. The author
+would be interested in comments and suggestions (email
+J.M.Hall@soton on JANET or J.M.Hall@soton.ac.uk on the
+Internet)

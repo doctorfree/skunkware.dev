@@ -1,0 +1,188 @@
+Editres for SCO Open Desktop 3.0
+================================
+
+Introduction
+------------
+
+editres is a tool for viewing the structure of X Toolkit applications,
+finding and setting resources, and dynamically see the results of the
+settings. editres displays the complete widget tree hierarchy for a
+specified client application. I also allows to create app-defaults
+files and fallback resources for applications.
+
+This distribution is based on the version from MIT built with the Athena 
+Widget set. SCO had modified the original version to make use the Motif 
+Widget set.
+
+This TLS only includes the X client part of editres as the necessary
+header files and supporting libraries are included in the standard
+SCO Open Desktop 3.0 distribution.
+
+This TLS is designed to run on an SCO Open Desktop 3.0 system. You also
+need an SCO Open Desktop 3.0 Development system to create editres
+supporting applications.
+
+Any feedback on this TLS is very welcomed.
+
+
+Installation
+------------
+
+To install this TLS, uncompress it and :
+
+    # cd /
+    # tar xvf editres.tar
+    # chown bin /usr/bin/X11/editres /usr/lib/X11/app-defaults/Editres \
+      /usr/lib/X11/app-defaults/Editres-color
+    # chgrp bin /usr/bin/X11/editres /usr/lib/X11/app-defaults/Editres \
+      /usr/lib/X11/app-defaults/Editres-color
+    # chmod 755  /usr/bin/X11/editres
+    # chmod 444   /usr/lib/X11/app-defaults/Editres \
+                  /usr/lib/X11/app-defaults/Editres-color
+
+    # l /usr/bin/X11/editres /usr/lib/X11/app-defaults/Editres*
+    -rwxr-xr-x 1 bin bin 218668 .. /usr/bin/X11/editres
+    -r--r--r-- 1 bin bin 11493  .. /usr/lib/X11/app-defaults/Editres
+    -r--r--r-- 1 bin bin 948    .. /usr/lib/X11/app-defaults/Editres-color
+
+
+How do I create a X client that supports editres
+------------------------------------------------
+
+editres is event driven. This means that you have to register and event
+handler for incoming editres requests with the toplevel widget. The attached 
+example program illustrates this :
+
+...
+#include <X11/Xmu/Editres.h>
+
+...
+
+  XtAddEventHandler(toplevel, (EventMask) 0, True,
+                    _XEditResCheckMessages, NULL);
+
+...
+
+You can build the example program with :
+
+$ cc -o formtest formtest.c -lXm -lXmu -lXt -lX11 -lsocket
+
+Having built this "formtest" will fully support the editres protocol.
+
+
+Example
+-------
+
+/**********************************************************************************
+  * formtest.c: Test the constraints of the XmForm Widget
+  *         From:
+  *                   The X Window System, 
+  *            Programming and Applications with Xt
+  *                   OSF/Motif Edition
+  *         by
+  *                Douglas Young
+  *              Prentice Hall, 1990
+  *
+  *                 Example described on pages:      88-92
+  *
+  *
+  *  Copyright 1989 by Prentice Hall
+  *  All Rights Reserved
+  *
+  * This code is based on the OSF/Motif widget set and the X Window System
+  *
+  * Permission to use, copy, modify, and distribute this software for 
+  * any purpose and without fee is hereby granted, provided that the above
+  * copyright notice appear in all copies and that both the copyright notice
+  * and this permission notice appear in supporting documentation.
+  *
+  * Prentice Hall and the author disclaim all warranties with regard to 
+  * this software, including all implied warranties of merchantability and fitness.
+  * In no event shall Prentice Hall or the author be liable for any special,
+  * indirect or cosequential damages or any damages whatsoever resulting from 
+  * loss of use, data or profits, whether in an action of contract, negligence 
+  * or other tortious action, arising out of or in connection with the use 
+  * or performance of this software.
+  *
+  * Open Software Foundation is a trademark of The Open Software Foundation, Inc.
+  * OSF is a trademark of Open Software Foundation, Inc.
+  * OSF/Motif is a trademark of Open Software Foundation, Inc.
+  * Motif is a trademark of Open Software Foundation, Inc.
+  * DEC is a registered trademark of Digital Equipment Corporation
+  * HP is a registered trademark of the Hewlett Packard Company
+  * DIGITAL is a registered trademark of Digital Equipment Corporation
+  * X Window System is a trademark of the Massachusetts Institute of Technology
+  **********************************************************************************/
+
+#include <X11/Intrinsic.h> 
+#include <Xm/Xm.h>
+#include <Xm/Form.h>
+#include <Xm/PushB.h>
+#include <X11/Xmu/Editres.h>
+
+
+char * buttons[] = {"button1", "button2", "button3"};
+
+main(argc, argv)
+     int   argc;
+     char *argv[];
+{
+  Widget toplevel, form, wbutton[5];
+  int    i, n;
+  Arg wargs[10];
+  toplevel = XtInitialize(argv[0], "Formtest", NULL, 0, 
+                          &argc, argv);
+
+  /* Register the Editres event handler */
+  XtAddEventHandler(toplevel, (EventMask) 0, True, 
+                    _XEditResCheckMessages, NULL);
+             
+  /*
+   * Create an XmForm manager widget
+   */
+  form = XtCreateManagedWidget("form", xmFormWidgetClass, 
+                               toplevel, NULL,0);
+  /*
+   * Add three XmPushButton widgets to the Form Widget.
+   */
+  for(i=0;i< XtNumber(buttons); i++)
+    wbutton[i] = XtCreateWidget(buttons[i],
+                                xmPushButtonWidgetClass, 
+                                form, NULL,0);
+  XtManageChildren(wbutton, XtNumber(buttons));
+  /*
+   * Set constraint resources for each button, setting up
+   * a shape like this:
+   *          button one
+   *          button two
+   *          button three
+   */
+  n = 0;
+  XtSetArg(wargs[n], XmNtopAttachment,   XmATTACH_FORM); n++;
+  XtSetArg(wargs[n], XmNleftAttachment,  XmATTACH_FORM); n++;
+  XtSetArg(wargs[n], XmNrightAttachment, XmATTACH_FORM); n++;
+  XtSetValues(wbutton[0], wargs, n);
+  n = 0;
+  XtSetArg(wargs[n], XmNtopAttachment,   XmATTACH_WIDGET);n++;
+  XtSetArg(wargs[n], XmNtopWidget,       wbutton[0]);     n++;
+  XtSetArg(wargs[n], XmNleftAttachment,  XmATTACH_FORM);  n++;
+  XtSetArg(wargs[n], XmNrightAttachment, XmATTACH_FORM);  n++;
+  XtSetValues(wbutton[1], wargs, n);
+  n = 0;
+  XtSetArg(wargs[n], XmNtopAttachment,   XmATTACH_WIDGET);n++;
+  XtSetArg(wargs[n], XmNtopWidget,       wbutton[1]);     n++;
+  XtSetArg(wargs[n], XmNleftAttachment,  XmATTACH_FORM);  n++;
+  XtSetArg(wargs[n], XmNrightAttachment, XmATTACH_FORM);  n++;
+  XtSetArg(wargs[n], XmNbottomAttachment,XmATTACH_FORM);  n++;
+  XtSetValues(wbutton[2], wargs, n);
+
+  XtRealizeWidget(toplevel);
+  XtMainLoop();
+}
+
+_______________________________________________________________________________
+Georg Edelmann                                    | george@sco.com or
+Technical Support                                 | scol-support@sco.com
+The Santa Cruz Operation Ltd.                     | (+44) (0)923 816344 (phone)
+Watford, WD1 8YN, United Kingdom                  | (+44) (0)923 817781 (fax)
+

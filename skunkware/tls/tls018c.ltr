@@ -1,0 +1,154 @@
+Subj: TLS018c - monitor and trace utilities
+
+Changes 13 May 93 to revision c:
+	remove gbcw
+                - This version was too fragile; withdrawn.
+		- no longer being maintained.
+
+	new version of trace:
+		- supports shared libraries
+		- intercepts sigprocmask and sigaction calls and
+		  prevents them from blocking SIGTRAP
+		- SIGINT now terminates trace as claimed.
+		- if traced process forks, forked child no
+		  longer dies with SIGTRAP
+
+Changes revision "b"  17 Mar 93: new version of bcw handles larger number
+of buffer headers, displays buffer cache aging information]
+
+---------------
+
+This TLS contains some interesting utilities and debug tools.
+
+   memhog - displays utilization of cpu, memory, and i/o
+   bcw - buffer cache watch: display info about buffer cache
+   showreg - show regions attached to a process
+   trace - trace system calls
+
+There are three directories:
+bin:
+	stripped binaries, compiled with static libraries
+man:
+	man pages for the commands in bin.
+cat:   
+        formatted man pages (nroff)
+
+This is just a plain tar file.  You can decide where to install
+the bits and pieces.
+
+Note that all programs except trace must be able to read /unix and
+/dev/kmem.  The safest way to set this up is to make /unix and /dev/kmem
+group mem, group readable, and make these programs sgid mem.  As
+shipped, they can only be run by root.
+
+Also note that trace will not work on binaries stored on NFS filesystems
+unless you are running 3.2v4 (on the NFS client side).
+
+Comments are welcome.  The author is Tom Kelly, tom@sco.com.
+See below for some useful comments from Jim Sullivan.
+
+Dion L. Johnson
+SCO Product Manager - Development Systems  400 Encinal St. Santa Cruz, CA 95061
+dionj@sco.com   Compuserve: 71712,3301   FAX: 408-427-5417  Voice: 408-427-7565
+===============================================================================
+Output from bcw:
+
+buffers: 200 (200 K) hash slots:  64 pbufs:  20
+lread    0 bread    0 (hit 100) lwrite    0 bwrite    0 (hit 100) w:r   0
+in-cache 198 slots used  63 longest   8 shortest   1 async  0
+median chain:   3
+>120s:    0 >60s:    0 >30s:  159 >10s:   35 >5s:    0 >1s:    4 >0s:    0
+Busy   0 !Done   0 Want   0 Async   0 DelWri   9 Stale   0 Remote   0
+132131 432321212142453334334733444231358545542244333155433523321
+
+Explanations:
+
+>>buffers: 200 (200 K) hash slots:  64 pbufs:  20
+
+Buffers is the value of NBUFS, hash slots is NHBUFS and pbufs is NPBUFS
+
+>>lread    x bread    y (hit 100) lwrite    z bwrite    v (hit 100) w:r   u
+
+lread, bread, lwrite and bwrite are the same as is documented in the SAG
+for sar -b.  What this says is that during the last sample period, there
+were x logical reads (user programs read data that was present in the
+buffer cache, no disk access was required), y block reads (data was not
+found in the buffer cache, so we actually had to scheduled a read from the
+disk and wait for it to complete before we returned to the program),
+z logical writes (where the user programs have written data, but it is
+just being buffered in the cache) and v block writes (we've written v
+dirty buffers to the disk).  The ``hit'' number are the percentage of
+operations that went to cache instead of disk (lread/(lread+bread)) and
+lwrite/(lwrite+bwrite).  The w:r is the ratio of write to reads.
+
+>>in-cache 198 slots used  63 longest   8 shortest   1 async  0
+>>median chain:   3
+
+>>132131 432321212142453334334733444231358545542244333155433523321
+
+Disk buffers are either in the cache or on the free list.  The in-cache
+number is approximately the number of buffers in the cache (approximate
+because it gets the number by adding up the lengths of the chains, but
+they could change during the summation period).  If you had 600 buffers
+allocated and the in-cache number is consistantly less than 600, you
+have too many buffers allocated and you can use that memory elsewhere.
+
+slots-used is the number of hash buckets that actually have real buffers
+attached to them.  If you look at the final line (the row of numbers)
+you will notice that there is a single blank space.  In our example,
+there are 64 NHUFS (hash buckets) and one is not in use, at this time.
+slots-used is NHUFS-1=63!  If this number if significant less than NHBUFS,
+there may be a problem, since the disk buffers are not being distributed
+equally across the hash buckets.  We'll discuss this in a second.
+
+longest and shortest represent the length of the longest and shortest
+hash chains.  The final line is the actual lengths of each hash chains.
+median chain is the median (the value in an ordered set of values below
+and above which there is an equal number of values, websters) of the
+hash chains.  Ideally, this number should be small (<=4).  Remember that
+when we do a read or a write, we first check the buffer cache to see if
+the data block is already in cache.  Each check consists of a comparison
+of the block addresses.  The algorithm looks something like this:
+
+	calculate hash bucket (using block address)
+	ptr = start of hash chain
+	while( ptr.baddr != block address )
+		ptr = ptr.next
+
+Ideally, you want to whip through this loop, because if the data block is
+not in the cache, you'll have to read it in.  If you spend too much time
+in this loop, then the buffer cache starts to get in the road.  This is
+why you should always increase NHBUFS to approximately NBUFS/4 when you
+increase NBUFS.  Our process to automatically determine NBUFS on startup
+is flawed in that it will not increase NHBUFS accordingly.  I suspect
+there are a large number of systems out there with NHBUFS=64 and NBUFS
+being dynamically determined at startup.  I've seen sites with NBUFS in
+excess of 2000, but NHBUFS still at 64.  Needless to say, disk performance
+is terrible.
+
+If the last line has an asterisk in it, it means that the length of the
+hash chain is greater than 10, which obviously could be a bad thing.
+Many *'s means the buffer cache is not performing to its potential.
+
+
+>>>120s:    0 >60s:    0 >30s:  159 >10s:   35 >5s:    0 >1s:    4 >0s:    0
+
+This is aging data.  Buffers get re-used depending on their age, with older
+buffers going first.  The idea is that if you are reading a particular
+buffer regularly, then re-using that buffer is bad.  You should re-use a
+buffer that is not used regularly.  The numbers presented here should
+add up to the in-cache number.  In my example, I have 159 buffers that
+have not been touched (read or written) in the last 30 seconds.  The idea
+came from the net, where there was a request to have this type of
+information.  With this info, you can get an idea of the total number of
+buffers you'd need, in general.  Remember that buffers do not get recycled
+until they are needed, so regularly used buffers (representing
+commonly read/written data) are never/rarely recycled.  If you have a
+large number of buffers in the 120 seconds field, then you MIGHT be able
+to reduce the total NBUFS number by that amount.
+
+>>Busy   0 !Done   0 Want   0 Async   0 DelWri   9 Stale   0 Remote   0
+
+This line represents that status of the buffers, and corresponds to the
+actual states that a buffer can be in. 
+---------------

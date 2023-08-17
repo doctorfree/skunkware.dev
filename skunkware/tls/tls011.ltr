@@ -1,0 +1,92 @@
+19 Sept 92
+
+TLS011 - Multi Memo Distribution Facility - MMDF mail subsystem rel. 1.0.0f
+
+This is a prerelease cut of the MMDF that is in SCO Open Desktop 2.0.
+It seems to work OK for many users on SCO UNIX release 3.2,
+versions 0, 2 or 4, or even the mysterious version 3.
+
+tls011.doc2.Z is docs in tar format.
+The file tls011.dotar.Z is additional docs in postscript format.
+
+Reports have been received that it can be installed on XENIX with
+some editing of the /etc/perms file!  
+
+Download, uncompress, copy to floppy, and use custom to install.
+The doc files are just tar files, no custom needed.
+
+
+Creating an mmdftailor file for this new MMDF release:
+
+1. chmod +x /etc/mkdev
+2. login as mmdf and be sure your directory is /usr/mmdf
+3. be sure that nameservice is already configured
+4. execute: /etc/mkdev mmdf
+
+Add this line to /etc/default/mail:
+
+MMDFREL=43NS
+
+This encourages the mkdev script to ask the appropriate questions
+and set up an mmdftailor file with the correct stuff for nameservice.
+
+Note: if you have TCP/IP earlier than release 1.2, you should consider
+getting the SCO support level supplement lng321 which, among other things,
+makes nameserver support work right.
+
+There is a new MMDF channel writer's kit in tls019.
+
+As usual, comments are welcome, but no support is promised.
+ 
+Dion L. Johnson
+SCO Product Manager - Development Systems
+dionj@sco.com
+
+------------------------------------------------------------------------
+Supplementary info - Thanks to our friend Lance!
+
+Subject: MMDFII 43 name server configuration
+Date: Wed, 3 Jun 92 1:13:13 PDT
+
+Hello again,
+Well I finally got it all working! But in doing that, I found a number
+of bugs in the /usr/lib/mkdev/mmdf script. 
+Here they are..
+
+All the UUCP configuration information MUST be before the SMTP 
+configuration information. Why? Well lets say I have a system
+that I MX for and I talk to them using UUCP. What happens
+when MMDF tries to resolve the domain name? Re-queues it for
+SMTP delivery.. Over and over again.. :( Switching the location
+of the UUCP and SMTP configuration information fixed this problem.
+This way, it looks for the domain name in the UUCP tables and
+then send via UUCP.
+
+There is a missing domain table entry before the SMTP configuration
+information. This enty MUST be there otherwise SMTP will not
+resolve unknown domains. add something like the following BEFORE
+the SMTP entries:
+
+MTBL dom-topn, flags=ns, flags=domain
+MDMN "ns-top", table="dom-topn", dmn="", show="Top Nameserver"
+
+and you must add "ap=try" on the MCHN for SMTP.
+
+Also, you should add mod=reg for any channels that you have in 
+the /etc/rc2.d/*mmdf file.
+
+There was one other problem. Our system has the following names:
+
+UUCP: hermix.uucp
+INET: hermix.markv.com, markv.com
+
+Well because of the multiple declarations of the same domain tables 
+in the created MMDF file (because of the way it is built up), when 
+the above mentioned MTBL and MDMN entries are included to make SMTP work,
+the system no longer recoginizes mail sent to user@hermix.uucp.
+I had to force it to map hermix.uucp to be markv.com and then all
+worked fine.
+
+Just wanted to report what I had found.
+
+

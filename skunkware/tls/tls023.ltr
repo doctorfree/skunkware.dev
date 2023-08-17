@@ -1,0 +1,153 @@
+to: Multimedia fans
+
+Subj: tls023 - soundblaster driver, etc. original distribution
+      tls023d- updated drivers, binaries only
+      tls023ds- drivers, source code
+
+Here is a version of Brian Smith's Soundblaster(tm) driver.
+This goes with tls022, which is some playback and Open Desktop
+interface code.
+
+The new file here tls023d.tar.Z contains improved/updated drivers
+with an install script.   Sources  are in tls023ds.  These might
+not precisely match the binaries, but they are close. :-)
+
+We are very grateful to Brian Smith and Lance Norskog for their
+work in this contribution to the technical community.
+
+General comments should be directed to the contributors listed at
+the end of the README (below).  Comments specific to the SCO version
+would be welcomed by Rick Kamp, rickk@sco.com
+
+Dion L. Johnson
+SCO Product Manager - Development Systems  400 Encinal St. Santa Cruz, CA 95061
+Bangpath:                           ...{ucbvax!ucscc, decwrl, uunet}!sco!dionj
+Domain:  dionj@sco.com    FAX: 408-427-5417                  Tel: 408-427-7565
+
+
+
+
+                         Sound Blaster(tm) Driver
+                       (Copyright 1991, Brian Smith)
+
+	Rewritten for Release 3 by Lance Norskog, June 1992
+
+This driver has been ported to the SCO environment by various
+engineers at SCO.  Problems or suggestions should be sent to 
+the mail address at the end of this file.
+
+This is a driver and application suite for the Creative Labs'
+original monophonic Sound Blaster card.  It should work on
+other cards that claim to be SB-compatible, like the SB Pro,
+MediaVision, etc.  (The Adlib synth chips are supported, but
+you may have to comment out the SB DSP chip support if you
+want to run the Adlib or Game Board cards.)
+
+Version 1 of the driver & applications was written by Brian Smith 
+(brians@rigel.cs.pdx.edu).  Pace Willisson (pace@blitz.com) rewrote
+the driver for overall cleanliness and to use in-kernel buffering
+to avoid the gottverdammter clicking problem. Independently, I
+rewrote the assembler interrupt to attack this issue, and have
+since merged my ugly hacks into Pace's very clean rewrite.
+As it turns out, you need to get the DSP 2.0 chip from Creative
+Labs to solve the clicking problem.
+
+The application suite now contains a simple MIDI file player
+which uses the mf2t (or mft) MIDI file library.  This library
+comes in three forms; mf2t or mft is the latest version from
+Piet van Oostrum (piet@cs.ruu.nl).
+
+New! MIDI works!
+
+Known problems: 1) if you write sound samples in 16k chunks,
+the last one will not be played.  2) Loud click at end of
+play.  3) There's no protocol for an FM program to share
+FM channels with other programs.  4) The init code hangs
+in ISC 3.0 and SCO Unix.  No word yet on how to fix this.
+
+REQUIREMENTS
+
+This driver  and the associated user programs require a 386/486 system
+running System V 3.2 Unix.  It has been tested on Open Desktop 2.0 and
+UNIX 3.2v4 systems.  Remember, though, THERE IS NO WARRANTY.
+
+As a  character driver, it should port easily to Linux and the various
+BSD 386 ports going on.  There is a Streams driver that presently only
+does  MIDI; this should port to V.4 easily.  It should also be easy to
+port  the  sampling and  FM  synthesis  parts  of  the driver into the
+Streams version, but nobody's done it yet.
+
+(There is a separate driver for the SB-Pro on 386 BSD:
+contact Steve Haenischen, haenisch@ucsd.edu.)
+
+GENERAL INFORMATION
+
+This driver  is for the  Sound Blaster sound card designed by Creative
+Labs,  Incorporated.   The  Sound  Blaster  is  a  sound card  for the
+IBM-PC(tm) type I/O bus.  The card is capable of sampling sound from a
+microphone jack from 4KHz  to  23KHz (or 24KHz,  depending  upon which
+portion of the manual you believe) at 8 raw bits of resolution.  It is
+also capable of playing  samples at speeds from 4KHz up to 12KHz.  The
+board  can play raw 8 bit samples, or  2 bit,  2.6 bit, or 4 bit ADPCM
+packed samples.  ADCPM  is a lossy  method  of data  compression.  The
+sampling and output may  be directly driven by the  CPU, or it  may be
+driven by DMA.  The card  is also capable of  playing music through an
+on-board  FM synthesizer  chip.   The  chip  may  play 9  simultaneous
+instruments, or  it  can play 6 simultaneous voices  with 5 additional
+rhythm instruments.  In  addition, the  board (but NOT my driver) also
+supports the addition of 2 C/MS chips. For  more information, read the
+advertising blurb, errr...  manual which comes with the Sound Blaster.
+
+The driver is  capable  of utilizing only a subset of the capabilities
+of the Sound Blaster card.  The driver is accessed through four device
+nodes.
+
+The /dev/sbdsp node accesses the DSP  chip which controls sampling and
+sample playback.  Only 8-bit sound is supported thus far.  The  driver
+utilizes  DMA,  and  therefore is very unobtrusive to the system load.
+The ls  utility is  harder upon the system.  Read(2) and write(2) upon
+/dev/sbdsp sample  sound and  play back  sound  samples, respectively.
+Several  ioctl(2)'s  control sampling/playback speed,  resets,  etc...
+The play_snd utility demonstrates the use of the /dev/sbdsp node.
+
+The /dev/sbfm node accesses the  FM chips.  The only access to  the FM
+chips are through  ioctl(2)'s.  The play_cmf utility demonstrates  the
+use  of the FM chips  by (mostly) interpreting  and playing CMF files.
+The various options  controlling the voices  can be dumped  from a CMF
+file by the get_instruments utility.  Those familiar with synthesizers
+can then learn how to create their own instruments.
+
+The /dev/sbcms node accesses absolutely nothing.  The  C/MS chips  are
+really awful, and Creative Labs is trying to forget it ever used them.
+
+The  /dev/sbmidi node  does MIDI I/O  if you have  a  MIDI  dongle box
+attached to the joystick port.   The  driver reads & writes a longword
+per MIDI byte, with the other 3 bytes giving a Unix time code.
+
+This driver is merely the rough outlines of what it could be.  Support
+could be added for oodles of  features, like  efficiency improvements,
+and ADCPM interpretion for the /dev/sbdsp node.  If you wish to add to
+this driver, please be my guest (after reading the license file).
+
+The file sb.prog.doc gives the complete info on programming the SB and
+SB Pro.  If you have an SB  Pro and want to  hear it do stereo, you'll
+have to modify this software.  Please send in your changes.
+
+With Brian's  consent,  I have taken over as maintainer of this suite.
+Please!  Send  your fixes to  me,  and I'll integrate them, test them,
+and send the  patches to Usenet.  That way, there won't be billions of
+versions of this driver to contend with.
+
+Send money to Brian Smith, if you want.  
+
+The current list of contributors is:
+
+	Brian Smith		(brians@rigel.cs.pdx.edu)
+	Lance C. Norskog	(thinman@netcom.com)
+	Pace Willisson		(pace@blitz.com)
+	Rick Richardson		(rick@digibd.com)
+	Rick Kamp		(rickk@sco.com)
+
+Enjoy!
+
+Lance C. Norskog
