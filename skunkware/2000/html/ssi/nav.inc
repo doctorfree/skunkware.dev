@@ -15,17 +15,17 @@
 <!--Begin adding link and navigation items - see http://spin.sco.com/box/-->
 <!--Begin adding link and navigation item-->
 
-<p class="navarea"><a href="http://www.sco.com/skunkware/whatsnew.html">
+<p class="navarea"><a href="http://skunkware.dev/skunkware/whatsnew.html">
 What's New</a></p>
-<p class="navarea"><a href="http://www.sco.com/skunkware/uw7/Packages">
+<p class="navarea"><a href="http://skunkware.dev/skunkware/uw7/Packages">
 UnixWare 7</a></p>
-<p class="navarea"><a href="http://www.sco.com/skunkware/osr5/vols/">
+<p class="navarea"><a href="http://skunkware.dev/skunkware/osr5/vols/">
 OpenServer</a></p>
 <p class="navarea"><a href="html/cdrom/relnotes.html">Release Notes</a></p>
 <p class="navarea"><a href="html/cdrom/faq.html">FAQ</a></p>
 <p class="navarea"><a href="http://www.sco.com/developer/">
 Developer's Place</a></p>
-<p class="navarea"><a href="http://www.sco.com/skunkware/credits.html">
+<p class="navarea"><a href="http://skunkware.dev/skunkware/credits.html">
 Acknowledgements</a></p>
 
 <img src="/ssi/toolbar/invis.gif" width="132" height="10" border="0"></td></tr></table>
