@@ -59,7 +59,7 @@ over that website, a story for another time.
 
 The mid-90s releases of SCO Skunkware were on a mountable CD-ROM which contained
 an HTTP server and HTML documents with links to SCO `Custom+` installable packages.
-[NCSA Mosaic](<https://en.wikipedia.org/wiki/Mosaic_(web_browser)>) had been
+[NCSA Mosaic](https://en.wikipedia.org/wiki/Mosaic_(web_browser)){:target="_blank"}{:rel="noopener noreferrer"} had been
 licensed by SCO shortly after its first release in 1993 and was used by
 Skunkware as the primary interface to browse the mounted CD-ROM. The CD also
 contained a `Custom+` installable Skunkware SSO (Software Storage Object) which

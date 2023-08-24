@@ -64,8 +64,8 @@ an open source e-commerce platform but it seemed important to the execs so I
 did it. I took all of the content that I removed from Skunkware and added it
 to my personal website then added some links to my personal website in
 Skunkware. For example, here is the full list of
-[Unabomber Haikus](https://archive.ronrecord.com/Poems/unabomber.html)
-and the [Homer Simpson Quotes](https://archive.ronrecord.com/Quotes/homer.html).
+[Unabomber Haikus](https://archive.ronrecord.com/Poems/unabomber.html){:target="_blank"}{:rel="noopener noreferrer"}
+and the [Homer Simpson Quotes](https://archive.ronrecord.com/Quotes/homer.html){:target="_blank"}{:rel="noopener noreferrer"}.
 
 Skunkware, especially the early releases, was chock full of fun, zany,
 interesting, weird, irrelevant stuff. There was a
@@ -82,7 +82,7 @@ Speaking of open source e-commerce platforms, I invented one. I called it
 [NOSEPAK](https://skunkware.dev/skunkware/ecom), short for "NonStop Open
 Source E-commerce Package". Nosepak was built on the new features in
 UnixWare supporting
-[NonStop Clusters](https://en.wikipedia.org/wiki/UnixWare_NonStop_Clusters).
+[NonStop Clusters](https://en.wikipedia.org/wiki/UnixWare_NonStop_Clusters){:target="_blank"}{:rel="noopener noreferrer"}.
 
 Nosepak provided an open source web shopping cart and groupware. I used Squid
 and Apache along with startup, optimization, and failover scripts. It all
@@ -109,7 +109,7 @@ to go to Jamaica with a bunch of Sales people. That was fun. Thanks John!
 
 Not only did Nosepak go down in flames, NonStop Clusters also bit the dust.
 Caldera, after buying SCO, killed NSC. It eventually became
-[OpenSSI](https://en.wikipedia.org/wiki/OpenSSI).
+[OpenSSI](https://en.wikipedia.org/wiki/OpenSSI){:target="_blank"}{:rel="noopener noreferrer"}.
 
 ## Kamal's Iguana Cam
 
@@ -138,7 +138,7 @@ of Hi-Tech Corporate Espionage Bowlers. Jeff and I also started a company
 softball team with money from SCO. We came in second place two years in a row!
 
 Hiram Clawson and I got SCO to donate $5000 to the
-[Berkeley SETI project](https://seti.berkeley.edu/) and we got to go to
+[Berkeley SETI project](https://seti.berkeley.edu/){:target="_blank"}{:rel="noopener noreferrer"} and we got to go to
 Berkeley and meet the researchers.
 
 Eric and I got SCO to fund an ISDN line into Palookaville, a local live

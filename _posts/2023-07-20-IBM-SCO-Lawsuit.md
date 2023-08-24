@@ -52,7 +52,7 @@ what open source is, the difference between SCO Unix and Skunkware,
 and everything. Over and over.
 
 The IBM lawyers also asked a lot of questions about my personal website,
-[ronecord.com](https://ronrecord.com). There was a bunch of open source
+[ronecord.com](https://ronrecord.com){:target="_blank"}{:rel="noopener noreferrer"}. There was a bunch of open source
 software on my website! Yes, that is the software laboratory I wrote
 as part of my Ph.D. thesis in Mathematics at the University of California
 at Santa Cruz. The software creates a laboratory to explore chaotic
